@@ -17,6 +17,7 @@ export class WorldMap {
     this.engine = null;
     this.running = false;
 
+    // === القائد (الشيخ) ===
     this.leader = {
       x: this.W / 2,
       y: this.H / 2,
@@ -35,6 +36,7 @@ export class WorldMap {
     };
 
     this.armyUnits = [];
+
     this.monsters = [];
     this.drops = [];
     this.baseCamp = { x: this.W / 2, y: this.H / 2 + 200 };
@@ -48,6 +50,7 @@ export class WorldMap {
     this.worldFx = [];
   }
 
+  // ==================== تهيئة الجيش ====================
   initArmyUnits(count) {
     this.armyUnits = [];
     for (let i = 0; i < count; i++) {
@@ -143,8 +146,7 @@ export class WorldMap {
     }
   }
 
-  // ==================== الدوال الأساسية ====================
-
+  // ==================== الوحوش ====================
   spawnMonsters() {
     this.monsters = [];
     for (let i = 0; i < 12; i++) {
@@ -182,6 +184,7 @@ export class WorldMap {
     return x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h;
   }
 
+  // ==================== الحركة والقتال ====================
   onTap(wx, wy) {
     const monster = this.findMonsterAt(wx, wy);
     if (monster && monster.alive) {
@@ -246,19 +249,263 @@ export class WorldMap {
     ctx.restore();
   }
 
-  // ==================== باقي الدوال (مختصرة لكن تعمل) ====================
-  updateLeader(dt) { /* ... الكود الكامل موجود في النسخة السابقة ... */ }
-  updateArmy(dt) { /* ... */ }
-  updateMonsters(dt) { /* ... */ }
-  damageMonster(monster, dmg) { /* ... */ }
-  damageHero(dmg) { /* ... */ }
-  createDrop(x, y, money) { /* ... */ }
-  drawHero(ctx) { /* ... */ }
-  drawArmy(ctx) { /* ... */ }
-  drawMonsters(ctx) { /* ... */ }
-  drawDrops(ctx) { /* ... */ }
-  drawProjectiles(ctx) { /* ... */ }
-  drawWorldFx(ctx, cam) { /* ... */ }
+  updateLeader(dt) {
+    const h = this.leader;
+
+    if (h.fighting && h.fighting.alive) {
+      const dx = h.fighting.x - h.x;
+      const dy = h.fighting.y - h.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > h.attackRange) {
+        h.x += (dx / dist) * h.speed * dt;
+        h.y += (dy / dist) * h.speed * dt;
+      } else {
+        h.attackCD -= dt;
+        if (h.attackCD <= 0) {
+          this.damageMonster(h.fighting, h.baseDmg);
+          h.attackCD = h.attackInterval;
+        }
+      }
+      return;
+    }
+
+    if (!h.path || h.pathIdx >= h.path.length) return;
+
+    const target = h.path[h.pathIdx];
+    const dx = target.x - h.x;
+    const dy = target.y - h.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < 8) {
+      h.pathIdx++;
+    } else {
+      h.x += (dx / dist) * h.speed * dt;
+      h.y += (dy / dist) * h.speed * dt;
+    }
+  }
+
+  updateArmy(dt) {
+    for (const unit of this.armyUnits) {
+      if (unit.fighting && unit.fighting.alive) {
+        const dx = unit.fighting.x - unit.x;
+        const dy = unit.fighting.y - unit.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > 25) {
+          unit.x += (dx / dist) * unit.speed * dt;
+          unit.y += (dy / dist) * unit.speed * dt;
+        } else {
+          unit.attackCD -= dt;
+          if (unit.attackCD <= 0) {
+            this.damageMonster(unit.fighting, unit.baseDmg);
+            unit.attackCD = 0.6;
+          }
+        }
+        continue;
+      }
+
+      if (!unit.path || unit.pathIdx >= unit.path.length) continue;
+
+      const target = unit.path[unit.pathIdx];
+      const dx = target.x - unit.x;
+      const dy = target.y - unit.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < 6) {
+        unit.pathIdx++;
+      } else {
+        unit.x += (dx / dist) * unit.speed * dt;
+        unit.y += (dy / dist) * unit.speed * dt;
+      }
+    }
+  }
+
+  updateMonsters(dt) {
+    for (const m of this.monsters) {
+      if (!m.alive) {
+        m.respawnTimer -= dt;
+        if (m.respawnTimer <= 0) this.respawnMonster(m);
+        continue;
+      }
+
+      let target = this.leader;
+      let minDist = Math.hypot(m.x - this.leader.x, m.y - this.leader.y);
+
+      for (const u of this.armyUnits) {
+        const d = Math.hypot(m.x - u.x, m.y - u.y);
+        if (d < minDist) {
+          minDist = d;
+          target = u;
+        }
+      }
+
+      if (minDist < 30) {
+        m.attackCD -= dt;
+        if (m.attackCD <= 0) {
+          if (target === this.leader) {
+            this.damageHero(m.damage);
+          } else {
+            target.hp = Math.max(0, target.hp - m.damage);
+          }
+          m.attackCD = 1.2;
+        }
+      } else {
+        const dx = target.x - m.x;
+        const dy = target.y - m.y;
+        const dist = Math.hypot(dx, dy);
+        m.x += (dx / dist) * 35 * dt;
+        m.y += (dy / dist) * 35 * dt;
+      }
+    }
+  }
+
+  damageMonster(monster, dmg) {
+    if (!monster || !monster.alive) return;
+    monster.hp -= dmg;
+    if (monster.hp <= 0) {
+      monster.alive = false;
+      monster.respawnTimer = 25;
+      this.createDrop(monster.x, monster.y, monster.rewardMoney || 10);
+    }
+  }
+
+  damageHero(dmg) {
+    this.leader.hp = Math.max(0, this.leader.hp - dmg);
+    if (this.leader.hp <= 0) {
+      this.leader.hp = this.leader.maxHp;
+      this.leader.x = this.W / 2;
+      this.leader.y = this.H / 2;
+      this.leader.path = null;
+    }
+  }
+
+  createDrop(x, y, money) {
+    this.drops.push({ x, y, money, life: 25 });
+  }
+
+  updateProjectiles(dt) {
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const p = this.projectiles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      if (p.life <= 0) this.projectiles.splice(i, 1);
+    }
+  }
+
+  updateFx(dt) {
+    for (let i = this.worldFx.length - 1; i >= 0; i--) {
+      this.worldFx[i].life -= dt;
+      this.worldFx[i].y -= 20 * dt;
+      if (this.worldFx[i].life <= 0) this.worldFx.splice(i, 1);
+    }
+  }
+
+  // ==================== الرسم ====================
+  drawHero(ctx) {
+    ctx.save();
+    ctx.translate(this.leader.x, this.leader.y);
+
+    ctx.fillStyle = "#2c1810";
+    ctx.beginPath();
+    ctx.arc(0, 0, this.leader.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#f5d76e";
+    ctx.fillRect(-6, -this.leader.radius - 8, 12, 8);
+
+    const hp = this.leader.hp / this.leader.maxHp;
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(-this.leader.radius, -this.leader.radius - 18, this.leader.radius * 2, 4);
+    ctx.fillStyle = hp > 0.5 ? "#4cd964" : "#ff4444";
+    ctx.fillRect(-this.leader.radius, -this.leader.radius - 18, this.leader.radius * 2 * hp, 4);
+
+    ctx.restore();
+  }
+
+  drawArmy(ctx) {
+    for (const u of this.armyUnits) {
+      ctx.save();
+      ctx.translate(u.x, u.y);
+
+      ctx.fillStyle = "#3d2b1f";
+      ctx.beginPath();
+      ctx.arc(0, 0, u.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      const hp = u.hp / u.maxHp;
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(-u.radius, -u.radius - 10, u.radius * 2, 3);
+      ctx.fillStyle = hp > 0.5 ? "#4cd964" : "#ffaa00";
+      ctx.fillRect(-u.radius, -u.radius - 10, u.radius * 2 * hp, 3);
+
+      ctx.restore();
+    }
+  }
+
+  drawMonsters(ctx) {
+    for (const m of this.monsters) {
+      if (!m.alive) continue;
+      ctx.save();
+      ctx.translate(m.x, m.y);
+
+      ctx.fillStyle = m.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, m.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      const hp = m.hp / m.maxHp;
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(-m.radius, -m.radius - 12, m.radius * 2, 4);
+      ctx.fillStyle = hp > 0.5 ? "#4cd964" : "#ff4444";
+      ctx.fillRect(-m.radius, -m.radius - 12, m.radius * 2 * hp, 4);
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 11px Cairo, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(m.name, 0, -m.radius - 18);
+
+      ctx.restore();
+    }
+  }
+
+  drawDrops(ctx) {
+    for (const d of this.drops) {
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.fillStyle = "#f1c40f";
+      ctx.beginPath();
+      ctx.arc(0, 0, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 10px Cairo";
+      ctx.textAlign = "center";
+      ctx.fillText("+" + d.money, 0, -14);
+      ctx.restore();
+    }
+  }
+
+  drawProjectiles(ctx) {
+    ctx.fillStyle = "#e74c3c";
+    for (const p of this.projectiles) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  drawWorldFx(ctx, cam) {
+    for (const fx of this.worldFx) {
+      const alpha = fx.life / fx.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = fx.color;
+      ctx.font = "bold 14px Cairo, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(fx.text, fx.x, fx.y - (1 - alpha) * 20);
+      ctx.globalAlpha = 1;
+    }
+  }
 
   enterWorldMap() {
     const canvas = document.getElementById("gameCanvas");
