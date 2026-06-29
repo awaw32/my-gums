@@ -10,6 +10,7 @@
     "prod": "NODE_ENV=production node server.js"
   },
   "dependencies": {
+    "mongoose": "^9.7.3",
     "ws": "^8.21.0"
   }
 }
