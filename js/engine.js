@@ -11,10 +11,6 @@
  *  - Pointer input (one-finger drag=pan, tap=command)
  *  - Pinch-to-zoom (two-finger)
  *  - n8n event integration
- *
- *  Usage:
- *    const engine = new GameEngine("gameCanvas");
- *    engine.start((dt, ctx, cam) => { /* update + render *\/ });
  * =============================================================================
  */
 
@@ -140,11 +136,8 @@ class GameEngine {
     this._sendEvent("engine_init");
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  //  RESIZE
-  // ═══════════════════════════════════════════════════════════════
-
   resize() {
+    if (!this.canvas) return;
     this.pixelRatio = Math.max(1, window.devicePixelRatio || 1);
     this.width  = window.innerWidth;
     this.height = window.innerHeight;
@@ -156,10 +149,6 @@ class GameEngine {
     this.camera.h = this.height;
     this.ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
   }
-
-  // ═══════════════════════════════════════════════════════════════
-  //  GAME LOOP
-  // ═══════════════════════════════════════════════════════════════
 
   start(updateFn) {
     if (this.running) return;
@@ -189,10 +178,8 @@ class GameEngine {
       this.fpsTimer -= 1;
     }
 
-    // Clear screen
     this.ctx.clearRect(0, 0, this.width, this.height);
 
-    // Apply zoom (centered on screen center, doesn't affect camera positioning)
     const cam = this.camera;
     const cx = cam.w / 2, cy = cam.h / 2;
     this.ctx.save();
@@ -205,13 +192,8 @@ class GameEngine {
     }
 
     this.ctx.restore();
-
     this.animId = requestAnimationFrame((t) => this._loop(t));
   }
-
-  // ═══════════════════════════════════════════════════════════════
-  //  INPUT
-  // ═══════════════════════════════════════════════════════════════
 
   _bindPointerEvents() {
     const c = this.canvas;
@@ -262,7 +244,6 @@ class GameEngine {
     const cy = e.clientY - r.top;
     this._touchPoints.set(e.pointerId, { x: cx, y: cy });
 
-    // ── Pinch zoom ────────────────────────────────────────────
     if (this._pinch.active && this._touchPoints.size === 2) {
       const pts = Array.from(this._touchPoints.values());
       const curDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
@@ -275,7 +256,6 @@ class GameEngine {
       return;
     }
 
-    // ── Single drag ────────────────────────────────────────────
     const inp = this._input;
     if (!inp.down || inp.id !== e.pointerId) return;
     const dx = cx - inp.lx;
@@ -325,16 +305,7 @@ class GameEngine {
     this._pinch.active = false;
   }
 
-  /**
-   * Register tap callback
-   * @param {fn(worldX, worldY)} cb
-   */
   onTap(cb)  { this._onTap = cb; }
-
-  /**
-   * Register drag callback
-   * @param {fn(dx, dy)} cb
-   */
   onDrag(cb) { this._onDrag = cb; }
 
   zoomBy(factor) {
@@ -344,10 +315,6 @@ class GameEngine {
   setZoom(level) {
     this.camera.zoom = Math.max(this.camera.minZoom, Math.min(this.camera.maxZoom, level));
   }
-
-  // ═══════════════════════════════════════════════════════════════
-  //  n8n
-  // ═══════════════════════════════════════════════════════════════
 
   async _sendEvent(eventName, payload = {}) {
     if (!this.n8nUrl) return null;

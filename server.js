@@ -127,12 +127,12 @@ wss.on("connection", (ws, req) => {
   let roomCode = null;
   let isAdmin  = false;
   let msgCount = 0;
-  let lastReset = Date.now(); // FIXED: rate limit 30 msg/sec
+  let lastReset = Date.now(); // RATE LIMIT: 30 msg/sec
 
   console.log(`[Server] Connection from ${ip}`);
 
   ws.on("message", (raw) => {
-    // FIXED: rate limit — 30 رسالة في الثانية
+    // RATE LIMIT: 30 رسالة في الثانية
     const now = Date.now();
     if (now - lastReset > 1000) { msgCount = 0; lastReset = now; }
     if (++msgCount > 30) { ws.close(1008, "Rate limit"); return; }
@@ -311,7 +311,6 @@ wss.on("close", () => clearInterval(INTERVAL));
 //  Save / Load / Leaderboard API
 // ═══════════════════════════════════════════════════════════════════
 
-
 function loadPlayerData(playerId) {
   const filePath = path.join(DATA_DIR, `${playerId}.json`);
   try { return JSON.parse(fs.readFileSync(filePath, "utf8")); } catch { return null; }
@@ -329,14 +328,14 @@ const STATIC_EXTS = { ".html": "text/html; charset=utf-8", ".css": "text/css; ch
 function serveStatic(url, res) {
   const ext = path.extname(url).toLowerCase();
   if (!STATIC_EXTS[ext]) return false;
-  // FIXED: منع Path Traversal عبر resolve مع startsWith
+  // SECURITY: منع Path Traversal عبر resolve مع startsWith
   const safePath = path.resolve(__dirname, url === "/" ? "index.html" : url.replace(/^\//, ""));
   if (!safePath.startsWith(__dirname)) {
     res.writeHead(403); res.end("Forbidden"); return true;
   }
   try {
     const content = fs.readFileSync(safePath);
-    // FIXED: cache طويل للملفات الثابتة + nosniff
+    // HTTP Security headers + Cache Control
     res.writeHead(200, {
       "Content-Type": STATIC_EXTS[ext],
       "Cache-Control": "public, max-age=31536000, immutable",
@@ -361,7 +360,7 @@ server.on("request", (req, res) => {
   if (loadMatch && req.method === "GET") {
     const data = loadPlayerData(loadMatch[1]);
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(data || { resources: { cash:0, gold:150, gems:10, kingCoins:0, hammers:5, scrolls:0, horns:0 }, level:1, xp:0, villageLevel:1, unitLevel:1, weapons:[] })); // FIXED: API mismatch — default format matches new economy.js
+    res.end(JSON.stringify(data || { resources: { cash:0, gold:150, gems:10, kingCoins:0, hammers:5, scrolls:0, horns:0 }, level:1, xp:0, villageLevel:1, unitLevel:1, weapons:[] })); 
     return;
   }
 
@@ -372,7 +371,7 @@ server.on("request", (req, res) => {
     let size = 0;
     req.on("data", chunk => {
       size += chunk.length;
-      if (size > 1_048_576) { req.destroy(); return; } // FIXED: حد 1MB
+      if (size > 1_048_576) { req.destroy(); return; } // LIMIT: حد 1MB لمنع ثغرات الـ DOS
       body += chunk;
     });
     req.on("end", () => {
