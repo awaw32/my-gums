@@ -179,6 +179,15 @@ export class WorldMap {
     };
   }
 
+  // الدالة التي تم إضافتها لحل مشكلة اختفاء اللعبة والكراش
+  respawnMonster(monster) {
+    monster.alive = true;
+    monster.hp = monster.maxHp;
+    monster.x = monster.spawnX;
+    monster.y = monster.spawnY;
+    monster.attackCD = 0;
+  }
+
   isInSafeZone(x, y) {
     const z = this.safeZone;
     return x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h;
