@@ -26,7 +26,6 @@ async function init() {
   setProgress(5);
   await sleep(200);
 
-  // ─── فحص أمان وجود الملفات لضمان عدم حدوث Crash ───
   if (typeof GameEconomy === "undefined" || typeof WorldMap === "undefined") {
     console.error("خطأ حرج: بعض السكربتات الأساسية لم يتم تحميلها بالشكل الصحيح.");
     return;
@@ -48,7 +47,6 @@ async function init() {
   setProgress(55);
   await sleep(100);
 
-  // تهيئة خريطة العالم
   const world = new WorldMap(economy);
   setProgress(65);
   await sleep(150);
@@ -64,7 +62,6 @@ async function init() {
   setProgress(90);
   await sleep(150);
 
-  // تحميل البيانات المحفوظة محلياً أو سحبها أونلاين
   loadGame(economy, village, army);
 
   setProgress(98);
@@ -77,13 +74,12 @@ async function init() {
   setTimeout(() => {
     const ui = new GameUI(village, army, economy, world);
 
-    // ربط كائن المحرك للعمل أونلاين وضمان عدم تعارض الخرائط
     let engineInstance = null;
     try {
       engineInstance = new GameEngine("gameCanvas", N8N_WEBHOOK_URL);
-      world.engine = engineInstance; // ربط المحرك بملف الخريطة
+      world.engine = engineInstance; 
     } catch (err) {
-      console.warn("فشل تهيئة الـ GameEngine، تأكد من وجود كود HTML للـ Canvas مناسب:", err.message);
+      console.warn("فشل تهيئة الـ GameEngine:", err.message);
     }
 
     ui.setShopBuyCallback(function shopBuy(item) {
@@ -93,7 +89,13 @@ async function init() {
             army.unitLevel += 2;
             ui.updateTopBar();
             audio.sfxCollect();
-            if(engineInstance) engineInstance._sendEvent("buy_boost", { item: "army_boost" });
+            
+            // إرسال مباشر عند الشراء لتفادي حظر المحرك
+            fetch(N8N_WEBHOOK_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ event: "buy_boost", item: "army_boost", cash: economy.cash })
+            }).catch(e => console.warn("n8n error:", e.message));
           }
           break;
         case "shards":
@@ -101,7 +103,13 @@ async function init() {
             economy.addRaw("gems", 20);
             ui.updateTopBar();
             audio.sfxCollect();
-            if(engineInstance) engineInstance._sendEvent("buy_shards", { item: "shards", current_gems: economy.gems });
+
+            // إرسال مباشر عند الشراء
+            fetch(N8N_WEBHOOK_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ event: "buy_shards", item: "shards", current_gems: economy.gems })
+            }).catch(e => console.warn("n8n error:", e.message));
           }
           break;
         case "speed":
@@ -111,7 +119,13 @@ async function init() {
             }
             ui.renderPromotion();
             audio.sfxBuild();
-            if(engineInstance) engineInstance._sendEvent("speed_build", { item: "speed" });
+
+            // إرسال مباشر عند التسريع
+            fetch(N8N_WEBHOOK_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ event: "speed_build", item: "speed" })
+            }).catch(e => console.warn("n8n error:", e.message));
           }
           break;
       }
@@ -120,30 +134,36 @@ async function init() {
     economy.refreshIncome(village);
 
     let autoSaveTimer = 0;
-    const TICK_RATE = 0.5; // نصف ثانية لتحديث اللعبة
+    const TICK_RATE = 0.5; 
 
-    // حلقة التحديث والمزامنة الأساسية
     setInterval(() => {
       economy.tick();
       village.update(TICK_RATE);
       ui.updateTopBar();
       autoSaveTimer += TICK_RATE;
       
-      // حفظ كل 15 ثانية محلياً، وإرسال حالة الحفظ أونلاين للحماية من الغش
       if (autoSaveTimer >= 15) {
         autoSaveTimer = 0;
         saveGame(economy, village, army);
-        if (engineInstance) {
-          engineInstance._sendEvent("player_autosave", {
+        
+        // 🔥 إرسال البيانات مباشرة عبر الـ fetch القياسي لتخطي عائق الـ CSP تماماً
+        fetch(N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            event: "player_autosave",
             cash: economy.cash,
             gems: economy.gems,
             army_power: army.totalArmyPower
-          });
-        }
+          })
+        })
+        .then(() => console.log("✨ تم التزامن التلقائي مع n8n بنجاح!"))
+        .catch(err => console.error("❌ فشل إرسال البيانات إلى n8n:", err.message));
       }
     }, TICK_RATE * 1000);
 
-    // تشغيل حلقة رسم المحرك عند فتح خريطة العالم
     if (engineInstance) {
       engineInstance.start((dt, ctx, camera) => {
         if (typeof world.render === "function" && !document.getElementById("gameCanvas").classList.contains("hidden")) {
@@ -152,7 +172,6 @@ async function init() {
       });
     }
 
-    // حدث الخروج من خريطة العالم والمزامنة التلقائية عند الإغلاق
     document.addEventListener("click", (e) => {
       const exitBtn = e.target.closest("#exit-world-btn");
       if (exitBtn) {
@@ -175,7 +194,6 @@ async function init() {
         if (taskRow) taskRow.style.display = "";
         
         saveGame(economy, village, army);
-        if (engineInstance) engineInstance._sendEvent("exit_world_map");
         return;
       }
     });
