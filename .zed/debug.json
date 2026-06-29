@@ -1,0 +1,12 @@
+[
+  {
+    "adapter": "CodeLLDB",
+    "label": "First configuration",
+    // ...
+  },
+  {
+    "adapter": "Debugpy",
+    "label": "Second configuration",
+    // ...
+  },
+]

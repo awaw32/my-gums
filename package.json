@@ -1,0 +1,15 @@
+{
+  "name": "desert-empire",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Desert Empire RTS - إمبراطورية الصحراء",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "prod": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}

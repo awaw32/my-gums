@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0e06" />
+  <meta name="mobile-web-app-capable" content="yes">  <title>ملك السحراء</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Amiri:wght@400;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+  <div id="loading-screen">
+    <div class="loading-wheel">
+      <div class="wheel-rim"></div>
+      <div class="wheel-logo">👑</div>
+    </div>
+    <h1 class="loading-title">ملك السحراء</h1>
+    <p class="loading-sub">King of the Deserts</p>
+    <div class="loading-bar-track">
+      <div class="loading-bar-fill" id="loading-progress"></div>
+    </div>
+    <p class="loading-pct" id="loading-pct">0%</p>
+  </div>
+
+  <div class="app-shell hidden" id="app-shell">
+
+    <!-- ====== الشريط العلوي ====== -->
+    <header id="top-bar">
+      <div id="top-multiplier" class="top-chip top-multiplier">
+        <span class="multiplier-icon">🚀</span>
+        <span class="multiplier-value" id="multiplier-display">x1</span>
+        <span class="multiplier-arrow">↑</span>
+      </div>
+      <div class="top-resources">
+        <div class="top-chip top-resource top-cash" id="top-cash">
+          <span class="res-icon">💵</span>
+          <span class="res-value" id="cash-display">0</span>
+        </div>
+        <div class="top-chip top-resource top-gold" id="top-gold">
+          <span class="res-icon">🪙</span>
+          <span class="res-value" id="gold-display">0</span>
+        </div>
+      </div>
+      <div class="top-level-wrap">
+        <div class="top-level-bar">
+          <span class="level-label" id="level-label">LV 1</span>
+          <div class="level-track">
+            <div class="level-fill" id="level-fill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="top-avatar" id="top-avatar">🧙</div>
+      </div>
+    </header>
+
+    <!-- ====== أيقونات الأحداث ====== -->
+    <div id="event-row">
+      <button class="event-icon" data-event="camel-race"><span>🐪</span><span class="event-badge">3</span></button>
+      <button class="event-icon" data-event="shop"><span>🛒</span><span class="event-badge">1</span></button>
+      <button class="event-icon event-glow" data-event="first-charge"><span>🏺</span><span
+          class="event-badge gold">1st</span></button>
+      <button class="event-icon" data-event="activity"><span>📋</span><span class="event-badge">5</span></button>
+      <button class="event-icon event-glow" data-event="season"><span>🎁</span><span
+          class="event-badge gold">S12</span></button>
+      <button class="event-icon" data-event="magic-gems"><span>💎</span><span class="event-badge">2</span></button>
+      <button class="event-icon" data-event="coins"><span>🏺</span><span class="event-badge">7</span></button>
+    </div>
+
+    <!-- ====== بطاقات المهام ====== -->
+    <div id="task-row">
+      <div class="task-card" id="task-card-0">
+        <div class="task-icon">🏰</div>
+        <div class="task-info">
+          <span class="task-label">مستوى العقارات</span>
+          <span class="task-progress"><span id="task-progress-0">0</span>/<span id="task-target-0">920</span></span>
+        </div>
+        <div class="task-bar-track">
+          <div class="task-bar-fill" id="task-fill-0" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="task-card" id="task-card-1">
+        <div class="task-icon">🐪</div>
+        <div class="task-info">
+          <span class="task-label">مزرعة الإبل</span>
+          <span class="task-progress"><span id="task-progress-1">0</span>/<span id="task-target-1">200</span></span>
+        </div>
+        <div class="task-bar-track">
+          <div class="task-bar-fill" id="task-fill-1" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="task-card" id="task-card-2">
+        <div class="task-icon">💵</div>
+        <div class="task-info">
+          <span class="task-label">جمع المال</span>
+          <span class="task-progress"><span id="task-progress-2">0</span>/<span id="task-target-2">3.50Q</span></span>
+        </div>
+        <div class="task-bar-track">
+          <div class="task-bar-fill" id="task-fill-2" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== المحتوى الرئيسي (خريطة Isometric) ====== -->
+    <main id="screen-content">
+      <!-- Isometric map canvas or building cards rendered by UI -->
+    </main>
+
+    <!-- ====== Canvas للعالم (شاشة الحرب) ====== -->
+    <canvas id="gameCanvas" class="hidden"></canvas>
+    <div class="world-buttons hidden" id="world-buttons">
+      <button id="exit-world-btn" class="world-exit-btn">✕</button>
+      <button id="recenter-btn" class="recenter-btn hidden">🎯</button>
+      <button id="zoom-in-btn" class="zoom-btn hidden" title="تكبير">＋</button>
+      <button id="zoom-out-btn" class="zoom-btn hidden" title="تصغير">－</button>
+    </div>
+
+    <!-- ====== الشريط السفلي ====== -->
+    <nav id="bottom-bar">
+      <button class="nav-btn" type="button" data-screen="ranking" data-icon="🏆">
+        <span class="nav-icon">🏆</span>
+        <span class="nav-label">المرتبة</span>
+      </button>
+      <button class="nav-btn active" type="button" data-screen="promotion" data-icon="🐪">
+        <span class="nav-icon">🐪</span>
+        <span class="nav-label">الترقية</span>
+      </button>
+      <button class="nav-btn" type="button" data-screen="territories" data-icon="🗺️">
+        <span class="nav-icon">🗺️</span>
+        <span class="nav-label">أراضي</span>
+      </button>
+      <button class="nav-btn" type="button" data-screen="war" data-icon="⚔️">
+        <span class="nav-icon">⚔️</span>
+        <span class="nav-label">حرب</span>
+      </button>
+      <button class="nav-btn" type="button" data-screen="alliance" data-icon="👑">
+        <span class="nav-icon">👑</span>
+        <span class="nav-label">التحالف</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+
+</html>

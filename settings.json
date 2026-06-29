@@ -1,0 +1,36 @@
+{
+    "php.validate.executablePath": "",
+    "vscode-edge-devtools.browserFlavor": "Default",
+    "vscode-edge-devtools.showWorkers": true,
+    "vscode-edge-devtools.sourceMapPathOverrides": {
+        
+        "webpack:///./*": "${webRoot}/*",
+        "webpack:///src/*": "${webRoot}/*",
+        "webpack:///*": "*",
+        "webpack:///./~/*": "${webRoot}/node_modules/*",
+        "webpack://*": "${webRoot}/*",
+        "meteor://💻app/*": "${webRoot}/*"
+    },
+    "chatgpt.reviewDelivery": "inline",
+    "chatgpt.composerEnterBehavior": "cmdIfMultiline",
+    "chatgpt.localeOverride": "en-US",
+    "workbench.secondarySideBar.showLabels": false,
+    "workbench.activityBar.compact": true,
+    "python.analysis.typeCheckingMode": "standard",
+    "geminicodeassist.agentDebugMode": true,
+    "geminicodeassist.agentYoloMode": true,
+    "geminicodeassist.updateChannel": "Default",
+    "sftp.debug": true,
+    "sftp.downloadWhenOpenInRemoteExplorer": true,
+    "sftp.printDebugLog": true,
+    "files.autoSave": "afterDelay",
+    "workbench.secondarySideBar.defaultVisibility": "visible",
+    "AutoHotkey2.AutoLibInclude": "All",
+    "mssql.connectionGroups": [
+        {
+            "name": "ROOT",
+            "id": "ROOT"
+        }
+    ],
+    "genieai.enableConversationHistory": true
+}

@@ -1,0 +1,700 @@
+:root {
+  --gold: #FFD700;
+  --gold-dim: #b8960f;
+  --dark: #1a0e06;
+  --dark2: #2c1a0a;
+  --dark3: #3d2a15;
+  --beige: #f5e6d3;
+  --beige-dark: #d4c4a8;
+  --green: #2ecc71;
+  --green-bg: rgba(46, 204, 113, 0.15);
+  --red: #e74c3c;
+  --red-bg: rgba(231, 76, 60, 0.15);
+  --purple: #9b59b6;
+  --blue: #5a8ab5;
+  --orange: #e67e22;
+  --panel-bg: rgba(26, 14, 6, 0.96);
+  --panel-border: rgba(255, 215, 0, 0.2);
+  --top-h: 64px;
+  --bottom-h: 68px;
+  --event-h: 60px;
+  --task-h: 76px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+  color: #fdf6e3;
+  background: var(--dark);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button { font: inherit; cursor: pointer; border: none; outline: none; background: none; color: inherit; }
+.hidden { display: none !important; }
+
+/* ====== شاشة التحميل ====== */
+#loading-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, #3d2a15, #1a0e06);
+  gap: 16px;
+  transition: opacity 0.6s, visibility 0.6s;
+}
+#loading-screen.fade-out { opacity: 0; visibility: hidden; }
+
+.loading-wheel {
+  width: 100px; height: 100px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.wheel-rim {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 4px solid var(--gold-dim);
+  border-top-color: var(--gold);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.wheel-logo { font-size: 3rem; z-index: 1; filter: drop-shadow(0 0 12px rgba(255,215,0,0.6)); }
+
+.loading-title {
+  font-family: 'Amiri', serif;
+  font-size: 2.2rem;
+  color: var(--gold);
+  text-shadow: 0 2px 12px rgba(255,215,0,0.4);
+}
+.loading-sub {
+  font-size: 0.8rem;
+  color: var(--beige-dark);
+  letter-spacing: 2px;
+  margin-top: -8px;
+}
+.loading-bar-track {
+  width: 260px; height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.loading-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.loading-pct {
+  font-size: 0.85rem;
+  color: var(--beige-dark);
+}
+
+/* ====== App Shell ====== */
+.app-shell {
+  position: relative;
+  width: 100vw; height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1a0e06, #2c1a0a);
+}
+
+/* ====== الشريط العلوي ====== */
+#top-bar {
+  height: var(--top-h);
+  padding: 4px 8px 2px;
+  padding-top: calc(4px + var(--safe-t));
+  display: flex; align-items: center; gap: 4px;
+  background: linear-gradient(180deg, rgba(26,14,6,0.98), rgba(44,26,10,0.95));
+  border-bottom: 1px solid var(--panel-border);
+  z-index: 100;
+  flex-shrink: 0;
+  direction: ltr;
+}
+
+.top-chip {
+  display: flex; align-items: center; gap: 3px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  direction: ltr;
+}
+
+.top-multiplier {
+  background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,215,0,0.08));
+  border: 1px solid rgba(255,215,0,0.3);
+  color: var(--gold);
+  padding: 4px 10px;
+  gap: 4px;
+}
+.multiplier-icon { font-size: 0.75rem; }
+.multiplier-value { font-size: 0.8rem; }
+.multiplier-arrow { color: var(--green); font-size: 0.65rem; }
+
+.top-resources { display: flex; gap: 3px; flex: 1; justify-content: center; }
+
+.top-cash {
+  background: var(--green-bg);
+  border: 1px solid rgba(46,204,113,0.3);
+  color: var(--green);
+}
+.top-gold {
+  background: rgba(255,215,0,0.1);
+  border: 1px solid rgba(255,215,0,0.25);
+  color: var(--gold);
+}
+.res-icon { font-size: 0.7rem; }
+.res-value { font-size: 0.72rem; min-width: 40px; }
+
+.top-level-wrap {
+  display: flex; align-items: center; gap: 4px;
+}
+.top-level-bar {
+  display: flex; align-items: center; gap: 4px;
+}
+.level-label {
+  font-size: 0.6rem;
+  color: var(--beige-dark);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.level-track {
+  width: 50px; height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.level-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), #27ae60);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.top-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+  background: rgba(255,215,0,0.1);
+  flex-shrink: 0;
+}
+
+/* ====== أيقونات الأحداث ====== */
+#event-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 4px 6px;
+  background: rgba(26,14,6,0.8);
+  border-bottom: 1px solid rgba(255,215,0,0.08);
+  flex-shrink: 0;
+  height: var(--event-h);
+  overflow-x: auto;
+  gap: 2px;
+}
+.event-icon {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  font-size: 1.3rem;
+  transition: background 0.2s, transform 0.15s;
+  flex-shrink: 0;
+}
+.event-icon:active { transform: scale(0.9); background: rgba(255,255,255,0.08); }
+.event-badge {
+  position: absolute;
+  top: -4px; left: -4px;
+  min-width: 18px; height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--red);
+  color: white;
+  font-size: 0.55rem;
+  font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.event-badge.gold {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+  color: var(--dark);
+  font-size: 0.5rem;
+}
+.event-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255,215,0,0.2); }
+  50% { box-shadow: 0 0 12px rgba(255,215,0,0.5); }
+}
+
+/* ====== بطاقات المهام ====== */
+#task-row {
+  display: flex;
+  gap: 5px;
+  padding: 6px 8px;
+  background: rgba(26,14,6,0.6);
+  flex-shrink: 0;
+  height: var(--task-h);
+  overflow-x: auto;
+}
+.task-card {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,215,0,0.12);
+  border-radius: 10px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.task-icon { font-size: 1.1rem; line-height: 1; }
+.task-info {
+  display: flex; justify-content: space-between;
+  font-size: 0.6rem;
+  color: var(--beige-dark);
+}
+.task-label { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-progress { color: var(--gold); font-weight: 700; white-space: nowrap; direction: ltr; }
+.task-bar-track {
+  width: 100%; height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.task-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* ====== المحتوى الرئيسي ====== */
+#screen-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+#screen-content::-webkit-scrollbar { width: 2px; }
+#screen-content::-webkit-scrollbar-track { background: transparent; }
+#screen-content::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 2px; }
+
+/* ====== Canvas ====== */
+#gameCanvas {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100dvh;
+  z-index: 50;
+  touch-action: none;
+}
+.world-buttons {
+  position: fixed;
+  top: calc(12px + var(--safe-t));
+  left: 12px;
+  z-index: 60;
+}
+.world-exit-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(28,16,8,0.85);
+  color: #fdf6e3;
+  font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--panel-border);
+}
+.recenter-btn {
+  position: fixed;
+  bottom: calc(80px + var(--safe-b));
+  left: 16px;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: rgba(255,215,0,0.2);
+  color: var(--gold);
+  font-size: 1.4rem;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--gold);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  z-index: 65;
+}
+.recenter-btn:active { transform: scale(0.9); }
+
+.zoom-btn {
+  position: fixed;
+  bottom: calc(80px + var(--safe-b));
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: rgba(255,215,0,0.15);
+  color: var(--gold);
+  font-size: 1.6rem;
+  font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--gold);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  z-index: 65;
+  user-select: none;
+}
+.zoom-btn:active { transform: scale(0.85); }
+#zoom-in-btn { right: 70px; }
+#zoom-out-btn { right: 16px; }
+
+/* ====== الشريط السفلي ====== */
+#bottom-bar {
+  height: var(--bottom-h);
+  padding: 4px 0;
+  padding-bottom: var(--safe-b);
+  display: flex; align-items: center; justify-content: space-around;
+  background: linear-gradient(0deg, rgba(26,14,6,0.98), rgba(44,26,10,0.95));
+  border-top: 1px solid var(--panel-border);
+  z-index: 100;
+  flex-shrink: 0;
+}
+.nav-btn {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 1px;
+  padding: 4px 10px;
+  background: transparent;
+  color: #b8956a;
+  border-radius: 12px;
+  transition: color 0.2s, background 0.2s;
+  min-width: 52px;
+}
+.nav-btn.active {
+  color: var(--gold);
+  background: rgba(255,215,0,0.1);
+}
+.nav-icon { font-size: 1.3rem; line-height: 1; }
+.nav-label { font-size: 0.6rem; font-weight: 700; }
+
+/* ====== الخريطة Isometric (الصفحة الرئيسية) ====== */
+.isometric-map {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  padding: 12px;
+  background: linear-gradient(180deg, #3d2a15, #2c1a0a, #1a0e06);
+  overflow: hidden;
+}
+.iso-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+}
+.iso-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.iso-oasis {
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto 12px;
+  background: linear-gradient(180deg, rgba(60,40,20,0.8), rgba(40,26,12,0.9));
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 12px;
+}
+.iso-oasis-title {
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 8px;
+  font-family: 'Amiri', serif;
+}
+.iso-oasis-buildings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ====== بطاقة المبنى ====== */
+.building-card {
+  background: linear-gradient(180deg, rgba(50,34,18,0.9), rgba(34,22,10,0.95));
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  position: relative;
+  min-height: 130px;
+}
+.building-card.state-ready {
+  border-color: rgba(46,204,113,0.3);
+  background: linear-gradient(180deg, rgba(40,36,16,0.9), rgba(28,24,10,0.95));
+}
+.building-card.state-building {
+  border-color: rgba(255,215,0,0.4);
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(255,215,0,0.3); }
+  50% { border-color: rgba(255,215,0,0.6); }
+}
+.building-icon { font-size: 1.8rem; line-height: 1; }
+.building-name { font-size: 0.75rem; font-weight: 700; }
+.building-info { font-size: 0.65rem; color: #b8956a; line-height: 1.3; }
+.building-level-badge {
+  font-size: 0.55rem;
+  color: var(--gold);
+  background: rgba(255,215,0,0.1);
+  padding: 1px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,215,0,0.2);
+}
+
+/* ====== أزرار ====== */
+.action-btn {
+  width: 100%;
+  padding: 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: linear-gradient(180deg, var(--gold), var(--gold-dim));
+  color: #1a0e06;
+  transition: transform 0.1s, opacity 0.2s;
+}
+.action-btn:active { transform: scale(0.97); }
+.action-btn:disabled { opacity: 0.5; }
+.fight-btn {
+  background: linear-gradient(180deg, #d43a3a, #8a2020);
+  color: white;
+}
+.upgrade-btn {
+  background: linear-gradient(180deg, #3a8ab5, #1a5a7a);
+  color: white;
+  font-size: 0.65rem;
+  padding: 6px;
+}
+.small-btn { font-size: 0.65rem; padding: 5px 8px; width: auto; }
+
+/* ====== شاشات الصفحات ====== */
+.screen-panel {
+  padding: 12px;
+  min-height: 100%;
+}
+.panel-header {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 12px;
+  padding: 10px;
+  background: rgba(255,215,0,0.06);
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  font-family: 'Amiri', serif;
+}
+
+/* ====== الجيش ====== */
+.army-stats {
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.stat-row {
+  display: flex; justify-content: space-between;
+  padding: 5px 0;
+  font-size: 0.78rem;
+  border-bottom: 1px solid rgba(255,215,0,0.06);
+}
+.stat-row:last-child { border-bottom: none; }
+.upgrade-section { margin-bottom: 12px; }
+.section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin: 12px 0 8px;
+}
+.weapon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.weapon-card {
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.weapon-name { flex: 1; font-size: 0.75rem; font-weight: 600; }
+.weapon-power { font-size: 0.65rem; color: #b8956a; min-width: 50px; text-align: center; }
+
+/* ====== المتجر ====== */
+.shop-item {
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.shop-item-name { font-size: 0.8rem; font-weight: 700; }
+.shop-item-desc { font-size: 0.68rem; color: #b8956a; }
+
+/* ====== التحالف ====== */
+.alliance-card {
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+/* ====== Floating Fight Text ====== */
+.floating-fight-text {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.9rem;
+  font-weight: 900;
+  z-index: 10;
+  animation: float-up 1.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes float-up {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+  100% { opacity: 0; transform: translate(-50%, -120%) scale(1.2); }
+}
+
+/* ====== شاشة المرتبة ====== */
+.rank-card {
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 12px;
+}
+.rank-num {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--gold);
+  min-width: 36px;
+  text-align: center;
+}
+.rank-info { flex: 1; }
+.rank-name { font-size: 0.85rem; font-weight: 700; }
+.rank-power { font-size: 0.7rem; color: var(--beige-dark); }
+.rank-avatar { font-size: 2rem; }
+
+/* ====== شاشة الأراضي ====== */
+.territory-card {
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.territory-icon { font-size: 2rem; }
+.territory-info { flex: 1; }
+.territory-name { font-size: 0.85rem; font-weight: 700; }
+.territory-status { font-size: 0.7rem; color: var(--beige-dark); }
+
+/* ====== شاشة الحرب ====== */
+.war-card {
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.war-card-icon { font-size: 2.5rem; margin-bottom: 6px; }
+.war-card-title { font-size: 0.95rem; font-weight: 700; color: var(--gold); }
+.war-card-desc { font-size: 0.7rem; color: var(--beige-dark); margin: 4px 0 10px; }
+.war-enter-btn {
+  background: linear-gradient(180deg, var(--gold), var(--gold-dim));
+  color: #1a0e06;
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.war-arena-bg {
+  background: linear-gradient(180deg, #1a3a5c, #0d1f33);
+}
+.war-adventure-bg {
+  background: linear-gradient(180deg, #3d1208, #2c0a04);
+}
+
+/* ====== الشاشات الأكبر ====== */
+@media (min-width: 640px) {
+  .iso-oasis-buildings { grid-template-columns: repeat(4, 1fr); }
+  #screen-content { padding: 12px 20px; }
+  .task-card { padding: 8px 12px; }
+}
+@media (min-width: 1024px) {
+  .iso-oasis { max-width: 700px; }
+  .iso-oasis-buildings { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ====== تحسينات Responsive و Touch Targets ثابتة 100% ====== */
+/* يمنع مشاكل misalignment على شاشات مختلفة (كبير/صغير) ويضمن دقة اللمس */
+
+button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom-btn {
+  min-height: 48px;
+  min-width: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none; /* يمنع الـ default touch behaviors */
+  image-rendering: crisp-edges; /* للـ pixel art إذا استخدمنا sprites */
+}
+
+/* Container للكانفاس مع aspect ratio ثابت إذا أردنا (اختياري للثبات) */
+.world-canvas-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  aspect-ratio: 16 / 9; /* أو 1 / 1 حسب التصميم */
+}
+
+/* أزرار الزوم والـ UI الثابتة */
+.zoom-btn, .recenter-btn {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* تحسين للشاشات الصغيرة جداً */
+@media (max-width: 360px) {
+  :root {
+    --top-h: 56px;
+    --bottom-h: 60px;
+  }
+  .loading-bar-track { width: 220px; }
+  .task-card { padding: 6px 8px; }
+}
+
+/* تحسين للشاشات الكبيرة (تابلت/ديسكتوب) */
+@media (min-width: 768px) {
+  .app-shell { max-width: 1200px; margin: 0 auto; }
+  #gameCanvas { max-width: 100%; height: auto; }
+}
