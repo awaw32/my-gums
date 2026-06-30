@@ -10,7 +10,7 @@ import { saveGame, loadGame } from "./save.js";
 import { QuestManager } from "./quests.js";
 
 // رابط الويب هوك الخاص بك للتزامن أونلاين والمزامنة التلقائية
-const N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook-test/2ba51d69-7b2a-412d-8ddb-ae864319b146"; 
+const N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146"; 
 
 async function init() {
   const loadingFill = document.getElementById("loading-progress");
