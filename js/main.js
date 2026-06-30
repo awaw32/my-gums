@@ -12,6 +12,24 @@ import { QuestManager } from "./quests.js";
 // رابط الويب هوك الخاص بك للتزامن أونلاين والمزامنة التلقائية
 const N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146"; 
 
+// 🔥 دالة إرسال إشعار الدخول إلى n8n عند تشغيل اللعبة
+async function sendLoginNotification(username = "عبد الله") {
+  try {
+    await fetch(N8N_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "player_login",
+        message: `🔥 تنبيه: دخل البطل ${username} إلى عالم اللعبة الآن!`,
+        timestamp: new Date().toISOString()
+      })
+    });
+    console.log("🚀 [n8n] تم إرسال إشعار دخول اللاعب بنجاح عند تشغيل اللعبة!");
+  } catch (err) {
+    console.warn("⚠️ فشل إرسال إشعار الدخول إلى n8n:", err.message);
+  }
+}
+
 async function init() {
   const loadingFill = document.getElementById("loading-progress");
   const loadingPct = document.getElementById("loading-pct");
@@ -70,6 +88,9 @@ async function init() {
   if (loadingScreen) loadingScreen.classList.add("fade-out");
   if (appShell) appShell.classList.remove("hidden");
   setProgress(100);
+
+  // 📍 استدعاء إشعار الدخول فوراً هنا بعد تخطي شاشة التحميل وظهور الصفحة الرئيسية للعبة
+  sendLoginNotification("عبد الله");
 
   setTimeout(() => {
     const ui = new GameUI(village, army, economy, world);

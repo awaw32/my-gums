@@ -36,7 +36,6 @@ export class WorldMap {
     };
 
     this.armyUnits = [];
-
     this.monsters = [];
     this.drops = [];
     this.baseCamp = { x: this.W / 2, y: this.H / 2 + 200 };
@@ -48,6 +47,24 @@ export class WorldMap {
     this.mapImage = null;
     this.safeZone = { x: this.W / 2 - 120, y: this.H / 2 - 120, w: 240, h: 240 };
     this.worldFx = [];
+  }
+
+  // ==================== 🔥 دالة إرسال الإشعار الجديدة 🔥 ====================
+  async sendLoginNotification(username = "عبد الله") {
+    try {
+      await fetch("https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "player_login",
+          message: `🔥 تنبيه: دخل البطل ${username} إلى عالم اللعبة الآن!`,
+          timestamp: new Date().toISOString()
+        })
+      });
+      console.log("🚀 [n8n] تم إرسال إشعار دخول اللاعب بنجاح!");
+    } catch (err) {
+      console.warn("⚠️ فشل إرسال إشعار الدخول إلى n8n:", err.message);
+    }
   }
 
   // ==================== تهيئة الجيش ====================
@@ -127,7 +144,11 @@ export class WorldMap {
     this.spawnMonsters();
 
     const img = new Image();
-    img.onload = () => { this.mapImage = img; };
+    img.onload = () => { 
+      this.mapImage = img; 
+      // 📍 استدعاء الإشعار فور اكتمال تحميل الخريطة وظهور الصفحة الرئيسية للعالم
+      this.sendLoginNotification("عبد الله");
+    };
     img.src = "img/map.jpg";
 
     this.engine.start((dt, ctx, cam) => this.update(dt, ctx, cam));
@@ -179,7 +200,6 @@ export class WorldMap {
     };
   }
 
-  // الدالة التي تم إضافتها لحل مشكلة اختفاء اللعبة والكراش
   respawnMonster(monster) {
     monster.alive = true;
     monster.hp = monster.maxHp;
