@@ -135,6 +135,8 @@ async function init() {
     let engineInstance = new GameEngine("gameCanvas", N8N_WEBHOOK_URL);
     world.engine = engineInstance;
 
+    world.onExit = () => ui.exitWorldMap();
+
     ui.setShopBuyCallback(function shopBuy(item) {
       switch (item) {
         case "unit":
@@ -190,10 +192,15 @@ async function init() {
           event: "player_autosave",
           cash: economy.cash,
           gems: economy.gems,
+          gold: economy.gold,
+          kingCoins: economy.kingCoins,
+          hammers: economy.hammers,
+          scrolls: economy.scrolls,
+          horns: economy.horns,
           army_power: army.totalArmyPower,
           x_position: world.leader ? Math.floor(world.leader.x) : 0,
           y_position: world.leader ? Math.floor(world.leader.y) : 0,
-          last_active: new Date().toISOString()
+          last_active: Date.now()
         })
       });
     }, 15000);

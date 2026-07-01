@@ -664,8 +664,8 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   display: block;
   width: 100%;
   height: 100%;
-  touch-action: none; /* يمنع الـ default touch behaviors */
-  image-rendering: crisp-edges; /* للـ pixel art إذا استخدمنا sprites */
+  touch-action: none;
+  image-rendering: pixelated;
 }
 
 /* Container للكانفاس مع aspect ratio ثابت إذا أردنا (اختياري للثبات) */

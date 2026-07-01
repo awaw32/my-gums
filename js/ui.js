@@ -371,6 +371,22 @@ export class GameUI {
     this.enterArena();
   }
 
+  exitWorldMap() {
+    const topBar = document.getElementById("top-bar");
+    const bottomBar = document.getElementById("bottom-bar");
+    const content = document.getElementById("screen-content");
+    const eventRow = document.getElementById("event-row");
+    const taskRow = document.getElementById("task-row");
+    const worldButtons = document.getElementById("world-buttons");
+    if (topBar) topBar.style.display = "";
+    if (bottomBar) bottomBar.style.display = "";
+    if (content) content.style.display = "";
+    if (eventRow) eventRow.style.display = "";
+    if (taskRow) taskRow.style.display = "";
+    if (worldButtons) worldButtons.classList.add("hidden");
+    if (this.currentScreen) this.showScreen(this.currentScreen);
+  }
+
   updateTopBar() {
     const eco = this.economy;
     if (this.els.multiplierDisplay) {
