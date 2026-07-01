@@ -82,12 +82,46 @@ export class WorldMap {
     if (this._mpInterval) return;
     this.fetchAllPlayers();
     this._mpInterval = setInterval(() => this.fetchAllPlayers(), 4000);
+    this.sendPositionUpdate();
+    this._posInterval = setInterval(() => this.sendPositionUpdate(), 3000);
+    this._boundUnload = () => this.stopMultiplayerSync();
+    window.addEventListener("beforeunload", this._boundUnload);
   }
 
   stopMultiplayerSync() {
     if (this._mpInterval) {
       clearInterval(this._mpInterval);
       this._mpInterval = null;
+    }
+    if (this._posInterval) {
+      clearInterval(this._posInterval);
+      this._posInterval = null;
+    }
+    if (this._boundUnload) {
+      window.removeEventListener("beforeunload", this._boundUnload);
+      this._boundUnload = null;
+    }
+  }
+
+  async sendPositionUpdate() {
+    if (!this.leader) return;
+    try {
+      await fetch(this.N8N_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: this.username,
+          event: "player_autosave",
+          cash: this.economy?.cash || 0,
+          gems: this.economy?.gems || 0,
+          army_power: this.economy ? this.economy.power : 0,
+          x_position: Math.floor(this.leader.x),
+          y_position: Math.floor(this.leader.y),
+          last_active: new Date().toISOString()
+        })
+      });
+    } catch (err) {
+      console.warn("⚠️ [MP] فشل تحديث الموقع:", err.message);
     }
   }
 
@@ -111,7 +145,7 @@ export class WorldMap {
       if (!name || name === this.username) continue;
 
       const lastActive = p.last_active ? new Date(p.last_active).getTime() : 0;
-      if (now - lastActive > 60000) continue;
+      if (now - lastActive > 20000) continue;
 
       activeUsernames.add(name);
       const x = p.x_position ?? this.W / 2 + (Math.random() - 0.5) * 400;

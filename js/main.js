@@ -101,13 +101,6 @@ async function init() {
   
   await loadFromDatabase(economy, army, PLAYER_USERNAME);
   
-  // 🎁 بونص ترحيبي للاعب الجديد (1000 من كل عملة)
-  if (economy.cash === 0 && economy.gems === 0) {
-    economy.addRaw("cash", 1000);
-    economy.addRaw("gems", 1000);
-    console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!");
-  }
-  
   const quests = new QuestManager(economy, army, village); 
   const world = new WorldMap(economy, PLAYER_USERNAME);
   const assets = new AssetManager();
@@ -115,6 +108,20 @@ async function init() {
   
   setProgress(80);
   loadGame(economy, village, army);
+  
+  // 🎁 بونص ترحيبي للاعب الجديد (1000 من كل عملة)
+  const isNew = [!economy.cash, !economy.gems, !economy.gold, !economy.kingCoins, !economy.hammers, !economy.scrolls, !economy.horns].every(v => v === true);
+  if (isNew) {
+    economy.addRaw("cash", 1000);
+    economy.addRaw("gems", 1000);
+    economy.addRaw("gold", 1000);
+    economy.addRaw("kingCoins", 1000);
+    economy.addRaw("hammers", 1000);
+    economy.addRaw("scrolls", 1000);
+    economy.addRaw("horns", 1000);
+    console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!");
+  }
+  
   setProgress(100);
 
   if (loadingScreen) loadingScreen.classList.add("fade-out");
