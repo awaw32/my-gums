@@ -101,6 +101,13 @@ async function init() {
   
   await loadFromDatabase(economy, army, PLAYER_USERNAME);
   
+  // 🎁 بونص ترحيبي للاعب الجديد (1000 من كل عملة)
+  if (economy.cash === 0 && economy.gems === 0) {
+    economy.addRaw("cash", 1000);
+    economy.addRaw("gems", 1000);
+    console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!");
+  }
+  
   const quests = new QuestManager(economy, army, village); 
   const world = new WorldMap(economy, PLAYER_USERNAME);
   const assets = new AssetManager();

@@ -17,6 +17,14 @@ export class WorldMap {
     this.H = 2400;
     this.engine = null;
     this.running = false;
+    this.N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146";
+
+    // ==================== نظام الملتيكاملة (Multiplayer) ====================
+    this.otherPlayers = new Map();
+    this._mpInterval = null;
+    this.nearbyPlayer = null;
+    this.combatCooldown = 0;
+    this.attackRange = 60;
 
     // === القائد (الشيخ) ===
     this.leader = {
@@ -66,6 +74,165 @@ export class WorldMap {
       console.log("🚀 [n8n] تم إرسال إشعار دخول اللاعب بنجاح!");
     } catch (err) {
       console.warn("⚠️ فشل إرسال إشعار الدخول إلى n8n:", err.message);
+    }
+  }
+
+  // ==================== نظام الملتيكاملة (Multiplayer Sync) ====================
+  startMultiplayerSync() {
+    if (this._mpInterval) return;
+    this.fetchAllPlayers();
+    this._mpInterval = setInterval(() => this.fetchAllPlayers(), 4000);
+  }
+
+  stopMultiplayerSync() {
+    if (this._mpInterval) {
+      clearInterval(this._mpInterval);
+      this._mpInterval = null;
+    }
+  }
+
+  async fetchAllPlayers() {
+    try {
+      const res = await fetch(this.N8N_WEBHOOK_URL + "?all=true");
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.players || [data].filter(Boolean));
+      this.syncOtherPlayers(list);
+    } catch (err) {
+      console.warn("⚠️ [MP] فشل جلب اللاعبين:", err.message);
+    }
+  }
+
+  syncOtherPlayers(players) {
+    const now = Date.now();
+    const activeUsernames = new Set();
+
+    for (const p of players) {
+      const name = p.username;
+      if (!name || name === this.username) continue;
+
+      const lastActive = p.last_active ? new Date(p.last_active).getTime() : 0;
+      if (now - lastActive > 60000) continue;
+
+      activeUsernames.add(name);
+      const x = p.x_position ?? this.W / 2 + (Math.random() - 0.5) * 400;
+      const y = p.y_position ?? this.H / 2 + (Math.random() - 0.5) * 400;
+
+      if (this.otherPlayers.has(name)) {
+        const existing = this.otherPlayers.get(name);
+        existing.targetX = x;
+        existing.targetY = y;
+        existing.army_power = p.army_power || 0;
+        existing.lastActive = lastActive;
+      } else {
+        this.otherPlayers.set(name, {
+          username: name,
+          x: x,
+          y: y,
+          targetX: x,
+          targetY: y,
+          radius: 16,
+          army_power: p.army_power || 0,
+          lastActive: lastActive,
+          color: "#3a5a8a",
+        });
+      }
+    }
+
+    for (const [name, player] of this.otherPlayers) {
+      if (!activeUsernames.has(name)) {
+        this.otherPlayers.delete(name);
+      }
+    }
+  }
+
+  findOtherPlayerAt(wx, wy) {
+    let closest = null;
+    let minDist = 60;
+    for (const [, p] of this.otherPlayers) {
+      const d = Math.hypot(p.x - wx, p.y - wy);
+      if (d < minDist) {
+        minDist = d;
+        closest = p;
+      }
+    }
+    return closest;
+  }
+
+  async attackPlayer(target) {
+    if (this.combatCooldown > 0) return;
+    this.combatCooldown = 3;
+
+    const myPower = this.economy ? this.economy.power : 0;
+    const theirPower = target.army_power || 0;
+    const won = myPower >= theirPower * 0.9;
+
+    if (won) {
+      const reward = Math.max(10, Math.floor(theirPower * 0.05));
+      if (this.economy) this.economy.addRaw("cash", reward);
+      this.worldFx.push({ x: target.x, y: target.y, text: `⚔️ انتصرت! +${reward} 💵`, color: "#4cd964", life: 2, maxLife: 2 });
+    } else {
+      this.worldFx.push({ x: target.x, y: target.y, text: "💥 هُزمت!", color: "#ff4444", life: 2, maxLife: 2 });
+      if (this.leader) {
+        this.leader.hp = Math.max(0, this.leader.hp - 20);
+      }
+    }
+
+    try {
+      await fetch(this.N8N_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: this.username,
+          event: "pvp_attack",
+          target: target.username,
+          attacker_power: myPower,
+          defender_power: theirPower,
+          result: won ? "win" : "lose",
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (err) { console.warn("⚠️ [MP] فشل إرسال نتيجة الهجوم:", err.message); }
+  }
+
+  checkCombatProximity() {
+    this.combatCooldown = Math.max(0, this.combatCooldown - 0.016);
+    this.nearbyPlayer = null;
+
+    let closest = null;
+    let minDist = this.attackRange;
+    for (const [, p] of this.otherPlayers) {
+      const d = Math.hypot(p.x - this.leader.x, p.y - this.leader.y);
+      if (d < minDist) {
+        minDist = d;
+        closest = p;
+      }
+    }
+    this.nearbyPlayer = closest;
+  }
+
+  drawOtherPlayers(ctx) {
+    for (const [, p] of this.otherPlayers) {
+      p.x += (p.targetX - p.x) * 0.1;
+      p.y += (p.targetY - p.y) * 0.1;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.3)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 11px Cairo, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(p.username, 0, -p.radius - 10);
+
+      ctx.restore();
     }
   }
 
@@ -153,10 +320,14 @@ export class WorldMap {
     img.src = "img/map.jpg";
 
     this.engine.start((dt, ctx, cam) => this.update(dt, ctx, cam));
+
+    this.startMultiplayerSync();
   }
 
   stop() {
     this.running = false;
+    this.stopMultiplayerSync();
+    this.otherPlayers.clear();
     const zoomInBtn = document.getElementById("zoom-in-btn");
     const zoomOutBtn = document.getElementById("zoom-out-btn");
     if (zoomInBtn) zoomInBtn.classList.add("hidden");
@@ -222,6 +393,12 @@ export class WorldMap {
       return;
     }
 
+    const otherPlayer = this.findOtherPlayerAt(wx, wy);
+    if (otherPlayer) {
+      this.attackPlayer(otherPlayer);
+      return;
+    }
+
     this.leader.path = aStar(this.leader.x, this.leader.y, wx, wy, this.W, this.H);
     this.leader.pathIdx = 0;
     this.leader.fighting = null;
@@ -258,6 +435,7 @@ export class WorldMap {
     this.updateMonsters(dt);
     this.updateProjectiles(dt);
     this.updateFx(dt);
+    this.checkCombatProximity();
 
     ctx.save();
     ctx.translate(-cam.x, -cam.y);
@@ -272,9 +450,31 @@ export class WorldMap {
     this.drawMonsters(ctx);
     this.drawDrops(ctx);
     this.drawProjectiles(ctx);
+    this.drawOtherPlayers(ctx);
     this.drawArmy(ctx);
     this.drawHero(ctx);
     this.drawWorldFx(ctx, cam);
+
+    if (this.nearbyPlayer) {
+      const sx = this.nearbyPlayer.x - cam.x;
+      const sy = this.nearbyPlayer.y - cam.y;
+      ctx.save();
+      ctx.translate(0, 0);
+      ctx.strokeStyle = "#ff4444";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(sx - 30, sy - 50, 60, 70);
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#ff4444";
+      ctx.font = "bold 12px Cairo, sans-serif";
+      ctx.textAlign = "center";
+      const label = `⚔️ ${this.nearbyPlayer.username} (${this.nearbyPlayer.army_power || 0})`;
+      ctx.fillText(label, sx, sy - 56);
+      ctx.fillStyle = "#fff";
+      ctx.font = "10px Cairo, sans-serif";
+      ctx.fillText("👆 اضغط للهجوم", sx, sy + 42);
+      ctx.restore();
+    }
 
     ctx.restore();
   }
