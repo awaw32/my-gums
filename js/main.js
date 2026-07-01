@@ -1,4 +1,4 @@
-import { GameEconomy } from "./economy.js";
+import { GameEconomy, getXpForLevel } from "./economy.js";
 import { GameVillage } from "./village.js";
 import { GameArmy } from "./army.js";
 import { GameUI } from "./ui.js";
@@ -7,6 +7,9 @@ import { AssetManager } from "./asset-manager.js";
 import { AudioManager } from "./audio.js";
 import { saveGame, loadGame } from "./save.js";
 import { QuestManager } from "./quests.js";
+import { OasisManager } from "./oasis-manager.js";
+import { UpgradeTree } from "./upgrade-tree.js";
+import { AllianceManager } from "./alliance-manager.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
@@ -61,6 +64,10 @@ async function loadFromDatabase(economy, army, username) {
       economy.hammers = data.hammers || 0;
       economy.scrolls = data.scrolls || 0;
       economy.horns = data.horns || 0;
+      economy.resources.food = data.food ?? 50;
+      economy.level = data.level || 1;
+      economy.xp = data.xp || 0;
+      economy.xpToNext = getXpForLevel(economy.level);
       army.unitLevel = data.unitLevel || 1;
       if (data.weapons && Array.isArray(data.weapons)) {
         for (const wd of data.weapons) {
@@ -68,6 +75,10 @@ async function loadFromDatabase(economy, army, username) {
           if (w) w.level = wd.level || 0;
         }
       }
+      // تخزين مؤقت لبيانات التحالف والترقيات والواحات لاستخدامها لاحقاً
+      window._loadedAllianceLevel = data.allianceLevel ?? 0;
+      window._loadedUpgrades = data.upgrades || {};
+      window._loadedOases = data.oases || [];
       console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!");
     }
   } catch (err) {
@@ -96,6 +107,9 @@ async function init() {
   
   await loadFromDatabase(economy, army, PLAYER_USERNAME);
   
+  const oasisManager = new OasisManager(economy);
+  const upgradeTree = new UpgradeTree(economy);
+  const allianceManager = new AllianceManager(economy);
   const quests = new QuestManager(economy, army, village); 
   const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE, army);
   const assets = new AssetManager();
@@ -103,6 +117,14 @@ async function init() {
   
   setProgress(80);
   loadGame(economy, village, army);
+
+  // استعادة بيانات التحالف والترقيات والواحات من التخزين المؤقت
+  if (window._loadedAllianceLevel !== undefined) allianceManager.loadState(window._loadedAllianceLevel);
+  if (window._loadedUpgrades) upgradeTree.loadState(window._loadedUpgrades);
+  if (window._loadedOases) oasisManager.loadState(window._loadedOases);
+  delete window._loadedAllianceLevel;
+  delete window._loadedUpgrades;
+  delete window._loadedOases;
   
   // 🎁 بونص ترحيبي للاعب الجديد (1000 من كل عملة)
   const isNew = [!economy.cash, !economy.gems, !economy.gold, !economy.kingCoins, !economy.hammers, !economy.scrolls, !economy.horns].every(v => v === true);
@@ -119,7 +141,7 @@ async function init() {
     try {
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cash: economy.cash, gems: economy.gems, gold: economy.gold, kingCoins: economy.kingCoins, hammers: economy.hammers, scrolls: economy.scrolls, horns: economy.horns, army_power: economy.power, unitLevel: 1, weapons: [], last_active: Date.now() })
+        body: JSON.stringify({ cash: economy.cash, gems: economy.gems, gold: economy.gold, kingCoins: economy.kingCoins, hammers: economy.hammers, scrolls: economy.scrolls, horns: economy.horns, food: economy.food, army_power: economy.power, unitLevel: 1, weapons: [], last_active: Date.now() })
       }).catch(() => {});
     } catch {}
   } else {
@@ -138,8 +160,12 @@ async function init() {
   if (appShell) appShell.classList.remove("hidden");
 
   setTimeout(() => {
-    const ui = new GameUI(village, army, economy, world);
+    const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager);
     world.onExit = () => ui.exitWorldMap();
+
+    // ربط العالم بأنظمة الترقيات والتحالف
+    world._allianceManager = allianceManager;
+    world._upgradeTree = upgradeTree;
 
     const saveToDB = () => {
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
@@ -153,11 +179,17 @@ async function init() {
           hammers: economy.hammers,
           scrolls: economy.scrolls,
           horns: economy.horns,
+          food: economy.food,
           army_power: economy.power,
           unitLevel: army.unitLevel,
           weapons: army.weapons.map(w => ({ id: w.id, level: w.level })),
           x_position: world.leader ? Math.floor(world.leader.x) : 0,
           y_position: world.leader ? Math.floor(world.leader.y) : 0,
+          xp: economy.xp,
+          level: economy.level,
+          allianceLevel: allianceManager.level,
+          upgrades: upgradeTree.levels,
+          oases: oasisManager.getState().map(o => ({ id: o.id, captured: o.captured })),
           last_active: Date.now()
         })
       }).catch(() => {});
@@ -171,6 +203,7 @@ async function init() {
             if (economy.spend("cash", cost)) {
               army.unitLevel++;
               saveToDB();
+              ui.updateTopBar();
             }
           }
           break;
@@ -181,6 +214,7 @@ async function init() {
               world.leader.hp = Math.min(world.leader.maxHp, world.leader.hp + 30);
             }
             saveToDB();
+            ui.updateTopBar();
           }
           break;
 
@@ -191,15 +225,23 @@ async function init() {
             if (economy.spend("gold", cost)) {
               weapon.level++;
               saveToDB();
+              ui.updateTopBar();
             }
           }
           break;
       }
     });
 
+    // ربط واجهة الترقيات والتحالف
+    economy._onLevelUp = (lvl) => {
+      ui.showNotification(`🎉 ترقيت إلى المستوى ${lvl}!`);
+      ui.updateTopBar();
+    };
+
     setInterval(() => {
       economy.tick();
       village.update(0.5);
+      oasisManager.tick(0.5);
       saveToDB();
     }, 15000);
 

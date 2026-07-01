@@ -1,11 +1,14 @@
 import { formatNumber, RESOURCE_TYPES } from "./economy.js";
 
 export class GameUI {
-  constructor(village, army, economy, world) {
+  constructor(village, army, economy, world, oasisManager, upgradeTree, allianceManager) {
     this.village = village;
     this.army = army;
     this.economy = economy;
     this.world = world;
+    this.oasisManager = oasisManager;
+    this.upgradeTree = upgradeTree;
+    this.allianceManager = allianceManager;
     this.currentScreen = "promotion";
     this.screens = {};
     this.fightOverlayEl = null;
@@ -172,19 +175,7 @@ export class GameUI {
     div.className = "screen-panel";
     div.innerHTML = `
       <div class="panel-header">👑 التحالف</div>
-      <div class="alliance-card">
-        <div style="font-size:2rem;text-align:center">🏰</div>
-        <div style="font-weight:700;text-align:center;margin:6px 0">[NSOR] أنصار الصحراء</div>
-        <div style="font-size:0.7rem;color:var(--beige-dark);text-align:center">الأعضاء: 32/50 • القوة: 1.2M</div>
-      </div>
-      <div class="alliance-card">
-        <div style="font-weight:700;margin-bottom:8px">🌸 الأمنية</div>
-        <div style="font-size:0.7rem;color:var(--beige-dark)">تبرع بالزهور لرفع مستوى التحالف (0/10 يومياً)</div>
-      </div>
-      <div class="alliance-card">
-        <div style="font-weight:700;margin-bottom:8px">💬 الشات</div>
-        <div style="font-size:0.7rem;color:var(--beige-dark)">تواصل مع أعضاء التحالف</div>
-      </div>
+      <div id="alliance-content"></div>
     `;
     return div;
   }
@@ -220,7 +211,54 @@ export class GameUI {
       case "ranking": this.renderRanking(); break;
       case "territories": this.renderTerritories(); break;
       case "war": this.renderWar(); break;
-      case "alliance": break;
+      case "alliance": this.renderAlliance(); break;
+    }
+  }
+
+  renderAlliance() {
+    const container = document.getElementById("alliance-content");
+    if (!container) return;
+    if (!this.allianceManager) {
+      container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⚠️ التحالف غير متاح</div>`;
+      return;
+    }
+    const state = this.allianceManager.getState();
+    container.innerHTML = `
+      <div class="alliance-card alliance-main">
+        <div class="alliance-tier-icon">${state.level === 0 ? "🏜️" : state.level >= 4 ? "👑" : state.level >= 2 ? "🏰" : "⛺"}</div>
+        <div class="alliance-tier-name">${state.tierName || "بدون تحالف"}</div>
+        <div class="alliance-tier-level">المستوى ${state.level}/${state.maxLevel}</div>
+        <div class="alliance-tier-bar-track">
+          <div class="alliance-tier-bar-fill" style="width:${(state.level / state.maxLevel) * 100}%"></div>
+        </div>
+      </div>
+      <div class="alliance-bonuses">
+        <div class="alliance-card bonus-card">⚔️ ضرر +${state.damageBonus}</div>
+        <div class="alliance-card bonus-card">🛡️ دفاع +${state.defenseBonus}</div>
+        <div class="alliance-card bonus-card">💵 دخل ×${state.incomeMult.toFixed(1)}</div>
+      </div>
+    `;
+    if (state.canUpgrade) {
+      const btn = document.createElement("button");
+      btn.className = "action-btn upgrade-btn alliance-upgrade-btn";
+      btn.textContent = `▲ ترقية (${formatNumber(state.upgradeCost)} 🪙)`;
+      btn.addEventListener("click", () => {
+        if (this.allianceManager.upgrade()) {
+          this.renderAlliance();
+          this.updateTopBar();
+        }
+      });
+      container.appendChild(btn);
+    } else if (state.level < state.maxLevel) {
+      const need = document.createElement("div");
+      need.className = "alliance-need";
+      need.textContent = `تحتاج ${formatNumber(state.upgradeCost)} 🪙`;
+      container.appendChild(need);
+    } else {
+      const max = document.createElement("div");
+      max.className = "alliance-max";
+      max.textContent = "⭐⭐⭐ المستوى الأقصى";
+      container.appendChild(max);
     }
   }
 
@@ -344,49 +382,72 @@ export class GameUI {
   renderRanking() {
     const list = document.getElementById("ranking-list");
     if (!list) return;
-    list.innerHTML = "";
-    const players = [
-      { name: "⚔️ فارس الصحراء", power: 1250760, rank: 1 },
-      { name: "🧙 ساحر الرمال", power: 980450, rank: 2 },
-      { name: "🛡️ حامي الواحة", power: 756230, rank: 3 },
-      { name: "🐪 أنت", power: this.economy.power, rank: 4 },
-    ];
-    for (const p of players) {
-      const card = document.createElement("div");
-      card.className = "rank-card";
-      card.innerHTML = `
-        <div class="rank-num">${p.rank}</div>
-        <div class="rank-avatar">${p.name.split(" ")[0]}</div>
-        <div class="rank-info">
-          <div class="rank-name">${p.name}</div>
-          <div class="rank-power">👊 ${formatNumber(p.power)}</div>
-        </div>
-      `;
-      list.appendChild(card);
-    }
+    list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⏳ جاري التحميل...</div>`;
+
+    fetch("/api/leaderboard")
+      .then(r => r.json())
+      .then(players => {
+        list.innerHTML = "";
+        if (!players || players.length === 0) {
+          list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">لا يوجد لاعبون بعد</div>`;
+          return;
+        }
+        const myName = this.world?.username || "";
+        players.forEach((p, i) => {
+          const isMe = p.username === myName;
+          const card = document.createElement("div");
+          card.className = `rank-card${isMe ? " rank-card-me" : ""}`;
+          card.innerHTML = `
+            <div class="rank-num">${i + 1}</div>
+            <div class="rank-avatar">${isMe ? "🐪" : "🧙"}</div>
+            <div class="rank-info">
+              <div class="rank-name">${isMe ? "⭐ " : ""}${p.username}${isMe ? " (أنت)" : ""}</div>
+              <div class="rank-power">👊 ${formatNumber(p.army_power || 0)} | 💵 ${formatNumber(p.cash || 0)}</div>
+            </div>
+          `;
+          list.appendChild(card);
+        });
+      })
+      .catch(() => {
+        list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--red)">❌ فشل التحميل</div>`;
+      });
   }
 
   renderTerritories() {
     const list = document.getElementById("territory-list");
     if (!list) return;
     list.innerHTML = "";
-    const territories = [
-      { name: "واحة البداية", status: "🟢 محررة", icon: "🌴" },
-      { name: "واحة النخيل", status: "🔴 تحت السيطرة", icon: "🌵" },
-      { name: "واحة الكنز", status: "🔴 تحت السيطرة", icon: "💎" },
-      { name: "واحة الأساطير", status: "🔴 تحت السيطرة", icon: "🏺" },
-      { name: "واحة الفراعنة", status: "🔴 تحت السيطرة", icon: "👑" },
-    ];
-    for (const t of territories) {
+    if (!this.oasisManager) return;
+    const oases = this.oasisManager.getState();
+    for (const o of oases) {
       const card = document.createElement("div");
-      card.className = "territory-card";
+      card.className = `territory-card${o.captured ? " territory-owned" : ""}`;
+      const canCapture = !o.captured && this.oasisManager.canCapture(o.id);
       card.innerHTML = `
-        <div class="territory-icon">${t.icon}</div>
+        <div class="territory-icon">${o.icon}</div>
         <div class="territory-info">
-          <div class="territory-name">${t.name}</div>
-          <div class="territory-status">${t.status}</div>
+          <div class="territory-name">${o.name}</div>
+          <div class="territory-status">${o.captured ? "🟢 محررة" : "🔴 تحت السيطرة"}</div>
+          <div class="territory-detail">🪙 ${o.income}/ث</div>
         </div>
       `;
+      if (canCapture) {
+        const capBtn = document.createElement("button");
+        capBtn.className = "action-btn capture-btn";
+        capBtn.textContent = `⚔️ احتلال (${this.economy.power.toFixed(0)}/${o.capturePower})`;
+        capBtn.addEventListener("click", () => {
+          if (this.oasisManager.capture(o.id)) {
+            this.renderTerritories();
+            this.updateTopBar();
+          }
+        });
+        card.appendChild(capBtn);
+      } else if (!o.captured) {
+        const need = document.createElement("div");
+        need.className = "territory-need";
+        need.textContent = `👊 تحتاج ${o.capturePower}`;
+        card.appendChild(need);
+      }
       list.appendChild(card);
     }
   }
@@ -460,6 +521,8 @@ export class GameUI {
     if (this.els.goldDisplay) {
       this.els.goldDisplay.textContent = eco.goldFormatted;
     }
+    const foodEl = document.getElementById("food-display");
+    if (foodEl) foodEl.textContent = eco.foodFormatted;
     if (this.els.levelLabel) {
       this.els.levelLabel.textContent = `LV ${eco.level}/${eco.maxLevel}`;
     }
@@ -494,7 +557,22 @@ export class GameUI {
   }
 
   startTopBarLoop() {
-    setInterval(() => this.updateTopBar(), 500);
+    this._topBarInterval = setInterval(() => this.updateTopBar(), 500);
+    if (this.oasisManager) {
+      this.oasisManager._onOasesChanged = () => {
+        if (this.currentScreen === "territories") this.renderTerritories();
+        this.updateTopBar();
+      };
+    }
+    if (this.upgradeTree) {
+      this.upgradeTree._onChanged = () => this.updateTopBar();
+    }
+    if (this.allianceManager) {
+      this.allianceManager._onChanged = () => {
+        if (this.currentScreen === "alliance") this.renderAlliance();
+        this.updateTopBar();
+      };
+    }
   }
 
   setShopBuyCallback(fn) {

@@ -6,6 +6,7 @@ export function saveGame(economy, village, army) {
     multiplier: economy.multiplier,
     level: economy.level,
     xp: economy.xp,
+    xpToNext: economy.xpToNext,
     currentVillageId: village.currentVillageId,
     unitLevel: army.unitLevel,
     weapons: army.weapons.map(w => ({ id: w.id, level: w.level })),
@@ -37,6 +38,7 @@ export function loadGame(economy, village, army) {
     if (data.multiplier) economy.multiplier = data.multiplier;
     if (data.level) economy.level = data.level;
     if (data.xp) economy.xp = data.xp;
+    if (data.xpToNext) economy.xpToNext = data.xpToNext;
 
     if (data.currentVillageId && data.currentVillageId !== village.currentVillageId) {
       village.initVillage(data.currentVillageId);

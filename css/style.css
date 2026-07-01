@@ -858,6 +858,55 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+.rank-card-me {
+  border-color: var(--gold) !important;
+  background: rgba(255,215,0,0.08) !important;
+}
+.territory-owned {
+  border-color: rgba(46,204,113,0.4);
+  background: rgba(46,204,113,0.08);
+}
+.territory-detail {
+  font-size: 0.65rem; color: var(--gold); margin-top: 2px;
+}
+.territory-need {
+  font-size: 0.65rem; color: var(--beige-dark); white-space: nowrap;
+}
+.capture-btn {
+  background: linear-gradient(180deg, #e74c3c, #c0392b);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.alliance-card {
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.alliance-main { text-align: center; }
+.alliance-tier-icon { font-size: 3rem; margin-bottom: 6px; }
+.alliance-tier-name { font-size: 1.1rem; font-weight: 700; color: var(--gold); }
+.alliance-tier-level { font-size: 0.75rem; color: var(--beige-dark); margin-bottom: 8px; }
+.alliance-tier-bar-track {
+  height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;
+}
+.alliance-tier-bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); border-radius: 3px; transition: width 0.5s;
+}
+.alliance-bonuses { display: flex; gap: 6px; margin-bottom: 10px; }
+.alliance-bonuses .alliance-card { flex: 1; text-align: center; margin-bottom: 0; }
+.bonus-card { font-size: 0.75rem; font-weight: 600; color: var(--gold); }
+.alliance-upgrade-btn { width: 100%; margin-top: 4px; }
+.alliance-need { text-align: center; font-size: 0.75rem; color: var(--beige-dark); padding: 8px; }
+.alliance-max { text-align: center; font-size: 0.85rem; color: var(--gold); padding: 8px; }
+.top-food { direction: ltr; }
+
 @keyframes toast-out {
   from { opacity: 1; }
   to { opacity: 0; }

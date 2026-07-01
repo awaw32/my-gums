@@ -59,12 +59,18 @@ const playerSchema = new mongoose.Schema({
   hammers:       { type: Number, default: 0 },
   scrolls:       { type: Number, default: 0 },
   horns:         { type: Number, default: 0 },
+  food:          { type: Number, default: 50 },
   army_power:    { type: Number, default: 0 },
   x_position:    { type: Number, default: 1200 },
   y_position:    { type: Number, default: 1200 },
   last_active:   { type: Number, default: 0 },
   unitLevel:     { type: Number, default: 1 },
   weapons:       { type: Array, default: [] },
+  xp:           { type: Number, default: 0 },
+  level:        { type: Number, default: 1 },
+  allianceLevel: { type: Number, default: 0 },
+  upgrades:     { type: Object, default: {} },
+  oases:        { type: Array, default: [] },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);

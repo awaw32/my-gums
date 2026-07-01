@@ -6,6 +6,7 @@ export const RESOURCE_TYPES = {
   hammers: { name: 'المطارق', icon: '🔨', color: '#e74c3c', format: 'big' },
   scrolls: { name: 'المخطوطات', icon: '📜', color: '#f39c12', format: 'big' },
   horns: { name: 'الأبواق', icon: '📯', color: '#1abc9c', format: 'big' },
+  food: { name: 'الطعام', icon: '🌾', color: '#f1c40f', format: 'big' },
 };
 
 export function formatNumber(n) {
@@ -17,7 +18,8 @@ export function formatNumber(n) {
   return Math.floor(n).toLocaleString();
 }
 
-export function getXpForLevel(level) {
+export function   getXpForLevel(level) {
+  if (level <= 0) return 100;
   return Math.floor(100 * Math.pow(1.15, level - 1));
 }
 
@@ -31,6 +33,7 @@ export class GameEconomy {
       hammers: 0,
       scrolls: 0,
       horns: 0,
+      food: 50,
     };
     this.multiplier = 1;
     this.level = 1;
@@ -40,6 +43,9 @@ export class GameEconomy {
     this.incomeRate = 0;
     this.lastTick = Date.now();
     this.powerSources = [];
+    this.kills = 0;
+    this.totalEarned = 0;
+    this._onLevelUp = null;
   }
 
   get power() {
@@ -63,8 +69,11 @@ export class GameEconomy {
   get horns() { return this.resources.horns; }
   set horns(v) { this.resources.horns = Math.max(0, v); }
 
+  get food() { return this.resources.food; }
+  set food(v) { this.resources.food = Math.max(0, v); }
   get cashFormatted() { return formatNumber(this.cash); }
   get goldFormatted() { return formatNumber(this.gold); }
+  get foodFormatted() { return formatNumber(this.food); }
 
   canAfford(type, cost) { return (this.resources[type] || 0) >= cost; }
 
@@ -90,10 +99,15 @@ export class GameEconomy {
 
   addXp(amount) {
     this.xp += amount;
+    let leveled = false;
     while (this.xp >= this.xpToNext && this.level < this.maxLevel) {
       this.xp -= this.xpToNext;
       this.level++;
       this.xpToNext = getXpForLevel(this.level);
+      leveled = true;
+    }
+    if (leveled && this._onLevelUp) {
+      this._onLevelUp(this.level);
     }
   }
 
