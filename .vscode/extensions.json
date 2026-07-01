@@ -1,5 +1,6 @@
 {
     "recommendations": [
-        "hostinger-official.hostinger-connector"
+        "hostinger-official.hostinger-connector",
+        "saoudrizwan.claude-dev"
     ]
 }
