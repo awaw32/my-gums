@@ -30,7 +30,7 @@ export class Weapon {
   upgrade(economy) {
     if (this.level >= this.maxLevel) return false;
     const cost = this.upgradeCost;
-    if (!economy.spend('gems', cost)) return false;
+    if (!economy.spend('gold', cost)) return false;
     this.level++;
     return true;
   }

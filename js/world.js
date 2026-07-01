@@ -34,6 +34,8 @@ export class WorldMap {
     this._onPlayersChanged = null;
     this._onNotification = null;
     this._monstersSynced = false;
+    this._pvpTarget = null;
+    this._wipeFlag = false;
 
     // === القائد (الشيخ) ===
     this.leader = {
@@ -158,6 +160,8 @@ export class WorldMap {
         } else if (msg.type === "monster_killed") {
           const mon = this.monsters.find(m => m.id === msg.id);
           if (mon && mon.alive) { mon.alive = false; mon.respawnTimer = 25; }
+        } else if (msg.type === "pvp_notify") {
+          if (this._onNotification) this._onNotification(`⚔️ ${msg.attacker} هاجمك بقوة ${msg.power}!`);
         } else if (msg.type === "player_joined") {
           if (this._onNotification) this._onNotification(`👋 ${msg.username} دخل إلى الصحراء`);
         } else if (msg.type === "player_left") {
@@ -308,13 +312,21 @@ export class WorldMap {
 
     if (won) {
       const reward = Math.max(10, Math.floor(theirPower * 0.05));
-      if (this.economy) this.economy.addRaw("cash", reward);
-      this.worldFx.push({ x: target.x, y: target.y, text: `⚔️ انتصرت! +${reward} 💵`, color: "#4cd964", life: 2, maxLife: 2 });
+      const goldReward = Math.floor(reward * 0.2);
+      if (this.economy) {
+        this.economy.addRaw("cash", reward);
+        this.economy.addRaw("gold", goldReward);
+      }
+      this.worldFx.push({ x: target.x, y: target.y, text: `⚔️ انتصرت! +${reward} 💵 +${goldReward} 🪙`, color: "#4cd964", life: 2, maxLife: 2 });
     } else {
       this.worldFx.push({ x: target.x, y: target.y, text: "💥 هُزمت!", color: "#ff4444", life: 2, maxLife: 2 });
       if (this.leader) {
         this.leader.hp = Math.max(0, this.leader.hp - 20);
       }
+    }
+
+    if (this.ws && this.ws.readyState === 1) {
+      this.ws.send(JSON.stringify({ type: "pvp_attack", target: target.username, myPower: this.economy ? this.economy.power : 0 }));
     }
 
     try {
@@ -591,21 +603,28 @@ export class WorldMap {
     const monster = this.findMonsterAt(wx, wy);
     if (monster && monster.alive) {
       this.engageMonster(monster);
+      this._pvpTarget = null;
       return;
     }
 
     const otherPlayer = this.findOtherPlayerAt(wx, wy);
     if (otherPlayer) {
-      this.attackPlayer(otherPlayer);
+      if (this._pvpTarget && this._pvpTarget.username === otherPlayer.username) {
+        this._pvpTarget = null;
+        this.attackPlayer(otherPlayer);
+      } else {
+        this._pvpTarget = otherPlayer;
+      }
       return;
     }
+    this._pvpTarget = null;
 
-    this.leader.path = aStar(this.leader.x, this.leader.y, wx, wy, this.W, this.H);
+    this.leader.path = simplifyPath(aStar(this.leader.x, this.leader.y, wx, wy, this.W, this.H));
     this.leader.pathIdx = 0;
     this.leader.fighting = null;
 
     this.armyUnits.forEach(u => {
-      u.path = aStar(u.x, u.y, wx + (Math.random() - 0.5) * 50, wy + (Math.random() - 0.5) * 50, this.W, this.H);
+      u.path = simplifyPath(aStar(u.x, u.y, wx + (Math.random() - 0.5) * 50, wy + (Math.random() - 0.5) * 50, this.W, this.H));
       u.pathIdx = 0;
       u.fighting = null;
     });
@@ -632,6 +651,92 @@ export class WorldMap {
     this.armyUnits.forEach(u => u.fighting = monster);
   }
 
+  drawPathLine(ctx, cam) {
+    const h = this.leader;
+    if (!h.path || h.pathIdx >= h.path.length) return;
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,215,0,0.25)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(h.x, h.y);
+    for (let i = h.pathIdx; i < h.path.length; i++) {
+      ctx.lineTo(h.path[i].x, h.path[i].y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  checkWipe() {
+    if (this.leader.hp <= 0) {
+      if (this.armyUnits.length === 0 && this.sessionStats.coinsEarned > 0) {
+        this._wipeFlag = true;
+      } else {
+        this.leader.hp = this.leader.maxHp;
+        this.leader.x = this.W / 2;
+        this.leader.y = this.H / 2;
+        this.leader.path = null;
+      }
+    }
+    if (this._wipeFlag) {
+      this._wipeFlag = false;
+      this.onWipe();
+    }
+  }
+
+  onWipe() {
+    const lost = this.sessionStats.coinsEarned;
+    if (this.economy && lost > 0) {
+      this.economy.addRaw("cash", -lost);
+      this.sendPositionUpdate();
+    }
+    this.sessionStats = { kills: 0, coinsEarned: 0 };
+    this.worldFx.push({ x: this.leader.x, y: this.leader.y, text: `💀 خسرت ${lost} 💵!`, color: "#ff0000", life: 3, maxLife: 3 });
+    this.leader.hp = this.leader.maxHp;
+    this.leader.x = this.W / 2;
+    this.leader.y = this.H / 2;
+    this.leader.path = null;
+    this.initArmyUnits(8);
+    if (this._onNotification) this._onNotification(`💀 هُزمت! خسرت ${lost} 💵`);
+  }
+
+  drawArmyHUD(dt, ctx) {
+    const total = 8;
+    const alive = this.armyUnits.length;
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(8, 8, 120, 28);
+    ctx.fillStyle = alive > 0 ? "#4cd964" : "#ff4444";
+    ctx.font = "bold 11px Cairo, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(`🛡️ ${alive}/${total}`, 120, 28);
+    ctx.restore();
+  }
+
+  drawPvPMenu(ctx, cam) {
+    const target = this._pvpTarget;
+    if (!target) return;
+    const sx = target.x - cam.x;
+    const sy = target.y - cam.y;
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(sx - 40, sy - 65, 80, 28);
+    ctx.fillStyle = "#FFD700";
+    ctx.font = "bold 10px Cairo, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`🔍 ${target.username}`, sx, sy - 47);
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(sx - 40, sy + 30, 80, 30);
+    ctx.fillStyle = "#fff";
+    ctx.font = "10px Cairo, sans-serif";
+    ctx.fillText(`👊 ${target.army_power || 0} | ⚔️ ${target.kills || 0}`, sx, sy + 50);
+    ctx.fillStyle = "#ff4444";
+    ctx.font = "bold 10px Cairo, sans-serif";
+    ctx.fillText(`🗡️ اضغط مرة أخرى للهجوم`, sx, sy - 70);
+    ctx.restore();
+  }
+
   update(dt, ctx, cam) {
     this.updateLeader(dt);
     this.updateArmy(dt);
@@ -640,6 +745,7 @@ export class WorldMap {
     this.updateProjectiles(dt);
     this.updateFx(dt);
     this.checkCombatProximity();
+    this.checkWipe();
 
     ctx.save();
     ctx.translate(-cam.x, -cam.y);
@@ -651,6 +757,7 @@ export class WorldMap {
       ctx.fillRect(0, 0, this.W, this.H);
     }
 
+    this.drawPathLine(ctx, cam);
     this.drawMonsters(ctx);
     this.drawDrops(ctx);
     this.drawProjectiles(ctx);
@@ -659,28 +766,11 @@ export class WorldMap {
     this.drawHero(ctx);
     this.drawWorldFx(ctx, cam);
 
-    if (this.nearbyPlayer) {
-      const sx = this.nearbyPlayer.x - cam.x;
-      const sy = this.nearbyPlayer.y - cam.y;
-      ctx.save();
-      ctx.translate(0, 0);
-      ctx.strokeStyle = "#ff4444";
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
-      ctx.strokeRect(sx - 30, sy - 50, 60, 70);
-      ctx.setLineDash([]);
-      ctx.fillStyle = "#ff4444";
-      ctx.font = "bold 12px Cairo, sans-serif";
-      ctx.textAlign = "center";
-      const label = `⚔️ ${this.nearbyPlayer.username} (${this.nearbyPlayer.army_power || 0})`;
-      ctx.fillText(label, sx, sy - 56);
-      ctx.fillStyle = "#fff";
-      ctx.font = "10px Cairo, sans-serif";
-      ctx.fillText("👆 اضغط للهجوم", sx, sy + 42);
-      ctx.restore();
-    }
-
     ctx.restore();
+
+    // رسم HUD بعد استعادة الـ transform (إحداثيات الشاشة)
+    this.drawArmyHUD(dt, ctx);
+    this.drawPvPMenu(ctx, cam);
   }
 
   updateLeader(dt) {
@@ -809,7 +899,8 @@ export class WorldMap {
       this.createDrop(monster.x, monster.y, reward);
       if (this.economy) {
         this.economy.addRaw("cash", reward);
-        this.worldFx.push({ x: monster.x, y: monster.y, text: `+${reward} 💵`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
+        this.economy.addRaw("gold", Math.floor(reward * 0.3));
+        this.worldFx.push({ x: monster.x, y: monster.y, text: `+${reward} 💵 +${Math.floor(reward * 0.3)} 🪙`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
         fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -833,12 +924,6 @@ export class WorldMap {
 
   damageHero(dmg) {
     this.leader.hp = Math.max(0, this.leader.hp - dmg);
-    if (this.leader.hp <= 0) {
-      this.leader.hp = this.leader.maxHp;
-      this.leader.x = this.W / 2;
-      this.leader.y = this.H / 2;
-      this.leader.path = null;
-    }
   }
 
   createDrop(x, y, money) {

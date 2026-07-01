@@ -188,7 +188,7 @@ async function init() {
           const weapon = army.weapons.find(w => w.id === item);
           if (weapon && weapon.level < weapon.maxLevel) {
             const cost = weapon.upgradeCost;
-            if (economy.spend("gems", cost)) {
+            if (economy.spend("gold", cost)) {
               weapon.level++;
               saveToDB();
             }

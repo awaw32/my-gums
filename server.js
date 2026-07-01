@@ -297,9 +297,15 @@ wss.on("connection", (ws, req) => {
         if (mon && mon.alive) {
           mon.alive = false;
           mon.respawnTimer = 25;
-          // بث الموت لكل اللاعبين
           const killMsg = JSON.stringify({ type: "monster_killed", id: msg.id, killedBy: username });
           worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(killMsg); });
+        }
+      } else if (msg.type === "pvp_attack" && username) {
+        const target = msg.target;
+        const attacker = username;
+        const tc = worldClients.get(target);
+        if (tc && tc.ws.readyState === 1) {
+          tc.ws.send(JSON.stringify({ type: "pvp_notify", attacker, power: msg.myPower || 0 }));
         }
       }
     });
