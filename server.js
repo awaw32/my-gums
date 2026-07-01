@@ -182,6 +182,10 @@ wss.on("connection", (ws, req) => {
   const url = req.url || "/";
   const ip = req.socket.remoteAddress;
 
+  // ── منع قطع WebSocket (Ping/Pong) ──────────────────────────────
+  ws.isAlive = true;
+  ws.on("pong", () => { ws.isAlive = true; });
+
   // ── World Map multiplayer ────────────────────────────────────────
   if (url === "/ws/world") {
     let username = null;
