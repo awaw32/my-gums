@@ -90,13 +90,21 @@ export class WorldMap {
   startMultiplayerSync() {
     if (this._ws) return;
     this._connectWS();
+    this.sendWSUpdate();
     this.sendPositionUpdate();
+    // WS update كل 100ms للحركة الفورية
+    this._wsInterval = setInterval(() => this.sendWSUpdate(), 100);
+    // HTTP save كل 5 ثوانٍ للحفظ في قاعدة البيانات
     this._posInterval = setInterval(() => this.sendPositionUpdate(), 5000);
     this._boundUnload = () => this.stopMultiplayerSync();
     window.addEventListener("beforeunload", this._boundUnload);
   }
 
   stopMultiplayerSync() {
+    if (this._wsInterval) {
+      clearInterval(this._wsInterval);
+      this._wsInterval = null;
+    }
     if (this._posInterval) {
       clearInterval(this._posInterval);
       this._posInterval = null;
@@ -173,8 +181,8 @@ export class WorldMap {
     }
   }
 
-  sendPositionUpdate() {
-    if (!this.leader) return;
+  sendWSUpdate() {
+    if (!this.leader || !this._ws || this._ws.readyState !== WebSocket.OPEN) return;
     this._sendWS({
       type: "update",
       x_position: Math.floor(this.leader.x),
@@ -185,6 +193,10 @@ export class WorldMap {
       unitLevel: this.army?.unitLevel || 1,
       armyAlive: this.armyUnits.filter(u => u.hp > 0).length
     });
+  }
+
+  sendPositionUpdate() {
+    if (!this.leader) return;
     fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -344,7 +356,8 @@ export class WorldMap {
 
   updateOtherPlayers(dt) {
     for (const [, p] of this.otherPlayers) {
-      const lerp = Math.min(1, dt * 4);
+      // مع updates كل 100ms، lerp بسرعة 10× الثانية يعطي حركة سلسة
+      const lerp = Math.min(1, dt * 10);
       p.x += (p.targetX - p.x) * lerp;
       p.y += (p.targetY - p.y) * lerp;
     }
@@ -596,6 +609,8 @@ export class WorldMap {
       u.pathIdx = 0;
       u.fighting = null;
     });
+
+    this.sendWSUpdate();
   }
 
   findMonsterAt(x, y) {
@@ -960,6 +975,7 @@ export class WorldMap {
   }
 
   async exitWorldMap() {
+    this.sendWSUpdate();
     await this.sendPositionUpdate();
     this.stop();
     const canvas = document.getElementById("gameCanvas");
