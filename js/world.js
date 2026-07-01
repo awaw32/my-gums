@@ -10,10 +10,11 @@ import {
 } from "./pathfinding.js";
 
 export class WorldMap {
-  constructor(economy, username = "بطل الصحراء", apiBase = "") {
+  constructor(economy, username = "بطل الصحراء", apiBase = "", army = null) {
     this.username = username;
     this.economy = economy;
     this.apiBase = apiBase;
+    this.army = army;
     this.W = 2400;
     this.H = 2400;
     this.engine = null;
@@ -162,6 +163,8 @@ export class WorldMap {
         scrolls: this.economy?.scrolls || 0,
         horns: this.economy?.horns || 0,
         army_power: this.economy ? this.economy.power : 0,
+        unitLevel: this.army?.unitLevel || 1,
+        weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level })) || [],
         x_position: Math.floor(this.leader.x),
         y_position: Math.floor(this.leader.y),
         last_active: Date.now()
@@ -249,7 +252,16 @@ export class WorldMap {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          cash: this.economy?.cash || 0,
+          gems: this.economy?.gems || 0,
+          gold: this.economy?.gold || 0,
+          kingCoins: this.economy?.kingCoins || 0,
+          hammers: this.economy?.hammers || 0,
+          scrolls: this.economy?.scrolls || 0,
+          horns: this.economy?.horns || 0,
           army_power: this.economy ? this.economy.power : 0,
+          unitLevel: this.army?.unitLevel || 1,
+          weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level })) || [],
           last_active: Date.now()
         })
       });
@@ -703,7 +715,14 @@ export class WorldMap {
           body: JSON.stringify({
             cash: this.economy.cash,
             gems: this.economy.gems,
+            gold: this.economy.gold,
+            kingCoins: this.economy.kingCoins,
+            hammers: this.economy.hammers,
+            scrolls: this.economy.scrolls,
+            horns: this.economy.horns,
             army_power: this.economy.power,
+            unitLevel: this.army?.unitLevel || 1,
+            weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level })) || [],
             last_active: Date.now()
           })
         }).catch(() => {});

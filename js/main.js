@@ -97,7 +97,7 @@ async function init() {
   await loadFromDatabase(economy, army, PLAYER_USERNAME);
   
   const quests = new QuestManager(economy, army, village); 
-  const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE);
+  const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE, army);
   const assets = new AssetManager();
   const audio = new AudioManager();
   
@@ -202,6 +202,16 @@ async function init() {
       village.update(0.5);
       saveToDB();
     }, 15000);
+
+    // تحقق من حالة قاعدة البيانات
+    fetch(`${API_BASE}/health`).then(r => r.json()).then(h => {
+      if (h.mongo === "connected") {
+        console.log("💾 [DB] قاعدة البيانات متصلة ✅");
+        ui.setDbStatus(true);
+      } else {
+        console.warn("💾 [DB] قاعدة البيانات غير متصلة — الحفظ في الذاكرة مؤقتاً");
+      }
+    }).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
   }, 400);
 }
 

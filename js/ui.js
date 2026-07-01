@@ -33,6 +33,23 @@ export class GameUI {
       levelFill: document.getElementById("level-fill"),
       avatar: document.getElementById("top-avatar"),
     };
+    // إنشاء مؤشر حالة قاعدة البيانات
+    this._dbStatusEl = document.createElement("span");
+    this._dbStatusEl.id = "db-status";
+    this._dbStatusEl.title = "قاعدة البيانات";
+    Object.assign(this._dbStatusEl.style, {
+      width: "8px", height: "8px", borderRadius: "50%",
+      display: "inline-block", marginLeft: "6px", flexShrink: "0",
+      background: "#666", transition: "background 0.5s"
+    });
+    this.els.avatar?.after(this._dbStatusEl);
+  }
+
+  setDbStatus(connected) {
+    if (this._dbStatusEl) {
+      this._dbStatusEl.style.background = connected ? "#4cd964" : "#ff4444";
+      this._dbStatusEl.title = connected ? "قاعدة البيانات متصلة ✅" : "قاعدة البيانات غير متصلة ❌";
+    }
   }
 
   createScreens() {
