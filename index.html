@@ -89,6 +89,10 @@
         <span class="nav-icon">🔄</span>
         <span class="nav-label">Prestige</span>
       </button>
+      <button id="br-enter-btn" class="sub-btn" type="button" data-icon="⚔️" style="background:linear-gradient(135deg,#8a2020,#3a1010);border-color:#ff4444">
+        <span class="nav-icon">⚔️</span>
+        <span class="nav-label">معركة ملكية</span>
+      </button>
     </nav>
 
     <!-- ====== المحتوى الرئيسي ====== -->
@@ -113,6 +117,29 @@
       <div class="chat-input-row">
         <input type="text" id="chat-input" class="chat-input" placeholder="اكتب رسالة..." maxlength="100" />
         <button id="chat-send-btn" class="chat-send-btn">➤</button>
+      </div>
+    </div>
+
+    <!-- ====== Battle Royale UI ====== -->
+    <div id="br-timer" class="hidden">10:00</div>
+    <div id="br-players" class="hidden">👥 <span id="br-alive-count">0</span>/<span id="br-total-count">0</span></div>
+    <div id="br-kills" class="hidden">⚔️ <span id="br-kill-count">0</span></div>
+    <div id="br-kill-feed" class="hidden"></div>
+    <div id="br-zone-warning" class="hidden">⚠️ المنطقة تتصغر! تحرك إلى الداخل!</div>
+    <div id="br-victory-screen" class="hidden">
+      <div class="victory-card">
+        <div class="victory-icon">👑</div>
+        <h2>أنت الفائز!</h2>
+        <p id="br-victory-stats">قضيت على 0 أعداء</p>
+        <button id="br-victory-btn" class="action-btn" style="margin-top:16px;padding:12px 30px;font-size:1rem">العودة للصالة</button>
+      </div>
+    </div>
+    <div id="br-defeat-screen" class="hidden">
+      <div class="victory-card" style="border-color:#ff4444">
+        <div class="victory-icon">💀</div>
+        <h2>لقد هُزمت</h2>
+        <p id="br-defeat-stats">قُتلت بواسطة لاعب</p>
+        <button id="br-defeat-btn" class="action-btn" style="margin-top:16px;padding:12px 30px;font-size:1rem">العودة للصالة</button>
       </div>
     </div>
 

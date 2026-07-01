@@ -91,6 +91,8 @@ async function loadFromDatabase(economy, army, username) {
       window._loadedInventory = data.inventory || null;
       window._loadedEvents = data.events || null;
       window._loadedTutorial = data.tutorial || null;
+      window._brWins = data.brWins ?? 0;
+      window._brKills = data.brKills ?? 0;
       console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!");
     }
   } catch (err) {
@@ -305,6 +307,120 @@ async function init() {
       ui.showNotification('🎉 أكملت البرنامج التعليمي!');
       const tutEl = document.getElementById('tutorial-overlay');
       if (tutEl) tutEl.style.display = 'none';
+    };
+
+    // ====== Battle Royale ======
+    const brBtn = document.getElementById('br-enter-btn');
+    const brVictoryBtn = document.getElementById('br-victory-btn');
+    const brDefeatBtn = document.getElementById('br-defeat-btn');
+    const brZoneWarningEl = document.getElementById('br-zone-warning');
+    const brTimerEl = document.getElementById('br-timer');
+    const brPlayersEl = document.getElementById('br-players');
+    const brKillsEl = document.getElementById('br-kills');
+    const brKillFeedEl = document.getElementById('br-kill-feed');
+    const brVictoryScreen = document.getElementById('br-victory-screen');
+    const brDefeatScreen = document.getElementById('br-defeat-screen');
+    const brAliveCount = document.getElementById('br-alive-count');
+    const brTotalCount = document.getElementById('br-total-count');
+    const brKillCount = document.getElementById('br-kill-count');
+    const brVictoryStats = document.getElementById('br-victory-stats');
+    const brDefeatStats = document.getElementById('br-defeat-stats');
+
+    if (brBtn) {
+      brBtn.addEventListener('click', () => {
+        // إخفاء واجهة القائمة وإظهار Canvas
+        document.getElementById("gameCanvas")?.classList.remove("hidden");
+        const topBar = document.getElementById("top-bar");
+        const bottomBar = document.getElementById("bottom-bar");
+        const subBar = document.getElementById("sub-bar");
+        const content = document.getElementById("screen-content");
+        const worldButtons = document.getElementById("world-buttons");
+        if (topBar) topBar.style.display = "none";
+        if (subBar) subBar.style.display = "none";
+        if (bottomBar) bottomBar.style.display = "none";
+        if (content) content.style.display = "none";
+        if (worldButtons) worldButtons.classList.remove("hidden");
+        world.initBR();
+        world.startBRMatch();
+        ui.showNotification('🚀 بدأت المعركة الملكية! كن آخر من يبقى!');
+      });
+    }
+
+    let brWins = window._brWins || 0;
+    let brKillsTotal = window._brKills || 0;
+    delete window._brWins;
+    delete window._brKills;
+
+    world._onBRMatchEnd = (result) => {
+      if (result.winner) {
+        brWins++;
+        brKillsTotal += result.kills || 0;
+        if (brVictoryScreen) brVictoryScreen.classList.remove('hidden');
+        if (brVictoryStats) brVictoryStats.textContent = `🏆 قضيت على ${result.kills || 0} أعداء`;
+        economy.addRaw('kingCoins', 100 + (result.kills || 0) * 10);
+        economy.addRaw('gems', 50);
+        saveToDB();
+        // حفظ إحصائيات BR منفصلة
+        fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brWins, brKills: brKillsTotal, last_active: Date.now() })
+        }).catch(() => {});
+        ui.updateTopBar();
+      } else {
+        if (brDefeatScreen) brDefeatScreen.classList.remove('hidden');
+        if (brDefeatStats) brDefeatStats.textContent = `💀 قُتلت — قتلت ${result.kills || 0} أعداء`;
+      }
+    };
+
+    world._onNotification = (msg) => {
+      ui.showNotification(msg);
+      if (msg.includes('المنطقة تتصغر') && brZoneWarningEl) {
+        brZoneWarningEl.classList.remove('hidden');
+        clearTimeout(brZoneWarningEl._hideTimer);
+        brZoneWarningEl._hideTimer = setTimeout(() => {
+          if (brZoneWarningEl) brZoneWarningEl.classList.add('hidden');
+        }, 2500);
+      }
+    };
+
+    if (brVictoryBtn) {
+      brVictoryBtn.addEventListener('click', async () => {
+        if (brVictoryScreen) brVictoryScreen.classList.add('hidden');
+        await world.exitWorldMap();
+      });
+    }
+
+    if (brDefeatBtn) {
+      brDefeatBtn.addEventListener('click', async () => {
+        if (brDefeatScreen) brDefeatScreen.classList.add('hidden');
+        await world.exitWorldMap();
+      });
+    }
+
+    let brLastFeedLen = 0;
+    world._onBRKillFeed = (feed) => {
+      if (!brKillFeedEl) return;
+      if (feed.length === brLastFeedLen) return;
+      brLastFeedLen = feed.length;
+      brKillFeedEl.textContent = '';
+      for (const k of feed) {
+        if (k.time > 0) {
+          const div = document.createElement('div');
+          div.className = 'kill-msg';
+          div.textContent = k.text;
+          brKillFeedEl.appendChild(div);
+        }
+      }
+    };
+
+    world._onPlayersChanged = (players) => {
+      if (world.mode !== 'battle_royale') return;
+      if (brAliveCount && brTotalCount) {
+        const alive = players.filter(p => p.br_alive !== false).length + 1;
+        brAliveCount.textContent = alive;
+        brTotalCount.textContent = players.length + 1;
+      }
     };
 
     // تشغيل الأحداث الدورية

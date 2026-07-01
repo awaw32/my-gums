@@ -74,6 +74,29 @@ export class WorldMap {
     this.sandParticles = this._initSandParticles(60);
     this.miniMapSize = 100;
     this.miniMapMargin = 8;
+
+    // ==================== Battle Royale Mode ====================
+    this.mode = "campaign";          // "campaign" | "battle_royale"
+    this.matchStarted = false;
+    this.matchEnded = false;
+    this.matchTimer = 0;
+    this.matchDuration = 600;        // 10 min default
+    this.isAdmin = false;
+    this.roomCode = "";
+    this.brKills = 0;
+    this.brAlivePlayers = [];
+    this.bandits = [];
+    this.killFeed = [];
+    this.brMapSize = 2000;
+    this.zone = {
+      x: this.brMapSize / 2,
+      y: this.brMapSize / 2,
+      radius: this.brMapSize * 0.45,
+      minRadius: 100,
+      nextShrink: 30,
+    };
+    this._onBRMatchEnd = null;
+    this._onBRKillFeed = null;
   }
 
   _initSandParticles(count) {
@@ -190,6 +213,24 @@ export class WorldMap {
           if (this._onNotification) this._onNotification(`🚪 ${msg.username} خرج من الصحراء`);
         } else if (msg.type === "broadcast_chat") {
           if (this._onChatMessage) this._onChatMessage(msg.username, msg.message);
+        } else if (msg.type === "br_zone_shrink") {
+          if (this.mode === "battle_royale") {
+            this.zone.radius = msg.radius;
+            this.zone.x = msg.centerX;
+            this.zone.y = msg.centerY;
+          }
+        } else if (msg.type === "br_bandit_spawn") {
+          if (this.mode === "battle_royale" && msg.bandit) {
+            this.bandits.push(msg.bandit);
+          }
+        } else if (msg.type === "br_player_eliminated") {
+          if (this._onNotification) this._onNotification(`💀 ${msg.playerId} قُتل بواسطة ${msg.by}`);
+        } else if (msg.type === "br_match_end") {
+          if (this.mode === "battle_royale") {
+            this.matchEnded = true;
+            this.matchStarted = false;
+            if (this._onBRMatchEnd) this._onBRMatchEnd(msg);
+          }
         }
       } catch {}
     };
@@ -211,7 +252,7 @@ export class WorldMap {
 
   sendWSUpdate() {
     if (!this.leader || !this._ws || this._ws.readyState !== WebSocket.OPEN) return;
-    this._sendWS({
+    const update = {
       type: "update",
       x_position: Math.floor(this.leader.x),
       y_position: Math.floor(this.leader.y),
@@ -220,7 +261,13 @@ export class WorldMap {
       coinsEarned: this.sessionStats.coinsEarned,
       unitLevel: this.army?.unitLevel || 1,
       armyAlive: this.armyUnits.filter(u => u.hp > 0).length
-    });
+    };
+    if (this.mode === "battle_royale") {
+      update.br_hp = this.leader.hp;
+      update.br_alive = this.leader.hp > 0;
+      update.br_kills = this.brKills;
+    }
+    this._sendWS(update);
   }
 
   sendPositionUpdate() {
@@ -291,6 +338,8 @@ export class WorldMap {
         existing.unitLevel = p.unitLevel || 1;
         existing.armyAlive = p.armyAlive ?? 8;
         existing.lastActive = lastActive;
+        existing.br_hp = p.br_hp ?? existing.br_hp;
+        existing.br_alive = p.br_alive ?? existing.br_alive;
       } else {
         this.otherPlayers.set(name, {
           username: name,
@@ -302,6 +351,8 @@ export class WorldMap {
           armyAlive: p.armyAlive ?? 8,
           lastActive: lastActive,
           color: p.color || "#3a5a8a",
+          br_hp: p.br_hp ?? 120,
+          br_alive: p.br_alive ?? true,
         });
       }
     }
@@ -699,6 +750,7 @@ export class WorldMap {
   }
 
   checkWipe() {
+    if (this.mode === "battle_royale") return;
     if (this.leader.hp <= 0) {
       if (this.armyUnits.length === 0 && this.sessionStats.coinsEarned > 0) {
         this._wipeFlag = true;
@@ -777,6 +829,7 @@ export class WorldMap {
     this.updateSandParticles(dt);
     this.checkCombatProximity();
     this.checkWipe();
+    if (this.mode === "battle_royale") this.updateBR(dt);
 
     ctx.save();
     ctx.translate(-cam.x, -cam.y);
@@ -790,10 +843,12 @@ export class WorldMap {
 
     this.drawSandParticles(ctx);
     this.drawPathLine(ctx, cam);
+    this.drawBRZone(ctx);
     this.drawMonsters(ctx);
     this.drawDrops(ctx);
     this.drawProjectiles(ctx);
     this.drawOtherPlayers(ctx);
+    this.drawBRBandits(ctx);
     this.drawArmy(ctx);
     this.drawHero(ctx);
     this.drawWorldFx(ctx, cam);
@@ -803,6 +858,7 @@ export class WorldMap {
 
     this.drawArmyHUD(dt, ctx);
     this.drawPvPMenu(ctx, cam);
+    this.drawBRUI(ctx, cam);
   }
 
   updateSandParticles(dt) {
@@ -1204,6 +1260,319 @@ export class WorldMap {
     ctx.restore();
   }
 
+  // ==================== Battle Royale Methods ====================
+  initBR(mapSize, matchDuration) {
+    this.mode = "battle_royale";
+    this.brMapSize = mapSize || 2000;
+    this.matchDuration = matchDuration || 600;
+    this.W = this.brMapSize;
+    this.H = this.brMapSize;
+    this.zone = {
+      x: this.brMapSize / 2,
+      y: this.brMapSize / 2,
+      radius: this.brMapSize * 0.45,
+      minRadius: 100,
+      nextShrink: 30,
+    };
+    this.bandits = [];
+    this.killFeed = [];
+    this.brKills = 0;
+    this.matchStarted = false;
+    this.matchEnded = false;
+    this.matchTimer = this.matchDuration;
+    // إعادة تعيين موقع اللاعب
+    if (this.leader) {
+      this.leader.x = this.brMapSize / 2 + (Math.random() - 0.5) * this.brMapSize * 0.3;
+      this.leader.y = this.brMapSize / 2 + (Math.random() - 0.5) * this.brMapSize * 0.3;
+      this.leader.hp = 120;
+      this.leader.maxHp = 120;
+      this.leader.fighting = null;
+      this.leader.path = null;
+    }
+  }
+
+  startBRMatch() {
+    if (this.mode !== "battle_royale") return;
+    this.matchStarted = true;
+    this.matchEnded = false;
+    this.matchTimer = this.matchDuration;
+    this.zone.nextShrink = 30;
+    this.brKills = 0;
+    this.bandits = [];
+    this.killFeed = [];
+    // إظهار عناصر واجهة BR
+    document.getElementById("br-timer")?.classList.remove("hidden");
+    document.getElementById("br-players")?.classList.remove("hidden");
+    document.getElementById("br-kills")?.classList.remove("hidden");
+    document.getElementById("br-kill-feed")?.classList.remove("hidden");
+    // توزيع عشوائي للاعبين
+    const spawnPoints = this._genBRSpawnPoints();
+    if (this.leader && spawnPoints.length > 0) {
+      const sp = spawnPoints[0];
+      this.leader.x = sp.x;
+      this.leader.y = sp.y;
+      this.leader.hp = 120;
+      this.leader.maxHp = 120;
+    }
+    this._sendWS({ type: "br_match_start", mapSize: this.brMapSize, matchDuration: this.matchDuration });
+    if (this._onNotification) this._onNotification("🚀 بدأت المعركة الملكية! كن آخر من يبقى!");
+  }
+
+  updateBR(dt) {
+    if (!this.matchStarted || this.matchEnded) return;
+    // عداد المباراة
+    this.matchTimer -= dt;
+    if (this.matchTimer <= 0) {
+      this._endBRMatch("timeout");
+      return;
+    }
+    // تصغير المنطقة
+    this.zone.nextShrink -= dt;
+    if (this.zone.nextShrink <= 0) {
+      this.zone.nextShrink = 30;
+      this.zone.radius = Math.max(this.zone.minRadius, this.zone.radius - 80);
+      this._sendWS({ type: "br_zone_shrink", radius: this.zone.radius, centerX: this.zone.x, centerY: this.zone.y });
+      if (this._onNotification) this._onNotification("⚠️ المنطقة تتصغر! تحرك إلى الداخل!");
+    }
+    // ضرر للاعب خارج المنطقة
+    if (this.leader) {
+      const dist = Math.hypot(this.leader.x - this.zone.x, this.leader.y - this.zone.y);
+      if (dist > this.zone.radius) {
+        this.leader.hp -= 5 * dt;
+        if (this.leader.hp <= 0) {
+          this.leader.hp = 0;
+          this._eliminatePlayer(this.username, "zone");
+        }
+      }
+    }
+    // تحديث قطاع الطرق
+    this._updateBRBandits(dt);
+    // تحديث DOM
+    this._updateBRDom(dt);
+    // التحقق من الفائز
+    if (this._onBRKillFeed) this._onBRKillFeed(this.killFeed);
+  }
+
+  _updateBRDom(dt) {
+    // تحديث مؤقت DOM + kill feed timer
+    const timerEl = document.getElementById("br-timer");
+    if (timerEl) {
+      const timer = Math.max(0, Math.ceil(this.matchTimer));
+      const min = String(Math.floor(timer / 60)).padStart(2, "0");
+      const sec = String(timer % 60).padStart(2, "0");
+      timerEl.textContent = `${min}:${sec}`;
+      timerEl.classList.toggle("warning", timer < 60);
+    }
+    const killsEl = document.getElementById("br-kill-count");
+    if (killsEl) killsEl.textContent = this.brKills;
+    // تحديث kill feed timer
+    for (let i = this.killFeed.length - 1; i >= 0; i--) {
+      this.killFeed[i].time -= dt;
+      if (this.killFeed[i].time <= 0) this.killFeed.splice(i, 1);
+    }
+  }
+
+  _genBRSpawnPoints() {
+    const count = Math.max(4, this.brAlivePlayers.length || 4);
+    const pts = [];
+    const angleStep = (Math.PI * 2) / count;
+    const spawnRadius = this.brMapSize * 0.35;
+    for (let i = 0; i < count; i++) {
+      pts.push({
+        x: this.brMapSize / 2 + Math.cos(angleStep * i + Math.random() * 0.3) * spawnRadius + (Math.random() - 0.5) * 100,
+        y: this.brMapSize / 2 + Math.sin(angleStep * i + Math.random() * 0.3) * spawnRadius + (Math.random() - 0.5) * 100,
+      });
+    }
+    return pts;
+  }
+
+  spawnBandit() {
+    const edge = Math.floor(Math.random() * 4);
+    let x, y;
+    const m = 50;
+    if (edge === 0) { x = Math.random() * this.W; y = m; }
+    else if (edge === 1) { x = this.W - m; y = Math.random() * this.H; }
+    else if (edge === 2) { x = Math.random() * this.W; y = this.H - m; }
+    else { x = m; y = Math.random() * this.H; }
+    const lvl = this.economy ? Math.max(1, this.economy.level) : 1;
+    const bandit = {
+      id: `bandit_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      x, y, spawnX: x, spawnY: y,
+      hp: 40 + lvl * 3, maxHp: 40 + lvl * 3,
+      damage: 10 + lvl * 2, speed: 70 + Math.random() * 30,
+      alive: true, facing: 1, attackTimer: 0,
+      radius: 14, color: "#4a4a3a",
+      patrolTarget: null, targetId: null,
+    };
+    this.bandits.push(bandit);
+    this._sendWS({ type: "br_bandit_spawn", bandit });
+    return bandit;
+  }
+
+  _updateBRBandits(dt) {
+    if (this.bandits.length < 3 && this.matchStarted) {
+      // الحفاظ على 3+ bandits في الخريطة
+      this.spawnBandit();
+    }
+    for (let i = this.bandits.length - 1; i >= 0; i--) {
+      const b = this.bandits[i];
+      if (!b.alive) { this.bandits.splice(i, 1); continue; }
+      // البحث عن أقرب لاعب
+      let nearest = null;
+      let minDist = 500;
+      for (const [, p] of this.otherPlayers) {
+        const d = Math.hypot(p.x - b.x, p.y - b.y);
+        if (d < minDist && p.username !== this.username) { minDist = d; nearest = p; }
+      }
+      if (this.leader) {
+        const d = Math.hypot(this.leader.x - b.x, this.leader.y - b.y);
+        if (d < minDist) { minDist = d; nearest = { ...this.leader, isLeader: true }; }
+      }
+      if (nearest && minDist < 400) {
+        const dx = nearest.x - b.x;
+        const dy = nearest.y - b.y;
+        const d = Math.hypot(dx, dy);
+        b.facing = dx >= 0 ? 1 : -1;
+        if (d > 25) {
+          const spd = b.speed * (nearest.isLeader ? 1 : 1.2);
+          b.x += (dx / d) * spd * dt;
+          b.y += (dy / d) * spd * dt;
+        } else {
+          b.attackTimer -= dt;
+          if (b.attackTimer <= 0) {
+            b.attackTimer = 1.0;
+            if (nearest.isLeader) {
+              this.leader.hp -= b.damage;
+              if (this.leader.hp <= 0) this._eliminatePlayer(this.username, "bandit");
+            }
+          }
+        }
+      } else {
+        if (!b.patrolTarget || Math.hypot(b.x - b.patrolTarget.x, b.y - b.patrolTarget.y) < 20) {
+          b.patrolTarget = { x: b.x + (Math.random() - 0.5) * 400, y: b.y + (Math.random() - 0.5) * 400 };
+          b.patrolTarget.x = Math.max(50, Math.min(this.W - 50, b.patrolTarget.x));
+          b.patrolTarget.y = Math.max(50, Math.min(this.H - 50, b.patrolTarget.y));
+        }
+        const dx = b.patrolTarget.x - b.x;
+        const dy = b.patrolTarget.y - b.y;
+        const d = Math.hypot(dx, dy);
+        if (d > 5) { b.x += (dx / d) * b.speed * 0.4 * dt; b.y += (dy / d) * b.speed * 0.4 * dt; }
+      }
+    }
+  }
+
+  _eliminatePlayer(playerId, by) {
+    if (!this.matchStarted) return;
+    const isMe = playerId === this.username;
+    const killedByMe = by === this.username;
+    if (killedByMe) this.brKills++;
+    const msg = isMe ? `💀 ${by} قتلك!` : `💀 ${playerId} قُتل بواسطة ${by}`;
+    this.killFeed.push({ text: msg, time: 3 });
+    if (this._onNotification) this._onNotification(msg);
+    this._sendWS({ type: "br_player_eliminated", playerId, by });
+    this._checkBRWinner();
+  }
+
+  _checkBRWinner() {
+    if (!this.matchStarted) return;
+    let aliveCount = 0;
+    for (const [, p] of this.otherPlayers) {
+      if (p.username !== this.username && p.br_alive !== false) aliveCount++;
+    }
+    if (aliveCount <= 0 && this.leader && this.leader.hp > 0) {
+      this._endBRMatch("winner");
+    }
+  }
+
+  _endBRMatch(reason) {
+    if (this.matchEnded) return;
+    this.matchEnded = true;
+    this.matchStarted = false;
+    const isWinner = reason === "winner" || (reason === "last" && this.leader && this.leader.hp > 0);
+    if (this._onBRMatchEnd) this._onBRMatchEnd({ winner: isWinner, kills: this.brKills, reason });
+    this._sendWS({ type: "br_match_end", winner: isWinner ? this.username : null, kills: this.brKills });
+  }
+
+  drawBRZone(ctx) {
+    if (this.mode !== "battle_royale") return;
+    ctx.save();
+    // تعتيم خارج المنطقة
+    ctx.beginPath();
+    ctx.rect(0, 0, this.W, this.H);
+    ctx.arc(this.zone.x, this.zone.y, this.zone.radius, 0, Math.PI * 2, true);
+    ctx.fillStyle = "rgba(180, 40, 40, 0.35)";
+    ctx.fill();
+    // حدود المنطقة
+    ctx.beginPath();
+    ctx.arc(this.zone.x, this.zone.y, this.zone.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = this.zone.radius <= 200 ? "#ff4444" : "rgba(255, 100, 100, 0.6)";
+    ctx.lineWidth = 3;
+    if (this.zone.radius <= 200) ctx.setLineDash([8, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  drawBRBandits(ctx) {
+    for (const b of this.bandits) {
+      if (!b.alive) continue;
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.scale(b.facing || 1, 1);
+      // ظل
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      ctx.beginPath(); ctx.ellipse(0, 12, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
+      // جسد
+      ctx.fillStyle = "#4a4a3a";
+      ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+      // رأس
+      ctx.fillStyle = "#8a7a5a";
+      ctx.beginPath(); ctx.arc(0, -14, 7, 0, Math.PI * 2); ctx.fill();
+      // عصابة عين
+      ctx.fillStyle = "#222";
+      ctx.fillRect(-8, -16, 16, 3);
+      // سلاح
+      ctx.strokeStyle = "#666"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(15, -2); ctx.lineTo(25, -12); ctx.stroke();
+      // شريط صحة
+      const hpPct = b.hp / b.maxHp;
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(-14, -22, 28, 3);
+      ctx.fillStyle = "#ff6600";
+      ctx.fillRect(-14, -22, 28 * hpPct, 3);
+      ctx.restore();
+    }
+  }
+
+  drawBRUI(ctx, cam) {
+    if (this.mode !== "battle_royale") return;
+    ctx.save();
+    ctx.translate(0, 0);
+    // مؤقت المباراة (أعلى وسط)
+    const timer = Math.max(0, Math.ceil(this.matchTimer));
+    const min = String(Math.floor(timer / 60)).padStart(2, "0");
+    const sec = String(timer % 60).padStart(2, "0");
+    const timerText = `${min}:${sec}`;
+    ctx.font = "bold 22px Cairo, monospace";
+    ctx.textAlign = "center";
+    ctx.fillStyle = timer < 60 ? "#ff4444" : "#FFD700";
+    ctx.shadowColor = "rgba(0,0,0,0.8)";
+    ctx.shadowBlur = 8;
+    ctx.fillText(timerText, ctx.canvas.width / 2 / (window.devicePixelRatio || 1), 50);
+    ctx.shadowBlur = 0;
+    // عدد اللاعبين (أعلى يسار)
+    ctx.textAlign = "left";
+    ctx.font = "bold 14px Cairo, sans-serif";
+    ctx.fillStyle = "#fdf6e3";
+    ctx.fillText(`👥 ${this.otherPlayers.size + 1}`, 12, 30);
+    // القتلى (أعلى يمين)
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#ff6b6b";
+    const w = ctx.canvas.width / (window.devicePixelRatio || 1);
+    ctx.fillText(`⚔️ ${this.brKills}`, w - 12, 30);
+    ctx.restore();
+  }
+
   enterWorldMap() {
     const canvas = document.getElementById("gameCanvas");
     if (canvas) canvas.classList.remove("hidden");
@@ -1213,6 +1582,19 @@ export class WorldMap {
   async exitWorldMap() {
     this.sendWSUpdate();
     await this.sendPositionUpdate();
+    if (this.mode === "battle_royale") {
+      this.matchStarted = false;
+      this.matchEnded = false;
+      this.mode = "campaign";
+      this.bandits = [];
+      this.killFeed = [];
+      // إخفاء واجهة BR
+      document.getElementById("br-timer")?.classList.add("hidden");
+      document.getElementById("br-players")?.classList.add("hidden");
+      document.getElementById("br-kills")?.classList.add("hidden");
+      document.getElementById("br-kill-feed")?.classList.add("hidden");
+      document.getElementById("br-zone-warning")?.classList.add("hidden");
+    }
     this.stop();
     const canvas = document.getElementById("gameCanvas");
     if (canvas) canvas.classList.add("hidden");

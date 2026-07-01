@@ -77,6 +77,8 @@ const playerSchema = new mongoose.Schema({
   inventory:    { type: Object, default: {} },
   events:       { type: Array, default: [] },
   tutorial:     { type: Object, default: {} },
+  brWins:       { type: Number, default: 0 },
+  brKills:      { type: Number, default: 0 },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);
@@ -242,6 +244,8 @@ function broadcastWorld(excludeWs = null) {
       unitLevel: c.unitLevel || 1,
       armyAlive: c.armyAlive ?? 8,
       color: c.color,
+      br_hp: c.br_hp ?? 120,
+      br_alive: c.br_alive ?? true,
       last_active: Date.now()
     });
   });
@@ -282,6 +286,8 @@ wss.on("connection", (ws, req) => {
           coinsEarned: msg.coinsEarned || 0,
           unitLevel: msg.unitLevel || 1,
           armyAlive: msg.armyAlive ?? 8,
+          br_hp: msg.br_hp ?? 120,
+          br_alive: msg.br_alive ?? true,
         });
         // أرسل قائمة الوحوش للاعب الجديد
         ws.send(JSON.stringify({ type: "world_monsters", list: worldMonsters }));
@@ -302,6 +308,8 @@ wss.on("connection", (ws, req) => {
           c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
           c.unitLevel = msg.unitLevel ?? c.unitLevel;
           c.armyAlive = msg.armyAlive ?? c.armyAlive;
+          if (msg.br_hp !== undefined) c.br_hp = msg.br_hp;
+          if (msg.br_alive !== undefined) c.br_alive = msg.br_alive;
           broadcastWorld(ws);
         }
       } else if (msg.type === "monster_killed" && username) {
@@ -322,6 +330,21 @@ wss.on("connection", (ws, req) => {
       } else if (msg.type === "chat" && username) {
         const chatMsg = JSON.stringify({ type: "broadcast_chat", username, message: String(msg.message).slice(0, 200) });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });
+      } else if (msg.type === "br_match_start" && username) {
+        const brMsg = JSON.stringify({ type: "br_match_start", mapSize: msg.mapSize, matchDuration: msg.matchDuration });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(brMsg); });
+      } else if (msg.type === "br_zone_shrink" && username) {
+        const zMsg = JSON.stringify({ type: "br_zone_shrink", radius: msg.radius, centerX: msg.centerX, centerY: msg.centerY });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(zMsg); });
+      } else if (msg.type === "br_bandit_spawn" && username) {
+        const bMsg = JSON.stringify({ type: "br_bandit_spawn", bandit: msg.bandit });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(bMsg); });
+      } else if (msg.type === "br_player_eliminated" && username) {
+        const eMsg = JSON.stringify({ type: "br_player_eliminated", playerId: msg.playerId, by: msg.by });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(eMsg); });
+      } else if (msg.type === "br_match_end" && username) {
+        const endMsg = JSON.stringify({ type: "br_match_end", winner: msg.winner, kills: msg.kills });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(endMsg); });
       }
     });
 
