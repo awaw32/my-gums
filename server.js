@@ -165,12 +165,19 @@ setInterval(gameTick, TICK_MS);
 // ═══════════════════════════════════════════════════════════════════
 //  World Map WebSocket — ملتيكاملة العالم المفتوح (بدون Polling)
 // ═══════════════════════════════════════════════════════════════════
-const worldClients = new Map(); // username → { ws, x, y, army_power }
+const worldClients = new Map(); // username → { ws, x, y, army_power, kills, coinsEarned, unitLevel }
 
 function broadcastWorld(excludeWs = null) {
   const list = [];
   worldClients.forEach((c) => {
-    list.push({ username: c.username, x_position: c.x, y_position: c.y, army_power: c.army_power, last_active: Date.now() });
+    list.push({
+      username: c.username, x_position: c.x, y_position: c.y,
+      army_power: c.army_power,
+      kills: c.kills || 0,
+      coinsEarned: c.coinsEarned || 0,
+      unitLevel: c.unitLevel || 1,
+      last_active: Date.now()
+    });
   });
   const msg = JSON.stringify({ type: "world_players", list });
   worldClients.forEach((c) => {
@@ -203,8 +210,16 @@ wss.on("connection", (ws, req) => {
           x: msg.x_position || 1200,
           y: msg.y_position || 1200,
           army_power: msg.army_power || 0,
+          kills: msg.kills || 0,
+          coinsEarned: msg.coinsEarned || 0,
+          unitLevel: msg.unitLevel || 1,
         });
         broadcastWorld();
+        // إشعار بدخول اللاعب
+        const joinMsg = JSON.stringify({ type: "player_joined", username });
+        worldClients.forEach((c) => {
+          if (c.ws !== ws && c.ws.readyState === 1) c.ws.send(joinMsg);
+        });
         console.log(`[WorldWS] ${username} joined`);
       } else if (msg.type === "update" && username) {
         const c = worldClients.get(username);
@@ -212,6 +227,9 @@ wss.on("connection", (ws, req) => {
           c.x = msg.x_position ?? c.x;
           c.y = msg.y_position ?? c.y;
           c.army_power = msg.army_power ?? c.army_power;
+          c.kills = msg.kills ?? c.kills;
+          c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
+          c.unitLevel = msg.unitLevel ?? c.unitLevel;
           broadcastWorld(ws);
         }
       }
@@ -219,8 +237,14 @@ wss.on("connection", (ws, req) => {
 
     ws.on("close", () => {
       if (username) {
+        const c = worldClients.get(username);
         worldClients.delete(username);
         broadcastWorld();
+        // إشعار بخروج اللاعب لكل الباقين
+        const leaveMsg = JSON.stringify({ type: "player_left", username });
+        worldClients.forEach((cl) => {
+          if (cl.ws.readyState === 1) cl.ws.send(leaveMsg);
+        });
         console.log(`[WorldWS] ${username} left`);
       }
     });
@@ -230,7 +254,14 @@ wss.on("connection", (ws, req) => {
     // أرسل القائمة الكاملة فور الاتصال
     const list = [];
     worldClients.forEach((c) => {
-      if (c.ws !== ws) list.push({ username: c.username, x_position: c.x, y_position: c.y, army_power: c.army_power, last_active: Date.now() });
+      if (c.ws !== ws) list.push({
+        username: c.username, x_position: c.x, y_position: c.y,
+        army_power: c.army_power,
+        kills: c.kills || 0,
+        coinsEarned: c.coinsEarned || 0,
+        unitLevel: c.unitLevel || 1,
+        last_active: Date.now()
+      });
     });
     ws.send(JSON.stringify({ type: "world_players", list }));
     return;

@@ -30,6 +30,9 @@ export class WorldMap {
     this.combatCooldown = 0;
     this.attackRange = 60;
     this.onExit = null;
+    this.sessionStats = { kills: 0, coinsEarned: 0 };
+    this._onPlayersChanged = null; // callback للوحة اللاعبين
+    this._onNotification = null; // callback للإشعارات
 
     // === القائد (الشيخ) ===
     this.leader = {
@@ -123,13 +126,28 @@ export class WorldMap {
 
     this._ws.onopen = () => {
       console.log("[WS] متصل بالخادم ✅");
-      this._sendWS({ type: "join", username: this.username, x_position: Math.floor(this.leader?.x || 1200), y_position: Math.floor(this.leader?.y || 1200), army_power: this.economy ? this.economy.power : 0 });
+      this._sendWS({
+        type: "join", username: this.username,
+        x_position: Math.floor(this.leader?.x || 1200),
+        y_position: Math.floor(this.leader?.y || 1200),
+        army_power: this.economy ? this.economy.power : 0,
+        kills: this.sessionStats.kills,
+        coinsEarned: this.sessionStats.coinsEarned,
+        unitLevel: this.army?.unitLevel || 1
+      });
     };
 
     this._ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
-        if (msg.type === "world_players") this.syncOtherPlayers(msg.list || []);
+        if (msg.type === "world_players") {
+          this.syncOtherPlayers(msg.list || []);
+          if (this._onPlayersChanged) this._onPlayersChanged(msg.list || []);
+        } else if (msg.type === "player_joined") {
+          if (this._onNotification) this._onNotification(`👋 ${msg.username} دخل إلى الصحراء`);
+        } else if (msg.type === "player_left") {
+          if (this._onNotification) this._onNotification(`🚪 ${msg.username} خرج من الصحراء`);
+        }
       } catch {}
     };
 
@@ -150,7 +168,15 @@ export class WorldMap {
 
   sendPositionUpdate() {
     if (!this.leader) return;
-    this._sendWS({ type: "update", x_position: Math.floor(this.leader.x), y_position: Math.floor(this.leader.y), army_power: this.economy ? this.economy.power : 0 });
+    this._sendWS({
+      type: "update",
+      x_position: Math.floor(this.leader.x),
+      y_position: Math.floor(this.leader.y),
+      army_power: this.economy ? this.economy.power : 0,
+      kills: this.sessionStats.kills,
+      coinsEarned: this.sessionStats.coinsEarned,
+      unitLevel: this.army?.unitLevel || 1
+    });
     fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -705,6 +731,8 @@ export class WorldMap {
       monster.alive = false;
       monster.respawnTimer = 25;
       const reward = monster.rewardMoney || 10;
+      this.sessionStats.kills++;
+      this.sessionStats.coinsEarned += reward;
       this.createDrop(monster.x, monster.y, reward);
       if (this.economy) {
         this.economy.addRaw("cash", reward);
@@ -873,10 +901,12 @@ export class WorldMap {
     if (!this.running) this.start();
   }
 
-  exitWorldMap() {
+  async exitWorldMap() {
+    await this.sendPositionUpdate();
     this.stop();
     const canvas = document.getElementById("gameCanvas");
     if (canvas) canvas.classList.add("hidden");
     if (this.onExit) this.onExit();
+    if (this._onPlayersChanged) this._onPlayersChanged([]);
   }
 }

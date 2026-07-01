@@ -18,6 +18,49 @@ export class GameUI {
     this.bindNav();
     this.showScreen("promotion");
     this.startTopBarLoop();
+    this.initPlayerPanel();
+  }
+
+  initPlayerPanel() {
+    this._playerPanel = document.getElementById("player-panel");
+    this._playerListEl = document.getElementById("player-list");
+    this._playerCountEl = document.getElementById("player-count");
+    if (this.world) {
+      this.world._onPlayersChanged = (list) => this.updatePlayerPanel(list);
+      this.world._onNotification = (msg) => this.showNotification(msg);
+    }
+  }
+
+  updatePlayerPanel(players) {
+    if (!this._playerListEl) return;
+    const filtered = players.filter(p => p && p.username !== this.world?.username);
+    this._playerCountEl.textContent = filtered.length;
+    this._playerListEl.innerHTML = "";
+    if (filtered.length === 0) return;
+    for (const p of filtered) {
+      const item = document.createElement("div");
+      item.className = "player-item";
+      item.innerHTML = `
+        <div class="player-item-name" title="${p.username}">${p.username}</div>
+        <div class="player-item-stats">
+          <span class="player-stat"><span class="player-stat-icon">⚔️</span><span class="player-stat-value">${p.kills || 0}</span></span>
+          <span class="player-stat"><span class="player-stat-icon">💵</span><span class="player-stat-value">${formatNumber(p.coinsEarned || 0)}</span></span>
+          <span class="player-stat"><span class="player-stat-icon">👊</span><span class="player-stat-value">${formatNumber(p.army_power || 0)}</span></span>
+        </div>`;
+      this._playerListEl.appendChild(item);
+    }
+  }
+
+  showNotification(msg) {
+    const container = document.getElementById("notification-container");
+    if (!container) return;
+    const toast = document.createElement("div");
+    toast.className = "notification-toast";
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 3000);
   }
 
   cacheDOM() {
@@ -377,6 +420,7 @@ export class GameUI {
     if (eventRow) eventRow.style.display = "none";
     if (taskRow) taskRow.style.display = "none";
     if (worldButtons) worldButtons.classList.remove("hidden");
+    if (this._playerPanel) this._playerPanel.classList.remove("hidden");
     this.world.enterWorldMap();
   }
 
@@ -401,6 +445,7 @@ export class GameUI {
     if (eventRow) eventRow.style.display = "";
     if (taskRow) taskRow.style.display = "";
     if (worldButtons) worldButtons.classList.add("hidden");
+    if (this._playerPanel) this._playerPanel.classList.add("hidden");
     if (this.currentScreen) this.showScreen(this.currentScreen);
   }
 
