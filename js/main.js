@@ -10,12 +10,49 @@ import { saveGame, loadGame } from "./save.js";
 import { QuestManager } from "./quests.js";
 
 const N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146"; 
-const USERNAME = "عبد الله"; 
 
-// ⬅️ دالة جلب البيانات من القاعدة (لجعل الربط أونلاين بالكامل)
-async function loadFromDatabase(economy, army) {
+function getOrPromptUsername() {
+  const saved = localStorage.getItem("player_username");
+  if (saved && saved.trim()) return saved.trim();
+
+  const overlay = document.createElement("div");
+  overlay.id = "name-overlay";
+  overlay.innerHTML = `
+    <div class="name-overlay-content">
+      <div class="name-overlay-crown">👑</div>
+      <h1 class="name-overlay-title">ملك الصحراء</h1>
+      <p class="name-overlay-sub">أدخل اسمك لتبدأ المغامرة</p>
+      <input type="text" id="name-input" class="name-input" placeholder="اسمك في اللعبة..." maxlength="20" dir="rtl" autofocus />
+      <button id="name-submit-btn" class="name-submit-btn">🚀 ابدأ المغامرة</button>
+    </div>
+  `;
+  Object.assign(overlay.style, {
+    position: "fixed", inset: "0", zIndex: "10000",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    background: "radial-gradient(ellipse at center, #3d2a15, #1a0e06)",
+  });
+  document.body.appendChild(overlay);
+
+  const input = overlay.querySelector("#name-input");
+  const btn = overlay.querySelector("#name-submit-btn");
+
+  const submit = () => {
+    const name = input.value.trim() || "بطل الصحراء";
+    localStorage.setItem("player_username", name);
+    overlay.remove();
+    return name;
+  };
+
+  return new Promise(resolve => {
+    btn.onclick = () => { const name = submit(); resolve(name); };
+    input.onkeydown = e => { if (e.key === "Enter") btn.click(); };
+    setTimeout(() => input?.focus(), 200);
+  });
+}
+
+async function loadFromDatabase(economy, army, username) {
   try {
-    const response = await fetch(`${N8N_WEBHOOK_URL}?username=${encodeURIComponent(USERNAME)}`);
+    const response = await fetch(`${N8N_WEBHOOK_URL}?username=${encodeURIComponent(username)}`);
     const data = await response.json();
     if (data && data.cash !== undefined) {
       economy.cash = data.cash;
@@ -28,7 +65,7 @@ async function loadFromDatabase(economy, army) {
   }
 }
 
-async function sendLoginNotification(username = USERNAME) {
+async function sendLoginNotification(username) {
   try {
     await fetch(N8N_WEBHOOK_URL, {
       method: "POST",
@@ -54,16 +91,18 @@ async function init() {
     if (loadingPct) loadingPct.textContent = pct + "%";
   }
 
+  setProgress(10);
+  const PLAYER_USERNAME = await getOrPromptUsername();
   setProgress(20);
+  
   const economy = new GameEconomy();
   const village = new GameVillage(economy);
   const army = new GameArmy(economy);
   
-  // ⬅️ استدعاء دالة الجلب قبل بدء اللعبة
-  await loadFromDatabase(economy, army);
+  await loadFromDatabase(economy, army, PLAYER_USERNAME);
   
   const quests = new QuestManager(economy, army, village); 
-  const world = new WorldMap(economy);
+  const world = new WorldMap(economy, PLAYER_USERNAME);
   const assets = new AssetManager();
   const audio = new AudioManager();
   
@@ -74,7 +113,7 @@ async function init() {
   if (loadingScreen) loadingScreen.classList.add("fade-out");
   if (appShell) appShell.classList.remove("hidden");
 
-  sendLoginNotification(USERNAME);
+  sendLoginNotification(PLAYER_USERNAME);
 
   setTimeout(() => {
     const ui = new GameUI(village, army, economy, world);
@@ -82,29 +121,67 @@ async function init() {
     world.engine = engineInstance;
 
     ui.setShopBuyCallback(function shopBuy(item) {
-      // ... (نفس منطق الشراء السابق مع إضافة username)
-      const payload = { username: USERNAME, event: "buy_" + item, cash: economy.cash };
-      fetch(N8N_WEBHOOK_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      // (أضف منطق الشراء الخاص بك هنا كما كان)
+      switch (item) {
+        case "unit":
+          if (army.unitLevel < army.maxUnitLevel) {
+            const cost = army.unitUpgradeCost;
+            if (economy.spend("cash", cost)) {
+              army.unitLevel++;
+              fetch(N8N_WEBHOOK_URL, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: PLAYER_USERNAME, event: "buy_unit", cash: economy.cash, army_power: army.totalArmyPower })
+              });
+            }
+          }
+          break;
+
+        case "heal":
+          if (economy.spend("cash", 20)) {
+            if (world.leader) {
+              world.leader.hp = Math.min(world.leader.maxHp, world.leader.hp + 30);
+            }
+            fetch(N8N_WEBHOOK_URL, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: PLAYER_USERNAME, event: "buy_heal", cash: economy.cash })
+            });
+          }
+          break;
+
+        default:
+          const weapon = army.weapons.find(w => w.id === item);
+          if (weapon && weapon.level < weapon.maxLevel) {
+            const cost = weapon.upgradeCost;
+            if (economy.spend("gems", cost)) {
+              weapon.level++;
+              fetch(N8N_WEBHOOK_URL, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: PLAYER_USERNAME, event: "buy_" + item, weapon: weapon.id, level: weapon.level, gems: economy.gems, army_power: army.totalArmyPower })
+              });
+            }
+          }
+          break;
+      }
     });
 
     setInterval(() => {
       economy.tick();
       village.update(0.5);
       
-      // التزامن التلقائي
       fetch(N8N_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: USERNAME,
+          username: PLAYER_USERNAME,
           event: "player_autosave",
           cash: economy.cash,
           gems: economy.gems,
-          army_power: army.totalArmyPower
+          army_power: army.totalArmyPower,
+          x_position: world.leader ? Math.floor(world.leader.x) : 0,
+          y_position: world.leader ? Math.floor(world.leader.y) : 0,
+          last_active: new Date().toISOString()
         })
       });
-    }, 15000); // كل 15 ثانية
+    }, 15000);
   }, 400);
 }
 

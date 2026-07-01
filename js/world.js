@@ -10,7 +10,8 @@ import {
 } from "./pathfinding.js";
 
 export class WorldMap {
-  constructor(economy) {
+  constructor(economy, username = "بطل الصحراء") {
+    this.username = username;
     this.economy = economy;
     this.W = 2400;
     this.H = 2400;
@@ -50,14 +51,15 @@ export class WorldMap {
   }
 
   // ==================== 🔥 دالة إرسال الإشعار الجديدة 🔥 ====================
-  async sendLoginNotification(username = "عبد الله") {
+  async sendLoginNotification() {
     try {
       await fetch("https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          username: this.username,
           event: "player_login",
-          message: `🔥 تنبيه: دخل البطل ${username} إلى عالم اللعبة الآن!`,
+          message: `🔥 تنبيه: دخل البطل ${this.username} إلى عالم اللعبة الآن!`,
           timestamp: new Date().toISOString()
         })
       });
@@ -146,8 +148,7 @@ export class WorldMap {
     const img = new Image();
     img.onload = () => { 
       this.mapImage = img; 
-      // 📍 استدعاء الإشعار فور اكتمال تحميل الخريطة وظهور الصفحة الرئيسية للعالم
-      this.sendLoginNotification("عبد الله");
+      this.sendLoginNotification();
     };
     img.src = "img/map.jpg";
 
