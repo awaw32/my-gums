@@ -18,13 +18,17 @@ export class WorldMap {
     this.engine = null;
     this.running = false;
     this.N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146";
+    this.N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook-test/2ba51d69-7b2a-412d-8ddb-ae864319b146";
 
     // ==================== نظام الملتيكاملة (Multiplayer) ====================
     this.otherPlayers = new Map();
     this._mpInterval = null;
+    this._posInterval = null;
+    this._boundUnload = null;
     this.nearbyPlayer = null;
     this.combatCooldown = 0;
     this.attackRange = 60;
+    this.onExit = null;
 
     // === القائد (الشيخ) ===
     this.leader = {
@@ -81,9 +85,9 @@ export class WorldMap {
   startMultiplayerSync() {
     if (this._mpInterval) return;
     this.fetchAllPlayers();
-    this._mpInterval = setInterval(() => this.fetchAllPlayers(), 4000);
+    this._mpInterval = setInterval(() => this.fetchAllPlayers(), 3000);
     this.sendPositionUpdate();
-    this._posInterval = setInterval(() => this.sendPositionUpdate(), 3000);
+    this._posInterval = setInterval(() => this.sendPositionUpdate(), 2000);
     this._boundUnload = () => this.stopMultiplayerSync();
     window.addEventListener("beforeunload", this._boundUnload);
   }
@@ -114,10 +118,15 @@ export class WorldMap {
           event: "player_autosave",
           cash: this.economy?.cash || 0,
           gems: this.economy?.gems || 0,
+          gold: this.economy?.gold || 0,
+          kingCoins: this.economy?.kingCoins || 0,
+          hammers: this.economy?.hammers || 0,
+          scrolls: this.economy?.scrolls || 0,
+          horns: this.economy?.horns || 0,
           army_power: this.economy ? this.economy.power : 0,
           x_position: Math.floor(this.leader.x),
           y_position: Math.floor(this.leader.y),
-          last_active: new Date().toISOString()
+          last_active: Date.now()
         })
       });
     } catch (err) {
@@ -127,7 +136,7 @@ export class WorldMap {
 
   async fetchAllPlayers() {
     try {
-      const res = await fetch(this.N8N_WEBHOOK_URL + "?all=true");
+      const res = await fetch(this.N8N_WEBHOOK_URL + "?all=true&t=" + Date.now());
       const data = await res.json();
       const list = Array.isArray(data) ? data : (data.players || [data].filter(Boolean));
       this.syncOtherPlayers(list);
@@ -145,7 +154,7 @@ export class WorldMap {
       if (!name || name === this.username) continue;
 
       const lastActive = p.last_active ? new Date(p.last_active).getTime() : 0;
-      if (now - lastActive > 20000) continue;
+      if (now - lastActive > 10000) continue;
 
       activeUsernames.add(name);
       const x = p.x_position ?? this.W / 2 + (Math.random() - 0.5) * 400;
@@ -355,6 +364,12 @@ export class WorldMap {
 
     this.engine.start((dt, ctx, cam) => this.update(dt, ctx, cam));
 
+    const exitBtn = document.getElementById("exit-world-btn");
+    if (exitBtn) {
+      this._boundExit = () => this.exitWorldMap();
+      exitBtn.onclick = this._boundExit;
+    }
+
     this.startMultiplayerSync();
   }
 
@@ -366,6 +381,12 @@ export class WorldMap {
     const zoomOutBtn = document.getElementById("zoom-out-btn");
     if (zoomInBtn) zoomInBtn.classList.add("hidden");
     if (zoomOutBtn) zoomOutBtn.classList.add("hidden");
+
+    const exitBtn = document.getElementById("exit-world-btn");
+    if (exitBtn && this._boundExit) {
+      exitBtn.onclick = null;
+      this._boundExit = null;
+    }
 
     if (this.engine) {
       this.engine.stop();
@@ -630,7 +651,25 @@ export class WorldMap {
     if (monster.hp <= 0) {
       monster.alive = false;
       monster.respawnTimer = 25;
-      this.createDrop(monster.x, monster.y, monster.rewardMoney || 10);
+      const reward = monster.rewardMoney || 10;
+      this.createDrop(monster.x, monster.y, reward);
+      if (this.economy) {
+        this.economy.addRaw("cash", reward);
+        this.worldFx.push({ x: monster.x, y: monster.y, text: `+${reward} 💵`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
+        fetch(this.N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: this.username,
+            event: "monster_kill",
+            reward: reward,
+            cash: this.economy.cash,
+            gems: this.economy.gems,
+            army_power: this.economy.power,
+            last_active: Date.now()
+          })
+        }).catch(() => {});
+      }
     }
   }
 
@@ -781,5 +820,6 @@ export class WorldMap {
     this.stop();
     const canvas = document.getElementById("gameCanvas");
     if (canvas) canvas.classList.add("hidden");
+    if (this.onExit) this.onExit();
   }
 }

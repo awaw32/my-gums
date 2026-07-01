@@ -10,6 +10,7 @@ import { saveGame, loadGame } from "./save.js";
 import { QuestManager } from "./quests.js";
 
 const N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146"; 
+const N8N_WEBHOOK_URL_TEST = "https://n8n.d-king.online/webhook-test/2ba51d69-7b2a-412d-8ddb-ae864319b146"; 
 
 function getOrPromptUsername() {
   const saved = localStorage.getItem("player_username");
