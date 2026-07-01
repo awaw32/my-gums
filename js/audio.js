@@ -78,4 +78,28 @@ export class AudioManager {
       setTimeout(() => this._playTone(f, 0.1, "sine", this.sfxGain), i * 60);
     });
   }
+
+  sfxLevelup() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    [300, 400, 500, 600].forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 0.15, "sine", this.sfxGain), i * 80);
+    });
+  }
+
+  sfxCoin() {
+    this.sfxCollect();
+  }
+
+  playSound(type) {
+    switch (type) {
+      case 'kill': this.sfxSword(); break;
+      case 'collect': this.sfxCoin(); break;
+      case 'levelup': this.sfxLevelup(); break;
+      case 'hit': this.sfxHit(); break;
+      case 'pvp_win': this.sfxVictory(); break;
+      case 'click': this.sfxClick(); break;
+      case 'build': this.sfxBuild(); break;
+    }
+  }
 }

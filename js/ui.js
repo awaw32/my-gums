@@ -622,18 +622,13 @@ export class GameUI {
     const bottomBar = document.getElementById("bottom-bar");
     const subBar = document.getElementById("sub-bar");
     const content = document.getElementById("screen-content");
-    const eventRow = document.getElementById("event-row");
-    const taskRow = document.getElementById("task-row");
     const worldButtons = document.getElementById("world-buttons");
     if (topBar) topBar.style.display = "none";
-    if (bottomBar) bottomBar.style.display = "none";
     if (subBar) subBar.style.display = "none";
+    if (bottomBar) bottomBar.style.display = "none";
     if (content) content.style.display = "none";
-    if (eventRow) eventRow.style.display = "none";
-    if (taskRow) taskRow.style.display = "none";
     if (worldButtons) worldButtons.classList.remove("hidden");
     if (this._playerPanel) this._playerPanel.classList.remove("hidden");
-    document.querySelectorAll(".world-buttons .hidden").forEach(b => b.classList.remove("hidden"));
     this.world.enterWorldMap();
   }
 
@@ -650,15 +645,11 @@ export class GameUI {
     const bottomBar = document.getElementById("bottom-bar");
     const subBar = document.getElementById("sub-bar");
     const content = document.getElementById("screen-content");
-    const eventRow = document.getElementById("event-row");
-    const taskRow = document.getElementById("task-row");
     const worldButtons = document.getElementById("world-buttons");
     if (topBar) topBar.style.display = "";
-    if (bottomBar) bottomBar.style.display = "";
     if (subBar) subBar.style.display = "";
+    if (bottomBar) bottomBar.style.display = "";
     if (content) content.style.display = "";
-    if (eventRow) eventRow.style.display = "";
-    if (taskRow) taskRow.style.display = "";
     if (worldButtons) worldButtons.classList.add("hidden");
     if (this._playerPanel) this._playerPanel.classList.add("hidden");
     if (this._chatPanel) this._chatPanel.classList.add("hidden");
@@ -687,7 +678,6 @@ export class GameUI {
       const pct = eco.xpToNext > 0 ? Math.min(100, (eco.xp / eco.xpToNext) * 100) : 0;
       this.els.levelFill.style.width = pct + "%";
     }
-    this.updateTasks();
   }
 
   renderAchievements() {
@@ -846,29 +836,6 @@ export class GameUI {
       done.textContent = "✅ استلمت مكافأة اليوم! عد غداً.";
       container.appendChild(done);
     }
-  }
-
-  updateTasks() {
-    const village = this.village;
-    const eco = this.economy;
-
-    const totalLevel = village.buildings.reduce((s, b) => s + b.level, 0);
-    const task0Prog = document.getElementById("task-progress-0");
-    if (task0Prog) task0Prog.textContent = totalLevel.toString();
-    const task0Fill = document.getElementById("task-fill-0");
-    if (task0Fill) task0Fill.style.width = Math.min(100, (totalLevel / 920) * 100) + "%";
-
-    const camelFarm = village.buildings.find(b => b.name.includes("إبل") || b.name.includes("مزرعة"));
-    const camelLevel = camelFarm ? camelFarm.level : 0;
-    const task1Prog = document.getElementById("task-progress-1");
-    if (task1Prog) task1Prog.textContent = camelLevel.toString();
-    const task1Fill = document.getElementById("task-fill-1");
-    if (task1Fill) task1Fill.style.width = Math.min(100, (camelLevel / 200) * 100) + "%";
-
-    const task2Prog = document.getElementById("task-progress-2");
-    if (task2Prog) task2Prog.textContent = eco.cashFormatted;
-    const task2Fill = document.getElementById("task-fill-2");
-    if (task2Fill) task2Fill.style.width = Math.min(100, (eco.cash / 3.5e15) * 100) + "%";
   }
 
   startTopBarLoop() {

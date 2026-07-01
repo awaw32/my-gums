@@ -16,9 +16,8 @@
   --panel-bg: rgba(26, 14, 6, 0.96);
   --panel-border: rgba(255, 215, 0, 0.2);
   --top-h: 64px;
+  --sub-h: 48px;
   --bottom-h: 68px;
-  --event-h: 60px;
-  --task-h: 76px;
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
@@ -187,97 +186,41 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   flex-shrink: 0;
 }
 
-/* ====== أيقونات الأحداث ====== */
-#event-row {
+/* ====== Sub-bar (تحت الشريط العلوي) ====== */
+#sub-bar {
+  height: var(--sub-h);
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 4px 6px;
-  background: rgba(26,14,6,0.8);
-  border-bottom: 1px solid rgba(255,215,0,0.08);
+  background: linear-gradient(180deg, rgba(44,26,10,0.95), rgba(26,14,6,0.9));
+  border-bottom: 1px solid var(--panel-border);
   flex-shrink: 0;
-  height: var(--event-h);
-  overflow-x: auto;
-  gap: 2px;
+  padding: 0 2px;
+  gap: 1px;
+  direction: rtl;
 }
-.event-icon {
-  position: relative;
-  display: flex; align-items: center; justify-content: center;
-  width: 44px; height: 44px;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.04);
-  font-size: 1.3rem;
-  transition: background 0.2s, transform 0.15s;
-  flex-shrink: 0;
-}
-.event-icon:active { transform: scale(0.9); background: rgba(255,255,255,0.08); }
-.event-badge {
-  position: absolute;
-  top: -4px; left: -4px;
-  min-width: 18px; height: 16px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background: var(--red);
-  color: white;
-  font-size: 0.55rem;
-  font-weight: 900;
-  display: flex; align-items: center; justify-content: center;
-  line-height: 1;
-}
-.event-badge.gold {
-  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
-  color: var(--dark);
-  font-size: 0.5rem;
-}
-.event-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 4px rgba(255,215,0,0.2); }
-  50% { box-shadow: 0 0 12px rgba(255,215,0,0.5); }
-}
-
-/* ====== بطاقات المهام ====== */
-#task-row {
-  display: flex;
-  gap: 5px;
-  padding: 6px 8px;
-  background: rgba(26,14,6,0.6);
-  flex-shrink: 0;
-  height: var(--task-h);
-  overflow-x: auto;
-}
-.task-card {
-  flex: 1;
-  min-width: 0;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,215,0,0.12);
-  border-radius: 10px;
-  padding: 6px 8px;
+.sub-btn {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-.task-icon { font-size: 1.1rem; line-height: 1; }
-.task-info {
-  display: flex; justify-content: space-between;
-  font-size: 0.6rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: none;
+  border: none;
   color: var(--beige-dark);
-}
-.task-label { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.task-progress { color: var(--gold); font-weight: 700; white-space: nowrap; direction: ltr; }
-.task-bar-track {
-  width: 100%; height: 4px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.task-bar-fill {
+  font-size: 0.48rem;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  font-family: inherit;
+  border-radius: 8px;
+  flex: 1;
   height: 100%;
-  background: linear-gradient(90deg, var(--gold-dim), var(--gold));
-  border-radius: 2px;
-  transition: width 0.3s;
 }
+.sub-btn:active { background: rgba(255,255,255,0.05); }
+.sub-btn .nav-icon { font-size: 1.1rem; line-height: 1; }
+.sub-btn .nav-label { font-size: 0.48rem; line-height: 1; }
+.sub-btn.active { color: var(--gold); background: rgba(255,215,0,0.06); }
 
 /* ====== المحتوى الرئيسي ====== */
 #screen-content {
@@ -286,6 +229,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   overflow-x: hidden;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  height: calc(100dvh - var(--top-h) - var(--sub-h) - var(--bottom-h));
 }
 #screen-content::-webkit-scrollbar { width: 2px; }
 #screen-content::-webkit-scrollbar-track { background: transparent; }
@@ -908,40 +852,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .top-food { direction: ltr; }
 .top-power { direction: ltr; }
 
-/* ===== Sub-bar (إضافات) ===== */
-.sub-bar {
-  position: fixed;
-  bottom: var(--bottom-h);
-  left: 0; right: 0;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  background: rgba(26,14,6,0.95);
-  border-top: 1px solid var(--panel-border);
-  z-index: 40;
-  padding: 0 4px;
-  padding-bottom: var(--safe-b, 0px);
-}
-.sub-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  background: none;
-  border: none;
-  color: var(--beige-dark);
-  font-size: 0.55rem;
-  padding: 2px 6px;
-  cursor: pointer;
-  transition: color 0.2s;
-  font-family: inherit;
-}
-.sub-btn .nav-icon { font-size: 1.1rem; line-height: 1; }
-.sub-btn .nav-label { font-size: 0.5rem; }
-.sub-btn.active { color: var(--gold); }
-.sub-btn:active { opacity: 0.6; }
+
 
 /* ===== Power Display ===== */
 #power-display { font-weight: 700; color: #ff6b6b; direction: ltr; }
@@ -951,18 +862,19 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px;
-  max-height: calc(100vh - 250px);
+  padding: 8px 10px;
   overflow-y: auto;
+  max-height: calc(100dvh - var(--top-h) - var(--sub-h) - var(--bottom-h) - 10px);
 }
 .achievement-card {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: rgba(40,24,12,0.9);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
-  padding: 10px;
+  padding: 8px 10px;
+  width: 100%;
 }
 .achievement-done { border-color: var(--gold); background: rgba(255,215,0,0.06); }
 .achievement-claimed { opacity: 0.5; border-color: rgba(255,255,255,0.1); }
@@ -990,7 +902,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 10px;
+  padding: 8px 10px;
 }
 .inventory-item {
   display: flex;
@@ -999,8 +911,8 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   background: rgba(40,24,12,0.8);
   border: 1px solid var(--panel-border);
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.65rem;
+  padding: 6px 8px;
+  font-size: 0.6rem;
 }
 .inv-item-icon { font-size: 1.1rem; }
 .inv-item-name { color: var(--beige); font-weight: 600; }
@@ -1008,35 +920,38 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .crafting-grid {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  max-height: 300px;
+  gap: 8px;
+  padding: 8px 10px;
   overflow-y: auto;
+  max-height: calc(100dvh - var(--top-h) - var(--sub-h) - var(--bottom-h) - 60px);
 }
 .crafting-card {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(40,24,12,0.8);
+  background: rgba(40,24,12,0.85);
   border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 8px;
+  border-radius: 12px;
+  padding: 10px 8px;
+  width: 100%;
 }
 .crafting-card.craftable { border-color: rgba(46,204,113,0.3); }
-.craft-icon { font-size: 1.5rem; flex-shrink: 0; }
+.craft-icon { font-size: 1.4rem; flex-shrink: 0; width: 32px; text-align: center; }
 .craft-info { flex: 1; min-width: 0; }
 .craft-name { font-size: 0.7rem; font-weight: 700; color: var(--beige); }
-.craft-desc { font-size: 0.55rem; color: var(--beige-dark); }
-.craft-cost { font-size: 0.55rem; color: var(--gold); margin-top: 2px; }
-.craft-btn { flex-shrink: 0; padding: 6px 12px; font-size: 0.65rem; }
-.craft-btn:disabled { opacity: 0.4; }
+.craft-desc { font-size: 0.55rem; color: var(--beige-dark); margin-top: 1px; }
+.craft-cost { font-size: 0.55rem; color: var(--gold); margin-top: 3px; line-height: 1.4; }
+.craft-btn { flex-shrink: 0; padding: 8px 12px; font-size: 0.65rem; min-width: 56px; border-radius: 8px; }
+.craft-btn:disabled { opacity: 0.35; }
 
 /* ===== Events ===== */
 .events-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  max-height: calc(100dvh - var(--top-h) - var(--sub-h) - var(--bottom-h) - 10px);
 }
 .event-card {
   display: flex;
