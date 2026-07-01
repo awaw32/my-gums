@@ -11,6 +11,8 @@ export class OasisManager {
     this.economy = economy;
     this.oases = OASIS_DATA.map(o => ({ ...o, captured: o.status === "free" }));
     this._onOasesChanged = null;
+    this._accGold = 0;
+    this._payoutInterval = 15; // كل 15 ثانية
   }
 
   get totalIncome() {
@@ -24,13 +26,26 @@ export class OasisManager {
   canCapture(oasisId) {
     const o = this.oases.find(o => o.id === oasisId);
     if (!o || o.captured) return false;
-    return this.economy.power >= o.capturePower;
+    if (o.status === "free") return true;
+    // يتطلب قوة + ذهب لفتح الواحة
+    if (this.economy.power < o.capturePower) return false;
+    const cost = o.id * 100; // 100, 200, 300, 400 ذهب حسب الواحة
+    return this.economy.gold >= cost;
   }
 
   capture(oasisId) {
     const o = this.oases.find(o => o.id === oasisId);
     if (!o || o.captured) return false;
+    if (o.status === "free") {
+      o.captured = true;
+      this.economy.addXp(50);
+      if (this._onOasesChanged) this._onOasesChanged(this.getState());
+      return true;
+    }
     if (this.economy.power < o.capturePower) return false;
+    const cost = o.id * 100;
+    if (this.economy.gold < cost) return false;
+    this.economy.gold -= cost;
     o.captured = true;
     this.economy.addXp(50);
     if (this._onOasesChanged) this._onOasesChanged(this.getState());
@@ -40,7 +55,13 @@ export class OasisManager {
   tick(dt) {
     const income = this.totalIncome;
     if (income > 0) {
-      this.economy.addRaw("cash", income * dt);
+      // income هي الإنتاج في الثانية، dt هو عدد الثواني المنقضية (15)
+      this._accGold += income * dt;
+      if (this._accGold >= 1) {
+        const payout = Math.floor(this._accGold);
+        this.economy.addRaw("gold", payout);
+        this._accGold -= payout;
+      }
     }
   }
 

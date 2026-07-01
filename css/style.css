@@ -943,6 +943,15 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .craft-cost { font-size: 0.55rem; color: var(--gold); margin-top: 3px; line-height: 1.4; }
 .craft-btn { flex-shrink: 0; padding: 8px 12px; font-size: 0.65rem; min-width: 56px; border-radius: 8px; }
 .craft-btn:disabled { opacity: 0.35; }
+.craft-btn:disabled::after { content: ""; }
+.craft-btn:not(:disabled)::after { content: ""; }
+@media (max-width: 480px) {
+  .crafting-card { flex-wrap: wrap; gap: 4px; padding: 8px; }
+  .craft-icon { font-size: 1.2rem; width: 28px; }
+  .craft-btn { width: 100%; padding: 10px; font-size: 0.75rem; min-width: unset; }
+  .inventory-item { font-size: 0.5rem; padding: 4px 6px; }
+  .inv-item-icon { font-size: 0.9rem; }
+}
 
 /* ===== Events ===== */
 .events-list {
@@ -1126,7 +1135,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .chat-toggle-btn {
   position: absolute;
   top: 10px;
-  right: 50px;
+  left: 10px;
   z-index: 50;
   background: rgba(0,0,0,0.6);
   border: 1px solid var(--panel-border);

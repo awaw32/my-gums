@@ -97,6 +97,7 @@ export class WorldMap {
     };
     this._onBRMatchEnd = null;
     this._onBRKillFeed = null;
+    this._onChatMessage = null;
   }
 
   _initSandParticles(count) {
@@ -204,7 +205,7 @@ export class WorldMap {
           this.syncMonsters(msg.list || []);
         } else if (msg.type === "monster_killed") {
           const mon = this.monsters.find(m => m.id === msg.id);
-          if (mon && mon.alive) { mon.alive = false; mon.respawnTimer = 25; }
+          if (mon && mon.alive) { mon.alive = false; mon.hp = 0; mon.respawnTimer = 25; }
         } else if (msg.type === "pvp_notify") {
           if (this._onNotification) this._onNotification(`⚔️ ${msg.attacker} هاجمك بقوة ${msg.power}!`);
         } else if (msg.type === "player_joined") {
@@ -296,21 +297,49 @@ export class WorldMap {
   syncMonsters(serverMonsters) {
     if (!serverMonsters || serverMonsters.length === 0) return;
     this._monstersSynced = true;
-    // نسخ بيانات الوحوش من السيرفر (نفس المواقع والنوع للجميع)
+    const newIds = new Set();
     for (const sm of serverMonsters) {
+      newIds.add(sm.id);
       const local = this.monsters.find(m => m.id === sm.id);
       if (local) {
-        local.alive = sm.alive;
-        local.x = sm.x; local.y = sm.y;
+        // لا نغير موقع الوحوش أثناء القتال — نستخدم lerp سلس
+        if (!local._targetX) { local._targetX = local.x; local._targetY = local.y; }
+        local._targetX = sm.x;
+        local._targetY = sm.y;
         local.hp = sm.hp;
-        if (!sm.alive) local.respawnTimer = sm.respawnTimer || 25;
+        local.maxHp = sm.maxHp;
+        if (local.alive && !sm.alive) {
+          local.alive = false;
+          local.respawnTimer = sm.respawnTimer || 25;
+        } else if (!local.alive && sm.alive) {
+          local.alive = true;
+          local.hp = sm.hp;
+          local.respawnTimer = 0;
+        }
       } else {
-        // وحش جديد من السيرفر
         this.monsters.push({
           ...sm,
           facing: 1, attackCD: 0,
+          _targetX: sm.x, _targetY: sm.y,
           respawnTimer: sm.alive ? 0 : (sm.respawnTimer || 25)
         });
+      }
+    }
+    // إزالة الوحوش التي لم تعد موجودة عند السيرفر
+    for (let i = this.monsters.length - 1; i >= 0; i--) {
+      if (!newIds.has(this.monsters[i].id)) {
+        this.monsters.splice(i, 1);
+      }
+    }
+  }
+
+  // حركة سلسة للوحوش (تُستدعى من updateMonstersAI)
+  _lerpMonsterPositions(dt) {
+    for (const m of this.monsters) {
+      if (!m._targetX) continue;
+      if (m.alive) {
+        m.x += (m._targetX - m.x) * Math.min(1, dt * 8);
+        m.y += (m._targetY - m.y) * Math.min(1, dt * 8);
       }
     }
   }
@@ -400,8 +429,8 @@ export class WorldMap {
       }
     }
 
-    if (this.ws && this.ws.readyState === 1) {
-      this.ws.send(JSON.stringify({ type: "pvp_attack", target: target.username, myPower: this.economy ? this.economy.power : 0 }));
+    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+      this._sendWS({ type: "pvp_attack", target: target.username, myPower: this.economy ? this.economy.power : 0 });
     }
 
     try {
@@ -545,6 +574,7 @@ export class WorldMap {
 
     initCollisionGrid(this.W, this.H);
     this.initArmyUnits(8);
+    this.spawnMonsters(); // وحوش محلية كبديل (يتم تحديثها من السيرفر عند الاتصال)
 
     // عوائق الصحراء
     markObstacle(420, 380, 95);
@@ -581,6 +611,12 @@ export class WorldMap {
     }
 
     this.startMultiplayerSync();
+  }
+
+  recenterCamera() {
+    if (this.engine?.camera && this.leader) {
+      this.engine.camera.lookAt(this.leader.x, this.leader.y);
+    }
   }
 
   stop() {
@@ -752,14 +788,7 @@ export class WorldMap {
   checkWipe() {
     if (this.mode === "battle_royale") return;
     if (this.leader.hp <= 0) {
-      if (this.armyUnits.length === 0 && this.sessionStats.coinsEarned > 0) {
-        this._wipeFlag = true;
-      } else {
-        this.leader.hp = this.leader.maxHp;
-        this.leader.x = this.W / 2;
-        this.leader.y = this.H / 2;
-        this.leader.path = null;
-      }
+      this._wipeFlag = true;
     }
     if (this._wipeFlag) {
       this._wipeFlag = false;
@@ -787,12 +816,17 @@ export class WorldMap {
     const total = 8;
     const alive = this.armyUnits.length;
     ctx.save();
+    // إعادة تعيين التحويلات للرسم في شاشة الفضاء
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const dpr = window.devicePixelRatio || 1;
+    ctx.scale(dpr, dpr);
+    const cw = ctx.canvas.width / dpr;
     ctx.fillStyle = "rgba(0,0,0,0.5)";
-    ctx.fillRect(8, 8, 120, 28);
+    ctx.fillRect(cw - 130, 8, 122, 28);
     ctx.fillStyle = alive > 0 ? "#4cd964" : "#ff4444";
     ctx.font = "bold 11px Cairo, sans-serif";
     ctx.textAlign = "right";
-    ctx.fillText(`🛡️ ${alive}/${total}`, 120, 28);
+    ctx.fillText(`🛡️ ${alive}/${total}`, cw - 12, 28);
     ctx.restore();
   }
 
@@ -985,6 +1019,7 @@ export class WorldMap {
   }
 
   updateMonstersAI(dt) {
+    this._lerpMonsterPositions(dt);
     for (const m of this.monsters) {
       if (!m.alive) {
         m.respawnTimer -= dt;

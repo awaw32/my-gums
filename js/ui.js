@@ -101,11 +101,12 @@ export class GameUI {
       this.world._onNotification = (msg) => this.showNotification(msg);
       this.world._onChatMessage = (username, msg) => this.addChatMessage(username, msg);
     }
-    // ربط زر الشات
+    // ربط زر الشات مع لوحة المتصلين
     const chatToggle = document.getElementById("chat-toggle-btn");
     if (chatToggle) {
       chatToggle.addEventListener("click", () => {
         if (this._chatPanel) this._chatPanel.classList.toggle("hidden");
+        if (this._playerPanel) this._playerPanel.classList.toggle("hidden");
       });
     }
   }

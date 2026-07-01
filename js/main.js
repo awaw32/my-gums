@@ -199,6 +199,13 @@ async function init() {
     world._allianceManager = allianceManager;
     world._upgradeTree = upgradeTree;
 
+    // تسجيل مصادر القوة (powerSources) — بدونه يكون power = 0 دائماً
+    economy.powerSources.push(() => village.getPower());
+    economy.powerSources.push(() => army.totalArmyPower ? army.totalArmyPower() : army.unitLevel * 10);
+    economy.powerSources.push(() => Math.floor(economy.level * 5));
+    economy.powerSources.push(() => allianceManager.level * 10);
+    economy.powerSources.push(() => prestige.level * 50);
+
     const saveToDB = () => {
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
         method: "POST",
@@ -451,7 +458,7 @@ async function init() {
     setInterval(() => {
       economy.tick();
       village.update(0.5);
-      oasisManager.tick(0.5);
+      oasisManager.tick(15); // 15 ثانية انقضت
       saveToDB();
     }, 15000);
 

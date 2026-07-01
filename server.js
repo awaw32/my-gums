@@ -316,6 +316,7 @@ wss.on("connection", (ws, req) => {
         const mon = worldMonsters.find(m => m.id === msg.id);
         if (mon && mon.alive) {
           mon.alive = false;
+          mon.hp = 0;
           mon.respawnTimer = 25;
           const killMsg = JSON.stringify({ type: "monster_killed", id: msg.id, killedBy: username });
           worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(killMsg); });
