@@ -1,4 +1,3 @@
-import { GameEngine } from "./engine.js";
 import { GameEconomy } from "./economy.js";
 import { GameVillage } from "./village.js";
 import { GameArmy } from "./army.js";
@@ -9,8 +8,7 @@ import { AudioManager } from "./audio.js";
 import { saveGame, loadGame } from "./save.js";
 import { QuestManager } from "./quests.js";
 
-const N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/1fe62b81-3e33-4d1c-a253-165f193f437e"; 
-const N8N_WEBHOOK_URL_TEST = "https://n8n.d-king.online/webhook-test/1fe62b81-3e33-4d1c-a253-165f193f437e"; 
+const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
 function getOrPromptUsername() {
   const saved = localStorage.getItem("player_username");
@@ -53,32 +51,28 @@ function getOrPromptUsername() {
 
 async function loadFromDatabase(economy, army, username) {
   try {
-    const response = await fetch(`${N8N_WEBHOOK_URL}?username=${encodeURIComponent(username)}`);
+    const response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`);
     const data = await response.json();
     if (data && data.cash !== undefined) {
       economy.cash = data.cash;
       economy.gems = data.gems || 0;
-      army.totalArmyPower = data.army_power || 0;
-      console.log("✅ [n8n] تم استعادة بياناتك من قاعدة البيانات بنجاح!");
+      economy.gold = data.gold || 0;
+      economy.kingCoins = data.kingCoins || 0;
+      economy.hammers = data.hammers || 0;
+      economy.scrolls = data.scrolls || 0;
+      economy.horns = data.horns || 0;
+      army.unitLevel = data.unitLevel || 1;
+      if (data.weapons && Array.isArray(data.weapons)) {
+        for (const wd of data.weapons) {
+          const w = army.weapons.find(ww => ww.id === wd.id);
+          if (w) w.level = wd.level || 0;
+        }
+      }
+      console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!");
     }
   } catch (err) {
-    console.warn("⚠️ لم يتم العثور على بيانات سابقة، سنبدأ من الصفر:", err.message);
+    console.warn("⚠️ [API] لم يتم العثور على بيانات سابقة، سنبدأ من الصفر:", err.message);
   }
-}
-
-async function sendLoginNotification(username) {
-  try {
-    await fetch(N8N_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: username,
-        event: "player_login",
-        message: `🔥 تنبيه: دخل البطل ${username} إلى عالم اللعبة الآن!`,
-        timestamp: new Date().toISOString()
-      })
-    });
-  } catch (err) { console.warn("⚠️ فشل إرسال إشعار الدخول:", err.message); }
 }
 
 async function init() {
@@ -103,7 +97,7 @@ async function init() {
   await loadFromDatabase(economy, army, PLAYER_USERNAME);
   
   const quests = new QuestManager(economy, army, village); 
-  const world = new WorldMap(economy, PLAYER_USERNAME);
+  const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE);
   const assets = new AssetManager();
   const audio = new AudioManager();
   
@@ -121,6 +115,21 @@ async function init() {
     economy.addRaw("scrolls", 1000);
     economy.addRaw("horns", 1000);
     console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!");
+    // حفظ فوري في قاعدة البيانات عشان ما يضيع البونص
+    try {
+      fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cash: economy.cash, gems: economy.gems, gold: economy.gold, kingCoins: economy.kingCoins, hammers: economy.hammers, scrolls: economy.scrolls, horns: economy.horns, army_power: economy.power, unitLevel: 1, weapons: [], last_active: Date.now() })
+      }).catch(() => {});
+    } catch {}
+  } else {
+    // حفظ حالة الدخول
+    try {
+      fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ last_active: Date.now() })
+      }).catch(() => {});
+    } catch {}
   }
   
   setProgress(100);
@@ -128,14 +137,31 @@ async function init() {
   if (loadingScreen) loadingScreen.classList.add("fade-out");
   if (appShell) appShell.classList.remove("hidden");
 
-  sendLoginNotification(PLAYER_USERNAME);
-
   setTimeout(() => {
     const ui = new GameUI(village, army, economy, world);
-    let engineInstance = new GameEngine("gameCanvas", N8N_WEBHOOK_URL);
-    world.engine = engineInstance;
-
     world.onExit = () => ui.exitWorldMap();
+
+    const saveToDB = () => {
+      fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cash: economy.cash,
+          gems: economy.gems,
+          gold: economy.gold,
+          kingCoins: economy.kingCoins,
+          hammers: economy.hammers,
+          scrolls: economy.scrolls,
+          horns: economy.horns,
+          army_power: economy.power,
+          unitLevel: army.unitLevel,
+          weapons: army.weapons.map(w => ({ id: w.id, level: w.level })),
+          x_position: world.leader ? Math.floor(world.leader.x) : 0,
+          y_position: world.leader ? Math.floor(world.leader.y) : 0,
+          last_active: Date.now()
+        })
+      }).catch(() => {});
+    };
 
     ui.setShopBuyCallback(function shopBuy(item) {
       switch (item) {
@@ -144,10 +170,7 @@ async function init() {
             const cost = army.unitUpgradeCost;
             if (economy.spend("cash", cost)) {
               army.unitLevel++;
-              fetch(N8N_WEBHOOK_URL, {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: PLAYER_USERNAME, event: "buy_unit", cash: economy.cash, army_power: army.totalArmyPower })
-              });
+              saveToDB();
             }
           }
           break;
@@ -157,10 +180,7 @@ async function init() {
             if (world.leader) {
               world.leader.hp = Math.min(world.leader.maxHp, world.leader.hp + 30);
             }
-            fetch(N8N_WEBHOOK_URL, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ username: PLAYER_USERNAME, event: "buy_heal", cash: economy.cash })
-            });
+            saveToDB();
           }
           break;
 
@@ -170,10 +190,7 @@ async function init() {
             const cost = weapon.upgradeCost;
             if (economy.spend("gems", cost)) {
               weapon.level++;
-              fetch(N8N_WEBHOOK_URL, {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: PLAYER_USERNAME, event: "buy_" + item, weapon: weapon.id, level: weapon.level, gems: economy.gems, army_power: army.totalArmyPower })
-              });
+              saveToDB();
             }
           }
           break;
@@ -183,26 +200,7 @@ async function init() {
     setInterval(() => {
       economy.tick();
       village.update(0.5);
-      
-      fetch(N8N_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: PLAYER_USERNAME,
-          event: "player_autosave",
-          cash: economy.cash,
-          gems: economy.gems,
-          gold: economy.gold,
-          kingCoins: economy.kingCoins,
-          hammers: economy.hammers,
-          scrolls: economy.scrolls,
-          horns: economy.horns,
-          army_power: army.totalArmyPower,
-          x_position: world.leader ? Math.floor(world.leader.x) : 0,
-          y_position: world.leader ? Math.floor(world.leader.y) : 0,
-          last_active: Date.now()
-        })
-      });
+      saveToDB();
     }, 15000);
   }, 400);
 }

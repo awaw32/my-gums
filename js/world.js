@@ -10,19 +10,19 @@ import {
 } from "./pathfinding.js";
 
 export class WorldMap {
-  constructor(economy, username = "بطل الصحراء") {
+  constructor(economy, username = "بطل الصحراء", apiBase = "") {
     this.username = username;
     this.economy = economy;
+    this.apiBase = apiBase;
     this.W = 2400;
     this.H = 2400;
     this.engine = null;
     this.running = false;
-    this.N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/1fe62b81-3e33-4d1c-a253-165f193f437e";
-    this.N8N_WEBHOOK_URL_TEST = "https://n8n.d-king.online/webhook-test/1fe62b81-3e33-4d1c-a253-165f193f437e";
 
-    // ==================== نظام الملتيكاملة (Multiplayer) ====================
+    // ==================== نظام الملتيكاملة (WebSocket) ====================
     this.otherPlayers = new Map();
-    this._mpInterval = null;
+    this._ws = null;
+    this._wsReconnectTimer = null;
     this._posInterval = null;
     this._boundUnload = null;
     this.nearbyPlayer = null;
@@ -62,44 +62,50 @@ export class WorldMap {
     this.worldFx = [];
   }
 
-  // ==================== 🔥 دالة إرسال الإشعار الجديدة 🔥 ====================
   async sendLoginNotification() {
     try {
-      await fetch("https://n8n.d-king.online/webhook/1fe62b81-3e33-4d1c-a253-165f193f437e", {
+      await fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: this.username,
-          event: "player_login",
-          message: `🔥 تنبيه: دخل البطل ${this.username} إلى عالم اللعبة الآن!`,
-          timestamp: new Date().toISOString()
+          x_position: Math.floor(this.leader.x),
+          y_position: Math.floor(this.leader.y),
+          army_power: this.economy ? this.economy.power : 0,
+          last_active: Date.now()
         })
       });
-      console.log("🚀 [n8n] تم إرسال إشعار دخول اللاعب بنجاح!");
+      console.log("🚀 [API] إشعار دخول اللاعب!");
     } catch (err) {
-      console.warn("⚠️ فشل إرسال إشعار الدخول إلى n8n:", err.message);
+      console.warn("⚠️ [API] فشل إشعار الدخول:", err.message);
     }
   }
 
-  // ==================== نظام الملتيكاملة (Multiplayer Sync) ====================
+  // ==================== WebSocket — ملتيكاملة فورية ====================
   startMultiplayerSync() {
-    if (this._mpInterval) return;
-    this.fetchAllPlayers();
-    this._mpInterval = setInterval(() => this.fetchAllPlayers(), 1500);
+    if (this._ws) return;
+    this._connectWS();
     this.sendPositionUpdate();
-    this._posInterval = setInterval(() => this.sendPositionUpdate(), 1000);
+    this._posInterval = setInterval(() => this.sendPositionUpdate(), 5000);
     this._boundUnload = () => this.stopMultiplayerSync();
     window.addEventListener("beforeunload", this._boundUnload);
   }
 
   stopMultiplayerSync() {
-    if (this._mpInterval) {
-      clearInterval(this._mpInterval);
-      this._mpInterval = null;
-    }
     if (this._posInterval) {
       clearInterval(this._posInterval);
       this._posInterval = null;
+    }
+    if (this._wsReconnectTimer) {
+      clearTimeout(this._wsReconnectTimer);
+      this._wsReconnectTimer = null;
+    }
+    if (this._ws) {
+      this._ws.onclose = null;
+      this._ws.onmessage = null;
+      this._ws.onerror = null;
+      try { this._ws.close(); } catch {}
+      this._ws = null;
     }
     if (this._boundUnload) {
       window.removeEventListener("beforeunload", this._boundUnload);
@@ -107,42 +113,60 @@ export class WorldMap {
     }
   }
 
-  async sendPositionUpdate() {
-    if (!this.leader) return;
-    try {
-      await fetch(this.N8N_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: this.username,
-          event: "player_autosave",
-          cash: this.economy?.cash || 0,
-          gems: this.economy?.gems || 0,
-          gold: this.economy?.gold || 0,
-          kingCoins: this.economy?.kingCoins || 0,
-          hammers: this.economy?.hammers || 0,
-          scrolls: this.economy?.scrolls || 0,
-          horns: this.economy?.horns || 0,
-          army_power: this.economy ? this.economy.power : 0,
-          x_position: Math.floor(this.leader.x),
-          y_position: Math.floor(this.leader.y),
-          last_active: Date.now()
-        })
-      });
-    } catch (err) {
-      console.warn("⚠️ [MP] فشل تحديث الموقع:", err.message);
+  _connectWS() {
+    if (this._ws) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const base = this.apiBase ? this.apiBase.replace(/^http/, "ws") : `${protocol}//${location.host}`;
+    const url = `${base}/ws/world`;
+    this._ws = new WebSocket(url);
+
+    this._ws.onopen = () => {
+      console.log("[WS] متصل بالخادم ✅");
+      this._sendWS({ type: "join", username: this.username, x_position: Math.floor(this.leader?.x || 1200), y_position: Math.floor(this.leader?.y || 1200), army_power: this.economy ? this.economy.power : 0 });
+    };
+
+    this._ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "world_players") this.syncOtherPlayers(msg.list || []);
+      } catch {}
+    };
+
+    this._ws.onclose = () => {
+      console.warn("[WS] قطع الاتصال، إعادة محاولة...");
+      this._ws = null;
+      this._wsReconnectTimer = setTimeout(() => this._connectWS(), 2000);
+    };
+
+    this._ws.onerror = () => {};
+  }
+
+  _sendWS(data) {
+    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+      this._ws.send(JSON.stringify(data));
     }
   }
 
-  async fetchAllPlayers() {
-    try {
-      const res = await fetch(this.N8N_WEBHOOK_URL + "?all=true&t=" + Date.now());
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : (data.players || [data].filter(Boolean));
-      this.syncOtherPlayers(list);
-    } catch (err) {
-      console.warn("⚠️ [MP] فشل جلب اللاعبين:", err.message);
-    }
+  sendPositionUpdate() {
+    if (!this.leader) return;
+    this._sendWS({ type: "update", x_position: Math.floor(this.leader.x), y_position: Math.floor(this.leader.y), army_power: this.economy ? this.economy.power : 0 });
+    fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cash: this.economy?.cash || 0,
+        gems: this.economy?.gems || 0,
+        gold: this.economy?.gold || 0,
+        kingCoins: this.economy?.kingCoins || 0,
+        hammers: this.economy?.hammers || 0,
+        scrolls: this.economy?.scrolls || 0,
+        horns: this.economy?.horns || 0,
+        army_power: this.economy ? this.economy.power : 0,
+        x_position: Math.floor(this.leader.x),
+        y_position: Math.floor(this.leader.y),
+        last_active: Date.now()
+      })
+    }).catch(() => {});
   }
 
   syncOtherPlayers(players) {
@@ -221,17 +245,12 @@ export class WorldMap {
     }
 
     try {
-      await fetch(this.N8N_WEBHOOK_URL, {
+      await fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: this.username,
-          event: "pvp_attack",
-          target: target.username,
-          attacker_power: myPower,
-          defender_power: theirPower,
-          result: won ? "win" : "lose",
-          timestamp: new Date().toISOString()
+          army_power: this.economy ? this.economy.power : 0,
+          last_active: Date.now()
         })
       });
     } catch (err) { console.warn("⚠️ [MP] فشل إرسال نتيجة الهجوم:", err.message); }
@@ -678,13 +697,10 @@ export class WorldMap {
       if (this.economy) {
         this.economy.addRaw("cash", reward);
         this.worldFx.push({ x: monster.x, y: monster.y, text: `+${reward} 💵`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
-        fetch(this.N8N_WEBHOOK_URL, {
+        fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            username: this.username,
-            event: "monster_kill",
-            reward: reward,
             cash: this.economy.cash,
             gems: this.economy.gems,
             army_power: this.economy.power,

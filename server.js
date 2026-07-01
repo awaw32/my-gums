@@ -38,6 +38,47 @@ const playerData = new Map();          // playerId → { save data }
 const DATA_DIR = process.env.DATA_DIR || "./data";
 try { require("fs").mkdirSync(DATA_DIR, { recursive: true }); } catch {}
 
+// ═══════════════════════════════════════════════════════════════════
+//  MongoDB — مباشر بدون n8n
+// ═══════════════════════════════════════════════════════════════════
+const mongoose = require("mongoose");
+mongoose.set("bufferCommands", false); // fail fast إذا MongoDB مش متاح
+const MONGO_URL = process.env.MONGO_URL || "mongodb://root:Qwer1%4034@grdjzjetwzevwrj3yy3o82wo:27017/?directConnection=true";
+let mongoConnected = false;
+mongoose.connect(MONGO_URL, { serverSelectionTimeoutMS: 3000 })
+  .then(() => { mongoConnected = true; console.log("[MongoDB] Connected ✅"); })
+  .catch(err => { mongoConnected = false; console.warn("[MongoDB] غير متاح — اللعبة تشتغل بدون حفظ:", err.message); });
+mongoose.connection.on("disconnected", () => { mongoConnected = false; });
+
+const playerSchema = new mongoose.Schema({
+  username:      { type: String, required: true, unique: true, index: true },
+  cash:          { type: Number, default: 0 },
+  gems:          { type: Number, default: 0 },
+  gold:          { type: Number, default: 0 },
+  kingCoins:     { type: Number, default: 0 },
+  hammers:       { type: Number, default: 0 },
+  scrolls:       { type: Number, default: 0 },
+  horns:         { type: Number, default: 0 },
+  army_power:    { type: Number, default: 0 },
+  x_position:    { type: Number, default: 1200 },
+  y_position:    { type: Number, default: 1200 },
+  last_active:   { type: Number, default: 0 },
+  unitLevel:     { type: Number, default: 1 },
+  weapons:       { type: Array, default: [] },
+}, { collection: "players_data", timestamps: false });
+
+const Player = mongoose.model("Player", playerSchema);
+
+// ── In-memory fallback عندما MongoDB مش متاح ──
+const memStore = new Map(); // username → data
+function getDefaultPlayer(username) {
+  return {
+    username, cash: 0, gems: 0, gold: 0, kingCoins: 0,
+    hammers: 0, scrolls: 0, horns: 0, army_power: 0,
+    x_position: 1200, y_position: 1200, last_active: 0, unitLevel: 1, weapons: []
+  };
+}
+
 const WORLD_W = 3200;
 const WORLD_H = 3200;
 const TICK_MS = 50;
@@ -121,18 +162,86 @@ function gameTick() {
 
 setInterval(gameTick, TICK_MS);
 
+// ═══════════════════════════════════════════════════════════════════
+//  World Map WebSocket — ملتيكاملة العالم المفتوح (بدون Polling)
+// ═══════════════════════════════════════════════════════════════════
+const worldClients = new Map(); // username → { ws, x, y, army_power }
+
+function broadcastWorld(excludeWs = null) {
+  const list = [];
+  worldClients.forEach((c) => {
+    list.push({ username: c.username, x_position: c.x, y_position: c.y, army_power: c.army_power, last_active: Date.now() });
+  });
+  const msg = JSON.stringify({ type: "world_players", list });
+  worldClients.forEach((c) => {
+    if (c.ws !== excludeWs && c.ws.readyState === 1) c.ws.send(msg);
+  });
+}
+
 wss.on("connection", (ws, req) => {
+  const url = req.url || "/";
   const ip = req.socket.remoteAddress;
+
+  // ── World Map multiplayer ────────────────────────────────────────
+  if (url === "/ws/world") {
+    let username = null;
+    console.log(`[WorldWS] Connection from ${ip}`);
+
+    ws.on("message", (raw) => {
+      let msg;
+      try { msg = JSON.parse(raw); } catch { return; }
+
+      if (msg.type === "join") {
+        username = msg.username;
+        if (!username) return;
+        worldClients.set(username, {
+          ws, username,
+          x: msg.x_position || 1200,
+          y: msg.y_position || 1200,
+          army_power: msg.army_power || 0,
+        });
+        broadcastWorld();
+        console.log(`[WorldWS] ${username} joined`);
+      } else if (msg.type === "update" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          c.x = msg.x_position ?? c.x;
+          c.y = msg.y_position ?? c.y;
+          c.army_power = msg.army_power ?? c.army_power;
+          broadcastWorld(ws);
+        }
+      }
+    });
+
+    ws.on("close", () => {
+      if (username) {
+        worldClients.delete(username);
+        broadcastWorld();
+        console.log(`[WorldWS] ${username} left`);
+      }
+    });
+
+    ws.on("error", () => {});
+
+    // أرسل القائمة الكاملة فور الاتصال
+    const list = [];
+    worldClients.forEach((c) => {
+      if (c.ws !== ws) list.push({ username: c.username, x_position: c.x, y_position: c.y, army_power: c.army_power, last_active: Date.now() });
+    });
+    ws.send(JSON.stringify({ type: "world_players", list }));
+    return;
+  }
+
+  // ── Arena (غرفة المعركة) — الكود القديم ──────────────────────────
   let playerId = null;
   let roomCode = null;
   let isAdmin  = false;
   let msgCount = 0;
-  let lastReset = Date.now(); // RATE LIMIT: 30 msg/sec
+  let lastReset = Date.now();
 
-  console.log(`[Server] Connection from ${ip}`);
+  console.log(`[ArenaWS] Connection from ${ip}`);
 
   ws.on("message", (raw) => {
-    // RATE LIMIT: 30 رسالة في الثانية
     const now = Date.now();
     if (now - lastReset > 1000) { msgCount = 0; lastReset = now; }
     if (++msgCount > 30) { ws.close(1008, "Rate limit"); return; }
@@ -308,20 +417,8 @@ const INTERVAL = setInterval(() => {
 wss.on("close", () => clearInterval(INTERVAL));
 
 // ═══════════════════════════════════════════════════════════════════
-//  Save / Load / Leaderboard API
+//  Save / Load / Leaderboard API (MongoDB)
 // ═══════════════════════════════════════════════════════════════════
-
-function loadPlayerData(playerId) {
-  const filePath = path.join(DATA_DIR, `${playerId}.json`);
-  try { return JSON.parse(fs.readFileSync(filePath, "utf8")); } catch { return null; }
-}
-
-function savePlayerData(playerId, data) {
-  const filePath = path.join(DATA_DIR, `${playerId}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
-  // Also keep in memory
-  playerData.set(playerId, data);
-}
 
 const STATIC_EXTS = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
@@ -346,7 +443,7 @@ function serveStatic(url, res) {
   } catch { return false; }
 }
 
-server.on("request", (req, res) => {
+server.on("request", async (req, res) => {
   if (req.headers.upgrade === "websocket") return;
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -355,55 +452,104 @@ server.on("request", (req, res) => {
     res.writeHead(204); res.end(); return;
   }
 
-  // ── API: GET /api/load/:playerId ────────────────────────────────
-  const loadMatch = req.url.match(/^\/api\/load\/([a-zA-Z0-9_\-]+)$/);
-  if (loadMatch && req.method === "GET") {
-    const data = loadPlayerData(loadMatch[1]);
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(data || { resources: { cash:0, gold:150, gems:10, kingCoins:0, hammers:5, scrolls:0, horns:0 }, level:1, xp:0, villageLevel:1, unitLevel:1, weapons:[] })); 
-    return;
+  // ── API: GET /api/players?all=true ─────────────────────────────
+  if (req.url === "/api/players" || req.url.startsWith("/api/players?")) {
+    if (req.method === "GET") {
+      if (!mongoConnected) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(Array.from(memStore.values())));
+        return;
+      }
+      try {
+        const players = await Player.find({}, { _id: 0, __v: 0 }).lean();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(players));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
   }
 
-  // ── API: POST /api/save/:playerId ────────────────────────────────
-  const saveMatch = req.url.match(/^\/api\/save\/([a-zA-Z0-9_\-]+)$/);
-  if (saveMatch && req.method === "POST") {
-    let body = "";
-    let size = 0;
-    req.on("data", chunk => {
-      size += chunk.length;
-      if (size > 1_048_576) { req.destroy(); return; } // LIMIT: حد 1MB لمنع ثغرات الـ DOS
-      body += chunk;
-    });
-    req.on("end", () => {
-      try {
-        const data = JSON.parse(body);
-        savePlayerData(saveMatch[1], data);
+  // ── API: GET/POST /api/players/:username ───────────────────────
+  const playerMatch = req.url.match(/^\/api\/players\/([a-zA-Z0-9_\-\.%\u0600-\u06FF]+)$/);
+  if (playerMatch) {
+    const username = decodeURIComponent(playerMatch[1]);
+
+    if (req.method === "GET") {
+      if (!mongoConnected) {
+        const data = memStore.get(username) || getDefaultPlayer(username);
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: true }));
-      } catch (e) {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "invalid json" }));
+        res.end(JSON.stringify(data));
+        return;
       }
-    });
-    return;
+      try {
+        const data = await Player.findOne({ username }).lean();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(data || getDefaultPlayer(username)));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (req.method === "POST") {
+      let body = "";
+      let size = 0;
+      req.on("data", chunk => {
+        size += chunk.length;
+        if (size > 1_048_576) { req.destroy(); return; }
+        body += chunk;
+      });
+      req.on("end", async () => {
+        try {
+          const data = JSON.parse(body);
+          // حفظ في الذاكرة أولاً (دائماً)
+          const existing = memStore.get(username) || getDefaultPlayer(username);
+          memStore.set(username, { ...existing, ...data, last_active: data.last_active || Date.now() });
+          // وحاول في MongoDB إذا متاح
+          if (mongoConnected) {
+            await Player.updateOne(
+              { username },
+              { $set: { ...data, last_active: data.last_active || Date.now() } },
+              { upsert: true }
+            );
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "invalid json" }));
+        }
+      });
+      return;
+    }
   }
 
   // ── API: GET /api/leaderboard ────────────────────────────────────
   if (req.url === "/api/leaderboard" && req.method === "GET") {
-    const entries = [];
+    if (!mongoConnected) {
+      const sorted = Array.from(memStore.values())
+        .sort((a, b) => (b.army_power || 0) - (a.army_power || 0))
+        .slice(0, 50)
+        .map(p => ({ username: p.username, army_power: p.army_power || 0 }));
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(sorted));
+      return;
+    }
     try {
-      const files = fs.readdirSync(DATA_DIR);
-      for (const f of files) {
-        if (!f.endsWith(".json")) continue;
-        try {
-          const data = JSON.parse(fs.readFileSync(path.join(DATA_DIR, f), "utf8"));
-          entries.push({ playerId: f.replace(".json", ""), power: data.power || 0, level: data.villageLevel || 1 });
-        } catch {}
-      }
-    } catch {}
-    entries.sort((a, b) => b.power - a.power);
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(entries.slice(0, 50)));
+      const entries = await Player.find({}, { username: 1, army_power: 1, _id: 0 })
+        .sort({ army_power: -1 })
+        .limit(50)
+        .lean();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(entries));
+    } catch (err) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: err.message }));
+    }
     return;
   }
 
@@ -411,6 +557,7 @@ server.on("request", (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       status: "ok",
+      mongo: mongoConnected ? "connected" : "unavailable",
       rooms: rooms.size,
       players: Array.from(rooms.values()).reduce((acc, r) => acc + r.players.size, 0),
       uptime: process.uptime(),
