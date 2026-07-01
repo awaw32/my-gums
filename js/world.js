@@ -17,7 +17,7 @@ export class WorldMap {
     this.H = 2400;
     this.engine = null;
     this.running = false;
-    this.N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146";
+    this.N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/1fe62b81-3e33-4d1c-a253-165f193f437e";
 
     // ==================== نظام الملتيكاملة (Multiplayer) ====================
     this.otherPlayers = new Map();
@@ -64,7 +64,7 @@ export class WorldMap {
   // ==================== 🔥 دالة إرسال الإشعار الجديدة 🔥 ====================
   async sendLoginNotification() {
     try {
-      await fetch("https://n8n.d-king.online/webhook/2ba51d69-7b2a-412d-8ddb-ae864319b146", {
+      await fetch("https://n8n.d-king.online/webhook/1fe62b81-3e33-4d1c-a253-165f193f437e", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -452,23 +452,7 @@ export class WorldMap {
     const drop = this.drops[index];
     if (!drop || drop.collected) return;
     drop.collected = true;
-    if (this.economy) {
-      this.economy.addRaw("cash", drop.money);
-      this.worldFx.push({ x: drop.x, y: drop.y, text: `+${drop.money} 💵`, color: "#FFD700", life: 1, maxLife: 1 });
-      fetch(this.N8N_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: this.username,
-          event: "coin_collect",
-          reward: drop.money,
-          cash: this.economy.cash,
-          gems: this.economy.gems,
-          army_power: this.economy.power,
-          last_active: Date.now()
-        })
-      }).catch(() => {});
-    }
+    this.worldFx.push({ x: drop.x, y: drop.y, text: `+${drop.money} 💵`, color: "#FFD700", life: 0.8, maxLife: 0.8 });
     this.drops.splice(index, 1);
   }
 
