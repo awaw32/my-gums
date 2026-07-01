@@ -10,6 +10,12 @@ import { QuestManager } from "./quests.js";
 import { OasisManager } from "./oasis-manager.js";
 import { UpgradeTree } from "./upgrade-tree.js";
 import { AllianceManager } from "./alliance-manager.js";
+import { AchievementManager } from "./achievements.js";
+import { DailyLoginManager } from "./daily-login.js";
+import { PrestigeManager } from "./prestige.js";
+import { InventoryManager } from "./inventory.js";
+import { EventManager } from "./events.js";
+import { TutorialManager } from "./tutorial.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
@@ -79,6 +85,12 @@ async function loadFromDatabase(economy, army, username) {
       window._loadedAllianceLevel = data.allianceLevel ?? 0;
       window._loadedUpgrades = data.upgrades || {};
       window._loadedOases = data.oases || [];
+      window._loadedAchievements = data.achievements || null;
+      window._loadedDailyLogin = data.dailyLogin || null;
+      window._loadedPrestige = data.prestigeLevel ?? 0;
+      window._loadedInventory = data.inventory || null;
+      window._loadedEvents = data.events || null;
+      window._loadedTutorial = data.tutorial || null;
       console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!");
     }
   } catch (err) {
@@ -114,6 +126,12 @@ async function init() {
   const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE, army);
   const assets = new AssetManager();
   const audio = new AudioManager();
+  const achievements = new AchievementManager(economy);
+  const dailyLogin = new DailyLoginManager(economy);
+  const prestige = new PrestigeManager(economy, village, army);
+  const inventory = new InventoryManager(economy);
+  const events = new EventManager();
+  const tutorial = new TutorialManager();
   
   setProgress(80);
   loadGame(economy, village, army);
@@ -122,9 +140,21 @@ async function init() {
   if (window._loadedAllianceLevel !== undefined) allianceManager.loadState(window._loadedAllianceLevel);
   if (window._loadedUpgrades) upgradeTree.loadState(window._loadedUpgrades);
   if (window._loadedOases) oasisManager.loadState(window._loadedOases);
+  if (window._loadedAchievements) achievements.loadState(window._loadedAchievements);
+  if (window._loadedDailyLogin) dailyLogin.loadState(window._loadedDailyLogin);
+  if (window._loadedPrestige !== 0 && window._loadedPrestige !== undefined) prestige.loadState(window._loadedPrestige);
+  if (window._loadedInventory) inventory.loadState(window._loadedInventory);
+  if (window._loadedEvents) events.loadState(window._loadedEvents);
+  if (window._loadedTutorial) tutorial.loadState(window._loadedTutorial);
   delete window._loadedAllianceLevel;
   delete window._loadedUpgrades;
   delete window._loadedOases;
+  delete window._loadedAchievements;
+  delete window._loadedDailyLogin;
+  delete window._loadedPrestige;
+  delete window._loadedInventory;
+  delete window._loadedEvents;
+  delete window._loadedTutorial;
   
   // 🎁 بونص ترحيبي للاعب الجديد (1000 من كل عملة)
   const isNew = [!economy.cash, !economy.gems, !economy.gold, !economy.kingCoins, !economy.hammers, !economy.scrolls, !economy.horns].every(v => v === true);
@@ -160,7 +190,7 @@ async function init() {
   if (appShell) appShell.classList.remove("hidden");
 
   setTimeout(() => {
-    const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager);
+    const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial);
     world.onExit = () => ui.exitWorldMap();
 
     // ربط العالم بأنظمة الترقيات والتحالف
@@ -190,6 +220,12 @@ async function init() {
           allianceLevel: allianceManager.level,
           upgrades: upgradeTree.levels,
           oases: oasisManager.getState().map(o => ({ id: o.id, captured: o.captured })),
+          prestigeLevel: prestige.level,
+          achievements: achievements.getSaveData(),
+          dailyLogin: dailyLogin.getSaveData(),
+          inventory: inventory.getSaveData(),
+          events: events.getSaveData(),
+          tutorial: tutorial.getSaveData(),
           last_active: Date.now()
         })
       }).catch(() => {});
@@ -235,8 +271,66 @@ async function init() {
     // ربط واجهة الترقيات والتحالف
     economy._onLevelUp = (lvl) => {
       ui.showNotification(`🎉 ترقيت إلى المستوى ${lvl}!`);
+      audio.playSound('levelup');
       ui.updateTopBar();
     };
+
+    // توصيل الأصوات بأحداث اللعبة
+    world._onMonsterKilled = () => audio.playSound('kill');
+    world._onDropCollected = () => audio.playSound('collect');
+    world._onPvPWin = () => audio.playSound('levelup');
+    world._onPvPLose = () => audio.playSound('hit');
+
+    // توصيل الإنجازات
+    achievements._onUnlock = (a) => {
+      ui.showNotification(`🏆 إنجاز: ${a.title} — ${a.desc}`);
+      audio.playSound('levelup');
+    };
+
+    // توصيل Daily Login
+    dailyLogin._onClaim = (day, reward) => {
+      ui.showNotification(`📅 يوم ${day}: حصلت على ${reward.label}`);
+    };
+
+    // توصيل Prestige
+    prestige._onPrestige = (lvl) => {
+      ui.showNotification(`🔄 Prestige ${lvl}! القوة تتضاعف!`);
+      saveToDB();
+      if (world.leader) world.leader.maxHp = 100 + lvl * 20;
+      if (world.leader) world.leader.hp = world.leader.maxHp;
+    };
+
+    // توصيل Tutorial
+    tutorial._onComplete = () => {
+      ui.showNotification('🎉 أكملت البرنامج التعليمي!');
+      const tutEl = document.getElementById('tutorial-overlay');
+      if (tutEl) tutEl.style.display = 'none';
+    };
+
+    // تشغيل الأحداث الدورية
+    let eventTimer = 0;
+    setInterval(() => {
+      eventTimer += 15;
+      events.update(15);
+      if (eventTimer > 300) {
+        eventTimer = 0;
+        // بدء أحداث عشوائية إذا لم يكن هناك حدث نشط
+        if (events.getActiveEvents().length === 0) {
+          const available = events.getAll().filter(e => !e.active);
+          if (available.length > 0) {
+            const pick = available[Math.floor(Math.random() * available.length)];
+            events.startEvent(pick.id);
+            ui.showNotification(`🎊 حدث جديد: ${pick.title} — ${pick.desc}`);
+          }
+        }
+      }
+    }, 15000);
+
+    // تشغيل حدث Gold Rush كبداية
+    setTimeout(() => {
+      events.startEvent('gold_rush');
+      ui.showNotification('🎊 🏆 انهيار الذهب! الذهب من الوحوش ×2!');
+    }, 60000);
 
     setInterval(() => {
       economy.tick();

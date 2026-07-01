@@ -51,6 +51,10 @@
           <span class="res-icon">🌾</span>
           <span class="res-value" id="food-display">0</span>
         </div>
+        <div class="top-chip top-resource top-power" id="top-power">
+          <span class="res-icon">👊</span>
+          <span class="res-value" id="power-display">0</span>
+        </div>
       </div>
       <div class="top-level-wrap">
         <div class="top-level-bar">
@@ -115,10 +119,33 @@
       <!-- Isometric map canvas or building cards rendered by UI -->
     </main>
 
+    <!-- ====== Tutorial Overlay ====== -->
+    <div id="tutorial-overlay" class="tutorial-overlay hidden" style="display:none">
+      <div class="tutorial-box">
+        <div class="tutorial-icon">👑</div>
+        <p id="tutorial-text" class="tutorial-text">مرحباً بك في ملك الصحراء!</p>
+        <div class="tutorial-buttons">
+          <button id="tutorial-skip-btn" class="tutorial-btn tutorial-skip">تخطي</button>
+          <button id="tutorial-next-btn" class="tutorial-btn tutorial-next">التالي →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== Chat UI ====== -->
+    <div id="chat-panel" class="chat-panel hidden">
+      <div class="chat-header">💬 الشات</div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" class="chat-input" placeholder="اكتب رسالة..." maxlength="100" />
+        <button id="chat-send-btn" class="chat-send-btn">➤</button>
+      </div>
+    </div>
+
     <!-- ====== Canvas للعالم (شاشة الحرب) ====== -->
     <canvas id="gameCanvas" class="hidden"></canvas>
     <div class="world-buttons hidden" id="world-buttons">
       <button id="exit-world-btn" class="world-exit-btn">✕</button>
+      <button id="chat-toggle-btn" class="chat-toggle-btn hidden" title="شات">💬</button>
       <button id="recenter-btn" class="recenter-btn hidden">🎯</button>
       <button id="zoom-in-btn" class="zoom-btn hidden" title="تكبير">＋</button>
       <button id="zoom-out-btn" class="zoom-btn hidden" title="تصغير">－</button>
@@ -136,8 +163,8 @@
     <!-- ====== إشعارات الدخول/الخروج ====== -->
     <div id="notification-container" class="notification-container"></div>
 
-    <!-- ====== الشريط السفلي ====== -->
-    <nav id="bottom-bar">
+    <!-- ====== الشريط السفلي (الصف الأول) ====== -->
+    <nav id="bottom-bar" class="bottom-bar">
       <button class="nav-btn" type="button" data-screen="ranking" data-icon="🏆">
         <span class="nav-icon">🏆</span>
         <span class="nav-label">المرتبة</span>
@@ -157,6 +184,29 @@
       <button class="nav-btn" type="button" data-screen="alliance" data-icon="👑">
         <span class="nav-icon">👑</span>
         <span class="nav-label">التحالف</span>
+      </button>
+    </nav>
+    <!-- ====== الشريط السفلي (الصف الثاني — إضافات) ====== -->
+    <nav id="sub-bar" class="sub-bar">
+      <button class="sub-btn" type="button" data-screen="achievements" data-icon="🏆">
+        <span class="nav-icon">🏆</span>
+        <span class="nav-label">إنجازات</span>
+      </button>
+      <button class="sub-btn" type="button" data-screen="inventory" data-icon="📦">
+        <span class="nav-icon">📦</span>
+        <span class="nav-label">تصنيع</span>
+      </button>
+      <button class="sub-btn" type="button" data-screen="events_panel" data-icon="🎊">
+        <span class="nav-icon">🎊</span>
+        <span class="nav-label">أحداث</span>
+      </button>
+      <button class="sub-btn" type="button" data-screen="prestige_panel" data-icon="🔄">
+        <span class="nav-icon">🔄</span>
+        <span class="nav-label">Prestige</span>
+      </button>
+      <button class="sub-btn" type="button" data-screen="daily" data-icon="📅">
+        <span class="nav-icon">📅</span>
+        <span class="nav-label">اليومية</span>
       </button>
     </nav>
 

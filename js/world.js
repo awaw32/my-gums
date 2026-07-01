@@ -188,6 +188,8 @@ export class WorldMap {
           if (this._onNotification) this._onNotification(`👋 ${msg.username} دخل إلى الصحراء`);
         } else if (msg.type === "player_left") {
           if (this._onNotification) this._onNotification(`🚪 ${msg.username} خرج من الصحراء`);
+        } else if (msg.type === "broadcast_chat") {
+          if (this._onChatMessage) this._onChatMessage(msg.username, msg.message);
         }
       } catch {}
     };
@@ -882,8 +884,15 @@ export class WorldMap {
   }
 
   updateArmy(dt) {
-    // إزالة الوحدات الميتة
     this.armyUnits = this.armyUnits.filter(u => u.hp > 0);
+    // جمع تلقائي للـ drops عندما يمر الجيش فوقها
+    for (let i = this.drops.length - 1; i >= 0; i--) {
+      const d = this.drops[i];
+      if (d.collected) continue;
+      if (Math.hypot(d.x - this.leader.x, d.y - this.leader.y) < 40 || this.armyUnits.some(u => Math.hypot(d.x - u.x, d.y - u.y) < 30)) {
+        this.collectDrop(i);
+      }
+    }
     for (const unit of this.armyUnits) {
       if (unit.fighting && unit.fighting.alive) {
         const dx = unit.fighting.x - unit.x;
@@ -983,6 +992,7 @@ export class WorldMap {
     if (!monster || !monster.alive) return;
     monster.hp -= dmg;
     if (monster.hp <= 0) {
+      if (this._onMonsterKilled) this._onMonsterKilled();
       monster.alive = false;
       monster.respawnTimer = 25;
       const reward = monster.rewardMoney || 10;

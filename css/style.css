@@ -906,6 +906,321 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .alliance-need { text-align: center; font-size: 0.75rem; color: var(--beige-dark); padding: 8px; }
 .alliance-max { text-align: center; font-size: 0.85rem; color: var(--gold); padding: 8px; }
 .top-food { direction: ltr; }
+.top-power { direction: ltr; }
+
+/* ===== Sub-bar (إضافات) ===== */
+.sub-bar {
+  position: fixed;
+  bottom: var(--bottom-h);
+  left: 0; right: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: rgba(26,14,6,0.95);
+  border-top: 1px solid var(--panel-border);
+  z-index: 40;
+  padding: 0 4px;
+  padding-bottom: var(--safe-b, 0px);
+}
+.sub-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: none;
+  border: none;
+  color: var(--beige-dark);
+  font-size: 0.55rem;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: inherit;
+}
+.sub-btn .nav-icon { font-size: 1.1rem; line-height: 1; }
+.sub-btn .nav-label { font-size: 0.5rem; }
+.sub-btn.active { color: var(--gold); }
+.sub-btn:active { opacity: 0.6; }
+
+/* ===== Power Display ===== */
+#power-display { font-weight: 700; color: #ff6b6b; direction: ltr; }
+
+/* ===== Achievements ===== */
+.achievements-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+.achievement-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 10px;
+}
+.achievement-done { border-color: var(--gold); background: rgba(255,215,0,0.06); }
+.achievement-claimed { opacity: 0.5; border-color: rgba(255,255,255,0.1); }
+.achievement-icon { font-size: 1.8rem; flex-shrink: 0; }
+.achievement-info { flex: 1; min-width: 0; }
+.achievement-name { font-size: 0.75rem; font-weight: 700; color: var(--beige); }
+.achievement-desc { font-size: 0.6rem; color: var(--beige-dark); margin-bottom: 4px; }
+.achievement-progress-track {
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+.achievement-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+  border-radius: 2px;
+  transition: width 0.5s;
+}
+.achievement-progress-text { font-size: 0.55rem; color: var(--beige-dark); }
+
+/* ===== Inventory / Crafting ===== */
+.inventory-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+}
+.inventory-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(40,24,12,0.8);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.65rem;
+}
+.inv-item-icon { font-size: 1.1rem; }
+.inv-item-name { color: var(--beige); font-weight: 600; }
+.inv-item-count { color: var(--gold); font-weight: 700; }
+.crafting-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.crafting-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(40,24,12,0.8);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 8px;
+}
+.crafting-card.craftable { border-color: rgba(46,204,113,0.3); }
+.craft-icon { font-size: 1.5rem; flex-shrink: 0; }
+.craft-info { flex: 1; min-width: 0; }
+.craft-name { font-size: 0.7rem; font-weight: 700; color: var(--beige); }
+.craft-desc { font-size: 0.55rem; color: var(--beige-dark); }
+.craft-cost { font-size: 0.55rem; color: var(--gold); margin-top: 2px; }
+.craft-btn { flex-shrink: 0; padding: 6px 12px; font-size: 0.65rem; }
+.craft-btn:disabled { opacity: 0.4; }
+
+/* ===== Events ===== */
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+}
+.event-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(40,24,12,0.8);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 12px;
+}
+.event-active { border-color: var(--gold); background: rgba(255,215,0,0.06); }
+.event-icon { font-size: 2rem; flex-shrink: 0; }
+.event-info { flex: 1; }
+.event-title { font-size: 0.8rem; font-weight: 700; color: var(--beige); }
+.event-desc { font-size: 0.6rem; color: var(--beige-dark); }
+.event-timer { font-size: 0.55rem; color: var(--orange); margin-top: 2px; font-family: monospace; }
+.event-inactive { font-size: 0.55rem; color: var(--beige-dark); margin-top: 2px; }
+
+/* ===== Prestige ===== */
+#prestige-content {
+  padding: 20px;
+  text-align: center;
+}
+.prestige-card {
+  background: rgba(40,24,12,0.9);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 12px;
+}
+.prestige-level { font-size: 1.2rem; font-weight: 700; color: var(--gold); margin-bottom: 4px; }
+.prestige-title { font-size: 0.85rem; color: var(--beige); margin-bottom: 8px; }
+.prestige-bonus { font-size: 0.9rem; color: var(--orange); margin-bottom: 8px; }
+.prestige-desc { font-size: 0.65rem; color: var(--beige-dark); }
+.prestige-btn {
+  background: linear-gradient(180deg, #e67e22, #d35400);
+  color: #fff;
+  padding: 12px 30px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.prestige-need { font-size: 0.7rem; color: var(--beige-dark); padding: 10px; }
+
+/* ===== Daily Login ===== */
+#daily-content { padding: 20px; text-align: center; }
+.daily-streak { font-size: 1rem; font-weight: 700; color: var(--orange); margin-bottom: 12px; }
+.daily-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.daily-day {
+  background: rgba(40,24,12,0.8);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 8px 4px;
+  text-align: center;
+}
+.daily-today { border-color: var(--gold); background: rgba(255,215,0,0.08); }
+.daily-done { opacity: 0.4; }
+.daily-day-num { font-size: 0.5rem; color: var(--beige-dark); margin-bottom: 2px; }
+.daily-reward-icon { font-size: 1.2rem; margin-bottom: 2px; }
+.daily-reward-label { font-size: 0.45rem; color: var(--beige); }
+.daily-claim-btn { margin-top: 8px; }
+.daily-done-msg { font-size: 0.75rem; color: var(--green); padding: 10px; }
+
+/* ===== Tutorial Overlay ===== */
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.tutorial-box {
+  background: linear-gradient(180deg, #3d2a15, #1a0e06);
+  border: 2px solid var(--gold);
+  border-radius: 20px;
+  padding: 30px 24px;
+  max-width: 320px;
+  width: 85%;
+  text-align: center;
+}
+.tutorial-icon { font-size: 3rem; margin-bottom: 10px; }
+.tutorial-text { font-size: 1rem; color: var(--beige); line-height: 1.6; margin-bottom: 20px; }
+.tutorial-buttons { display: flex; gap: 10px; justify-content: center; }
+.tutorial-btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.tutorial-next { background: var(--gold); color: var(--dark); }
+.tutorial-skip { background: rgba(255,255,255,0.1); color: var(--beige-dark); }
+
+/* ===== Chat ===== */
+.chat-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  height: 50vh;
+  background: rgba(26,14,6,0.97);
+  border-top: 2px solid var(--gold);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s;
+}
+.chat-panel.hidden { transform: translateY(100%); }
+.chat-header {
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gold);
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--panel-border);
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chat-msg {
+  font-size: 0.7rem;
+  color: var(--beige);
+  line-height: 1.4;
+  word-break: break-word;
+}
+.chat-author { font-weight: 700; }
+.chat-input-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--panel-border);
+}
+.chat-input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.05);
+  color: var(--beige);
+  font-size: 0.75rem;
+  outline: none;
+  font-family: inherit;
+}
+.chat-input::placeholder { color: var(--beige-dark); }
+.chat-send-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--gold);
+  color: var(--dark);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* ===== Chat Toggle Button (in world) ===== */
+.chat-toggle-btn {
+  position: absolute;
+  top: 10px;
+  right: 50px;
+  z-index: 50;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--beige);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
 
 @keyframes toast-out {
   from { opacity: 1; }

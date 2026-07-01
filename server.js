@@ -71,6 +71,12 @@ const playerSchema = new mongoose.Schema({
   allianceLevel: { type: Number, default: 0 },
   upgrades:     { type: Object, default: {} },
   oases:        { type: Array, default: [] },
+  prestigeLevel: { type: Number, default: 0 },
+  achievements: { type: Array, default: [] },
+  dailyLogin:   { type: Object, default: {} },
+  inventory:    { type: Object, default: {} },
+  events:       { type: Array, default: [] },
+  tutorial:     { type: Object, default: {} },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);
@@ -313,6 +319,9 @@ wss.on("connection", (ws, req) => {
         if (tc && tc.ws.readyState === 1) {
           tc.ws.send(JSON.stringify({ type: "pvp_notify", attacker, power: msg.myPower || 0 }));
         }
+      } else if (msg.type === "chat" && username) {
+        const chatMsg = JSON.stringify({ type: "broadcast_chat", username, message: String(msg.message).slice(0, 200) });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });
       }
     });
 
@@ -646,20 +655,25 @@ server.on("request", async (req, res) => {
     }
   }
 
-  // ── API: GET /api/leaderboard ────────────────────────────────────
-  if (req.url === "/api/leaderboard" && req.method === "GET") {
+  // ── API: GET /api/leaderboard?sort=power|kills|level|oases ──────
+  if (req.url.startsWith("/api/leaderboard") && req.method === "GET") {
+    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    const sortBy = urlObj.searchParams.get("sort") || "power";
+    const sortField = sortBy === "kills" ? "kills" : sortBy === "level" ? "level" : sortBy === "oases" ? "oases" : "army_power";
     if (!mongoConnected) {
       const sorted = Array.from(memStore.values())
-        .sort((a, b) => (b.army_power || 0) - (a.army_power || 0))
+        .sort((a, b) => (b[sortField] || 0) - (a[sortField] || 0))
         .slice(0, 50)
-        .map(p => ({ username: p.username, army_power: p.army_power || 0 }));
+        .map(p => ({ username: p.username, [sortField === 'army_power' ? 'power' : sortField]: p[sortField] || 0 }));
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(sorted));
       return;
     }
     try {
-      const entries = await Player.find({}, { username: 1, army_power: 1, _id: 0 })
-        .sort({ army_power: -1 })
+      const projection = { username: 1, _id: 0 };
+      projection[sortField] = 1;
+      const entries = await Player.find({}, projection)
+        .sort({ [sortField]: -1 })
         .limit(50)
         .lean();
       res.writeHead(200, { "Content-Type": "application/json" });

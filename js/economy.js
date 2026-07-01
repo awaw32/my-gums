@@ -54,6 +54,10 @@ export class GameEconomy {
     return Math.floor(p * this.multiplier);
   }
 
+  get powerFormatted() {
+    return formatNumber(this.power);
+  }
+
   get cash() { return this.resources.cash; }
   set cash(v) { this.resources.cash = Math.max(0, v); }
   get gold() { return this.resources.gold; }
