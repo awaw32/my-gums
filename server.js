@@ -165,7 +165,59 @@ setInterval(gameTick, TICK_MS);
 // ═══════════════════════════════════════════════════════════════════
 //  World Map WebSocket — ملتيكاملة العالم المفتوح (بدون Polling)
 // ═══════════════════════════════════════════════════════════════════
-const worldClients = new Map(); // username → { ws, x, y, army_power, kills, coinsEarned, unitLevel }
+const worldClients = new Map(); // username → { ws, x, y, army_power, kills, coinsEarned, unitLevel, armyAlive, color }
+
+// ── ألوان مميزة لكل لاعب ──
+const PLAYER_COLORS = ["#c0392b","#2980b9","#27ae60","#8e44ad","#d35400","#16a085","#2c3e50","#f39c12","#1abc9c","#e67e22","#9b59b6","#34495e"];
+function playerColor(username) {
+  let h = 0;
+  for (let i = 0; i < username.length; i++) h = username.charCodeAt(i) + ((h << 5) - h);
+  return PLAYER_COLORS[Math.abs(h) % PLAYER_COLORS.length];
+}
+
+// ── وحوش العالم (مشتركة لكل اللاعبين) ──
+const WORLD_W2 = 2400, WORLD_H2 = 2400;
+const SAFE_ZONE = { x: WORLD_W2/2 - 120, y: WORLD_H2/2 - 120, w: 240, h: 240 };
+const MONSTER_TYPES = [
+  { name: "ذئب صحراوي", color: "#8a5a3a", radius: 14, hp: 35, maxHp: 35, damage: 6, rewardMoney: 8 },
+  { name: "محارب ظل", color: "#2a1a1a", radius: 18, hp: 65, maxHp: 65, damage: 13, rewardMoney: 18 },
+  { name: "زعيم الرمال", color: "#c0392b", radius: 22, hp: 130, maxHp: 130, damage: 24, rewardMoney: 45 },
+];
+const worldMonsters = [];
+function initWorldMonsters() {
+  if (worldMonsters.length > 0) return;
+  for (let i = 0; i < 12; i++) {
+    let x, y;
+    do {
+      x = 150 + Math.random() * (WORLD_W2 - 300);
+      y = 150 + Math.random() * (WORLD_H2 - 300);
+    } while (x >= SAFE_ZONE.x && x <= SAFE_ZONE.x + SAFE_ZONE.w && y >= SAFE_ZONE.y && y <= SAFE_ZONE.y + SAFE_ZONE.h);
+    const t = MONSTER_TYPES[Math.floor(Math.random() * MONSTER_TYPES.length)];
+    worldMonsters.push({
+      id: i, ...t,
+      x, y, spawnX: x, spawnY: y,
+      alive: true, hp: t.maxHp, respawnTimer: 0
+    });
+  }
+}
+// دورة respawn كل ثانية
+setInterval(() => {
+  let changed = false;
+  for (const m of worldMonsters) {
+    if (!m.alive) {
+      m.respawnTimer -= 1;
+      if (m.respawnTimer <= 0) {
+        m.alive = true; m.hp = m.maxHp;
+        m.x = m.spawnX; m.y = m.spawnY;
+        changed = true;
+      }
+    }
+  }
+  if (changed) {
+    const msg = JSON.stringify({ type: "world_monsters", list: worldMonsters });
+    worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
+  }
+}, 1000);
 
 function broadcastWorld(excludeWs = null) {
   const list = [];
@@ -176,6 +228,8 @@ function broadcastWorld(excludeWs = null) {
       kills: c.kills || 0,
       coinsEarned: c.coinsEarned || 0,
       unitLevel: c.unitLevel || 1,
+      armyAlive: c.armyAlive ?? 8,
+      color: c.color,
       last_active: Date.now()
     });
   });
@@ -205,22 +259,27 @@ wss.on("connection", (ws, req) => {
       if (msg.type === "join") {
         username = msg.username;
         if (!username) return;
+        initWorldMonsters();
+        const color = playerColor(username);
         worldClients.set(username, {
-          ws, username,
+          ws, username, color,
           x: msg.x_position || 1200,
           y: msg.y_position || 1200,
           army_power: msg.army_power || 0,
           kills: msg.kills || 0,
           coinsEarned: msg.coinsEarned || 0,
           unitLevel: msg.unitLevel || 1,
+          armyAlive: msg.armyAlive ?? 8,
         });
+        // أرسل قائمة الوحوش للاعب الجديد
+        ws.send(JSON.stringify({ type: "world_monsters", list: worldMonsters }));
         broadcastWorld();
         // إشعار بدخول اللاعب
         const joinMsg = JSON.stringify({ type: "player_joined", username });
         worldClients.forEach((c) => {
           if (c.ws !== ws && c.ws.readyState === 1) c.ws.send(joinMsg);
         });
-        console.log(`[WorldWS] ${username} joined`);
+        console.log(`[WorldWS] ${username} joined (color: ${color})`);
       } else if (msg.type === "update" && username) {
         const c = worldClients.get(username);
         if (c) {
@@ -230,7 +289,17 @@ wss.on("connection", (ws, req) => {
           c.kills = msg.kills ?? c.kills;
           c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
           c.unitLevel = msg.unitLevel ?? c.unitLevel;
+          c.armyAlive = msg.armyAlive ?? c.armyAlive;
           broadcastWorld(ws);
+        }
+      } else if (msg.type === "monster_killed" && username) {
+        const mon = worldMonsters.find(m => m.id === msg.id);
+        if (mon && mon.alive) {
+          mon.alive = false;
+          mon.respawnTimer = 25;
+          // بث الموت لكل اللاعبين
+          const killMsg = JSON.stringify({ type: "monster_killed", id: msg.id, killedBy: username });
+          worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(killMsg); });
         }
       }
     });
@@ -260,6 +329,8 @@ wss.on("connection", (ws, req) => {
         kills: c.kills || 0,
         coinsEarned: c.coinsEarned || 0,
         unitLevel: c.unitLevel || 1,
+        armyAlive: c.armyAlive ?? 8,
+        color: c.color,
         last_active: Date.now()
       });
     });

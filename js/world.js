@@ -31,8 +31,9 @@ export class WorldMap {
     this.attackRange = 60;
     this.onExit = null;
     this.sessionStats = { kills: 0, coinsEarned: 0 };
-    this._onPlayersChanged = null; // callback للوحة اللاعبين
-    this._onNotification = null; // callback للإشعارات
+    this._onPlayersChanged = null;
+    this._onNotification = null;
+    this._monstersSynced = false;
 
     // === القائد (الشيخ) ===
     this.leader = {
@@ -133,7 +134,8 @@ export class WorldMap {
         army_power: this.economy ? this.economy.power : 0,
         kills: this.sessionStats.kills,
         coinsEarned: this.sessionStats.coinsEarned,
-        unitLevel: this.army?.unitLevel || 1
+        unitLevel: this.army?.unitLevel || 1,
+        armyAlive: this.armyUnits.filter(u => u.hp > 0).length
       });
     };
 
@@ -143,6 +145,11 @@ export class WorldMap {
         if (msg.type === "world_players") {
           this.syncOtherPlayers(msg.list || []);
           if (this._onPlayersChanged) this._onPlayersChanged(msg.list || []);
+        } else if (msg.type === "world_monsters") {
+          this.syncMonsters(msg.list || []);
+        } else if (msg.type === "monster_killed") {
+          const mon = this.monsters.find(m => m.id === msg.id);
+          if (mon && mon.alive) { mon.alive = false; mon.respawnTimer = 25; }
         } else if (msg.type === "player_joined") {
           if (this._onNotification) this._onNotification(`👋 ${msg.username} دخل إلى الصحراء`);
         } else if (msg.type === "player_left") {
@@ -175,7 +182,8 @@ export class WorldMap {
       army_power: this.economy ? this.economy.power : 0,
       kills: this.sessionStats.kills,
       coinsEarned: this.sessionStats.coinsEarned,
-      unitLevel: this.army?.unitLevel || 1
+      unitLevel: this.army?.unitLevel || 1,
+      armyAlive: this.armyUnits.filter(u => u.hp > 0).length
     });
     fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
       method: "POST",
@@ -198,6 +206,28 @@ export class WorldMap {
     }).catch(() => {});
   }
 
+  syncMonsters(serverMonsters) {
+    if (!serverMonsters || serverMonsters.length === 0) return;
+    this._monstersSynced = true;
+    // نسخ بيانات الوحوش من السيرفر (نفس المواقع والنوع للجميع)
+    for (const sm of serverMonsters) {
+      const local = this.monsters.find(m => m.id === sm.id);
+      if (local) {
+        local.alive = sm.alive;
+        local.x = sm.x; local.y = sm.y;
+        local.hp = sm.hp;
+        if (!sm.alive) local.respawnTimer = sm.respawnTimer || 25;
+      } else {
+        // وحش جديد من السيرفر
+        this.monsters.push({
+          ...sm,
+          facing: 1, attackCD: 0,
+          respawnTimer: sm.alive ? 0 : (sm.respawnTimer || 25)
+        });
+      }
+    }
+  }
+
   syncOtherPlayers(players) {
     const now = Date.now();
     const activeUsernames = new Set();
@@ -218,18 +248,20 @@ export class WorldMap {
         existing.targetX = x;
         existing.targetY = y;
         existing.army_power = p.army_power || 0;
+        existing.unitLevel = p.unitLevel || 1;
+        existing.armyAlive = p.armyAlive ?? 8;
         existing.lastActive = lastActive;
       } else {
         this.otherPlayers.set(name, {
           username: name,
-          x: x,
-          y: y,
-          targetX: x,
-          targetY: y,
+          x: x, y: y,
+          targetX: x, targetY: y,
           radius: 16,
           army_power: p.army_power || 0,
+          unitLevel: p.unitLevel || 1,
+          armyAlive: p.armyAlive ?? 8,
           lastActive: lastActive,
-          color: "#3a5a8a",
+          color: p.color || "#3a5a8a",
         });
       }
     }
@@ -310,15 +342,34 @@ export class WorldMap {
     this.nearbyPlayer = closest;
   }
 
+  updateOtherPlayers(dt) {
+    for (const [, p] of this.otherPlayers) {
+      const lerp = Math.min(1, dt * 4);
+      p.x += (p.targetX - p.x) * lerp;
+      p.y += (p.targetY - p.y) * lerp;
+    }
+  }
+
   drawOtherPlayers(ctx) {
     for (const [, p] of this.otherPlayers) {
-      p.x += (p.targetX - p.x) * 0.1;
-      p.y += (p.targetY - p.y) * 0.1;
+      const armyCount = Math.min(p.armyAlive || 8, 8);
+      const col = p.color;
 
       ctx.save();
       ctx.translate(p.x, p.y);
 
-      ctx.fillStyle = p.color;
+      // رسم جيش اللاعب الآخر
+      for (let i = 0; i < armyCount; i++) {
+        const ux = -30 - (i % 4) * 18;
+        const uy = 20 + Math.floor(i / 4) * 22;
+        ctx.fillStyle = col + "99";
+        ctx.beginPath();
+        ctx.arc(ux, uy, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // رسم القائد
+      ctx.fillStyle = col;
       ctx.beginPath();
       ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
       ctx.fill();
@@ -453,6 +504,8 @@ export class WorldMap {
 
   // ==================== الوحوش ====================
   spawnMonsters() {
+    // إذا وصلت وحوش السيرفر لا نعيد التوليد
+    if (this._monstersSynced) return;
     this.monsters = [];
     for (let i = 0; i < 12; i++) {
       let x, y;
@@ -460,11 +513,11 @@ export class WorldMap {
         x = 150 + Math.random() * (this.W - 300);
         y = 150 + Math.random() * (this.H - 300);
       } while (this.isInSafeZone(x, y));
-      this.monsters.push(this.createMonster(x, y));
+      this.monsters.push(this.createMonster(i, x, y));
     }
   }
 
-  createMonster(spawnX, spawnY) {
+  createMonster(id, spawnX, spawnY) {
     const types = [
       { name: "ذئب صحراوي", color: "#8a5a3a", radius: 14, hp: 35, maxHp: 35, damage: 6, rewardMoney: 8 },
       { name: "محارب ظل", color: "#2a1a1a", radius: 18, hp: 65, maxHp: 65, damage: 13, rewardMoney: 18 },
@@ -472,6 +525,7 @@ export class WorldMap {
     ];
     const t = types[Math.floor(Math.random() * types.length)];
     return {
+      id,
       ...t,
       x: spawnX,
       y: spawnY,
@@ -567,6 +621,7 @@ export class WorldMap {
     this.updateLeader(dt);
     this.updateArmy(dt);
     this.updateMonsters(dt);
+    this.updateOtherPlayers(dt);
     this.updateProjectiles(dt);
     this.updateFx(dt);
     this.checkCombatProximity();
@@ -650,6 +705,8 @@ export class WorldMap {
   }
 
   updateArmy(dt) {
+    // إزالة الوحدات الميتة
+    this.armyUnits = this.armyUnits.filter(u => u.hp > 0);
     for (const unit of this.armyUnits) {
       if (unit.fighting && unit.fighting.alive) {
         const dx = unit.fighting.x - unit.x;
@@ -733,6 +790,7 @@ export class WorldMap {
       const reward = monster.rewardMoney || 10;
       this.sessionStats.kills++;
       this.sessionStats.coinsEarned += reward;
+      this._sendWS({ type: "monster_killed", id: monster.id });
       this.createDrop(monster.x, monster.y, reward);
       if (this.economy) {
         this.economy.addRaw("cash", reward);
