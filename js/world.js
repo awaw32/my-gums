@@ -18,6 +18,7 @@ export class WorldMap {
     this.engine = null;
     this.running = false;
     this.N8N_WEBHOOK_URL = "https://n8n.d-king.online/webhook/1fe62b81-3e33-4d1c-a253-165f193f437e";
+    this.N8N_WEBHOOK_URL_TEST = "https://n8n.d-king.online/webhook-test/1fe62b81-3e33-4d1c-a253-165f193f437e";
 
     // ==================== نظام الملتيكاملة (Multiplayer) ====================
     this.otherPlayers = new Map();
