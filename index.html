@@ -103,92 +103,88 @@
           <span class="res-val" id="power-display">0</span>
         </div>
       </div>
-      <!-- الجهة اليسرى: المضاعف -->
+      <!-- الجهة اليسرى: المضاعف + زر القائمة -->
       <div class="top-multiplier-section">
         <div class="top-chip top-multiplier" id="top-multiplier">
           <span class="multiplier-icon">🚀</span>
           <span class="multiplier-value" id="multiplier-display">x1</span>
         </div>
+        <button id="panel-toggle" class="panel-toggle-btn" type="button" title="القائمة">☰</button>
       </div>
     </header>
 
-    <!-- ====== الشريط الدائري الفرعي (قابل للتمرير + طي) ====== -->
-    <nav id="sub-bar">
-      <button class="circular-sub-btn" type="button" data-screen="shop" data-icon="🛒">
-        <span class="csb-icon">🛒</span>
-        <span class="csb-label">متجر</span>
-        <span class="csb-badge hidden" id="badge-shop"></span>
-      </button>
-      <button class="circular-sub-btn" type="button" data-screen="events_panel" data-icon="🎊">
-        <span class="csb-icon">🎊</span>
-        <span class="csb-label">أحداث</span>
-        <span class="csb-badge hidden" id="badge-events"></span>
-      </button>
-      <button class="circular-sub-btn" type="button" data-screen="inventory" data-icon="📦">
-        <span class="csb-icon">📦</span>
-        <span class="csb-label">تصنيع</span>
-        <span class="csb-badge hidden" id="badge-inventory"></span>
-      </button>
-      <button class="circular-sub-btn" type="button" data-screen="daily" data-icon="📅">
-        <span class="csb-icon">📅</span>
-        <span class="csb-label">يومية</span>
-        <span class="csb-badge hidden" id="badge-daily"></span>
-      </button>
-      <button class="circular-sub-btn" type="button" data-screen="achievements" data-icon="🏆">
-        <span class="csb-icon">🏆</span>
-        <span class="csb-label">إنجازات</span>
-        <span class="csb-badge hidden" id="badge-achievements"></span>
-      </button>
-      <button class="circular-sub-btn" type="button" data-screen="prestige_panel" data-icon="🔄">
-        <span class="csb-icon">🔄</span>
-        <span class="csb-label">Prestige</span>
-        <span class="csb-badge hidden" id="badge-prestige"></span>
-      </button>
-      <button class="circular-sub-btn br-sub-btn" type="button" data-icon="⚔️" id="br-enter-btn">
-        <span class="csb-icon">⚔️</span>
-        <span class="csb-label">معركة</span>
-        <span class="csb-badge hidden" id="badge-br"></span>
-      </button>
-      <button class="sub-bar-toggle" id="sub-bar-toggle" type="button" title="طي/توسيع">▼</button>
-    </nav>
-
-    <!-- ====== شريط الترقية السريع ====== -->
-    <div id="quick-upgrade-bar" class="quick-upgrade-bar">
-      <div class="quick-upgrade-card" id="qu-card-damage">
-        <div class="qu-icon">⚔️</div>
-        <div class="qu-info">
-          <span class="qu-label">ترقية الضرر</span>
-          <span class="qu-level" id="qu-level-damage">Lv.1</span>
-          <div class="qu-track"><div class="qu-fill" id="qu-fill-damage" style="width:20%"></div></div>
-        </div>
-        <button class="qu-btn" data-qu="damage">ترقية</button>
+    <!-- ====== القائمة المنزلقة (Sub-bar + Quick Upgrades) ====== -->
+    <div id="quick-panel" class="quick-panel">
+      <!-- الشريط الدائري الفرعي -->
+      <div id="sub-bar">
+        <button class="circular-sub-btn" type="button" data-sub="achievements">
+          <span class="csb-icon">🏆</span>
+          <span class="csb-label">الإنجازات</span>
+          <span class="csb-badge hidden" id="badge-achievements"></span>
+        </button>
+        <button class="circular-sub-btn" type="button" data-sub="events_panel">
+          <span class="csb-icon">🎊</span>
+          <span class="csb-label">الأحداث</span>
+          <span class="csb-badge hidden" id="badge-events"></span>
+        </button>
+        <button class="circular-sub-btn" type="button" data-sub="daily">
+          <span class="csb-icon">📅</span>
+          <span class="csb-label">المكافآت</span>
+          <span class="csb-badge hidden" id="badge-daily"></span>
+        </button>
+        <button class="circular-sub-btn" type="button" data-sub="prestige_panel">
+          <span class="csb-icon">🔄</span>
+          <span class="csb-label">السبق</span>
+          <span class="csb-badge hidden" id="badge-prestige"></span>
+        </button>
+        <button class="circular-sub-btn" type="button" data-sub="inventory">
+          <span class="csb-icon">📦</span>
+          <span class="csb-label">المخزون</span>
+          <span class="csb-badge hidden" id="badge-inventory"></span>
+        </button>
+        <button class="circular-sub-btn br-sub-btn" type="button" id="br-enter-btn">
+          <span class="csb-icon">⚔️</span>
+          <span class="csb-label">المعركة الملكية</span>
+        </button>
       </div>
-      <div class="quick-upgrade-card" id="qu-card-defense">
-        <div class="qu-icon">🛡️</div>
-        <div class="qu-info">
-          <span class="qu-label">ترقية الدفاع</span>
-          <span class="qu-level" id="qu-level-defense">Lv.1</span>
-          <div class="qu-track"><div class="qu-fill" id="qu-fill-defense" style="width:20%"></div></div>
+      <!-- شريط الترقية السريع -->
+      <div id="quick-upgrade-bar">
+        <div class="quick-upgrade-card">
+          <span class="qu-icon">⚔️</span>
+          <div class="qu-info">
+            <span class="qu-label">ترقية الضرر</span>
+            <span class="qu-level" id="qu-level-damage">Lv.0</span>
+            <div class="qu-track"><div class="qu-fill" id="qu-fill-damage" style="width:0%"></div></div>
+          </div>
+          <button class="qu-btn" data-qu="damage">ترقية</button>
         </div>
-        <button class="qu-btn" data-qu="defense">ترقية</button>
-      </div>
-      <div class="quick-upgrade-card" id="qu-card-capacity">
-        <div class="qu-icon">📦</div>
-        <div class="qu-info">
-          <span class="qu-label">ترقية السعة</span>
-          <span class="qu-level" id="qu-level-capacity">Lv.1</span>
-          <div class="qu-track"><div class="qu-fill" id="qu-fill-capacity" style="width:20%"></div></div>
+        <div class="quick-upgrade-card">
+          <span class="qu-icon">🛡️</span>
+          <div class="qu-info">
+            <span class="qu-label">ترقية الدفاع</span>
+            <span class="qu-level" id="qu-level-defense">Lv.0</span>
+            <div class="qu-track"><div class="qu-fill" id="qu-fill-defense" style="width:0%"></div></div>
+          </div>
+          <button class="qu-btn" data-qu="defense">ترقية</button>
         </div>
-        <button class="qu-btn" data-qu="capacity">ترقية</button>
-      </div>
-      <div class="quick-upgrade-card" id="qu-card-speed">
-        <div class="qu-icon">⚡</div>
-        <div class="qu-info">
-          <span class="qu-label">ترقية السرعة</span>
-          <span class="qu-level" id="qu-level-speed">Lv.1</span>
-          <div class="qu-track"><div class="qu-fill" id="qu-fill-speed" style="width:20%"></div></div>
+        <div class="quick-upgrade-card">
+          <span class="qu-icon">📦</span>
+          <div class="qu-info">
+            <span class="qu-label">ترقية السعة</span>
+            <span class="qu-level" id="qu-level-capacity">Lv.0</span>
+            <div class="qu-track"><div class="qu-fill" id="qu-fill-capacity" style="width:0%"></div></div>
+          </div>
+          <button class="qu-btn" data-qu="capacity">ترقية</button>
         </div>
-        <button class="qu-btn" data-qu="speed">ترقية</button>
+        <div class="quick-upgrade-card">
+          <span class="qu-icon">⚡</span>
+          <div class="qu-info">
+            <span class="qu-label">ترقية السرعة</span>
+            <span class="qu-level" id="qu-level-speed">Lv.0</span>
+            <div class="qu-track"><div class="qu-fill" id="qu-fill-speed" style="width:0%"></div></div>
+          </div>
+          <button class="qu-btn" data-qu="speed">ترقية</button>
+        </div>
       </div>
     </div>
 
@@ -213,7 +209,7 @@
       <button class="chat-overlay-toggle" id="chat-overlay-toggle">▲</button>
     </div>
 
-    <!-- ====== القائمة السفلية الثابتة ====== -->
+    <!-- ====== القائمة السفلية الثابتة — 5 أيقونات فقط ====== -->
     <nav id="bottom-bar">
       <button class="nav-btn" type="button" data-screen="alliance" data-icon="👑">
         <span class="nav-icon">👑</span>
@@ -223,13 +219,13 @@
         <span class="nav-icon">⚔️</span>
         <span class="nav-label">حرب</span>
       </button>
-      <button class="nav-btn nav-btn-center active" type="button" data-screen="promotion" data-icon="🗺️">
+      <button class="nav-btn nav-btn-center active" type="button" data-screen="territories" data-icon="🗺️">
         <span class="nav-center-glow"></span>
         <span class="nav-icon">🗺️</span>
         <span class="nav-label">أراضي</span>
       </button>
-      <button class="nav-btn" type="button" data-screen="territories" data-icon="🐪">
-        <span class="nav-icon">🐪</span>
+      <button class="nav-btn" type="button" data-screen="promotion" data-icon="⭐">
+        <span class="nav-icon">⭐</span>
         <span class="nav-label">الترقية</span>
       </button>
       <button class="nav-btn" type="button" data-screen="ranking" data-icon="🏆">

@@ -15,7 +15,7 @@ export class GameUI {
     this.inventory = inventory;
     this.events = events;
     this.tutorial = tutorial;
-    this.currentScreen = "promotion";
+    this.currentScreen = "territories";
     this.screens = {};
     this.fightOverlayEl = null;
     this.init();
@@ -25,7 +25,9 @@ export class GameUI {
     this.cacheDOM();
     this.createScreens();
     this.bindNav();
-    this.showScreen("promotion");
+    this.bindSubNav();
+    this.bindTogglePanel();
+    this.showScreen("territories");
     this.startTopBarLoop();
     this.initPlayerPanel();
     this.initChat();
@@ -225,58 +227,13 @@ export class GameUI {
 
   buildTerritoriesScreen() {
     const div = document.createElement("div");
-    div.className = "lands-page";
+    div.className = "lands-page lands-page-full";
     div.innerHTML = `
       <div class="lands-bg" id="lands-bg"></div>
       <div class="lands-vignette"></div>
 
-      <!-- الشريط العلوي -->
-      <div class="lands-top-bar">
-        <div class="lands-room-id">غرفة ملك البحار ID: A3411461</div>
-        <div class="lands-resources" id="lands-resources">
-          <button class="lands-pill" data-resource="energy">⚡ <span id="lands-energy">1</span></button>
-          <button class="lands-pill" data-resource="gold">🪙 <span id="lands-gold">100</span></button>
-          <button class="lands-pill" data-resource="power">✊ <span id="lands-power">1,000</span></button>
-          <div class="lands-pill lands-pill-s">S</div>
-        </div>
-        <div class="lands-progress-row">
-          <div class="lands-progress-track">
-            <div class="lands-progress-fill" id="lands-progress-fill" style="width:0%"></div>
-          </div>
-          <span class="lands-progress-label" id="lands-progress-label">0 / 7</span>
-        </div>
-      </div>
-
       <!-- المباني -->
       <div id="lands-buildings" class="lands-buildings"></div>
-
-      <!-- الشريط السفلي -->
-      <div class="lands-bottom-bar">
-        <button class="lands-nav-btn lands-locked" data-tab="rank">
-          <span class="lands-nav-icon">🏆</span>
-          <span class="lands-nav-label">المرتبة</span>
-          <span class="lands-lock-icon">🔒</span>
-        </button>
-        <button class="lands-nav-btn lands-locked" data-tab="promotion">
-          <span class="lands-nav-icon">⭐</span>
-          <span class="lands-nav-label">الترقية</span>
-          <span class="lands-lock-icon">🔒</span>
-        </button>
-        <button class="lands-nav-btn lands-nav-active" data-tab="territories">
-          <span class="lands-nav-icon">🗺️</span>
-          <span class="lands-nav-label">أراضي</span>
-        </button>
-        <button class="lands-nav-btn lands-locked" data-tab="war">
-          <span class="lands-nav-icon">⚔️</span>
-          <span class="lands-nav-label">حرب</span>
-          <span class="lands-lock-icon">🔒</span>
-        </button>
-        <button class="lands-nav-btn lands-locked" data-tab="alliance">
-          <span class="lands-nav-icon">🤝</span>
-          <span class="lands-nav-label">التحالف</span>
-          <span class="lands-lock-icon">🔒</span>
-        </button>
-      </div>
 
       <!-- Toast -->
       <div id="lands-toast" class="lands-toast hidden"></div>
@@ -334,7 +291,7 @@ export class GameUI {
   }
 
   bindNav() {
-    document.querySelectorAll(".nav-btn, .circular-sub-btn").forEach(btn => {
+    document.querySelectorAll("#bottom-bar .nav-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const screen = btn.dataset.screen;
         if (screen) this.showScreen(screen);
@@ -342,7 +299,39 @@ export class GameUI {
     });
   }
 
+  bindSubNav() {
+    document.querySelectorAll("#sub-bar .circular-sub-btn").forEach(btn => {
+      const screen = btn.dataset.sub;
+      if (screen) {
+        btn.addEventListener("click", () => this.showScreen(screen));
+      }
+    });
+  }
+
+  bindTogglePanel() {
+    const toggle = document.getElementById("panel-toggle");
+    const panel = document.getElementById("quick-panel");
+    if (toggle && panel) {
+      toggle.addEventListener("click", () => {
+        panel.classList.toggle("open");
+        toggle.classList.toggle("open");
+        if (panel.classList.contains("open")) {
+          this.updateQuickUpgrades();
+          this.updateNotifBadges();
+        }
+      });
+    }
+  }
+
+  closeQuickPanel() {
+    const panel = document.getElementById("quick-panel");
+    const toggle = document.getElementById("panel-toggle");
+    if (panel) panel.classList.remove("open");
+    if (toggle) toggle.classList.remove("open");
+  }
+
   showScreen(name) {
+    this.closeQuickPanel();
     const canvas = document.getElementById("gameCanvas");
     if (canvas) canvas.classList.add("hidden");
     this.currentScreen = name;
@@ -351,7 +340,7 @@ export class GameUI {
     if (this.screens[name]) {
       content.appendChild(this.screens[name]);
     }
-    document.querySelectorAll(".nav-btn, .circular-sub-btn").forEach(b => {
+    document.querySelectorAll("#bottom-bar .nav-btn").forEach(b => {
       b.classList.toggle("active", b.dataset.screen === name);
     });
     this.renderScreen(name);
@@ -733,18 +722,6 @@ export class GameUI {
     };
   }
 
-  // ====== طي/توسيع القائمة الفرعية ======
-  toggleSubBar() {
-    const subBar = document.getElementById("sub-bar");
-    const toggleBtn = document.getElementById("sub-bar-toggle");
-    if (subBar) {
-      subBar.classList.toggle("collapsed");
-      if (toggleBtn) {
-        toggleBtn.textContent = subBar.classList.contains("collapsed") ? "▲" : "▼";
-      }
-    }
-  }
-
   // ====== حلقة تحديث مؤقتات البناء ======
   startBuildingTimerLoop() {
     this._buildingTimerInterval = setInterval(() => {
@@ -901,12 +878,6 @@ export class GameUI {
 
     // بناء عناصر المباني
     this._renderLandsBuildings();
-
-    // ربط أحداث النافبار السفلية
-    this._bindLandsNav();
-
-    // ربط أزرار الموارد
-    this._bindLandsResources();
   }
 
   _renderLandsBuildings() {
@@ -965,10 +936,7 @@ export class GameUI {
   }
 
   _updateLandsProgress() {
-    const fill = document.getElementById('lands-progress-fill');
-    const label = document.getElementById('lands-progress-label');
-    if (fill) fill.style.width = (this._landsProgress / this._landsMax * 100) + '%';
-    if (label) label.textContent = this._landsProgress + ' / ' + this._landsMax;
+    // التقدم محذوف من الـ UI الرئيسي — يحتفظ به داخلياً
   }
 
   _openLandsUpgradeModal(id) {
@@ -996,14 +964,14 @@ export class GameUI {
     const closeBtn = document.getElementById('lands-modal-close');
     if (upgradeBtn) {
       upgradeBtn.onclick = () => {
-        const gold = parseInt(document.getElementById('lands-gold')?.textContent || '0');
-        if (gold >= cost) {
-          document.getElementById('lands-gold').textContent = gold - cost;
+        if (this.economy && this.economy.gold >= cost) {
+          this.economy.gold -= cost;
           st.level++;
           this._landsToast('تمت الترقية إلى المستوى ' + st.level);
           if (levelEl) levelEl.textContent = 'المستوى ' + st.level;
           const newCost = 50 + (st.level - 1) * 25;
           if (costEl) costEl.textContent = 'تكلفة الترقية: 🪙 ' + newCost;
+          this.updateTopBar();
         } else {
           this._landsToast('ذهب غير كافي');
         }
@@ -1011,34 +979,6 @@ export class GameUI {
     }
     if (closeBtn) closeBtn.onclick = () => overlay.classList.add('hidden');
     overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.add('hidden'); };
-  }
-
-  _bindLandsNav() {
-    document.querySelectorAll('.lands-nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.classList.contains('lands-locked')) {
-          this._landsToast('هذه الميزة مقفلة');
-          return;
-        }
-        document.querySelectorAll('.lands-nav-btn').forEach(b => b.classList.remove('lands-nav-active'));
-        btn.classList.add('lands-nav-active');
-      });
-    });
-  }
-
-  _bindLandsResources() {
-    document.querySelectorAll('.lands-pill[data-resource]').forEach(pill => {
-      pill.addEventListener('click', () => {
-        const type = pill.dataset.resource;
-        const span = pill.querySelector('span');
-        if (!span) return;
-        let val = parseInt(span.textContent.replace(/,/g, '')) || 0;
-        if (type === 'energy') { val += 1; }
-        else if (type === 'gold') { val += 10; }
-        else if (type === 'power') { val += 50; }
-        span.textContent = val.toLocaleString();
-      });
-    });
   }
 
   _landsToast(msg) {
@@ -1072,8 +1012,10 @@ export class GameUI {
     const subBar = document.getElementById("sub-bar");
     const content = document.getElementById("screen-content");
     const worldButtons = document.getElementById("world-buttons");
+    const quickPanel = document.getElementById("quick-panel");
     if (topBar) topBar.style.display = "none";
     if (subBar) subBar.style.display = "none";
+    if (quickPanel) quickPanel.style.display = "none";
     if (bottomBar) bottomBar.style.display = "none";
     if (content) content.style.display = "none";
     if (worldButtons) worldButtons.classList.remove("hidden");
@@ -1095,8 +1037,10 @@ export class GameUI {
     const subBar = document.getElementById("sub-bar");
     const content = document.getElementById("screen-content");
     const worldButtons = document.getElementById("world-buttons");
+    const quickPanel = document.getElementById("quick-panel");
     if (topBar) topBar.style.display = "";
     if (subBar) subBar.style.display = "";
+    if (quickPanel) quickPanel.style.display = "";
     if (bottomBar) bottomBar.style.display = "";
     if (content) content.style.display = "";
     if (worldButtons) worldButtons.classList.add("hidden");
@@ -1132,8 +1076,6 @@ export class GameUI {
     if (this.els.levelAmount) {
       this.els.levelAmount.textContent = `${eco.xp}/${eco.xpToNext}`;
     }
-    // تحديث شريط الترقية السريع
-    this.updateQuickUpgrades();
     // تحديث باجات الإشعارات
     this.updateNotifBadges();
   }
@@ -1395,12 +1337,6 @@ export class GameUI {
 
   startTopBarLoop() {
     this._topBarInterval = setInterval(() => this.updateTopBar(), 500);
-
-    // ربط زر طي القائمة الفرعية
-    const subToggle = document.getElementById("sub-bar-toggle");
-    if (subToggle) {
-      subToggle.addEventListener("click", () => this.toggleSubBar());
-    }
 
     // بدء حلقة تحديث مؤقتات البناء
     this.startBuildingTimerLoop();

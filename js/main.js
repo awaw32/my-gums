@@ -423,8 +423,10 @@ async function init() {
         const subBar = document.getElementById("sub-bar");
         const content = document.getElementById("screen-content");
         const worldButtons = document.getElementById("world-buttons");
+        const quickPanel = document.getElementById("quick-panel");
         if (topBar) topBar.style.display = "none";
         if (subBar) subBar.style.display = "none";
+        if (quickPanel) quickPanel.style.display = "none";
         if (bottomBar) bottomBar.style.display = "none";
         if (content) content.style.display = "none";
         if (worldButtons) worldButtons.classList.remove("hidden");
