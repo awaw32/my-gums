@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#0d0a05">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>ملك الصحراء — الأراضي</title>
+  <style>
+    /* ===== Reset & Base ===== */
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{
+      height:100%;overflow:hidden;
+      font-family:system-ui,"Cairo",Tahoma,Arial,sans-serif;
+      direction:rtl;background:#0d0a05;
+      -webkit-tap-highlight-color:transparent;
+      user-select:none;
+    }
+
+    /* =====Game Shell===== */
+    .game-shell{
+      max-width:430px;margin:0 auto;position:relative;
+      height:100dvh;overflow:hidden;background:#0d0a05;
+    }
+
+    /* =====Layer 0: خلفية القرية===== */
+    .map-bg{
+      position:fixed;inset:0;z-index:0;
+      width:100vw;height:100dvh;
+      background-image:url('{{VILLAGE_BACKGROUND_URL}}');
+      background-size:cover;background-position:center top;
+      background-repeat:no-repeat;
+    }
+    .map-bg::after{
+      content:'';position:absolute;inset:0;
+      background:linear-gradient(180deg,rgba(0,0,0,.18) 0%,transparent 22%,transparent 68%,rgba(0,0,0,.22) 100%);
+      pointer-events:none;
+    }
+    /* vignette حول الحواف */
+    .map-vignette{
+      position:fixed;inset:0;z-index:1;
+      pointer-events:none;
+      background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.35) 100%);
+    }
+
+    /* =====Layer 1: المباني===== */
+    .buildings-layer{
+      position:absolute;inset:0;z-index:12;
+      pointer-events:none;
+    }
+    .building{
+      position:absolute;transform:translate(50%,-50%);
+      background:none;border:0;cursor:pointer;pointer-events:auto;
+      padding:0;font-family:inherit;
+    }
+    .building-pad{
+      width:64px;height:64px;
+      filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));
+      position:relative;display:flex;align-items:center;justify-content:center;
+      transition:transform .2s;
+    }
+    .building:active .building-pad{transform:scale(.88)}
+    .building img{
+      width:56px;height:56px;border-radius:12px;object-fit:contain;
+    }
+    .building-name{
+      color:#fff;font-weight:800;font-size:11.5px;
+      text-shadow:0 2px 6px rgba(0,0,0,.9);text-align:center;
+      margin-top:1px;white-space:nowrap;
+    }
+    .building-state-badge{
+      position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);
+      font-size:7.5px;font-weight:800;padding:1px 5px;border-radius:999px;
+      white-space:nowrap;line-height:1.4;text-shadow:0 1px 3px rgba(0,0,0,.5);
+    }
+    .badge-empty{background:rgba(100,100,100,.65);color:#ddd}
+    .badge-building{background:rgba(255,193,7,.78);color:#1a0e06}
+    .badge-built{background:rgba(76,217,100,.78);color:#fff}
+    .building-lock{position:absolute;top:-3px;right:-3px;font-size:13px}
+
+    /* =====Layer 2a: شريط الترقية===== */
+    .upgrade-row{
+      position:absolute;top:62px;left:8px;right:8px;z-index:25;
+      display:flex;gap:8px;overflow-x:auto;
+      padding-bottom:4px;direction:ltr;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+    }
+    .upgrade-row::-webkit-scrollbar{display:none}
+    .upgrade-card{
+      background:rgba(20,14,8,.52);backdrop-filter:blur(10px);
+      -webkit-backdrop-filter:blur(10px);
+      border:1px solid rgba(255,200,100,.22);border-radius:16px;
+      padding:8px 10px;min-width:150px;flex-shrink:0;
+      color:#ffe8c2;display:flex;flex-direction:column;gap:4px;
+    }
+    .uc-header{display:flex;align-items:center;gap:6px}
+    .uc-icon{font-size:18px}
+    .uc-label{font-size:12px;font-weight:700;white-space:nowrap}
+    .uc-level{font-size:10px;color:rgba(255,232,194,.6)}
+    .uc-btn{
+      background:#f1b34a;color:#22160e;border:0;
+      border-radius:10px;padding:5px 10px;font-weight:800;
+      font-size:11px;cursor:pointer;font-family:inherit;
+      transition:transform .15s;
+    }
+    .uc-btn:active{transform:scale(.92)}
+
+    /* =====Layer 2b: شريط الموارد===== */
+    .top-hud{
+      position:absolute;top:0;left:0;right:0;z-index:30;
+      padding:calc(8px + env(safe-area-inset-top)) 10px 8px;
+      background:rgba(12,10,8,.42);
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      border-bottom:1px solid rgba(255,200,100,.18);
+      transition:transform .25s ease;
+    }
+    .hud-row{
+      display:flex;align-items:center;gap:6px;
+      flex-wrap:wrap;justify-content:center;
+    }
+    .hud-pill{
+      background:rgba(18,12,6,.55);
+      border:1px solid rgba(255,200,100,.35);
+      border-radius:999px;padding:5px 10px;
+      color:#ffe8c2;font-weight:800;font-size:13px;
+      display:inline-flex;align-items:center;gap:3px;
+      white-space:nowrap;cursor:default;
+    }
+    .hud-pill-click{cursor:pointer;transition:transform .15s}
+    .hud-pill-click:active{transform:scale(.92)}
+    .hud-avatar{width:22px;height:22px;border-radius:50%;background:#2c1a0a;display:flex;align-items:center;justify-content:center;font-size:13px}
+    .hud-level{font-size:10px;color:rgba(255,232,194,.7)}
+    .hud-toggle{
+      position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);
+      background:rgba(18,12,6,.65);color:#ffd36a;border:0;
+      border-radius:0 0 10px 10px;padding:2px 14px;font-size:12px;
+      cursor:pointer;z-index:31;font-family:inherit;
+      line-height:1.6;transition:transform .2s;
+    }
+    .hud-toggle:active{transform:translateX(-50%) scale(.92)}
+
+    /* =====Layer 3: الشريط السفلي===== */
+    .bottom-nav{
+      position:fixed;bottom:0;left:0;right:0;z-index:40;
+      background:rgba(255,248,235,.94);
+      backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+      display:flex;justify-content:space-around;align-items:center;
+      padding:6px 0 calc(6px + env(safe-area-inset-bottom));
+      height:68px;border-top:1px solid rgba(200,170,120,.2);
+    }
+    .nav-btn{
+      background:none;border:0;cursor:pointer;
+      display:flex;flex-direction:column;align-items:center;
+      gap:1px;padding:4px 10px;position:relative;
+      font-family:inherit;transition:transform .15s;
+    }
+    .nav-btn:active{transform:scale(.9)}
+    .nav-icon{font-size:20px}
+    .nav-label{font-size:10px;font-weight:700;color:#7a5a3a}
+    .nav-btn.active .nav-label{color:#1b6fd6}
+    .nav-btn.active .nav-icon{color:#1b6fd6}
+    .nav-lock{position:absolute;top:-2px;right:-2px;font-size:9px}
+    .nav-btn.locked .nav-icon{opacity:.5}
+
+    /* =====Modal===== */
+    .modal-overlay{
+      position:fixed;inset:0;z-index:90;
+      background:rgba(0,0,0,.55);
+      display:flex;align-items:center;justify-content:center;
+      padding:18px;transition:opacity .25s;
+    }
+    .modal-overlay.hidden{display:none}
+    .modal-card{
+      background:#fff8ef;border-radius:22px;padding:18px;
+      max-width:320px;width:100%;
+      box-shadow:0 20px 60px rgba(0,0,0,.35);
+      text-align:center;
+    }
+    .modal-img{width:72px;height:72px;border-radius:14px;object-fit:contain}
+    .modal-name{margin:8px 0 2px;font-size:17px;color:#2c1a0a}
+    .modal-level{font-size:13px;color:#7a4a1a;margin:0}
+    .modal-cost{margin:10px 0;color:#7a4a1a;font-weight:700;font-size:14px}
+    .modal-btn-upgrade{
+      background:linear-gradient(135deg,#f5d76e,#e67e22);
+      border:0;border-radius:999px;padding:12px 36px;
+      font-weight:800;font-size:14px;color:#1a0e06;
+      cursor:pointer;font-family:inherit;
+      transition:transform .15s;box-shadow:0 4px 12px rgba(230,126,34,.3);
+    }
+    .modal-btn-upgrade:active{transform:scale(.95)}
+    .modal-btn-close{
+      display:block;margin:10px auto 0;
+      background:none;border:0;color:#999;
+      font-size:13px;cursor:pointer;font-family:inherit;
+    }
+
+    /* =====Toast===== */
+    .toast{
+      position:fixed;bottom:82px;left:50%;transform:translateX(-50%);
+      z-index:80;background:rgba(18,12,6,.88);color:#ffe8c2;
+      border-radius:999px;padding:10px 16px;font-size:13px;
+      font-weight:700;white-space:nowrap;
+      transition:opacity .25s;pointer-events:none;
+      box-shadow:0 4px 14px rgba(0,0,0,.3);
+    }
+    .toast.hidden{opacity:0}
+
+    /* =====Fallback صورة gray===== */
+    .img-fallback{
+      background:rgba(60,50,40,.35);border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      color:rgba(255,232,194,.3);font-size:18px;
+    }
+
+    /* =====Scrollbar hide===== */
+    body{-ms-overflow-style:none;scrollbar-width:none}
+    body::-webkit-scrollbar{display:none}
+
+    /* =====Safe area for notch===== */
+    @supports(padding:max(0px)){
+      .top-hud{padding-top:max(8px,env(safe-area-inset-top))}
+      .bottom-nav{padding-bottom:max(6px,env(safe-area-inset-bottom))}
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+
+    <!-- =====Layer 0: خلفية القرية===== -->
+    <div class="map-bg" id="mapBg"></div>
+    <div class="map-vignette"></div>
+
+    <!-- =====Layer 1: المباني===== -->
+    <div class="buildings-layer" id="buildingsLayer"></div>
+
+    <!-- =====Layer 2a: شريط الترقية===== -->
+    <div class="upgrade-row" id="upgradeRow">
+      <div class="upgrade-card">
+        <div class="uc-header">
+          <span class="uc-icon">⚔️</span>
+          <div><div class="uc-label">ترقية الضرر</div><div class="uc-level" id="ucLevel0">Lv.0</div></div>
+        </div>
+        <button class="uc-btn" onclick="upgradeStat(0)">ترقية</button>
+      </div>
+      <div class="upgrade-card">
+        <div class="uc-header">
+          <span class="uc-icon">🛡️</span>
+          <div><div class="uc-label">ترقية الدفاع</div><div class="uc-level" id="ucLevel1">Lv.0</div></div>
+        </div>
+        <button class="uc-btn" onclick="upgradeStat(1)">ترقية</button>
+      </div>
+      <div class="upgrade-card">
+        <div class="uc-header">
+          <span class="uc-icon">📦</span>
+          <div><div class="uc-label">ترقية السلاح</div><div class="uc-level" id="ucLevel2">Lv.0</div></div>
+        </div>
+        <button class="uc-btn" onclick="upgradeStat(2)">ترقية</button>
+      </div>
+    </div>
+
+    <!-- =====Layer 2b: شريط الموارد===== -->
+    <div class="top-hud" id="topHud">
+      <div class="hud-row">
+        <div class="hud-pill">
+          <span class="hud-avatar">🧙</span>
+          <span class="hud-level" id="levelLabel">Lv.1</span>
+        </div>
+        <div class="hud-pill hud-pill-click" onclick="addResource('gold',10)">🪙 <span id="resGold">675</span></div>
+        <div class="hud-pill hud-pill-click" onclick="addResource('cash',10)">💵 <span id="resCash">0</span></div>
+        <div class="hud-pill hud-pill-click" onclick="addResource('food',10)">🌾 <span id="resFood">50</span></div>
+        <div class="hud-pill hud-pill-click" onclick="addResource('power',50)">👊 <span id="resPower">344</span></div>
+        <div class="hud-pill">🚀 <span id="resMultiplier">x1</span></div>
+      </div>
+      <!-- زر إخفاء HUD -->
+      <button class="hud-toggle" id="hudToggle">▲</button>
+    </div>
+
+    <!-- =====Toast===== -->
+    <div class="toast hidden" id="toast"></div>
+
+    <!-- =====Modal الترقية===== -->
+    <div class="modal-overlay hidden" id="modalOverlay" onclick="closeModal(event)">
+      <div class="modal-card" id="modalCard">
+        <img class="modal-img" id="modalImg" src="" alt="" onerror="this.classList.add('img-fallback')">
+        <h3 class="modal-name" id="modalName"></h3>
+        <p class="modal-level" id="modalLevel"></p>
+        <div class="modal-cost" id="modalCost"></div>
+        <button class="modal-btn-upgrade" id="modalUpgradeBtn">ترقية الآن</button>
+        <button class="modal-btn-close" onclick="closeModal()">إغلاق</button>
+      </div>
+    </div>
+
+    <!-- =====Layer 3: الشريط السفلي===== -->
+    <div class="bottom-nav">
+      <button class="nav-btn locked">
+        <span class="nav-icon">🏆</span>
+        <span class="nav-label">المرتبة</span>
+        <span class="nav-lock">🔒</span>
+      </button>
+      <button class="nav-btn locked">
+        <span class="nav-icon">🐪</span>
+        <span class="nav-label">الترقية</span>
+        <span class="nav-lock">🔒</span>
+      </button>
+      <button class="nav-btn active">
+        <span class="nav-icon">🗺️</span>
+        <span class="nav-label">أراضي</span>
+      </button>
+      <button class="nav-btn locked">
+        <span class="nav-icon">⚔️</span>
+        <span class="nav-label">حرب</span>
+        <span class="nav-lock">🔒</span>
+      </button>
+      <button class="nav-btn locked">
+        <span class="nav-icon">👑</span>
+        <span class="nav-label">التحالف</span>
+        <span class="nav-lock">🔒</span>
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    // ==========================================================================
+    // CONFIG — استبدل روابط الصور هنا فقط
+    // ==========================================================================
+    const CONFIG = {
+      villageBackgroundUrl: '{{VILLAGE_BACKGROUND_URL}}',
+      buildings: [
+        {
+          id:'weapon_store', name:'مستودع السلاح',
+          x:22, y:42, locked:false,
+          img_empty:'{{WEAPON_EMPTY_URL}}',
+          img_building:'{{WEAPON_BUILDING_URL}}',
+          img_built:'{{WEAPON_BUILT_URL}}'
+        },
+        {
+          id:'supply_tent', name:'خيمة المؤن',
+          x:78, y:40, locked:false,
+          img_empty:'{{TENT_EMPTY_URL}}',
+          img_building:'{{TENT_BUILDING_URL}}',
+          img_built:'{{TENT_BUILT_URL}}'
+        },
+        {
+          id:'watch_tower', name:'برج المراقبة',
+          x:25, y:62, locked:false,
+          img_empty:'{{TOWER_EMPTY_URL}}',
+          img_building:'{{TOWER_BUILDING_URL}}',
+          img_built:'{{TOWER_BUILT_URL}}'
+        },
+        {
+          id:'training_yard', name:'ساحة التدريب',
+          x:75, y:60, locked:false,
+          img_empty:'{{YARD_EMPTY_URL}}',
+          img_building:'{{YARD_BUILDING_URL}}',
+          img_built:'{{YARD_BUILT_URL}}'
+        }
+      ]
+    };
+
+    // ==========================================================================
+    // حالة اللعبة
+    // ==========================================================================
+    const state = {
+      gold: 675,
+      cash: 0,
+      food: 50,
+      power: 344,
+      energy: 1,
+      multiplier: 1,
+      level: 1,
+      buildingProgress: 0,
+      totalBuildings: CONFIG.buildings.length,
+      // حالات المباني: كل مبنى له state (empty|building|built) و level
+      buildings: {},
+      // إحصائيات الترقية
+      stats: [0, 0, 0], // damage, defense, weapon
+      statCosts: [50, 40, 60],
+      statNames: ['الضرر', 'الدفاع', 'السلاح'],
+    };
+
+    // تهيئة حالة المباني
+    for (const b of CONFIG.buildings) {
+      state.buildings[b.id] = { state: 'empty', level: 1 };
+    }
+
+    // ==========================================================================
+    // Toast
+    // ==========================================================================
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add('hidden'), 1600);
+    }
+
+    // ==========================================================================
+    // الموارد
+    // ==========================================================================
+    function addResource(type, amount) {
+      if (type === 'gold') { state.gold += amount; updateResources(); }
+      else if (type === 'cash') { state.cash += amount; updateResources(); }
+      else if (type === 'food') { state.food += amount; updateResources(); }
+      else if (type === 'power') { state.power += amount; updateResources(); }
+      else if (type === 'energy') { state.energy += amount; updateResources(); }
+      showToast('+'+amount);
+    }
+
+    function updateResources() {
+      const el = document.getElementById('resGold');
+      if (el) el.textContent = state.gold;
+      const el2 = document.getElementById('resCash');
+      if (el2) el2.textContent = state.cash;
+      const el3 = document.getElementById('resFood');
+      if (el3) el3.textContent = state.food;
+      const el4 = document.getElementById('resPower');
+      if (el4) el4.textContent = state.power;
+    }
+
+    // ==========================================================================
+    // إحصائيات الترقية
+    // ==========================================================================
+    function upgradeStat(idx) {
+      const cost = state.statCosts[idx];
+      if (state.gold < cost) { showToast('ذهب غير كافي'); return; }
+      state.gold -= cost;
+      state.stats[idx]++;
+      state.statCosts[idx] = Math.floor(cost * 1.4);
+      const el = document.getElementById('ucLevel' + idx);
+      if (el) el.textContent = 'Lv.' + state.stats[idx];
+      updateResources();
+      showToast('ترقية ' + state.statNames[idx] + ' → المستوى ' + state.stats[idx]);
+    }
+
+    // ==========================================================================
+    // HUD toggle (إخفاء / إظهار)
+    // ==========================================================================
+    let hudHidden = false;
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggle = document.getElementById('hudToggle');
+      if (toggle) {
+        toggle.addEventListener('click', () => {
+          hudHidden = !hudHidden;
+          const hud = document.querySelector('.top-hud');
+          const upgradeRow = document.getElementById('upgradeRow');
+          if (hud) hud.style.transform = hudHidden ? 'translateY(-100%)' : 'translateY(0)';
+          if (upgradeRow) upgradeRow.style.display = hudHidden ? 'none' : 'flex';
+          toggle.textContent = hudHidden ? '▼' : '▲';
+        });
+      }
+    });
+
+    // ==========================================================================
+    // المباني — الرسم والمنطق
+    // ==========================================================================
+    function getBuildingImgUrl(b) {
+      const st = state.buildings[b.id];
+      if (st.state === 'built') return b.img_built;
+      if (st.state === 'building') return b.img_building;
+      return b.img_empty;
+    }
+
+    function getBuildingBadge(b) {
+      const st = state.buildings[b.id];
+      if (st.state === 'built') return { text: 'تم', cls: 'badge-built' };
+      if (st.state === 'building') return { text: 'يبني', cls: 'badge-building' };
+      return { text: 'فارغ', cls: 'badge-empty' };
+    }
+
+    function renderBuildings() {
+      const layer = document.getElementById('buildingsLayer');
+      if (!layer) return;
+      layer.innerHTML = '';
+      for (const b of CONFIG.buildings) {
+        const st = state.buildings[b.id];
+        const badge = getBuildingBadge(b);
+        const imgSrc = getBuildingImgUrl(b);
+
+        const btn = document.createElement('button');
+        btn.className = 'building';
+        btn.style.right = b.x + '%';
+        btn.style.top = b.y + '%';
+        btn.dataset.id = b.id;
+
+        btn.innerHTML = `
+          <div class="building-pad">
+            <img src="${imgSrc}" width="56" height="56"
+                 alt="${b.name}"
+                 onerror="this.style.display='none';this.nextElementSibling?this.nextElementSibling.style.display='flex':null"
+                 loading="lazy">
+            <div class="building-state-badge ${badge.cls}">${badge.text}</div>
+            ${b.locked ? '<span class="building-lock">🔒</span>' : ''}
+          </div>
+          <div class="building-name">${b.name}</div>
+        `;
+
+        btn.addEventListener('click', () => handleBuildingClick(b.id));
+        layer.appendChild(btn);
+      }
+    }
+
+    function handleBuildingClick(id) {
+      const b = CONFIG.buildings.find(x => x.id === id);
+      if (!b) return;
+      const st = state.buildings[id];
+      if (b.locked) { showToast(b.name + ' • مقفل'); return; }
+      if (st.state === 'empty') {
+        st.state = 'building';
+        showToast('قيد الإنشاء: ' + b.name);
+        renderBuildings();
+      } else if (st.state === 'building') {
+        st.state = 'built';
+        state.buildingProgress++;
+        showToast('تم البناء: ' + b.name);
+        updateProgressBar();
+        renderBuildings();
+        // فتح مودال الترقية بعد البناء مباشرة
+        openUpgradeModal(id);
+      } else if (st.state === 'built') {
+        openUpgradeModal(id);
+      }
+    }
+
+    function updateProgressBar() {
+      const fill = document.getElementById('progressFill');
+      const label = document.getElementById('progressLabel');
+      const pct = state.totalBuildings > 0 ? (state.buildingProgress / state.totalBuildings) * 100 : 0;
+      if (fill) fill.style.width = pct + '%';
+      if (label) label.textContent = state.buildingProgress + ' / ' + state.totalBuildings;
+    }
+
+    // ==========================================================================
+    // مودال الترقية
+    // ==========================================================================
+    let _activeModalBuilding = null;
+
+    function openUpgradeModal(id) {
+      const b = CONFIG.buildings.find(x => x.id === id);
+      if (!b) return;
+      const st = state.buildings[id];
+      if (st.state !== 'built') return;
+
+      _activeModalBuilding = id;
+      const overlay = document.getElementById('modalOverlay');
+      const img = document.getElementById('modalImg');
+      const name = document.getElementById('modalName');
+      const level = document.getElementById('modalLevel');
+      const cost = document.getElementById('modalCost');
+      if (!overlay) return;
+
+      if (img) { img.src = b.img_built; img.classList.remove('img-fallback'); }
+      if (name) name.textContent = b.name;
+      if (level) level.textContent = 'المستوى ' + st.level;
+      const upgradeCost = 50 + (st.level - 1) * 25;
+      if (cost) cost.textContent = 'تكلفة الترقية: 🪙 ' + upgradeCost;
+
+      const upgradeBtn = document.getElementById('modalUpgradeBtn');
+      if (upgradeBtn) {
+        upgradeBtn.onclick = () => {
+          if (state.gold >= upgradeCost) {
+            state.gold -= upgradeCost;
+            st.level++;
+            updateResources();
+            showToast('تمت الترقية إلى المستوى ' + st.level);
+            if (level) level.textContent = 'المستوى ' + st.level;
+            const newCost = 50 + (st.level - 1) * 25;
+            if (cost) cost.textContent = 'تكلفة الترقية: 🪙 ' + newCost;
+            // تحديث زر الترقية ليكلف الجديد
+            upgradeBtn.onclick = null; // force rebind
+          } else {
+            showToast('ذهب غير كافي');
+          }
+        };
+      }
+
+      overlay.classList.remove('hidden');
+    }
+
+    function closeModal(e) {
+      if (e && e.target !== e.currentTarget) return;
+      const overlay = document.getElementById('modalOverlay');
+      if (overlay) overlay.classList.add('hidden');
+      _activeModalBuilding = null;
+    }
+
+    // إغلاق المودال بـ Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // ==========================================================================
+    // ضبط خلفية القرية
+    // ==========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      const bg = document.getElementById('mapBg');
+      if (bg && CONFIG.villageBackgroundUrl && CONFIG.villageBackgroundUrl !== '{{VILLAGE_BACKGROUND_URL}}') {
+        bg.style.backgroundImage = 'url(\'' + CONFIG.villageBackgroundUrl + '\')';
+      }
+      // رسم المباني
+      renderBuildings();
+    });
+
+    // إعادة بناء المباني إذا فشلت الصور (onerror في الـ img)
+    // عند تحميل الصور لاحقاً من المستخدم
+    window.updateBuildingImage = function(buildingId, newUrl, type) {
+      const b = CONFIG.buildings.find(x => x.id === buildingId);
+      if (!b) return;
+      if (type === 'empty') b.img_empty = newUrl;
+      else if (type === 'building') b.img_building = newUrl;
+      else if (type === 'built') b.img_built = newUrl;
+      renderBuildings();
+    };
+
+    // تحديث خلفية القرية
+    window.updateBackground = function(url) {
+      CONFIG.villageBackgroundUrl = url;
+      const bg = document.getElementById('mapBg');
+      if (bg) bg.style.backgroundImage = 'url(\'' + url + '\')';
+    };
+
+    console.log('🏝️ Lands page ready!');
+    console.log('📝 To update images: updateBuildingImage("weapon_store", "URL", "built")');
+    console.log('📝 To update background: updateBackground("URL")');
+  </script>
+</body>
+</html>
