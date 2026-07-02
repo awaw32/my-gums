@@ -9,6 +9,7 @@ const IMG = {
 
   // ==================== الخلفيات ====================
   bgVillage: null, // خلفية القرية — assets/images/bg-village.jpg
+  bgFullscreen: null, // خلفية الشاشة الكاملة — assets/images/bg-village.jpg (قابلة للتغيير)
   mapDesert: null, // خريطة الصحراء — img/map.jpg
 
   // ==================== المباني (building states) ====================
@@ -68,6 +69,7 @@ const ImageResolver = {
   _local: {
     // خلفيات
     bgVillage: 'assets/images/bg-village.jpg',
+    bgFullscreen: 'assets/images/bg-village.jpg',
     mapDesert: 'img/map.jpg',
     // صورة افتراضية للأفاتار (مرجع من CSS)
     'avatar-default': 'assets/images/avatar-default.png',

@@ -2,10 +2,10 @@ export const VILLAGE_DATA = [
   {
     id: 1, name: "القرية الأولى",
     buildings: [
-      { id: "v1b1", name: "خيمة المؤن", desc: "تنتج الطعام والمال", monsterPower: 10, baseProduction: 1, buildTime: 5, monsterName: "ذئب صحراوي" },
+      { id: "v1b1", name: "البحوث", desc: "تطوير الأبحاث والتقنيات", monsterPower: 10, baseProduction: 1, buildTime: 5, monsterName: "ذئب صحراوي" },
       { id: "v1b2", name: "مستودع السلاح", desc: "مستودع الأسلحة الخفيفة", monsterPower: 25, baseProduction: 2, buildTime: 10, monsterName: "ثعبان رملي" },
       { id: "v1b3", name: "ساحة التدريب", desc: "تدريب الجنود", monsterPower: 50, baseProduction: 4, buildTime: 20, monsterName: "عقرب عملاق" },
-      { id: "v1b4", name: "برج المراقبة", desc: "حراسة القرية", monsterPower: 80, baseProduction: 7, buildTime: 30, monsterName: "محارب متوحش" },
+      { id: "v1b4", name: "صندوق المكافآت", desc: "مكافآت وإنجازات", monsterPower: 80, baseProduction: 7, buildTime: 30, monsterName: "محارب متوحش" },
     ],
   },
   {

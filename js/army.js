@@ -1,11 +1,10 @@
 export const WEAPON_DATA = [
-  { id: "w1", name: "سيف بدوي", desc: "سيف قصير خفيف", basePower: 5, shardCost: 10 },
-  { id: "w2", name: "قوس طويل", desc: "قوس للرماية", basePower: 12, shardCost: 30 },
-  { id: "w3", name: "رمح حديدي", desc: "رمح ثقيل", basePower: 22, shardCost: 60 },
-  { id: "w4", name: "سيف دمشقي", desc: "سيف فولاذي صلب", basePower: 35, shardCost: 120 },
-  { id: "w5", name: "قوس ناري", desc: "قوس يطلق سهماً نارياً", basePower: 55, shardCost: 200 },
-  { id: "w6", name: "فأس معركة", desc: "فأس ضخمة ثنائية", basePower: 80, shardCost: 350 },
-  { id: "w7", name: "سيف الأساطير", desc: "سيف أسطوري", basePower: 120, shardCost: 600 },
+  { id: "w1", name: "سيف بدوي", desc: "سيف قصير خفيف", basePower: 5, gemCost: 10, requireLevel: 1 },
+  { id: "w2", name: "قوس طويل", desc: "قوس للرماية من مسافة", basePower: 15, gemCost: 30, requireLevel: 2 },
+  { id: "w3", name: "رمح حديدي", desc: "رمح ثقيل للهجوم", basePower: 30, gemCost: 60, requireLevel: 3 },
+  { id: "w4", name: "سيف دمشقي", desc: "سيف فولاذي صلب", basePower: 50, gemCost: 120, requireLevel: 4 },
+  { id: "w5", name: "قوس ناري", desc: "قوس يطلق سهماً نارياً", basePower: 80, gemCost: 200, requireLevel: 5 },
+  { id: "w6", name: "فأس معركة", desc: "فأس ضخمة ثنائية اليد", basePower: 120, gemCost: 350, requireLevel: 6 },
 ];
 
 export class Weapon {
@@ -14,23 +13,30 @@ export class Weapon {
     this.name = data.name;
     this.desc = data.desc;
     this.basePower = data.basePower;
-    this.shardCost = data.shardCost;
+    this.gemCost = data.gemCost;
+    this.requireLevel = data.requireLevel;
     this.level = 0;
-    this.maxLevel = 50;
+    this.maxLevel = 5; // 5 نجوم
   }
 
   get power() {
-    return this.basePower * (1 + this.level * 0.2);
+    return this.basePower * (1 + this.level * 0.5);
   }
 
   get upgradeCost() {
-    return Math.floor(this.shardCost * (1 + this.level * 0.15));
+    return Math.floor(this.gemCost * (1 + this.level * 0.3));
   }
 
-  upgrade(economy) {
+  canUpgrade(economy, houseLevel) {
     if (this.level >= this.maxLevel) return false;
+    if (houseLevel < this.requireLevel) return false;
+    return economy.canAfford('gems', this.upgradeCost);
+  }
+
+  upgrade(economy, houseLevel) {
+    if (!this.canUpgrade(economy, houseLevel)) return false;
     const cost = this.upgradeCost;
-    if (!economy.spend('gold', cost)) return false;
+    if (!economy.spend('gems', cost)) return false;
     this.level++;
     return true;
   }
@@ -44,10 +50,17 @@ export class GameArmy {
     this.unitPowerBase = 5;
     this.unitsCount = 10;
     this.weapons = WEAPON_DATA.map(w => new Weapon(w));
+    this.trainingLevel = 1;
+    this.maxTrainingLevel = 20;
+    this.barracksLevel = 1;
+  }
+
+  getMaxUnits(barracksLevel) {
+    return 5 + (barracksLevel || this.barracksLevel) * 3;
   }
 
   get unitPower() {
-    return this.unitPowerBase * this.unitLevel * (1 + this.unitsCount * 0.1);
+    return this.unitPowerBase * this.unitLevel * (1 + this.getMaxUnits(this.barracksLevel) * 0.1) * (1 + this.trainingLevel * 0.05);
   }
 
   get weaponPower() {
@@ -68,5 +81,17 @@ export class GameArmy {
 
   get unitUpgradeCost() {
     return Math.floor(15 * this.unitLevel * (1 + this.unitLevel * 0.05));
+  }
+
+  upgradeTraining() {
+    if (this.trainingLevel >= this.maxTrainingLevel) return false;
+    const cost = Math.floor(50 * this.trainingLevel * (1 + this.trainingLevel * 0.1));
+    if (!this.economy.spend('gold', cost)) return false;
+    this.trainingLevel++;
+    return true;
+  }
+
+  get trainingUpgradeCost() {
+    return Math.floor(50 * this.trainingLevel * (1 + this.trainingLevel * 0.1));
   }
 }

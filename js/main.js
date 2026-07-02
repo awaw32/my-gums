@@ -75,12 +75,14 @@ async function loadFromDatabase(economy, army, username) {
       economy.xp = data.xp || 0;
       economy.xpToNext = getXpForLevel(economy.level);
       army.unitLevel = data.unitLevel || 1;
+      army.trainingLevel = data.trainingLevel || 1;
       if (data.weapons && Array.isArray(data.weapons)) {
         for (const wd of data.weapons) {
           const w = army.weapons.find(ww => ww.id === wd.id);
           if (w) w.level = wd.level || 0;
         }
       }
+      window._loadedLandsState = data.landsState || null;
       // تخزين مؤقت لبيانات التحالف والترقيات والواحات لاستخدامها لاحقاً
       window._loadedAllianceLevel = data.allianceLevel ?? 0;
       window._loadedUpgrades = data.upgrades || {};
@@ -157,6 +159,10 @@ async function init() {
   delete window._loadedInventory;
   delete window._loadedEvents;
   delete window._loadedTutorial;
+  if (window._loadedLandsState) {
+    window._pendingLandsState = window._loadedLandsState;
+    delete window._loadedLandsState;
+  }
   
   // 🎁 بونص ترحيبي للاعب الجديد (1000 من كل عملة)
   const isNew = [!economy.cash, !economy.gems, !economy.gold, !economy.kingCoins, !economy.hammers, !economy.scrolls, !economy.horns].every(v => v === true);
@@ -261,6 +267,7 @@ async function init() {
     };
 
     const saveToDB = () => {
+      const landsState = ui._landsState || {};
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -275,6 +282,7 @@ async function init() {
           food: economy.food,
           army_power: economy.power,
           unitLevel: army.unitLevel,
+          trainingLevel: army.trainingLevel,
           weapons: army.weapons.map(w => ({ id: w.id, level: w.level })),
           x_position: world.leader ? Math.floor(world.leader.x) : 0,
           y_position: world.leader ? Math.floor(world.leader.y) : 0,
@@ -291,6 +299,7 @@ async function init() {
           tutorial: tutorial.getSaveData(),
           brWins: window._brWinsGlobal || 0,
           brKills: window._brKillsGlobal || 0,
+          landsState: landsState,
           last_active: Date.now()
         })
       }).catch(() => {});
@@ -322,13 +331,15 @@ async function init() {
 
         default:
           const weapon = army.weapons.find(w => w.id === item);
-          if (weapon && weapon.level < weapon.maxLevel) {
-            const cost = weapon.upgradeCost;
-            if (economy.spend("gold", cost)) {
-              weapon.level++;
+          if (weapon) {
+            const houseLevel = ui._landsState?.['b1']?.level || 1;
+            if (weapon.upgrade(economy, houseLevel)) {
               achievements.updateProgress('weapon_max', weapon.level);
               saveToDB();
               ui.updateTopBar();
+              ui.showNotification(`⬆️ ${weapon.name} → المستوى ${weapon.level}/5 ⭐`);
+            } else {
+              ui.showNotification(`❌ مجوهرات غير كافية أو مستوى بيت الزعيم منخفض`);
             }
           }
           break;
@@ -556,6 +567,16 @@ async function init() {
       economy.tick();
       village.update(0.5);
       oasisManager.tick(15); // 15 ثانية انقضت
+      // مزامنة مستوى مباني الأراضي مع أنظمة اللعبة
+      if (ui._landsState) {
+        const b1 = ui._landsState['b1']; // بيت الزعيم
+        const b2 = ui._landsState['b2']; // سكن الجنود
+        if (b2) {
+          army.barracksLevel = b2.level || 1;
+          army.unitsCount = army.getMaxUnits(b2.level || 1);
+        }
+        // يمكن استخدام b1.level لقيد الأسلحة
+      }
       // استهلاك الطعام للجيش
       if (world.leader && world.running) {
         const aliveUnits = world.armyUnits.filter(u => u.hp > 0).length;

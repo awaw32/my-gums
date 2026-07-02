@@ -852,7 +852,6 @@ export class WorldMap {
   }
 
   _showWipeScreen(lost, killed) {
-    // إزالة أي شاشة خسارة سابقة
     const existing = document.getElementById("wipe-overlay");
     if (existing) existing.remove();
     const overlay = document.createElement("div");
@@ -860,24 +859,34 @@ export class WorldMap {
     overlay.style.cssText = `
       position: fixed; inset: 0; z-index: 9999;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0,0,0,0.88);
       direction: rtl; text-align: center;
       padding: 20px; box-sizing: border-box;
     `;
     overlay.innerHTML = `
       <div style="font-size:3rem;margin-bottom:8px;">💀</div>
-      <div style="color:#ff4444;font-size:1.1rem;font-weight:700;margin-bottom:12px;">هُزم جيشك!</div>
+      <div style="color:#ff4444;font-size:1.1rem;font-weight:700;margin-bottom:12px;">هُزم جيشك بالكامل!</div>
       <div style="color:var(--gold);font-size:0.85rem;margin-bottom:6px;">الغنائم التي خسرتها:</div>
       <div style="color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:4px;">${lost} 💵</div>
       <div style="color:var(--beige-dark);font-size:0.7rem;margin-bottom:16px;">الوحوش المقتولة: ${killed}</div>
-      <button id="wipe-dismiss-btn" style="
+      <div style="color:#ff6b6b;font-size:0.85rem;margin-bottom:16px;">قوتك: ${this.economy ? this.economy.power : 0} 👊</div>
+      <button id="wipe-return-btn" style="
         padding: 12px 32px; font-size:1rem; font-weight:700;
-        background:var(--gold); color:var(--dark); border:none; border-radius:12px;
-        cursor:pointer; touch-action:manipulation;
-      ">✅ حسناً</button>
+        background:linear-gradient(180deg,#3a8ab5,#1a5a7a); color:#fff; border:none; border-radius:12px;
+        cursor:pointer; touch-action:manipulation; margin-bottom:8px; width:200px;
+      ">🗺️ العودة للخريطة</button>
+      <button id="wipe-exit-btn" style="
+        padding: 12px 32px; font-size:1rem; font-weight:700;
+        background:linear-gradient(180deg,#8a2020,#5a1010); color:#fff; border:none; border-radius:12px;
+        cursor:pointer; touch-action:manipulation; width:200px;
+      ">🚪 الخروج للقائمة</button>
     `;
     document.body.appendChild(overlay);
-    document.getElementById("wipe-dismiss-btn").onclick = () => overlay.remove();
+    document.getElementById("wipe-return-btn").onclick = () => overlay.remove();
+    document.getElementById("wipe-exit-btn").onclick = () => {
+      overlay.remove();
+      if (this.onExit) this.onExit();
+    };
   }
 
   drawArmyHUD(dt, ctx) {

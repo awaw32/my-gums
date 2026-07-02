@@ -68,6 +68,20 @@
     <p class="loading-pct" id="loading-pct">0%</p>
   </div>
 
+  <!-- ====== خلفية الشاشة الكاملة (قابلة للتبديل) ====== -->
+  <div id="fullscreen-bg" class="fullscreen-bg"></div>
+  <script>
+    // تعيين خلفية الشاشة الكاملة من ImageResolver
+    (function() {
+      try {
+        var bg = document.getElementById('fullscreen-bg');
+        if (bg && typeof ImageResolver !== 'undefined') {
+          bg.style.backgroundImage = "url('" + ImageResolver.src('bgFullscreen') + "')";
+        }
+      } catch(e) {}
+    })();
+  </script>
+
   <!-- ====== التطبيق الرئيسي ====== -->
   <div class="app-shell hidden" id="app-shell">
 
@@ -103,12 +117,8 @@
           <span class="res-val" id="power-display">0</span>
         </div>
       </div>
-      <!-- الجهة اليسرى: المضاعف + زر القائمة -->
+      <!-- الجهة اليسرى: زر القائمة فقط -->
       <div class="top-multiplier-section">
-        <div class="top-chip top-multiplier" id="top-multiplier">
-          <span class="multiplier-icon">🚀</span>
-          <span class="multiplier-value" id="multiplier-display">x1</span>
-        </div>
         <button id="panel-toggle" class="panel-toggle-btn" type="button" title="القائمة">☰</button>
       </div>
     </header>
@@ -206,7 +216,7 @@
         <span class="chat-overlay-player" id="chat-overlay-player">لاعب:</span>
         <span class="chat-overlay-msg" id="chat-overlay-msg">مرحباً بالجميع!</span>
       </div>
-      <button class="chat-overlay-toggle" id="chat-overlay-toggle">▲</button>
+      
     </div>
 
     <!-- ====== القائمة السفلية الثابتة — 5 أيقونات فقط ====== -->

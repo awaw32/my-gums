@@ -65,7 +65,9 @@ const playerSchema = new mongoose.Schema({
   y_position:    { type: Number, default: 1200 },
   last_active:   { type: Number, default: 0 },
   unitLevel:     { type: Number, default: 1 },
+  trainingLevel: { type: Number, default: 1 },
   weapons:       { type: Array, default: [] },
+  landsState:    { type: Object, default: {} },
   xp:           { type: Number, default: 0 },
   level:        { type: Number, default: 1 },
   allianceLevel: { type: Number, default: 0 },
@@ -391,6 +393,8 @@ wss.on("connection", (ws, req) => {
         unitLevel: c.unitLevel || 1,
         armyAlive: c.armyAlive ?? 8,
         color: c.color,
+        br_hp: c.br_hp ?? 120,
+        br_alive: c.br_alive ?? true,
         last_active: Date.now()
       });
     });

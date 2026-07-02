@@ -1283,6 +1283,24 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   box-shadow: 0 0 60px rgba(0,0,0,0.8);
 }
 
+/* ====== خلفية الشاشة الكاملة ====== */
+.fullscreen-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: center / cover no-repeat;
+  background-position: center;
+  background-size: cover;
+  filter: brightness(0.6);
+}
+.fullscreen-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.3));
+  pointer-events: none;
+}
+
 /* ====== الشريط العلوي الجديد ====== */
 #top-bar {
   height: var(--top-h);
@@ -1616,8 +1634,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   width: 100%;
   flex: 1;
   min-height: 0;
-  background:
-    url('../assets/images/bg-village.jpg') center / cover no-repeat;
+  background: transparent;
   overflow: hidden;
   padding: 12px;
 }

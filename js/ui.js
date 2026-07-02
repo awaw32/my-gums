@@ -557,10 +557,10 @@ export class GameUI {
     if (b.state === "building") return "🔨";
     if (b.state === "ready") {
       const icons = {
-        "خيمة المؤن": "⛺",
+        "البحوث": "🔬",
         "مستودع السلاح": "🗡️",
         "ساحة التدريب": "🏋️",
-        "برج المراقبة": "🏰",
+        "صندوق المكافآت": "🎁",
         "سوق التجارة": "🏪",
         "مسبك الحديد": "⚒️",
         "قاعة الأبطال": "🏛️",
@@ -651,7 +651,153 @@ export class GameUI {
   }
 
   // ====== مودال ترقية المبنى (حالة ready) ======
+  _renderWeaponUpgradeModal() {
+    const overlay = document.getElementById("modal-overlay");
+    const card = document.getElementById("modal-card");
+    if (!overlay || !card) return;
+    const houseLevel = this._landsState?.['b1']?.level || 1;
+    const weapons = this.army?.weapons || [];
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-[#FFD700] font-bold text-base" style="font-family:'Cairo',sans-serif">🗡️ مستودع السلاح</h3>
+        <button id="modal-close-btn" class="text-[#a08060] hover:text-[#FFD700] text-xl leading-none" style="background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
+      </div>
+      <div class="flex flex-col gap-2" style="max-height:60vh;overflow-y:auto">
+        <div style="color:var(--beige-dark);font-size:0.65rem;text-align:center;margin-bottom:6px">🏠 بيت الزعيم المستوى ${houseLevel} — السلاح يتطلب مستوى معين لفتحه</div>
+        ${weapons.map(w => {
+          const canUpg = w.canUpgrade(this.economy, houseLevel);
+          const starStr = '⭐'.repeat(w.level) + '☆'.repeat(w.maxLevel - w.level);
+          const isLocked = houseLevel < w.requireLevel;
+          return `<div style="background:rgba(40,24,12,0.9);border:1px solid rgba(255,215,0,0.08);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:6px">
+            <div style="flex:1">
+              <div style="font-size:0.75rem;font-weight:700;color:${isLocked ? '#666' : 'var(--beige)'}">${isLocked ? '🔒 ' : ''}${w.name}</div>
+              <div style="font-size:0.55rem;color:var(--beige-dark)">${w.desc}</div>
+              <div style="font-size:0.6rem;color:var(--gold)">${starStr}</div>
+            </div>
+            <div style="text-align:center;min-width:50px">
+              <div style="font-size:0.6rem;color:#ff6b6b">👊 ${w.power.toFixed(0)}</div>
+            </div>
+            ${isLocked ? `<div style="font-size:0.5rem;color:#666">تحتاج\nمستوى ${w.requireLevel}</div>` :
+            w.level >= w.maxLevel ? `<div style="font-size:0.55rem;color:var(--gold)">⭐⭐⭐</div>` :
+            `<button class="weapon-upg-btn" data-wid="${w.id}" style="padding:6px 12px;font-size:0.6rem;font-weight:700;background:linear-gradient(180deg,${canUpg ? '#9b59b6,#7d3c98' : '#444,#333'});color:#fff;border:none;border-radius:8px;cursor:${canUpg ? 'pointer' : 'default'};font-family:inherit" ${canUpg ? '' : 'disabled'}>
+              ${w.upgradeCost} 💎
+            </button>`}
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+
+    overlay.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+
+    document.getElementById("modal-close-btn").onclick = () => {
+      overlay.classList.add("hidden");
+      document.body.classList.remove("modal-open");
+    };
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        overlay.classList.add("hidden");
+        document.body.classList.remove("modal-open");
+      }
+    };
+
+    card.querySelectorAll('.weapon-upg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wid = btn.dataset.wid;
+        const weapon = weapons.find(w => w.id === wid);
+        if (weapon && weapon.upgrade(this.economy, houseLevel)) {
+          this._renderWeaponUpgradeModal();
+          this.updateTopBar();
+          this.showNotification(`⬆️ ${weapon.name} → ⭐${weapon.level}`);
+        }
+      });
+    });
+  }
+
+  _renderTrainingGroundModal() {
+    const overlay = document.getElementById("modal-overlay");
+    const card = document.getElementById("modal-card");
+    if (!overlay || !card) return;
+    const army = this.army;
+    const barLevel = this._landsState?.['b2']?.level || 1;
+    const maxUnits = 5 + barLevel * 3;
+    if (!army) {
+      card.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⚠️ الجيش غير متاح</div>`;
+      overlay.classList.remove("hidden");
+      return;
+    }
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-[#FFD700] font-bold text-base" style="font-family:'Cairo',sans-serif">🏋️ ساحة التدريب</h3>
+        <button id="modal-close-btn" class="text-[#a08060] hover:text-[#FFD700] text-xl leading-none" style="background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
+      </div>
+      <div class="flex flex-col gap-2">
+        <div style="background:rgba(40,24,12,0.9);border:1px solid rgba(255,215,0,0.08);border-radius:10px;padding:10px">
+          <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid rgba(255,215,0,0.06)">
+            <span style="color:var(--beige-dark)">🎖️ مستوى الجندي</span>
+            <span style="color:var(--gold);font-weight:700">${army.unitLevel}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid rgba(255,215,0,0.06)">
+            <span style="color:var(--beige-dark)">👊 قوة الجندي</span>
+            <span style="color:#ff6b6b;font-weight:700">${army.unitPower.toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid rgba(255,215,0,0.06)">
+            <span style="color:var(--beige-dark)">📊 مستوى التدريب</span>
+            <span style="color:var(--gold);font-weight:700">${army.trainingLevel}/${army.maxTrainingLevel}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid rgba(255,215,0,0.06)">
+            <span style="color:var(--beige-dark)">🛏️ سكن الجنود</span>
+            <span style="color:var(--gold);font-weight:700">المستوى ${barLevel}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0">
+            <span style="color:var(--beige-dark)">👥 أقصى عدد جنود</span>
+            <span style="color:#2ecc71;font-weight:700">${maxUnits}</span>
+          </div>
+        </div>
+        <button id="train-units-btn" style="padding:10px;font-size:0.75rem;font-weight:700;background:linear-gradient(180deg,#3a8ab5,#1a5a7a);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit">
+          🎓 ترقية التدريب (${army.trainingUpgradeCost} 🪙)
+        </button>
+      </div>
+    `;
+
+    overlay.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+
+    document.getElementById("modal-close-btn").onclick = () => {
+      overlay.classList.add("hidden");
+      document.body.classList.remove("modal-open");
+    };
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        overlay.classList.add("hidden");
+        document.body.classList.remove("modal-open");
+      }
+    };
+    document.getElementById("train-units-btn").onclick = () => {
+      if (army.upgradeTraining()) {
+        this._renderTrainingGroundModal();
+        this.updateTopBar();
+        this.showNotification(`🎓 تدريب المستوى ${army.trainingLevel}`);
+      } else {
+        this.showNotification('❌ ذهب غير كافي');
+      }
+    };
+  }
+
   showUpgradeModal(b) {
+    // مودال مخصص لمستودع السلاح
+    if (b.name === "مستودع السلاح") {
+      this._renderWeaponUpgradeModal();
+      return;
+    }
+    // مودال مخصص لساحة التدريب
+    if (b.name === "ساحة التدريب") {
+      this._renderTrainingGroundModal();
+      return;
+    }
+
     const overlay = document.getElementById("modal-overlay");
     const card = document.getElementById("modal-card");
     if (!overlay || !card) return;
@@ -819,14 +965,14 @@ export class GameUI {
       bg: ImageResolver ? ImageResolver.src('landsBg') : 'assets/images/bg-village.jpg',
       buildings: [
         {
-          id: 'b1', x: 72, y: 38, name: 'الميناء',
+          id: 'b1', x: 72, y: 35, name: 'بيت الزعيم',
           img_empty: ImageResolver ? ImageResolver.src('b1Empty') : '',
           img_building: ImageResolver ? ImageResolver.src('b1Construction') : '',
           img_built: ImageResolver ? ImageResolver.src('b1Built') : '',
           locked: false, level: 1
         },
         {
-          id: 'b2', x: 25, y: 55, name: 'سوق السمك',
+          id: 'b2', x: 20, y: 55, name: 'سكن الجنود',
           img_empty: ImageResolver ? ImageResolver.src('b2Empty') : '',
           img_building: ImageResolver ? ImageResolver.src('b2Construction') : '',
           img_built: ImageResolver ? ImageResolver.src('b2Built') : '',
@@ -840,21 +986,7 @@ export class GameUI {
           locked: false, level: 1
         },
         {
-          id: 'b4', x: 20, y: 28, name: 'قلعة الحراسة',
-          img_empty: ImageResolver ? ImageResolver.src('b4Empty') : '',
-          img_building: ImageResolver ? ImageResolver.src('b4Construction') : '',
-          img_built: ImageResolver ? ImageResolver.src('b4Built') : '',
-          locked: false, level: 1
-        },
-        {
-          id: 'b5', x: 50, y: 18, name: 'المنارة',
-          img_empty: ImageResolver ? ImageResolver.src('b5Empty') : '',
-          img_building: ImageResolver ? ImageResolver.src('b5Construction') : '',
-          img_built: ImageResolver ? ImageResolver.src('b5Built') : '',
-          locked: false, level: 1
-        },
-        {
-          id: 'b6', x: 45, y: 82, name: 'ساحة التدريب',
+          id: 'b4', x: 45, y: 30, name: 'ساحة التدريب',
           img_empty: ImageResolver ? ImageResolver.src('b6Empty') : '',
           img_building: ImageResolver ? ImageResolver.src('b6Construction') : '',
           img_built: ImageResolver ? ImageResolver.src('b6Built') : '',
@@ -863,10 +995,20 @@ export class GameUI {
       ]
     };
 
-    // حالة المباني (فارغ/قيد الإنشاء/مبني)
+    // حالة المباني (فارغ/قيد الإنشاء/مبني) — استعادة من الحفظ إن وجد
     this._landsState = {};
     for (const b of L.buildings) {
       this._landsState[b.id] = { state: 'empty', level: b.level };
+    }
+    // تطبيق الحالة المحفوظة (إن وجدت)
+    if (window._pendingLandsState) {
+      for (const [id, saved] of Object.entries(window._pendingLandsState)) {
+        if (this._landsState[id]) {
+          this._landsState[id].state = saved.state || 'empty';
+          this._landsState[id].level = saved.level || 1;
+        }
+      }
+      delete window._pendingLandsState;
     }
     this._landsData = L;
     this._landsProgress = 0;
@@ -1051,9 +1193,6 @@ export class GameUI {
 
   updateTopBar() {
     const eco = this.economy;
-    if (this.els.multiplierDisplay) {
-      this.els.multiplierDisplay.textContent = `x${eco.multiplier}`;
-    }
     if (this.els.goldDisplay) {
       this.els.goldDisplay.textContent = formatNumber(eco.gold);
     }
