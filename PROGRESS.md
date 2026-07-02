@@ -51,15 +51,31 @@
 - أزرار الخريطة: زر الشات نُقل للجهة اليسرى تحت زر الخروج
 - حساب القوة: 5 مصادر (قرية, جيش, مستوى, تحالف, prestige) — يعمل
 
+### ✅ نظام ترقية الأسلحة الجديد — مكتبة القطع الأسطورية
+- **ملف منفصل** `js/weapons.js` مع class `WeaponsLibrary`
+- **5 وردات × 8 بتلات = 40 مستوى ترقية** لكل سلاح
+- **SVG وردات** مع بتلات مضيئة/مطفية + أنيميشن توهج
+- **كل 3 ترقيات**: السعر يزيد 50% (×1.0 → ×1.5 → ×2.0 ...)
+- **الأسلحة تبدأ مغلقة** (upgradeLevel = 0) — أول ترقية تفتح السلاح
+- **الضغط على الأسلحة** في مركز التطوير → نافذة منبثقة full-screen
+- **CSS جديد**: ~130 سطر (wl-overlay, rose-svg, petal glow, upgrade-button)
+- **مربوط بـ MongoDB** عبر saveToDB() و _scheduleSave()
+- **هجرة تلقائية**: الأسلحة القديمة (level > 0) تُهاجر إلى upgradeLevel = level × 8
+
 ## الملفات المعدلة / المضافة
 
 | الملف | التغيير |
 |-------|---------|
 | `config/images.js` | **جديد** — مركز روابط الصور + ImageResolver |
 | `js/ui.js` | استبدال `buildTerritoriesScreen` + `renderTerritories` بصفحة الأراضي الجديدة |
-| `css/style.css` | إضافة ~250 سطر CSS للأراضي (lands-*) |
+| `css/style.css` | إضافة ~250 سطر CSS للأراضي (lands-*) + ~130 سطر للأسلحة |
 | `js/world.js` | تحديث `_preloadImages` + تحميل الخريطة لاستخدام ImageResolver |
 | `index.html` | إضافة `<script src="config/images.js">` قبل main.js |
+| `js/weapons.js` | **جديد** — مكتبة الأسلحة بالوردات + SVG + أسعار متصاعدة |
+| `js/army.js` | إضافة `upgradeLevel` (0-40), معادلة سعر جديدة, upgrade() تزامن level |
+| `js/save.js` | حفظ/تحميل `upgradeLevel` من localStorage |
+| `js/main.js` | حفظ `upgradeLevel` إلى MongoDB + ربط _onSave |
+| `js/prestige.js` | إعادة تعيين `upgradeLevel = 0` عند المجد |
 
 ## كيفية إضافة رابط سحابي لصورة
 

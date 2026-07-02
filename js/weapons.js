@@ -111,21 +111,17 @@ export class WeaponsLibrary {
     const w = this.weapons[index];
     if (!w || w.upgradeLevel >= TOTAL_PETALS) return;
 
-    const cost = WeaponsLibrary.calculatePrice(w.gemCost, w.upgradeLevel);
-
-    if (!this.economy.canAfford('gems', cost)) {
-      this.ui.showNotification('❌ مجوهرات غير كافية');
+    const houseLevel = this.ui._landsState?.['b1']?.level || 1;
+    if (!w.canUpgrade(this.economy, houseLevel)) {
+      if (houseLevel < w.requireLevel) {
+        this.ui.showNotification(`❌ يحتاج بيت الزعيم المستوى ${w.requireLevel}`);
+      } else {
+        this.ui.showNotification('❌ مجوهرات غير كافية');
+      }
       return;
     }
 
-    w.upgradeLevel++;
-    this.economy.spend('gems', cost);
-
-    const newLevel = Math.min(5, Math.floor(w.upgradeLevel / 8));
-    if (newLevel > w.level) {
-      w.level = newLevel;
-    }
-
+    w.upgrade(this.economy, houseLevel);
     this.renderWeapons();
     this.ui.updateTopBar();
     this.ui._scheduleSave();

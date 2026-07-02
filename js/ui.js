@@ -2173,4 +2173,9 @@ export class GameUI {
     this._shopBuy = fn;
     window.shopBuy = fn;
   }
+
+  /** حفظ سريع إلى قاعدة البيانات */
+  _scheduleSave() {
+    if (this._onSave) this._onSave();
+  }
 }

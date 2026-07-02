@@ -308,6 +308,7 @@ async function init() {
       }).catch(() => {});
     };
 
+    ui._onSave = saveToDB;
     ui.setShopBuyCallback(function shopBuy(item) {
       switch (item) {
         case "unit":

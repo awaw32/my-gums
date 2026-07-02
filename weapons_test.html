@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>اختبار الأسلحة - اختبار صغير</title>
+  <style>
+    body { margin: 20px; font-family: Arial; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .card {
+      background: #f5f5f5;
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .card:hover { transform: translateY(-2px); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .card h3 { margin: 0; font-size: 1.2rem; }
+    .rarity { padding: 4px 8px; border-radius: 6px; color: white; font-weight: bold; }
+    .img-box { width: 100%; height: 150px; background: #e0e0e0; margin: 10px 0; border-radius: 8px; }
+    .upgrade-btn {
+      width: 100%;
+      padding: 10px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 10px;
+    }
+    .upgrade-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .locked { opacity: 0.5; background: #f0f0f0; }
+    .modals { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 20px; border-radius: 12px; max-width: 90%; }
+    .close-btn { float: right; background: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>متحف الأسلحة - الاختبار</h1>
+    <p>اختبر وظيفة النقر على الأسلحة. انقر على أي سلاح لعرض التفاصيل والترقية.</p>
+    
+    <div class="grid" id="weapons-grid"></div>
+  </div>
+
+  <!-- مودال التفاصيل -->
+  <div class="modals" id="detail-modal">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeModal('detail-modal')">إغلاق</button>
+      <h2 id="detail-title">تفاصيل السلاح</h2>
+      <div id="detail-content">محتوى التفاصيل هنا</div>
+    </div>
+  </div>
+
+  <script>
+    // بيانات اختبار الأسلحة (مباشرة - بدون استيراد)
+    const TEST_WEAPONS = [
+      {
+        id: 'w1',
+        name: 'سيف بدوي',
+        icon: '⚔️',
+        desc: 'سيف قصير خفيف من العصور القديمة',
+        power: 50,
+        level: 1,
+        maxLevel: 5,
+        stars: 2,
+        rarity: 'C',
+        color: '#b8956a',
+        locked: false,
+        cost: 100,
+        img: 'https://via.placeholder.com/150?text=⚔️'
+      },
+      {
+        id: 'w2',
+        name: 'قوس طويل',
+        icon: '🏹',
+        desc: 'قوس قوي للرماية من مسافة بعيدة',
+        power: 120,
+        level: 3,
+        maxLevel: 5,
+        stars: 3,
+        rarity: 'B',
+        color: '#d4a76a',
+        locked: false,
+        cost: 300,
+        img: 'https://via.placeholder.com/150?text=🏹'
+      },
+      {
+        id: 'w3',
+        name: 'رمح حديدي',
+        icon: '🔱',
+        desc: 'رمح ثقيل مصنوع من الحديد النقي',
+        power: 80,
+        level: 0,
+        maxLevel: 5,
+        stars: 1,
+        rarity: 'A',
+        color: '#8b6914',
+        locked: true, // مقفل لأنه المستوى 0
+        cost: 250,
+        img: 'https://via.placeholder.com/150?text=🔱'
+      },
+      {
+        id: 'w4',
+        name: 'فأس معركة',
+        icon: '⚒️',
+        desc: 'فأس ضخمة ثنائية اليد للجيش',
+        power: 150,
+        level: 5,
+        maxLevel: 5,
+        stars: 5,
+        rarity: 'S+',
+        color: '#9b59b6',
+        locked: false,
+        cost: 1000,
+        img: 'https://via.placeholder.com/150?text=⚒️'
+      }
+    ];
+
+    // التخزين المحلي للصور والاعدادات
+    const IMAGES_KEY = 'weapons_test_images';
+    const WEAPONS_KEY = 'weapons_test_data';
+
+    let weapons = [];
+    let currentWeaponId = null;
+
+    // تحميل الأسلحة من التخزين المحلي أو بيانات الاختبار
+    function loadWeapons() {
+      const saved = localStorage.getItem(WEAPONS_KEY);
+      if (saved) {
+        try {
+          weapons = JSON.parse(saved);
+          console.log('✅ تم تحميل الأسلحة:', weapons.length, 'قطعة');
+        } catch (e) {
+          console.error('خطأ في تحليل الأسلحة المحفوظة:', e);
+          weapons = JSON.parse(JSON.stringify(TEST_WEAPONS)); // استخدام بيانات الاختبار كبديل
+        }
+      } else {
+        weapons = JSON.parse(JSON.stringify(TEST_WEAPONS)); // استخدام بيانات الاختبار كنسخة احتياطية
+        console.log('➡️ باستخدام بيانات الأسلحة الاختبارية');
+      }
+      
+      // تحميل تكوينات الصور من التخزين المحلي
+      loadImageConfigs();
+      
+      renderWeapons();
+    }
+
+    function loadImageConfigs() {
+      const saved = localStorage.getItem(IMAGES_KEY);
+      if (saved) {
+        try {
+          const imageConfigs = JSON.parse(saved);
+          console.log('✅ تكوينات الصور:', imageConfigs);
+          
+          // تطبيق تكوينات الصور على الأسلحة
+          for (let i = 0; i < weapons.length; i++) {
+            const weapon = weapons[i];
+            if (imageConfigs[weapon.id]) {
+              Object.assign(weapon, imageConfigs[weapon.id]);
+              console.log('📷 تكوين صورة للسلاح', weapon.name);
+            }
+          }
+        } catch (e) {
+          console.error('خطأ في تحميل تكوينات الصور:', e);
+        }
+      }
+    }
+
+    function renderWeapons() {
+      const grid = document.getElementById('weapons-grid');
+      if (!grid) return;
+      
+      grid.innerHTML = weapons.map(w => {
+        const isMax = w.level >= w.maxLevel;
+        const isLocked = w.locked;
+        const canUpgrade = !isMax && !isLocked;
+        
+        // حساب التقدم في النسبة المئوية
+        const progressPercent = Math.min((w.level / w.maxLevel) * 100, 100);
+        
+        // اختيار صورة السلاح
+        const imgSrc = w.img || `https://via.placeholder.com/150?text=${encodeURIComponent(w.icon)}`;
+        
+        return `
+          <div class="card ${isLocked ? 'locked' : ''} ${isMax ? 'solved-out' : ''}" onclick="openDetail('${w.id}')">
+            <div class="card-header">
+              <h3>${w.icon} ${w.name}</h3>
+              <div class="rarity" style="background-color: ${getRarityColor(w.rarity)}">${w.rarity}</div>
+            </div>
+            
+            <div class="img-box">
+              <img src="${imgSrc}" alt="${w.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='https://via.placeholder.com/150?text=${w.icon}'">
+            </div>
+            
+            <p><strong>القوة:</strong> ${w.power}</p>
+            <p><strong>المستوى:</strong> ${w.level}/${w.maxLevel}</p>
+            <p><strong>النجوم:</strong> ${'⭐'.repeat(w.stars)}${w.stars < 5 ? '☆'.repeat(5 - w.stars) : ''}</p>
+            
+            <div style="margin: 10px 0;">
+              <strong>التقدم:</strong>
+              <div style="width: 100%; background: #ddd; border-radius: 4px; height: 10px;">
+                <div style="width: ${progressPercent}%; background: ${w.color}; height: 100%; border-radius: 4px;"></div>
+              </div>
+            </div>
+            
+            <button class="upgrade-btn" ${!canUpgrade ? 'disabled' : ''} onclick="event.stopPropagation(); upgradeWeapon('${w.id}')">
+              ${isMax ? 'مكتمل ✅' : isLocked ? 'مقفل 🔒' : `ترقية (${w.cost} 🪙)`}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getRarityColor(rarity) {
+      const colors = {
+        'S+': '#9b59b6',
+        'S': '#3498db',
+        'A': '#2ecc71',
+        'B': '#f39c12',
+        'C': '#e74c3c'
+      };
+      return colors[rarity] || '#95a5a6';
+    }
+
+    // فتح مودال التفاصيل
+    function openDetail(weaponId) {
+      const weapon = weapons.find(w => w.id === weaponId);
+      if (!weapon) return;
+      
+      currentWeaponId = weaponId;
+      const modal = document.getElementById('detail-modal');
+      const title = document.getElementById('detail-title');
+      const content = document.getElementById('detail-content');
+      
+      if (weapon) {
+        title.textContent = `${weapon.icon} ${weapon.name}`;
+        content.innerHTML = `
+          <div style="text-align: center;">
+            <img src="${weapon.img || 'https://via.placeholder.com/200?text=' + encodeURIComponent(weapon.icon)}" alt="${weapon.name}" style="max-width: 200px; border-radius: 8px; margin: 10px 0;">
+            <p><strong>الوصف:</strong> ${weapon.desc}</p>
+            <p><strong>القوة:</strong> ${weapon.power}</p>
+            <p><strong>المستوى:</strong> ${weapon.level}</p>
+            <p><strong>النجوم:</strong> ${'⭐'.repeat(weapon.stars)}</p>
+            <p><strong>التكلفة:</strong> ${weapon.cost} 🪙</p>
+            <p><strong>نادر:</strong> ${weapon.rarity}</p>
+            <p><strong>الحالة:</strong> ${weapon.level >= weapon.maxLevel ? 'مكتمل' : weapon.locked ? 'مقفل' : 'متاح'}</p>
+            
+            <button class="upgrade-btn" ${!canUpgradeWeapon(weaponId) ? 'disabled' : ''} onclick="upgradeWeapon('${weaponId}')">
+              ${weapon.level >= weapon.maxLevel ? 'مكتمل ✅' : weapon.locked ? 'مقفل 🔒' : 'ترقية الآن'}
+            </button>
+          </div>
+        `;
+      }
+      
+      modal.style.display = 'flex';
+    }
+
+    // إغلاق جميع المودالات
+    function closeAllModals() {
+      document.querySelectorAll('.modals').forEach(modal => {
+        modal.style.display = 'none';
+      });
+    }
+
+    window.closeModal = function(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.style.display = 'none';
+    }
+
+    // وظيفة ترقية السلاح
+    function upgradeWeapon(weaponId) {
+      const weapon = weapons.find(w => w.id === weaponId);
+      if (!weapon) {
+        console.log('السلاح غير موجود:', weaponId);
+        return;
+      }
+      
+      console.log('ترقية السلاح:', weapon.name);
+      
+      // التحقق من شروط الترقية
+      if (weapon.locked) {
+        console.log('السلاح مقفل');
+        alert('السلاح مقفل!';
+        return;
+      }
+      
+      if (weapon.level >= weapon.maxLevel) {
+        console.log('السلاح مكتمل بالفعل');
+        alert('السلاح مكتمل بالفعل!';
+        return;
+      }
+      
+      // تنفيذ الترقية
+      weapon.level++;
+      weapon.stars = Math.min(weapon.level, 5); // زيادة النجوم مع المستوى
+      weapon.power = Math.round(weapon.power * 1.2); // زيادة القوة بنسبة 20%
+      
+      // التحقق من اكتمال الترقية
+      if (weapon.level >= weapon.maxLevel) {
+        weapon.level = weapon.maxLevel;
+        weapon.stars = 5;
+      }
+      
+      // حفظ التغييرات
+      saveWeapons();
+      
+      // إعادة الرسم
+      renderWeapons();
+      
+      // تحديث صفحة التفاصيل إذا كانت مفتوحة
+      if (currentWeaponId === weaponId) {
+        openDetail(weaponId);
+      }
+      
+      console.log('تمت ترقية', weapon.name, 'إلى المستوى', weapon.level);
+    }
+
+    // التحقق من إمكانية الترقية
+    function canUpgradeWeapon(weaponId) {
+      const weapon = weapons.find(w => w.id === weaponId);
+      if (!weapon) return false;
+      
+      return !weapon.locked && weapon.level < weapon.maxLevel;
+    }
+
+    // حفظ الأسلحة في التخزين المحلي
+    function saveWeapons() {
+      const weaponConfigs = {};
+      
+      for (const weapon of weapons) {
+        weaponConfigs[weapon.id] = {
+          level: weapon.level,
+          stars: weapon.stars,
+          power: weapon.power,
+          locked: weapon.locked
+        };
+      }
+      
+      localStorage.setItem('weapons_test_data', JSON.stringify(weapons));
+      localStorage.setItem(IMAGES_KEY, JSON.stringify(weaponConfigs));
+      
+      console.log('✅ تم حفظ الأسلحة');
+    }
+
+    // حفظ تكوين محدد للصورة
+    function saveImageConfig(weaponId, imageUrl) {
+      const saved = localStorage.getItem(IMAGES_KEY);
+      const imageConfigs = saved ? JSON.parse(saved) : {};
+      
+      if (imageConfigs[weaponId]) {
+        imageConfigs[weaponId].img = imageUrl;
+      } else {
+        imageConfigs[weaponId] = { img: imageUrl };
+      }
+      
+      localStorage.setItem(IMAGES_KEY, JSON.stringify(imageConfigs));
+      console.log('✅ تم حفظ الصورة للسلاح', weaponId);
+    }
+
+    // محاكاة ميزات إضافية من GameArmy الحقيقي
+    function simulateArmyInteraction(weaponId) {
+      const weapon = weapons.find(w => w.id === weaponId);
+      if (!weapon) return;
+      
+      // محاكاة عملية الشراء (تكلفة الرفع)
+      if (weapon.level === 0) {
+        alert('قم بفتح هذا السلاح أولاً!';
+        return;
+      }
+      
+      // محاكاة العرض من Economy
+      console.log('🔄 محاكاة تفاعل economy للسلاح:', weapon.name);
+      console.log('💰 محاولة دفع تكلفة الترقية...');
+    }
+
+    // بدء التشغيل
+    document.addEventListener('DOMContentLoaded', function() {
+      loadWeapons();
+      
+      // إغلاق المودالات عند النقر خارجها
+      document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modals')) {
+          closeAllModals();
+        }
+      });
+      
+      console.log('🚀 تم تحميل اختبار الأسلحة');
+    });
+  </script>
+</body>
+</html>
