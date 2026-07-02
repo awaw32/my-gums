@@ -2116,7 +2116,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   min-height: 100%;
 }
 
-/* شبكة البطاقات الأربعة */
+/* شبكة البطاقات الأربعة — التصميم الجديد */
 .promo-hub-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2124,41 +2124,82 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   padding: 4px 0 80px;
 }
 
-/* بطاقة القسم الكبيرة */
-.promo-hub-card {
+/* ====== بطاقات الـ Hub الجديدة (تصميم الصور) ====== */
+.promo-card-new {
   position: relative;
-  border-radius: 18px;
-  border: 1.5px solid rgba(255,215,0,0.15);
-  padding: 18px 14px;
+  height: 170px;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.2s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.promo-card-new:active { transform: scale(0.96); }
+/* البطاقة الثالثة والرابعة عرض كامل */
+.promo-card-new:nth-child(3),
+.promo-card-new:nth-child(4) {
+  grid-column: 1 / -1;
+  height: 150px;
+}
+.promo-card-overlay {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  padding: 14px;
+}
+.promo-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.promo-badge {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-  overflow: hidden;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 900;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+.promo-counter {
+  background: rgba(0,0,0,0.7);
+  color: #ffe9c6;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.promo-card-bottom {
   text-align: center;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
 }
-.promo-hub-card:active {
-  transform: scale(0.96);
+.promo-card-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 2px;
 }
-.promo-hub-icon {
-  font-size: 2.5rem;
-  line-height: 1;
-  margin-bottom: 4px;
+.promo-card-desc {
+  font-size: 0.65rem;
+  color: rgba(255,235,210,0.8);
 }
-.promo-hub-name {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #fdf6e3;
-}
-.promo-hub-desc {
-  font-size: 0.6rem;
-  color: var(--beige-dark);
-  line-height: 1.3;
+.promo-timer {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 14px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffe9c6;
 }
 
 /* أزرار الرجوع */
@@ -2195,100 +2236,98 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ====== شبكة الأسلحة ====== */
+/* ====== شبكة الأسلحة (التصميم الجديد) ====== */
 .weapons-grid {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   padding: 4px 0 80px;
 }
-.weapon-card {
-  background: rgba(40,24,12,0.9);
-  border: 1px solid rgba(255,215,0,0.1);
-  border-radius: 14px;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.weapon-card-new {
+  --w-color: #b8956a;
+  background: rgba(30,18,8,0.95);
+  border: 1.5px solid rgba(255,215,0,0.12);
+  border-radius: 18px;
+  padding: 14px;
+  cursor: pointer;
   transition: all 0.2s;
 }
-.weapon-card:active {
-  transform: scale(0.98);
-  border-color: rgba(255,215,0,0.25);
+.weapon-card-new:active { transform: scale(0.98); border-color: var(--w-color); }
+.wc-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.wc-icon { font-size: 2rem; width: 44px; text-align: center; }
+.wc-info { flex: 1; min-width: 0; }
+.wc-name { font-size: 0.9rem; font-weight: 800; color: #fdf6e3; }
+.wc-desc { font-size: 0.6rem; color: var(--beige-dark); }
+.wc-rarity {
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 0.65rem; font-weight: 800;
+  background: var(--w-color); color: #fff;
 }
-.weapon-icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(255,215,0,0.08);
-  border: 1px solid rgba(255,215,0,0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.6rem;
-  flex-shrink: 0;
-}
-.weapon-info {
-  flex: 1;
-  min-width: 0;
-}
-.weapon-name {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--beige);
-  margin-bottom: 2px;
-}
-.weapon-desc {
-  font-size: 0.6rem;
-  color: var(--beige-dark);
-  margin-bottom: 4px;
-}
-.weapon-stars {
-  font-size: 0.65rem;
-  color: var(--gold);
-  letter-spacing: 1px;
-}
-.weapon-power {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: #ff6b6b;
-  text-align: center;
-  min-width: 50px;
-}
-.weapon-upgrade-btn {
-  flex-shrink: 0;
-  padding: 6px 12px;
-  font-size: 0.6rem;
-  font-weight: 700;
-  background: linear-gradient(180deg, #9b59b6, #7d3c98);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
+.wc-body { padding: 0 4px; }
+.wc-stars { font-size: 0.7rem; letter-spacing: 1px; margin-bottom: 6px; }
+.wc-stats { display: flex; gap: 16px; margin-bottom: 6px; }
+.wc-stat { font-size: 0.7rem; color: var(--beige-dark); font-weight: 700; }
+.wc-track { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 4px; }
+.wc-fill { height: 100%; background: var(--w-color); border-radius: 2px; transition: width 0.3s; }
+.wc-level { font-size: 0.6rem; color: var(--beige-dark); }
+.wc-btn {
+  width: 100%; margin-top: 10px; padding: 10px;
+  border: none; border-radius: 12px;
+  background: linear-gradient(135deg, var(--w-color), rgba(0,0,0,0.4));
+  color: #fff; font-size: 0.8rem; font-weight: 800;
+  cursor: pointer; font-family: inherit;
   transition: transform 0.15s;
-  min-width: 60px;
 }
-.weapon-upgrade-btn:active {
-  transform: scale(0.92);
+.wc-btn:active { transform: scale(0.96); }
+.wc-btn:disabled { opacity: 0.4; cursor: default; transform: none !important; }
+
+/* ====== مودال تفاصيل السلاح ====== */
+.wd-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
 }
-.weapon-upgrade-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-  transform: none !important;
+.wd-card {
+  --w-color: #b8956a;
+  width: 100%; max-width: 380px;
+  background: linear-gradient(180deg, #1f1108, #0d0a05);
+  border: 1.5px solid var(--w-color);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
-.weapon-locked {
-  opacity: 0.5;
+.wd-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.wd-icon { font-size: 2.2rem; }
+.wd-name { font-size: 1rem; font-weight: 900; color: #fdf6e3; }
+.wd-desc { font-size: 0.65rem; color: var(--beige-dark); }
+.wd-close {
+  margin-right: auto;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,0.08); border: none;
+  color: #fff; font-size: 1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
 }
-.weapon-maxed {
-  font-size: 0.6rem;
-  color: var(--gold);
-  font-weight: 700;
-  padding: 6px 10px;
-  background: rgba(255,215,0,0.1);
-  border-radius: 8px;
-  border: 1px solid rgba(255,215,0,0.2);
+.wd-stars { font-size: 1.2rem; letter-spacing: 2px; text-align: center; margin-bottom: 12px; }
+.wd-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.wd-stat {
+  background: rgba(255,255,255,0.04); border-radius: 10px;
+  padding: 10px; text-align: center;
 }
+.wd-stat-label { display: block; font-size: 0.6rem; color: var(--beige-dark); margin-bottom: 2px; }
+.wd-stat-val { font-size: 0.95rem; font-weight: 800; color: #fdf6e3; }
+.wd-track { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; margin-bottom: 14px; }
+.wd-fill { height: 100%; background: linear-gradient(90deg, var(--w-color), #ffd700); border-radius: 3px; transition: width 0.3s; }
+.wd-upgrade-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 14px;
+  background: linear-gradient(135deg, var(--w-color), #5a3d2b);
+  color: #fff; font-size: 0.85rem; font-weight: 800;
+  cursor: pointer; font-family: inherit;
+  transition: transform 0.15s;
+}
+.wd-upgrade-btn:active { transform: scale(0.96); }
+.wd-upgrade-btn:disabled { opacity: 0.4; cursor: default; transform: none !important; }
 
 /* ====== شبكة المعرفة ====== */
 .knowledge-upgrades {

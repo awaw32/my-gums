@@ -343,6 +343,11 @@ export class GameUI {
         <div class="weapons-grid" id="weapons-grid"></div>
       </div>
 
+      <!-- مودال تفاصيل السلاح (خارج promo-sub-page لتجنب مشاكل position:fixed) -->
+      <div id="weapon-detail-overlay" class="wd-overlay hidden">
+        <div class="wd-card" id="weapon-detail-card"></div>
+      </div>
+
       <!-- ====== صفحة المعرفة (تظهر عند النقر على المعرفة) ====== -->
       <div id="knowledge-page" class="promo-sub-page hidden">
         <button class="promo-back-btn" id="back-from-knowledge">→ رجوع</button>
@@ -638,48 +643,64 @@ export class GameUI {
     }
   }
 
-  /** رسم بطاقات الـ Hub الأربع */
+  /** رسم بطاقات الـ Hub الأربع — تصميم جديد */
   _renderPromotionHub() {
     const hubGrid = document.getElementById("promo-hub-grid");
     if (!hubGrid) return;
     hubGrid.textContent = "";
 
+    const treePaths = this.upgradeTree ? this.upgradeTree.getPaths() : [];
+    const totalUpgrades = treePaths.reduce((sum, p) => sum + p.currentLevel, 0);
+    const totalMax = treePaths.reduce((sum, p) => sum + p.maxLevel, 0);
+
+    const wCount = this.army?.weapons?.length || 6;
+    const wUpgraded = this.army?.weapons?.filter(w => w.level > 0).length || 0;
+
     const cards = [
       {
-        id: 'tree', icon: '🏋️', name: 'ساحة الجيش',
-        desc: 'شجرة الترقيات: الجيش، المعرفة، الدفاع، التجارة',
-        bg: 'linear-gradient(135deg, rgba(255,68,68,0.12), rgba(180,40,40,0.06))',
-        border: 'rgba(255,68,68,0.25)'
+        id: 'tree', name: 'ساحة الجيش', desc: 'ترقية الجيش، المعرفة، الدفاع، التجارة',
+        badge: `${totalUpgrades}/${totalMax}`,
+        badgeColor: '#ff6b6b',
+        img: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 180%22%3E%3Crect fill=%22%232c1a0a%22 width=%22200%22 height=%22180%22/%3E%3Ctext x=%22100%22 y=%22110%22 font-size=%2270%22 text-anchor=%22middle%22%3E%F0%9F%92%AA%3C/text%3E%3C/svg%3E',
+        grad: 'linear-gradient(to bottom, rgba(255,68,68,0.25), rgba(44,26,10,0.95))'
       },
       {
-        id: 'weapons', icon: '🗡️', name: 'الأسلحة',
-        desc: 'مخزن الأسلحة — 6 أسلحة صحراوية',
-        bg: 'linear-gradient(135deg, rgba(155,89,182,0.12), rgba(100,50,120,0.06))',
-        border: 'rgba(155,89,182,0.25)'
+        id: 'weapons', name: 'الأسلحة', desc: 'مخزن الأسلحة الصحراوية',
+        badge: '!', badgeColor: '#9b59b6',
+        badgeCount: wUpgraded,
+        img: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 180%22%3E%3Crect fill=%22%233a2518%22 width=%22200%22 height=%22180%22/%3E%3Ctext x=%22100%22 y=%22110%22 font-size=%2270%22 text-anchor=%22middle%22%3E%F0%9F%97%A1%EF%B8%8F%3C/text%3E%3C/svg%3E',
+        grad: 'linear-gradient(to bottom, rgba(155,89,182,0.25), rgba(44,26,10,0.95))'
       },
       {
-        id: 'knowledge', icon: '📜', name: 'المعرفة',
-        desc: 'شجرة المعرفة والعلوم الصحراوية',
-        bg: 'linear-gradient(135deg, rgba(46,204,113,0.12), rgba(20,150,70,0.06))',
-        border: 'rgba(46,204,113,0.25)'
+        id: 'knowledge', name: 'المعرفة', desc: 'العلوم الصحراوية والحكمة',
+        timer: '∞',
+        img: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 150%22%3E%3Crect fill=%22%232c1a0a%22 width=%22200%22 height=%22150%22/%3E%3Ctext x=%22100%22 y=%22100%22 font-size=%2260%22 text-anchor=%22middle%22%3E%F0%9F%93%9C%3C/text%3E%3C/svg%3E',
+        grad: 'linear-gradient(to bottom, rgba(46,204,113,0.25), rgba(44,26,10,0.95))'
       },
       {
-        id: 'rewards', icon: '🎁', name: 'صندوق المكافآت',
-        desc: 'المكافآت اليومية والإنجازات',
-        bg: 'linear-gradient(135deg, rgba(243,156,18,0.12), rgba(200,120,10,0.06))',
-        border: 'rgba(243,156,18,0.25)'
+        id: 'rewards', name: 'صندوق المكافآت', desc: 'المكافآت اليومية والإنجازات',
+        badge: '🎁',
+        img: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 150%22%3E%3Crect fill=%22%233a2518%22 width=%22200%22 height=%22150%22/%3E%3Ctext x=%22100%22 y=%22100%22 font-size=%2260%22 text-anchor=%22middle%22%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E',
+        grad: 'linear-gradient(to bottom, rgba(243,156,18,0.25), rgba(44,26,10,0.95))'
       },
     ];
 
     for (const c of cards) {
       const card = document.createElement("div");
-      card.className = "promo-hub-card";
-      card.style.background = c.bg;
-      card.style.borderColor = c.border;
+      card.className = "promo-card-new";
+      card.style.backgroundImage = `url('${c.img}')`;
       card.innerHTML = `
-        <div class="promo-hub-icon">${c.icon}</div>
-        <div class="promo-hub-name">${c.name}</div>
-        <div class="promo-hub-desc">${c.desc}</div>
+        <div class="promo-card-overlay" style="background:${c.grad}">
+          <div class="promo-card-top">
+            ${c.badge ? `<span class="promo-badge" style="background:${c.badgeColor}">${c.badge}</span>` : ''}
+            ${c.badgeCount !== undefined ? `<span class="promo-counter">${c.badgeCount}/${wCount}</span>` : ''}
+          </div>
+          <div class="promo-card-bottom">
+            <div class="promo-card-title">${c.name}</div>
+            <div class="promo-card-desc">${c.desc}</div>
+            ${c.timer ? `<div class="promo-timer">${c.timer}</div>` : ''}
+          </div>
+        </div>
       `;
       card.addEventListener('click', () => {
         this._promoSubPage = c.id;
@@ -788,40 +809,126 @@ export class GameUI {
     }
   }
 
-  /** رسم صفحة الأسلحة - 6 أسلحة صحراوية */
+  /** رسم صفحة الأسلحة — من GameArmy الحقيقي */
   _renderWeaponsPage() {
     const grid = document.getElementById("weapons-grid");
     if (!grid) return;
     grid.textContent = "";
 
-    // 6 أسلحة صحراوية
-    const weapons = [
-      { id: 'w1', icon: '🗡️', name: 'سيف بدوي', desc: 'سيف قصير خفيف', power: 5, stars: 1, cost: '10 💎', color: '#b8956a' },
-      { id: 'w2', icon: '🏹', name: 'قوس الصحراء', desc: 'قوس للرماية من مسافة', power: 15, stars: 2, cost: '30 💎', color: '#d4a76a' },
-      { id: 'w3', icon: '🔱', name: 'رمح حديدي', desc: 'رمح ثقيل للهجوم', power: 30, stars: 3, cost: '60 💎', color: '#8b6914' },
-      { id: 'w4', icon: '⚔️', name: 'سيف دمشقي', desc: 'سيف فولاذي صلب', power: 50, stars: 4, cost: '120 💎', color: '#ffd700' },
-      { id: 'w5', icon: '🔥', name: 'قوس ناري', desc: 'قوس يطلق سهماً نارياً', power: 80, stars: 5, cost: '200 💎', color: '#ff6b6b' },
-      { id: 'w6', icon: '⚒️', name: 'فأس المعركة', desc: 'فأس ضخمة ثنائية اليد', power: 120, stars: 6, cost: '350 💎', color: '#9b59b6' },
-    ];
+    const weapons = this.army?.weapons || [];
+    const icons = { w1: '🗡️', w2: '🏹', w3: '🔱', w4: '⚔️', w5: '🔥', w6: '⚒️' };
+    const colors = { w1: '#b8956a', w2: '#d4a76a', w3: '#8b6914', w4: '#ffd700', w5: '#ff6b6b', w6: '#9b59b6' };
 
     for (const w of weapons) {
+      const isMax = w.level >= w.maxLevel;
+      const pct = w.maxLevel > 0 ? (w.level / w.maxLevel) * 100 : 0;
+      const starsHtml = '⭐'.repeat(w.level) + '☆'.repeat(Math.max(0, w.maxLevel - w.level));
+      const cost = w.level < w.maxLevel ? `${w.upgradeCost} 💎` : '—';
+
       const card = document.createElement("div");
-      card.className = "weapon-card";
+      card.className = "weapon-card-new";
+      card.style.setProperty('--w-color', colors[w.id] || '#b8956a');
       card.innerHTML = `
-        <div class="weapon-icon-wrap" style="background:${w.color}22;border-color:${w.color}44">
-          <span style="color:${w.color}">${w.icon}</span>
+        <div class="wc-header">
+          <div class="wc-icon">${icons[w.id] || '⚔️'}</div>
+          <div class="wc-info">
+            <div class="wc-name">${w.name}</div>
+            <div class="wc-desc">${w.desc || ''}</div>
+          </div>
+          <div class="wc-rarity">${isMax ? 'S+' : w.level >= 3 ? 'A' : w.level >= 1 ? 'B' : 'C'}</div>
         </div>
-        <div class="weapon-info">
-          <div class="weapon-name">${w.name}</div>
-          <div class="weapon-desc">${w.desc}</div>
-          <div class="weapon-stars">${'⭐'.repeat(w.stars)}</div>
+        <div class="wc-body">
+          <div class="wc-stars">${starsHtml}</div>
+          <div class="wc-stats">
+            <span class="wc-stat">👊 ${Math.round(w.power)}</span>
+            <span class="wc-stat">💎 ${cost}</span>
+          </div>
+          <div class="wc-track"><div class="wc-fill" style="width:${pct}%"></div></div>
+          <div class="wc-level">Lv.${w.level}/${w.maxLevel}</div>
         </div>
-        <div class="weapon-power">👊 ${w.power}</div>
-        <button class="weapon-upgrade-btn" style="background:linear-gradient(180deg,${w.color},${w.color}88)">
-          ${w.cost}
+        <button class="wc-btn" data-wid="${w.id}" ${isMax ? 'disabled' : ''}>
+          ${isMax ? '⭐ مكتمل' : '▲ ترقية'}
         </button>
       `;
+
+      card.querySelector('.wc-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._upgradeWeapon(w.id);
+      });
+
+      card.addEventListener('click', () => {
+        this._openWeaponDetail(w.id);
+      });
+
       grid.appendChild(card);
+    }
+  }
+
+  /** فتح تفاصيل السلاح */
+  _openWeaponDetail(weaponId) {
+    const w = this.army?.weapons?.find(x => x.id === weaponId);
+    if (!w) return;
+    const icons = { w1: '🗡️', w2: '🏹', w3: '🔱', w4: '⚔️', w5: '🔥', w6: '⚒️' };
+    const colors = { w1: '#b8956a', w2: '#d4a76a', w3: '#8b6914', w4: '#ffd700', w5: '#ff6b6b', w6: '#9b59b6' };
+    const isMax = w.level >= w.maxLevel;
+    const starsHtml = '⭐'.repeat(w.level) + '☆'.repeat(Math.max(0, w.maxLevel - w.level));
+    const pct = w.maxLevel > 0 ? (w.level / w.maxLevel) * 100 : 0;
+    const cost = w.level < w.maxLevel ? `${w.upgradeCost} 💎` : '—';
+
+    const overlay = document.getElementById("weapon-detail-overlay");
+    const card = document.getElementById("weapon-detail-card");
+    if (!overlay || !card) return;
+
+    card.style.setProperty('--w-color', colors[w.id] || '#b8956a');
+    card.innerHTML = `
+      <div class="wd-header">
+        <span class="wd-icon">${icons[w.id] || '⚔️'}</span>
+        <div>
+          <div class="wd-name">${w.name}</div>
+          <div class="wd-desc">${w.desc || ''}</div>
+        </div>
+        <button class="wd-close" id="wd-close-btn">✕</button>
+      </div>
+      <div class="wd-stars">${starsHtml}</div>
+      <div class="wd-stats-grid">
+        <div class="wd-stat"><span class="wd-stat-label">القوة</span><span class="wd-stat-val">${Math.round(w.power)}</span></div>
+        <div class="wd-stat"><span class="wd-stat-label">المستوى</span><span class="wd-stat-val">${w.level}/${w.maxLevel}</span></div>
+        <div class="wd-stat"><span class="wd-stat-label">التكلفة</span><span class="wd-stat-val">${cost}</span></div>
+        <div class="wd-stat"><span class="wd-stat-label">التقدم</span><span class="wd-stat-val">${Math.round(pct)}%</span></div>
+      </div>
+      <div class="wd-track"><div class="wd-fill" style="width:${pct}%"></div></div>
+      <button class="wd-upgrade-btn" id="wd-upgrade-btn" ${isMax ? 'disabled' : ''}>
+        ${isMax ? '⭐ مكتمل — المستوى الأقصى' : `▲ ترقية إلى المستوى ${w.level + 1} (${cost})`}
+      </button>
+    `;
+    overlay.classList.remove("hidden");
+
+    document.getElementById("wd-close-btn").onclick = () => overlay.classList.add("hidden");
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.add("hidden"); };
+
+    const upBtn = document.getElementById("wd-upgrade-btn");
+    if (upBtn && !isMax) {
+      upBtn.onclick = () => {
+        this._upgradeWeapon(w.id);
+        this._openWeaponDetail(w.id);
+        this.renderPromotion();
+        this.updateTopBar();
+      };
+    }
+  }
+
+  /** تنفيذ ترقية السلاح */
+  _upgradeWeapon(weaponId) {
+    const w = this.army?.weapons?.find(x => x.id === weaponId);
+    if (!w || w.level >= w.maxLevel) return;
+    const houseLevel = this._landsState?.['b1']?.level || 1;
+    if (w.canUpgrade(this.economy, houseLevel)) {
+      w.upgrade(this.economy, houseLevel);
+      this.showNotification(`⬆️ ${w.name} → المستوى ${w.level}/${w.maxLevel}`);
+      this.renderPromotion();
+      this.updateTopBar();
+    } else {
+      this.showNotification(`❌ مجوهرات غير كافية أو مستوى بيت الزعيم ${w.requireLevel}`);
     }
   }
 
