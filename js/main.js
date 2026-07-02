@@ -201,7 +201,7 @@ async function init() {
 
     // تسجيل مصادر القوة (powerSources) — بدونه يكون power = 0 دائماً
     economy.powerSources.push(() => village.getPower());
-    economy.powerSources.push(() => army.totalArmyPower ? army.totalArmyPower() : army.unitLevel * 10);
+    economy.powerSources.push(() => army.totalArmyPower || army.unitLevel * 10);
     economy.powerSources.push(() => Math.floor(economy.level * 5));
     economy.powerSources.push(() => allianceManager.level * 10);
     economy.powerSources.push(() => prestige.level * 50);
