@@ -438,57 +438,51 @@ export class GameUI {
         card.appendChild(incomeNode);
       }
 
-      const icon = document.createElement("div");
-      icon.className = "map-building-icon";
-      icon.textContent = this.getBuildingIcon(b);
+      // غلاف الأيقونة (مع خلفية حسب الحالة)
+      const iconWrap = document.createElement("div");
+      iconWrap.className = "map-building-icon-wrap";
+      iconWrap.textContent = this.getBuildingIcon(b);
+      card.appendChild(iconWrap);
 
       const nameEl = document.createElement("div");
       nameEl.className = "map-building-name";
       nameEl.textContent = b.name;
+      card.appendChild(nameEl);
 
       if (b.state === "locked") {
         const desc = document.createElement("div");
         desc.className = "map-building-desc";
         desc.textContent = `${b.monsterName} — ⚔️ ${b.currentMonsterPower.toFixed(0)}`;
-        const fightBtn = document.createElement("button");
-        fightBtn.className = "action-btn fight-btn";
-        fightBtn.textContent = "⚔️ مقاتلة";
-        fightBtn.addEventListener("click", () => this.doFight(b, card));
-        card.appendChild(icon);
-        card.appendChild(nameEl);
         card.appendChild(desc);
-        card.appendChild(fightBtn);
+        // نقرة على البطاقة بالكامل تفتح مودال البناء
+        card.addEventListener("click", () => this.showBuildingModal(b, card));
       } else if (b.state === "building") {
         const desc = document.createElement("div");
         desc.className = "map-building-desc";
         desc.textContent = `🔨 البناء... ${Math.ceil(b.constructTimer)}ث`;
-        card.appendChild(icon);
-        card.appendChild(nameEl);
         card.appendChild(desc);
+        // شريط تقدم البناء
+        const timerTrack = document.createElement("div");
+        timerTrack.className = "building-timer-track";
+        const timerFill = document.createElement("div");
+        timerFill.className = "building-timer-fill";
+        const duration = b.constructDuration || 1;
+        const elapsed = duration - b.constructTimer;
+        const pct = (elapsed / duration) * 100;
+        timerFill.style.width = `${Math.min(100, pct)}%`;
+        timerTrack.appendChild(timerFill);
+        card.appendChild(timerTrack);
       } else if (b.state === "ready") {
         const badge = document.createElement("div");
         badge.className = "map-building-level";
         badge.textContent = `LV ${b.level}`;
+        card.appendChild(badge);
         const produce = document.createElement("div");
         produce.className = "map-building-produce";
         produce.textContent = `🪙 ${b.productionRate.toFixed(1)}/ث`;
-        const upgradeBtn = document.createElement("button");
-        upgradeBtn.className = "action-btn upgrade-btn";
-        upgradeBtn.textContent = b.level >= b.maxLevel ? "⭐ الأقصى" : `▲ ${formatNumber(b.upgradeCost)}`;
-        if (b.level < b.maxLevel) {
-          upgradeBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (village.upgradeBuilding(b)) {
-              this.renderPromotion();
-              this.updateTopBar();
-            }
-          });
-        }
-        card.appendChild(icon);
-        card.appendChild(nameEl);
-        card.appendChild(badge);
         card.appendChild(produce);
-        card.appendChild(upgradeBtn);
+        // نقرة تفتح مودال الترقية
+        card.addEventListener("click", () => this.showUpgradeModal(b));
       }
 
       grid.appendChild(card);
@@ -513,6 +507,190 @@ export class GameUI {
       return icons[b.name] || "🏠";
     }
     return "❓";
+  }
+
+  // ====== مودال بناء المبنى (حالة locked) ======
+  showBuildingModal(b, cardEl) {
+    const overlay = document.getElementById("modal-overlay");
+    const card = document.getElementById("modal-card");
+    if (!overlay || !card) return;
+
+    const diff = this.village.getMonsterDifficulty(b.currentMonsterPower);
+    const playerPower = this.economy.power || 0;
+    const canFight = playerPower >= b.currentMonsterPower;
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-[#FFD700] font-bold text-base" style="font-family:'Cairo',sans-serif">${b.name}</h3>
+        <button id="modal-close-btn" class="text-[#a08060] hover:text-[#FFD700] text-xl leading-none" style="background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
+      </div>
+      <div class="flex flex-col items-center gap-3">
+        <div class="w-20 h-20 rounded-xl flex items-center justify-center text-4xl" style="background:rgba(44,26,10,0.5);border:1px solid rgba(255,215,0,0.12)">
+          👹
+        </div>
+        <p class="text-[#a08060] text-sm text-center">${b.desc}</p>
+        <div class="w-full rounded-lg p-3 space-y-2" style="background:rgba(26,18,8,0.8);border:1px solid rgba(255,215,0,0.08)">
+          <div class="flex justify-between text-sm">
+            <span class="text-[#a08060]">👹 ${b.monsterName}</span>
+            <span class="text-[#ff4444] font-bold">⚔️ ${b.currentMonsterPower.toFixed(0)}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-[#a08060]">📊 الصعوبة</span>
+            <span class="text-[#e67e22] font-bold">${diff}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-[#a08060]">⏱️ وقت البناء</span>
+            <span class="text-[#FFD700] font-bold">${b.buildTime}ث</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-[#a08060]">🪙 الإنتاج</span>
+            <span class="text-[#2ecc71] font-bold">${b.baseProduction}/ث</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-[#a08060]">👊 قوتك</span>
+            <span class="font-bold" style="color:${canFight ? '#2ecc71' : '#ff4444'}">${playerPower.toFixed(0)}</span>
+          </div>
+        </div>
+        <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:linear-gradient(180deg,#d43a3a,#8a2020);color:#fff;border:none;cursor:pointer;font-family:inherit">
+          ${canFight ? `⚔️ مقاتلة ${b.monsterName}` : `💥 قوة غير كافية (تحتاج ${b.currentMonsterPower.toFixed(0)})`}
+        </button>
+      </div>
+    `;
+
+    overlay.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+
+    document.getElementById("modal-close-btn").onclick = () => {
+      overlay.classList.add("hidden");
+      document.body.classList.remove("modal-open");
+    };
+
+    const actionBtn = document.getElementById("modal-action-btn");
+    if (actionBtn && canFight) {
+      actionBtn.onclick = () => {
+        overlay.classList.add("hidden");
+        document.body.classList.remove("modal-open");
+        this.doFight(b, cardEl);
+      };
+    } else if (actionBtn) {
+      actionBtn.onclick = () => {
+        overlay.classList.add("hidden");
+        document.body.classList.remove("modal-open");
+      };
+    }
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        overlay.classList.add("hidden");
+        document.body.classList.remove("modal-open");
+      }
+    };
+  }
+
+  // ====== مودال ترقية المبنى (حالة ready) ======
+  showUpgradeModal(b) {
+    const overlay = document.getElementById("modal-overlay");
+    const card = document.getElementById("modal-card");
+    if (!overlay || !card) return;
+
+    const isMax = b.level >= b.maxLevel;
+    const canAfford = this.economy ? this.economy.canAfford('cash', b.upgradeCost) : false;
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-[#FFD700] font-bold text-base" style="font-family:'Cairo',sans-serif">${b.name}</h3>
+        <button id="modal-close-btn" class="text-[#a08060] hover:text-[#FFD700] text-xl leading-none" style="background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
+      </div>
+      <div class="flex flex-col items-center gap-3">
+        <div class="w-20 h-20 rounded-xl flex items-center justify-center text-4xl" style="background:rgba(44,26,10,0.5);border:1px solid rgba(46,204,113,0.2)">
+          🏠
+        </div>
+        <div class="rounded-lg px-3 py-1" style="background:rgba(26,18,8,0.8);border:1px solid rgba(255,215,0,0.08)">
+          <span class="text-[#FFD700] font-bold text-sm">LV ${b.level}</span>
+        </div>
+        <div class="w-full rounded-lg p-3 space-y-2" style="background:rgba(26,18,8,0.8);border:1px solid rgba(255,215,0,0.08)">
+          <div class="flex justify-between text-sm">
+            <span class="text-[#a08060]">🪙 الإنتاج الحالي</span>
+            <span class="text-[#2ecc71] font-bold">${b.productionRate.toFixed(1)}/ث</span>
+          </div>
+          ${!isMax ? `
+          <div class="flex justify-between text-sm">
+            <span class="text-[#a08060]">⬆️ بعد الترقية</span>
+            <span class="text-[#FFD700] font-bold">${(b.productionRate + b.baseProduction * 0.1).toFixed(1)}/ث</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-[#a08060]">💵 التكلفة</span>
+            <span class="font-bold" style="color:${canAfford ? '#2ecc71' : '#ff4444'}">${b.upgradeCost}</span>
+          </div>` : ''}
+        </div>
+        ${!isMax ? `
+        <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:linear-gradient(180deg,#3a8ab5,#1a5a7a);color:#fff;border:none;cursor:pointer;font-family:inherit">
+          ▲ ترقية (${b.upgradeCost} 💵)
+        </button>` : `
+        <div class="text-[#FFD700] font-bold text-sm py-2">⭐⭐⭐ المستوى الأقصى</div>`}
+      </div>
+    `;
+
+    overlay.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+
+    document.getElementById("modal-close-btn").onclick = () => {
+      overlay.classList.add("hidden");
+      document.body.classList.remove("modal-open");
+    };
+
+    const actionBtn = document.getElementById("modal-action-btn");
+    if (actionBtn) {
+      actionBtn.onclick = () => {
+        if (this.village.upgradeBuilding(b)) {
+          this.renderPromotion();
+          this.updateTopBar();
+          overlay.classList.add("hidden");
+          document.body.classList.remove("modal-open");
+        }
+      };
+    }
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        overlay.classList.add("hidden");
+        document.body.classList.remove("modal-open");
+      }
+    };
+  }
+
+  // ====== طي/توسيع القائمة الفرعية ======
+  toggleSubBar() {
+    const subBar = document.getElementById("sub-bar");
+    const toggleBtn = document.getElementById("sub-bar-toggle");
+    if (subBar) {
+      subBar.classList.toggle("collapsed");
+      if (toggleBtn) {
+        toggleBtn.textContent = subBar.classList.contains("collapsed") ? "▲" : "▼";
+      }
+    }
+  }
+
+  // ====== حلقة تحديث مؤقتات البناء ======
+  startBuildingTimerLoop() {
+    this._buildingTimerInterval = setInterval(() => {
+      const cards = document.querySelectorAll('.map-building.state-building');
+      for (const card of cards) {
+        const id = card.dataset.buildingId;
+        const b = this.village.buildings.find(b => b.id === id);
+        if (b && b.state === "building") {
+          const desc = card.querySelector('.map-building-desc');
+          if (desc) desc.textContent = `🔨 البناء... ${Math.ceil(b.constructTimer)}ث`;
+          const fill = card.querySelector('.building-timer-fill');
+          if (fill) {
+            const duration = b.constructDuration || 1;
+            const elapsed = duration - b.constructTimer;
+            const pct = (elapsed / duration) * 100;
+            fill.style.width = `${Math.min(100, pct)}%`;
+          }
+        }
+      }
+    }, 200);
   }
 
   doFight(b, card) {
@@ -957,6 +1135,15 @@ export class GameUI {
 
   startTopBarLoop() {
     this._topBarInterval = setInterval(() => this.updateTopBar(), 500);
+
+    // ربط زر طي القائمة الفرعية
+    const subToggle = document.getElementById("sub-bar-toggle");
+    if (subToggle) {
+      subToggle.addEventListener("click", () => this.toggleSubBar());
+    }
+
+    // بدء حلقة تحديث مؤقتات البناء
+    this.startBuildingTimerLoop();
     if (this.oasisManager) {
       this.oasisManager._onOasesChanged = () => {
         if (this.currentScreen === "territories") this.renderTerritories();

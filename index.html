@@ -8,6 +8,20 @@
   <title>ملك السحراء</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gold: { DEFAULT: '#FFD700', dim: '#b8960f' },
+            desert: { DEFAULT: '#0d0a05', 2: '#1a1208', 3: '#2c1a0a' },
+          },
+          fontFamily: { cairo: ['Cairo', 'system-ui', 'sans-serif'], amiri: ['Amiri', 'serif'] }
+        }
+      }
+    }
+  </script>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -69,7 +83,7 @@
       </div>
     </header>
 
-    <!-- ====== الشريط الدائري الفرعي (قابل للتمرير) ====== -->
+    <!-- ====== الشريط الدائري الفرعي (قابل للتمرير + طي) ====== -->
     <nav id="sub-bar">
       <button class="circular-sub-btn" type="button" data-screen="shop" data-icon="🛒">
         <span class="csb-icon">🛒</span>
@@ -106,6 +120,7 @@
         <span class="csb-label">معركة</span>
         <span class="csb-badge hidden" id="badge-br"></span>
       </button>
+      <button class="sub-bar-toggle" id="sub-bar-toggle" type="button" title="طي/توسيع">▼</button>
     </nav>
 
     <!-- ====== شريط الترقية السريع ====== -->
@@ -262,6 +277,13 @@
 
     <!-- Notifications -->
     <div id="notification-container" class="notification-container"></div>
+
+    <!-- ====== Modal للنوافذ المنبثقة (بناء/ترقية) ====== -->
+    <div id="modal-overlay" class="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden" style="direction:rtl">
+      <div id="modal-card" class="w-full max-w-sm bg-[#0d0a05] rounded-2xl border border-[rgba(255,215,0,0.2)] p-5 shadow-2xl shadow-black/60" style="font-family:'Cairo',system-ui,sans-serif">
+        <!-- المحتوى يُنشأ ديناميكياً من ui.js -->
+      </div>
+    </div>
 
   </div>
 

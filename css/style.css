@@ -1313,7 +1313,9 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
-  background: radial-gradient(circle at 30% 30%, rgba(255,215,0,0.2), rgba(255,215,0,0.05));
+  background:
+    url('../assets/images/avatar-default.png') center / cover no-repeat,
+    radial-gradient(circle at 30% 30%, rgba(255,215,0,0.2), rgba(255,215,0,0.05));
   box-shadow: 0 0 12px var(--gold-glow);
   flex-shrink: 0;
 }
@@ -1593,6 +1595,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   width: 100%;
   min-height: calc(100dvh - var(--top-h) - var(--sub-h) - var(--qu-h) - var(--chat-overlay-h) - var(--bottom-h) - var(--safe-t) - var(--safe-b));
   background:
+    url('../assets/images/bg-village.jpg') center / cover no-repeat,
     radial-gradient(ellipse at 30% 20%, rgba(60,40,20,0.4), transparent 50%),
     radial-gradient(ellipse at 70% 80%, rgba(40,26,12,0.3), transparent 50%),
     linear-gradient(180deg, #1a1208, #2c1a0a, #1a0e06);
@@ -1899,3 +1902,110 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 
 /* إخفاء عناصر قديمة لم تعد تُستخدم */
 .isometric-map { min-height: 100%; padding: 12px; }
+
+/* ====== زر طي القائمة الفرعية ====== */
+.sub-bar-toggle {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,215,0,0.08);
+  border: 1px solid rgba(255,215,0,0.15);
+  color: var(--gold);
+  font-size: 0.55rem;
+  cursor: pointer;
+  transition: transform 0.3s, background 0.3s;
+  position: sticky;
+  left: 4px;
+  z-index: 2;
+  min-width: 28px;
+  min-height: 28px;
+}
+.sub-bar-toggle:active { transform: scale(0.85); background: rgba(255,215,0,0.2); }
+
+/* collapse animation */
+#sub-bar {
+  transition: height 0.35s ease, opacity 0.3s ease, padding 0.35s ease, border 0.3s ease;
+  overflow: hidden;
+}
+#sub-bar.collapsed {
+  height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ====== شريط تقدم البناء داخل بطاقة المبنى ====== */
+.building-timer-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.building-timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+  border-radius: 2px;
+  transition: width 0.3s;
+  width: 0%;
+}
+
+/* ====== صور حالة المباني (خلفيات) ====== */
+.map-building.state-locked .map-building-icon-wrap {
+  background: linear-gradient(135deg, rgba(80,40,20,0.3), rgba(40,20,10,0.4));
+  border: 1px solid rgba(255,68,68,0.15);
+}
+.map-building.state-building .map-building-icon-wrap {
+  background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,215,0,0.03));
+  border: 1px solid rgba(255,215,0,0.2);
+  animation: build-pulse 1s ease-in-out infinite;
+}
+.map-building.state-ready .map-building-icon-wrap {
+  background: linear-gradient(135deg, rgba(46,204,113,0.12), rgba(46,204,113,0.04));
+  border: 1px solid rgba(46,204,113,0.2);
+}
+.map-building-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+  transition: all 0.4s;
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.state-locked .map-building-icon-wrap {
+  background-image: url('../assets/images/building-ruins.png');
+}
+.state-building .map-building-icon-wrap {
+  background-image: url('../assets/images/building-construction.png');
+}
+.state-ready .map-building-icon-wrap {
+  background-image: url('../assets/images/building-complete.png');
+}
+
+@keyframes build-pulse {
+  0%, 100% { border-color: rgba(255,215,0,0.15); }
+  50% { border-color: rgba(255,215,0,0.4); }
+}
+
+/* ====== تجاوب المودال مع الشاشات الصغيرة ====== */
+@media (max-width: 360px) {
+  #modal-card { padding: 16px !important; }
+}
+
+/* ====== منع التمرير خلف المودال ====== */
+body.modal-open { overflow: hidden; }
