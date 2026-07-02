@@ -588,7 +588,8 @@ wss.on("close", () => clearInterval(INTERVAL));
 
 const STATIC_EXTS = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
-function serveStatic(url, res) {
+function serveStatic(rawUrl, res) {
+  const url = rawUrl.split("?")[0]; // strip cache-busting query strings
   const ext = path.extname(url).toLowerCase();
   if (!STATIC_EXTS[ext]) return false;
   // SECURITY: منع Path Traversal عبر resolve مع startsWith
