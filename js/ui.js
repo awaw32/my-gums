@@ -100,7 +100,10 @@ export class GameUI {
     if (this.world) {
       this.world._onPlayersChanged = (list) => this.updatePlayerPanel(list);
       this.world._onNotification = (msg) => this.showNotification(msg);
-      this.world._onChatMessage = (username, msg) => this.addChatMessage(username, msg);
+      this.world._onChatMessage = (username, msg) => {
+        this.addChatMessage(username, msg);
+        this.addChatToOverlay(username, msg);
+      };
     }
     // ربط زر الشات مع لوحة المتصلين
     const chatToggle = document.getElementById("chat-toggle-btn");
@@ -178,28 +181,16 @@ export class GameUI {
       multiplierDisplay: document.getElementById("multiplier-display"),
       cashDisplay: document.getElementById("cash-display"),
       goldDisplay: document.getElementById("gold-display"),
+      foodDisplay: document.getElementById("food-display"),
+      powerDisplay: document.getElementById("power-display"),
       levelLabel: document.getElementById("level-label"),
       levelFill: document.getElementById("level-fill"),
+      levelAmount: document.getElementById("level-amount"),
       avatar: document.getElementById("top-avatar"),
     };
-    // إنشاء مؤشر حالة قاعدة البيانات
-    this._dbStatusEl = document.createElement("span");
-    this._dbStatusEl.id = "db-status";
-    this._dbStatusEl.title = "قاعدة البيانات";
-    Object.assign(this._dbStatusEl.style, {
-      width: "8px", height: "8px", borderRadius: "50%",
-      display: "inline-block", marginLeft: "6px", flexShrink: "0",
-      background: "#666", transition: "background 0.5s"
-    });
-    this.els.avatar?.after(this._dbStatusEl);
   }
 
-  setDbStatus(connected) {
-    if (this._dbStatusEl) {
-      this._dbStatusEl.style.background = connected ? "#4cd964" : "#ff4444";
-      this._dbStatusEl.title = connected ? "قاعدة البيانات متصلة ✅" : "قاعدة البيانات غير متصلة ❌";
-    }
-  }
+  setDbStatus(connected) {}
 
   createScreens() {
     this.screens.promotion = this.buildPromotionScreen();
@@ -216,24 +207,12 @@ export class GameUI {
 
   buildPromotionScreen() {
     const container = document.createElement("div");
-    container.className = "isometric-map";
-
-    const oasis = document.createElement("div");
-    oasis.className = "iso-oasis";
-    oasis.id = "main-oasis";
-
-    const title = document.createElement("div");
-    title.className = "iso-oasis-title";
-    title.id = "oasis-title";
-    title.textContent = "🐪 واحة البداية";
-    oasis.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.className = "iso-oasis-buildings";
-    grid.id = "building-grid";
-    oasis.appendChild(grid);
-
-    container.appendChild(oasis);
+    container.className = "game-map";
+    container.innerHTML = `
+      <div class="map-oasis-banner" id="oasis-title">🐪 واحة البداية</div>
+      <div id="building-grid" class="map-buildings-grid"></div>
+      <div class="map-sand-overlay"></div>
+    `;
     return container;
   }
 
@@ -289,7 +268,7 @@ export class GameUI {
   }
 
   bindNav() {
-    document.querySelectorAll(".nav-btn, .sub-btn").forEach(btn => {
+    document.querySelectorAll(".nav-btn, .circular-sub-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const screen = btn.dataset.screen;
         if (screen) this.showScreen(screen);
@@ -306,10 +285,7 @@ export class GameUI {
     if (this.screens[name]) {
       content.appendChild(this.screens[name]);
     }
-    document.querySelectorAll(".nav-btn, .sub-btn").forEach(b => {
-      b.classList.toggle("active", b.dataset.screen === name);
-    });
-    document.querySelectorAll(".nav-btn").forEach(b => {
+    document.querySelectorAll(".nav-btn, .circular-sub-btn").forEach(b => {
       b.classList.toggle("active", b.dataset.screen === name);
     });
     this.renderScreen(name);
@@ -434,45 +410,74 @@ export class GameUI {
 
     for (const b of village.buildings) {
       const card = document.createElement("div");
-      card.className = `building-card state-${b.state}`;
+      card.className = `map-building state-${b.state}`;
       card.dataset.buildingId = b.id;
 
+      // عقدة الأرباح العائمة (فوق المباني الجاهزة فقط)
+      if (b.state === "ready" && b.productionRate > 0) {
+        const incomeNode = document.createElement("div");
+        incomeNode.className = "income-node";
+        incomeNode.id = `income-${b.id}`;
+        const incomeValue = b.productionRate * 15;
+        incomeNode.innerHTML = `<span class="income-node-icon">💰</span><span class="income-node-value">${formatNumber(incomeValue)}</span>`;
+        incomeNode.title = "انقر لتحصيل الأرباح";
+        incomeNode.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (this.economy) {
+            this.economy.addRaw("gold", incomeValue);
+            incomeNode.classList.add("collecting");
+            setTimeout(() => {
+              if (incomeNode.parentNode) {
+                incomeNode.innerHTML = `<span class="income-node-icon">💰</span><span class="income-node-value">${formatNumber(b.productionRate * 15)}</span>`;
+                incomeNode.classList.remove("collecting");
+              }
+            }, 500);
+            this.updateTopBar();
+          }
+        });
+        card.appendChild(incomeNode);
+      }
+
       const icon = document.createElement("div");
-      icon.className = "building-icon";
+      icon.className = "map-building-icon";
       icon.textContent = this.getBuildingIcon(b);
 
       const nameEl = document.createElement("div");
-      nameEl.className = "building-name";
+      nameEl.className = "map-building-name";
       nameEl.textContent = b.name;
 
-      const info = document.createElement("div");
-      info.className = "building-info";
-
       if (b.state === "locked") {
-        info.textContent = `${b.monsterName} — ⚔️ ${b.currentMonsterPower.toFixed(0)}`;
+        const desc = document.createElement("div");
+        desc.className = "map-building-desc";
+        desc.textContent = `${b.monsterName} — ⚔️ ${b.currentMonsterPower.toFixed(0)}`;
         const fightBtn = document.createElement("button");
         fightBtn.className = "action-btn fight-btn";
         fightBtn.textContent = "⚔️ مقاتلة";
         fightBtn.addEventListener("click", () => this.doFight(b, card));
         card.appendChild(icon);
         card.appendChild(nameEl);
-        card.appendChild(info);
+        card.appendChild(desc);
         card.appendChild(fightBtn);
       } else if (b.state === "building") {
-        info.textContent = `🔨 البناء... ${Math.ceil(b.constructTimer)}ث`;
+        const desc = document.createElement("div");
+        desc.className = "map-building-desc";
+        desc.textContent = `🔨 البناء... ${Math.ceil(b.constructTimer)}ث`;
         card.appendChild(icon);
         card.appendChild(nameEl);
-        card.appendChild(info);
+        card.appendChild(desc);
       } else if (b.state === "ready") {
         const badge = document.createElement("div");
-        badge.className = "building-level-badge";
+        badge.className = "map-building-level";
         badge.textContent = `LV ${b.level}`;
-        info.textContent = `🪙 ${b.productionRate.toFixed(1)}/ث`;
+        const produce = document.createElement("div");
+        produce.className = "map-building-produce";
+        produce.textContent = `🪙 ${b.productionRate.toFixed(1)}/ث`;
         const upgradeBtn = document.createElement("button");
         upgradeBtn.className = "action-btn upgrade-btn";
         upgradeBtn.textContent = b.level >= b.maxLevel ? "⭐ الأقصى" : `▲ ${formatNumber(b.upgradeCost)}`;
         if (b.level < b.maxLevel) {
-          upgradeBtn.addEventListener("click", () => {
+          upgradeBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
             if (village.upgradeBuilding(b)) {
               this.renderPromotion();
               this.updateTopBar();
@@ -482,7 +487,7 @@ export class GameUI {
         card.appendChild(icon);
         card.appendChild(nameEl);
         card.appendChild(badge);
-        card.appendChild(info);
+        card.appendChild(produce);
         card.appendChild(upgradeBtn);
       }
 
@@ -665,24 +670,105 @@ export class GameUI {
   updateTopBar() {
     const eco = this.economy;
     if (this.els.multiplierDisplay) {
-      this.els.multiplierDisplay.textContent = `x${formatNumber(eco.multiplier)}`;
-    }
-    if (this.els.cashDisplay) {
-      this.els.cashDisplay.textContent = eco.cashFormatted;
+      this.els.multiplierDisplay.textContent = `x${eco.multiplier}`;
     }
     if (this.els.goldDisplay) {
-      this.els.goldDisplay.textContent = eco.goldFormatted;
+      this.els.goldDisplay.textContent = formatNumber(eco.gold);
     }
-    const foodEl = document.getElementById("food-display");
-    if (foodEl) foodEl.textContent = eco.foodFormatted;
-    const powerEl = document.getElementById("power-display");
-    if (powerEl) powerEl.textContent = `👊 ${eco.powerFormatted}`;
+    if (this.els.cashDisplay) {
+      this.els.cashDisplay.textContent = formatNumber(eco.cash);
+    }
+    if (this.els.foodDisplay) {
+      this.els.foodDisplay.textContent = formatNumber(eco.food);
+    }
+    if (this.els.powerDisplay) {
+      this.els.powerDisplay.textContent = formatNumber(eco.power);
+    }
     if (this.els.levelLabel) {
-      this.els.levelLabel.textContent = `LV ${eco.level}/${eco.maxLevel}`;
+      this.els.levelLabel.textContent = `Lv.${eco.level}`;
     }
     if (this.els.levelFill) {
       const pct = eco.xpToNext > 0 ? Math.min(100, (eco.xp / eco.xpToNext) * 100) : 0;
       this.els.levelFill.style.width = pct + "%";
+    }
+    if (this.els.levelAmount) {
+      this.els.levelAmount.textContent = `${eco.xp}/${eco.xpToNext}`;
+    }
+    // تحديث شريط الترقية السريع
+    this.updateQuickUpgrades();
+    // تحديث باجات الإشعارات
+    this.updateNotifBadges();
+  }
+
+  updateQuickUpgrades() {
+    if (!this.upgradeTree) return;
+    const paths = [
+      { id: 'damage', icon: '⚔️', label: 'ترقية الضرر' },
+      { id: 'defense', icon: '🛡️', label: 'ترقية الدفاع' },
+      { id: 'capacity', icon: '📦', label: 'ترقية السعة' },
+      { id: 'speed', icon: '⚡', label: 'ترقية السرعة' },
+    ];
+    for (const p of paths) {
+      const levelEl = document.getElementById(`qu-level-${p.id}`);
+      const fillEl = document.getElementById(`qu-fill-${p.id}`);
+      if (levelEl) {
+        const lvl = this.upgradeTree.getLevel(p.id);
+        levelEl.textContent = `Lv.${lvl}`;
+      }
+      if (fillEl) {
+        const maxLevel = 20;
+        const lvl = this.upgradeTree.getLevel(p.id);
+        fillEl.style.width = `${Math.min(100, (lvl / maxLevel) * 100)}%`;
+      }
+    }
+    // ربط أزرار الترقية (مرة واحدة فقط)
+    if (!this._quBound) {
+      this._quBound = true;
+      document.querySelectorAll('.qu-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.qu;
+          if (id && this.upgradeTree.upgrade(id)) {
+            this.updateTopBar();
+            this.showNotification(`⬆️ تمت ترقية ${paths.find(p => p.id === id)?.label || id}!`);
+          }
+        });
+      });
+    }
+  }
+
+  updateNotifBadges() {
+    // إنجازات غير مستلمة
+    if (this.achievements) {
+      const unclaimed = this.achievements.getAll().filter(a => a.completed && !a.claimed).length;
+      const badge = document.getElementById('badge-achievements');
+      if (badge) badge.classList.toggle('hidden', unclaimed === 0);
+    }
+    // مكافأة يومية متاحة
+    if (this.dailyLogin) {
+      const state = this.dailyLogin.getState();
+      const canClaim = state?.canClaim ?? false;
+      const badge = document.getElementById('badge-daily');
+      if (badge) badge.classList.toggle('hidden', !canClaim);
+    }
+    // حدث نشط
+    if (this.events) {
+      const hasActive = this.events.getActiveEvents().length > 0;
+      const badge = document.getElementById('badge-events');
+      if (badge) badge.classList.toggle('hidden', !hasActive);
+    }
+    // Prestige متاح
+    if (this.prestige) {
+      const canPrestige = this.prestige.getState().canPrestige;
+      const badge = document.getElementById('badge-prestige');
+      if (badge) badge.classList.toggle('hidden', !canPrestige);
+    }
+    // عناصر قابلة للاستخدام في المخزون
+    if (this.inventory) {
+      const items = this.inventory.getState().items;
+      const usableCount = ['heal_potion','xp_scroll','arena_ticket','fire_sword','desert_shield','power_helmet','power_gem','tower_blueprint']
+        .filter(id => (items[id] || 0) > 0).length;
+      const badge = document.getElementById('badge-inventory');
+      if (badge) badge.classList.toggle('hidden', usableCount === 0);
     }
   }
 
@@ -874,6 +960,7 @@ export class GameUI {
     if (this.oasisManager) {
       this.oasisManager._onOasesChanged = () => {
         if (this.currentScreen === "territories") this.renderTerritories();
+        if (this.currentScreen === "promotion") this.renderPromotion();
         this.updateTopBar();
       };
     }
@@ -897,6 +984,41 @@ export class GameUI {
         this.updateTopBar();
       };
     }
+    // ربط شريط المحادثة الشفاف
+    const chatOverlay = document.getElementById("chat-overlay");
+    const chatToggle = document.getElementById("chat-overlay-toggle");
+    if (chatOverlay && chatToggle) {
+      chatOverlay.addEventListener("click", () => {
+        const chatPanel = document.getElementById("chat-panel");
+        if (chatPanel) {
+          chatPanel.classList.toggle("hidden");
+          chatToggle.classList.toggle("open");
+          chatToggle.textContent = chatPanel.classList.contains("hidden") ? "▲" : "▼";
+        }
+      });
+    }
+    // زر تصغير الشات
+    const minimizeBtn = document.getElementById("chat-minimize-btn");
+    if (minimizeBtn) {
+      minimizeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const chatPanel = document.getElementById("chat-panel");
+        if (chatPanel) {
+          chatPanel.classList.add("hidden");
+          const toggle = document.getElementById("chat-overlay-toggle");
+          if (toggle) { toggle.classList.remove("open"); toggle.textContent = "▲"; }
+        }
+      });
+    }
+  }
+
+  addChatToOverlay(username, msg) {
+    const msgEl = document.getElementById("chat-overlay-msg");
+    const playerEl = document.getElementById("chat-overlay-player");
+    if (msgEl) msgEl.textContent = msg;
+    if (playerEl) playerEl.textContent = `${username}:`;
+    // تحديث الإنجاز
+    if (this.achievements) this.achievements.updateProgress('chat_messages', 1);
   }
 
   setShopBuyCallback(fn) {

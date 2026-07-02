@@ -1,7 +1,7 @@
 const TUTORIAL_STEPS = [
   { id: "welcome", target: "#top-bar", text: "👋 مرحباً بك في ملك الصحراء! هذا شريط الموارد — راقب أموالك وذهبك.", side: "bottom" },
   { id: "promotion", target: "[data-screen='promotion']", text: "🏠 هذه شاشة الترقية — ابنِ مباني الواحة لزيادة دخلك.", side: "top" },
-  { id: "building", target: ".building-card", text: "🏗️ اضغط على ⚔️ مقاتلة لتحرير المبنى من الوحوش، ثم ابنِه.", side: "top" },
+  { id: "building", target: ".map-building", text: "🏗️ اضغط على ⚔️ مقاتلة لتحرير المبنى من الوحوش، ثم ابنِه.", side: "top" },
   { id: "war", target: "[data-screen='war']", text: "⚔️ اذهب إلى شاشة الحرب — هناك تقاتل الوحوش وتواجه لاعبين آخرين.", side: "top" },
   { id: "arena", target: "#arena-enter-btn", text: "🏟️ اضغط الدخول في الساحة — عالم مفتوح مليء بالوحوش والجوائز!", side: "top" },
   { id: "territories", target: "[data-screen='territories']", text: "🗺️ شاشة الأراضي — سيطر على الواحات لزيادة دخلك السلبي.", side: "top" },
