@@ -213,14 +213,12 @@ async function init() {
     );
 
     // ربط إنجازات الواحات
-    oasisManager._onOasesChanged = (() => {
-      const orig = oasisManager._onOasesChanged;
-      return (state) => {
-        if (orig) orig(state);
-        const captured = state.filter(o => o.captured).length;
-        achievements.updateProgress('oases', captured);
-      };
-    })();
+    const _oasisOrig = oasisManager._onOasesChanged;
+    oasisManager._onOasesChanged = (state) => {
+      if (_oasisOrig) _oasisOrig(state);
+      const captured = state.filter(o => o.captured).length;
+      achievements.updateProgress('oases', captured);
+    };
 
     // ربط army_level
     const origArmyUpgrade = army.upgradeUnits.bind(army);
@@ -238,16 +236,28 @@ async function init() {
       return result;
     };
 
-    // ربط gold_earned
+    // ربط ترقيات الضرر/الدفاع/السعة/السرعة بالإنجازات
+    const _upgradeOrig = upgradeTree._onChanged;
+    upgradeTree._onChanged = (pathId, level) => {
+      if (_upgradeOrig) _upgradeOrig(pathId, level);
+      if (pathId === 'damage') achievements.updateProgress('upgrade_damage', level);
+      else if (pathId === 'defense') achievements.updateProgress('upgrade_defense', level);
+      else if (pathId === 'capacity') achievements.updateProgress('upgrade_capacity', level);
+      else if (pathId === 'speed') achievements.updateProgress('upgrade_speed', level);
+    };
+
+    // ربط cash_earned (من قتل الوحوش + دخل المباني)
     world._onCashEarned = (amount) => {
       achievements.updateProgress('cash_earned', amount);
     };
+    economy._onCashEarned = (amount) => {
+      achievements.updateProgress('cash_earned', amount);
+    };
 
-    // ربط الإنجازات اليومية
-    const origDailyClaim = dailyLogin._onClaim;
+    // ربط الإنجازات اليومية (كل استلام = +1 بغض النظر عن streak)
     dailyLogin._onClaim = (day, reward) => {
-      if (origDailyClaim) origDailyClaim(day, reward);
-      achievements.updateProgress('login_days', day);
+      achievements.updateProgress('login_days', 1);
+      ui.showNotification(`📅 يوم ${day}: حصلت على ${reward.label}`);
     };
 
     const saveToDB = () => {
@@ -279,6 +289,8 @@ async function init() {
           inventory: inventory.getSaveData(),
           events: events.getSaveData(),
           tutorial: tutorial.getSaveData(),
+          brWins: window._brWinsGlobal || 0,
+          brKills: window._brKillsGlobal || 0,
           last_active: Date.now()
         })
       }).catch(() => {});
@@ -323,22 +335,23 @@ async function init() {
       }
     });
 
-    // ربط واجهة الترقيات والتحالف
+    // ربط أحداث الإنجازات الأخرى
     economy._onLevelUp = (lvl) => {
       ui.showNotification(`🎉 ترقيت إلى المستوى ${lvl}!`);
       audio.playSound('levelup');
       ui.updateTopBar();
+      achievements.updateProgress('player_level', lvl);
     };
 
     // توصيل الأصوات والإنجازات بأحداث اللعبة
     world._onMonsterKilled = () => {
       audio.playSound('kill');
       achievements.updateProgress('kills', 1);
-      achievements.updateProgress('cash_earned', 10);
+      // cash_earned يُتبع في damageMonster عبر _onCashEarned(reward)
     };
     world._onDropCollected = () => {
       audio.playSound('collect');
-      achievements.updateProgress('cash_earned', 5);
+      // drop value يُتبع في collectDrop عبر _onCashEarned
     };
     world._onPvPWin = () => {
       audio.playSound('levelup');
@@ -358,10 +371,15 @@ async function init() {
       audio.playSound('levelup');
     };
 
-    // توصيل Daily Login
-    dailyLogin._onClaim = (day, reward) => {
-      ui.showNotification(`📅 يوم ${day}: حصلت على ${reward.label}`);
-    };
+
+
+    // ربط الأحداث (EventManager) بالاقتصاد والعالم والواحات للمضاعفات
+    economy._events = events;
+    world._events = events;
+    oasisManager._events = events;
+
+    // ربط بونص XP من Prestige
+    economy._prestige = prestige;
 
     // توصيل Prestige
     prestige._onPrestige = (lvl) => {
@@ -418,6 +436,8 @@ async function init() {
 
     let brWins = window._brWins || 0;
     let brKillsTotal = window._brKills || 0;
+    window._brWinsGlobal = brWins;
+    window._brKillsGlobal = brKillsTotal;
     delete window._brWins;
     delete window._brKills;
 
@@ -447,15 +467,6 @@ async function init() {
     world._onWipe = (lost, killed) => {
       audio.playSound('hit');
     };
-
-    // ربط أحداث الإنجازات الأخرى
-    economy._onLevelUp = (() => {
-      const orig = economy._onLevelUp;
-      return (lvl) => {
-        if (orig) orig(lvl);
-        achievements.updateProgress('player_level', lvl);
-      };
-    })();
 
     world._onNotification = (msg) => {
       ui.showNotification(msg);
@@ -509,11 +520,11 @@ async function init() {
 
     // تشغيل الأحداث الدورية
     let eventTimer = 0;
-    let lastPowerCheck = 0;
+    let lastPowerCheck = economy.power; // نبدأ من القوة الحالية عشان ما نضاعفش التتبع
     setInterval(() => {
       eventTimer += 15;
       events.update(15);
-      // تتبع إنجازات القوة
+      // تتبع إنجازات القوة (فقط القمم الجديدة)
       const curPower = economy.power;
       if (curPower > lastPowerCheck) {
         achievements.updateProgress('power', curPower - lastPowerCheck);
@@ -543,6 +554,21 @@ async function init() {
       economy.tick();
       village.update(0.5);
       oasisManager.tick(15); // 15 ثانية انقضت
+      // استهلاك الطعام للجيش
+      if (world.leader && world.running) {
+        const aliveUnits = world.armyUnits.filter(u => u.hp > 0).length;
+        const foodCost = aliveUnits * 0.5;
+        if (economy.food >= foodCost) {
+          economy.addRaw("food", -foodCost);
+        } else {
+          economy.food = 0;
+          // الجوع يضر بالجيش
+          for (const u of world.armyUnits) {
+            if (u.hp > 0) u.hp = Math.max(0, u.hp - 2);
+          }
+          if (world.leader) world.leader.hp = Math.max(0, world.leader.hp - 1);
+        }
+      }
       saveToDB();
     }, 15000);
 

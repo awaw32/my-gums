@@ -116,6 +116,8 @@ export class GameVillage {
     this.currentVillageId = 1;
     this.villageData = VILLAGE_DATA;
     this.buildings = [];
+    this._savedOnBuilt = null;
+    this._savedOnUpgraded = null;
     this.initVillage(1);
   }
 
@@ -126,6 +128,10 @@ export class GameVillage {
     if (!data) return;
     for (const b of data.buildings) {
       this.buildings.push(new VillageBuilding(b));
+    }
+    // إعادة ربط callbacks بعد init (مهم لـ Prestige)
+    if (this._savedOnBuilt || this._savedOnUpgraded) {
+      this.setBuildingCallbacks(this._savedOnBuilt, this._savedOnUpgraded);
     }
   }
 
@@ -149,6 +155,8 @@ export class GameVillage {
   }
 
   setBuildingCallbacks(onBuilt, onUpgraded) {
+    this._savedOnBuilt = onBuilt;
+    this._savedOnUpgraded = onUpgraded;
     for (const b of this.buildings) {
       b._onBuilt = onBuilt;
       b._onUpgraded = onUpgraded;

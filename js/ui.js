@@ -731,11 +731,30 @@ export class GameUI {
     if (!this.inventory) return;
     if (itemsEl) {
       const state = this.inventory.getState();
+      const usableItems = ['heal_potion', 'xp_scroll', 'arena_ticket', 'fire_sword', 'desert_shield', 'power_helmet', 'power_gem', 'tower_blueprint'];
+      const itemIcons = { heal_potion: '🧪', xp_scroll: '📜', arena_ticket: '🎫', fire_sword: '🗡️', desert_shield: '🛡️', power_helmet: '⛑️', power_gem: '💎', tower_blueprint: '📐' };
+      const itemLabels = { heal_potion: 'جرعة علاج (+50 HP)', xp_scroll: 'لفافة خبرة (+500 XP)', arena_ticket: 'تذكرة ساحة', fire_sword: 'سيف ناري (30ث)', desert_shield: 'درع صحراوي (60ث)', power_helmet: 'خوذة القوة (60ث)', power_gem: 'جوهرة القوة (×2 5د)', tower_blueprint: 'مخطط برج' };
       itemsEl.innerHTML = Object.keys(state.items).length === 0
         ? '<div style="text-align:center;padding:20px;color:var(--beige-dark)">📭 المخزون فارغ — اصنع قطعتك الأولى!</div>'
-        : Object.entries(state.items).map(([id, count]) =>
-            `<div class="inventory-item"><span class="inv-item-icon">${id.includes('sword') ? '🗡️' : id.includes('shield') ? '🛡️' : id.includes('helmet') ? '⛑️' : id.includes('potion') ? '🧪' : id.includes('gem') ? '💎' : id.includes('ticket') ? '🎫' : id.includes('scroll') ? '📜' : id.includes('blueprint') ? '📐' : '📦'}</span><span class="inv-item-name">${id}</span><span class="inv-item-count">×${count}</span></div>`
-          ).join('');
+        : Object.entries(state.items).map(([id, count]) => {
+            const isUsable = usableItems.includes(id);
+            return `<div class="inventory-item">
+              <span class="inv-item-icon">${itemIcons[id] || '📦'}</span>
+              <span class="inv-item-name">${itemLabels[id] || id}</span>
+              <span class="inv-item-count">×${count}</span>
+              ${isUsable ? `<button class="action-btn use-item-btn" data-item="${id}" style="padding:4px 10px;font-size:0.75rem">▶ استخدم</button>` : ''}
+            </div>`;
+          }).join('');
+      itemsEl.querySelectorAll('.use-item-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.item;
+          if (this.inventory.useItem(id, this.world)) {
+            this.showNotification(`✅ استخدمت ${itemLabels[id] || id}`);
+            this.renderInventory();
+            this.updateTopBar();
+          }
+        });
+      });
     }
     if (recipesEl) {
       const recipes = this.inventory.getAllRecipes();

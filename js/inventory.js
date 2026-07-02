@@ -46,6 +46,7 @@ export class InventoryManager {
     this.economy = economy;
     this.items = {};
     this._onCrafted = null;
+    this._gemTimer = null;
   }
 
   getAllRecipes() { return RECIPES; }
@@ -72,8 +73,70 @@ export class InventoryManager {
 
   getItemCount(productId) { return this.items[productId] || 0; }
 
-  useItem(productId) {
+  useItem(productId, world) {
     if (!this.items[productId] || this.items[productId] <= 0) return false;
+    // تطبيق تأثير العنصر
+    switch (productId) {
+      case 'heal_potion':
+        if (world && world.leader) {
+          world.leader.hp = Math.min(world.leader.maxHp, world.leader.hp + 50);
+          if (world._onNotification) world._onNotification('🧪 استخدمت جرعة علاج! +50 HP');
+        }
+        break;
+      case 'xp_scroll':
+        if (this.economy) {
+          const xp = 500;
+          this.economy.addXp(xp);
+          if (this.economy._onLevelUp) this.economy._onLevelUp(this.economy.level);
+        }
+        break;
+      case 'arena_ticket':
+        // التذكرة تسمح بدخول PvP بدون عقوبة الخسارة — نخزنها مؤقتاً
+        if (world) world._arenaTicket = true;
+        break;
+      case 'fire_sword':
+        if (world && world.leader) {
+          world.leader.upgradeDmg += 100;
+          setTimeout(() => { if (world.leader) world.leader.upgradeDmg -= 100; }, 30000);
+          if (world._onNotification) world._onNotification('🗡️ سيف ناري! +100 ضرر لمدة 30 ثانية');
+        }
+        break;
+      case 'desert_shield':
+        if (world && world.leader) {
+          world.leader.upgradeDef += 20;
+          setTimeout(() => { if (world.leader) world.leader.upgradeDef -= 20; }, 60000);
+          if (world._onNotification) world._onNotification('🛡️ درع صحراوي! دفاع +20 لمدة 60 ثانية');
+        }
+        break;
+      case 'power_helmet':
+        // قوة جيش +50 مؤقت — تطبق على كل الوحدات
+        if (world) {
+          const bonus = 50;
+          for (const u of world.armyUnits) u.dmgBonus += bonus;
+          setTimeout(() => { for (const u of world.armyUnits) u.dmgBonus = Math.max(0, u.dmgBonus - bonus); }, 60000);
+          if (world._onNotification) world._onNotification('⛑️ خوذة القوة! +50 ضرر للجيش لمدة 60 ثانية');
+        }
+        break;
+      case 'power_gem':
+        // مضاعفة كل العملات لمدة 5 دقائق
+        if (this.economy) {
+          if (this._gemTimer) clearTimeout(this._gemTimer);
+          this.economy.multiplier = 2;
+          if (world && world._onNotification) world._onNotification('💎 جوهرة القوة! ×2 كل العملات لمدة 5 دقائق!');
+          this._gemTimer = setTimeout(() => {
+            if (this.economy) this.economy.multiplier = 1;
+            this._gemTimer = null;
+          }, 300000);
+        }
+        break;
+      case 'tower_blueprint':
+        // يفتح برج دفاع جديد — للمستقبل
+        if (world && world._onNotification) world._onNotification('📐 حصلت على مخطط برج! سيُضاف لقائمة المباني قريباً');
+        break;
+      default:
+        // عنصر غير معروف — فقط نستهلكه
+        break;
+    }
     this.items[productId]--;
     return true;
   }

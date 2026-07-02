@@ -99,6 +99,10 @@ export class WorldMap {
     this._onBRKillFeed = null;
     this._onChatMessage = null;
     this._onCashEarned = null;
+    this._events = null; // مرجع لـ EventManager
+    this._onPvPWin = null;
+    this._onPvPLose = null;
+    this._onDropCollected = null;
   }
 
   _initSandParticles(count) {
@@ -416,18 +420,24 @@ export class WorldMap {
     const won = myPower >= theirPower * 0.9;
 
     if (won) {
-      const reward = Math.max(10, Math.floor(theirPower * 0.05));
-      const goldReward = Math.floor(reward * 0.2);
+      let reward = Math.max(10, Math.floor(theirPower * 0.05));
+      let goldReward = Math.floor(reward * 0.2);
+      if (this._events) {
+        const pvpMult = this._events.getMult("mult_pvp");
+        if (pvpMult > 1) { reward = Math.floor(reward * pvpMult); goldReward = Math.floor(goldReward * pvpMult); }
+      }
       if (this.economy) {
         this.economy.addRaw("cash", reward);
         this.economy.addRaw("gold", goldReward);
       }
       this.worldFx.push({ x: target.x, y: target.y, text: `⚔️ انتصرت! +${reward} 💵 +${goldReward} 🪙`, color: "#4cd964", life: 2, maxLife: 2 });
+      if (this._onPvPWin) this._onPvPWin();
     } else {
       this.worldFx.push({ x: target.x, y: target.y, text: "💥 هُزمت!", color: "#ff4444", life: 2, maxLife: 2 });
       if (this.leader) {
         this.leader.hp = Math.max(0, this.leader.hp - 20);
       }
+      if (this._onPvPLose) this._onPvPLose();
     }
 
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
@@ -705,6 +715,7 @@ export class WorldMap {
     drop.collected = true;
     this.worldFx.push({ x: drop.x, y: drop.y, text: `+${drop.money} 💵`, color: "#FFD700", life: 0.8, maxLife: 0.8 });
     this.drops.splice(index, 1);
+    if (this._onDropCollected) this._onDropCollected();
   }
 
   onTap(wx, wy) {
@@ -1009,6 +1020,15 @@ export class WorldMap {
 
   updateArmy(dt) {
     this.armyUnits = this.armyUnits.filter(u => u.hp > 0);
+    // تجديد صحة الجيش تدريجياً (كل 5 ثوان يتعافى 1 HP إذا مش في قتال)
+    for (const u of this.armyUnits) {
+      if (!u.fighting && u.hp < u.maxHp) {
+        u.hp = Math.min(u.maxHp, u.hp + dt * 0.2);
+      }
+    }
+    if (this.leader && !this.leader.fighting && this.leader.hp < this.leader.maxHp) {
+      this.leader.hp = Math.min(this.leader.maxHp, this.leader.hp + dt * 0.1);
+    }
     // جمع تلقائي للـ drops عندما يمر الجيش فوقها
     for (let i = this.drops.length - 1; i >= 0; i--) {
       const d = this.drops[i];
@@ -1662,6 +1682,8 @@ export class WorldMap {
       this.matchStarted = false;
       this.matchEnded = false;
       this.mode = "campaign";
+      this.W = 2400;
+      this.H = 2400;
       this.bandits = [];
       this.killFeed = [];
       // إخفاء واجهة BR

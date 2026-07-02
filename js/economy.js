@@ -47,12 +47,20 @@ export class GameEconomy {
     this.totalEarned = 0;
     this._onLevelUp = null;
     this._onGoldEarned = null;
+    this._onCashEarned = null;
+    this._prestige = null; // مرجع لـ PrestigeManager للبونصات
+    this._events = null; // مرجع لـ EventManager للمضاعفات
   }
 
   get power() {
     let p = 0;
     for (const fn of this.powerSources) p += fn();
-    return Math.floor(p * this.multiplier);
+    let total = Math.floor(p * this.multiplier);
+    if (this._events) {
+      const mult = this._events.getMult("mult_power");
+      if (mult > 1) total = Math.floor(total * mult);
+    }
+    return total;
   }
 
   get powerFormatted() {
@@ -93,19 +101,35 @@ export class GameEconomy {
   add(type, amt) {
     if (this.resources[type] !== undefined) {
       this.resources[type] += amt * this.multiplier;
+      if (type === "cash" && amt > 0 && this._onCashEarned) {
+        this._onCashEarned(amt);
+      }
     }
   }
 
   addRaw(type, amt) {
     if (this.resources[type] !== undefined) {
-      this.resources[type] += amt;
+      let finalAmt = amt;
+      // مضاعفات الأحداث للذهب
+      if (type === "gold" && amt > 0 && this._events) {
+        const mult = this._events.getMult("mult_gold");
+        if (mult > 1) finalAmt = Math.floor(amt * mult);
+      }
+      this.resources[type] += finalAmt;
       if (type === "gold" && amt > 0 && this._onGoldEarned) {
-        this._onGoldEarned(amt);
+        this._onGoldEarned(amt); // نبعت المبلغ الأصلي للإنجاز (بدون مضاعف)
       }
     }
   }
 
   addXp(amount) {
+    if (this._prestige && this._prestige.xpMult > 1) {
+      amount = Math.floor(amount * this._prestige.xpMult);
+    }
+    if (this._events) {
+      const mult = this._events.getMult("mult_xp");
+      if (mult > 1) amount = Math.floor(amount * mult);
+    }
     this.xp += amount;
     let leveled = false;
     while (this.xp >= this.xpToNext && this.level < this.maxLevel) {

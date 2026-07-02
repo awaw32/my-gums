@@ -11,6 +11,7 @@ export class OasisManager {
     this.economy = economy;
     this.oases = OASIS_DATA.map(o => ({ ...o, captured: o.status === "free" }));
     this._onOasesChanged = null;
+    this._events = null; // مرجع لـ EventManager
     this._accGold = 0;
     this._payoutInterval = 15; // كل 15 ثانية
   }
@@ -53,9 +54,12 @@ export class OasisManager {
   }
 
   tick(dt) {
-    const income = this.totalIncome;
+    let income = this.totalIncome;
     if (income > 0) {
-      // income هي الإنتاج في الثانية، dt هو عدد الثواني المنقضية (15)
+      if (this._events) {
+        const mult = this._events.getMult("mult_oasis");
+        if (mult > 1) income *= mult;
+      }
       this._accGold += income * dt;
       if (this._accGold >= 1) {
         const payout = Math.floor(this._accGold);

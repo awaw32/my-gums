@@ -23,6 +23,7 @@ export class PrestigeManager {
   }
 
   get dmgMult() { return this.currentBonus.dmgMult; }
+  get xpMult() { return 1 + this.level * 0.5; } // كل مستوى Prestige يعطي +50% XP
 
   get canPrestige() {
     return this.economy.level >= this.economy.maxLevel && this.level < this.maxLevel;
