@@ -105,6 +105,7 @@ export class WorldMap {
     this._onPvPWin = null;
     this._onPvPLose = null;
     this._onDropCollected = null;
+    this._onSelfStatsChanged = null;
   }
 
   _preloadImages() {
@@ -302,29 +303,37 @@ export class WorldMap {
       update.br_kills = this.brKills;
     }
     this._sendWS(update);
+    // تحديث إحصائيات اللاعب نفسه في اللوحة كل 100ms
+    if (this._onSelfStatsChanged) {
+      this._onSelfStatsChanged(this.sessionStats.kills, this.sessionStats.coinsEarned);
+    }
   }
 
-  sendPositionUpdate() {
+  async sendPositionUpdate() {
     if (!this.leader) return;
-    fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cash: this.economy?.cash || 0,
-        gems: this.economy?.gems || 0,
-        gold: this.economy?.gold || 0,
-        kingCoins: this.economy?.kingCoins || 0,
-        hammers: this.economy?.hammers || 0,
-        scrolls: this.economy?.scrolls || 0,
-        horns: this.economy?.horns || 0,
-        army_power: this.economy ? this.economy.power : 0,
-        unitLevel: this.army?.unitLevel || 1,
-        weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level })) || [],
-        x_position: Math.floor(this.leader.x),
-        y_position: Math.floor(this.leader.y),
-        last_active: Date.now()
-      })
-    }).catch(() => {});
+    try {
+      await fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cash: this.economy?.cash || 0,
+          gems: this.economy?.gems || 0,
+          gold: this.economy?.gold || 0,
+          kingCoins: this.economy?.kingCoins || 0,
+          hammers: this.economy?.hammers || 0,
+          scrolls: this.economy?.scrolls || 0,
+          horns: this.economy?.horns || 0,
+          army_power: this.economy ? this.economy.power : 0,
+          unitLevel: this.army?.unitLevel || 1,
+          weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level })) || [],
+          x_position: Math.floor(this.leader.x),
+          y_position: Math.floor(this.leader.y),
+          kills: this.sessionStats.kills,
+          coinsEarned: this.sessionStats.coinsEarned,
+          last_active: Date.now()
+        })
+      });
+    } catch {}
   }
 
   syncMonsters(serverMonsters) {
@@ -402,6 +411,8 @@ export class WorldMap {
         existing.lastActive = lastActive;
         existing.br_hp = p.br_hp ?? existing.br_hp;
         existing.br_alive = p.br_alive ?? existing.br_alive;
+        existing.kills = p.kills ?? existing.kills ?? 0;
+        existing.coinsEarned = p.coinsEarned ?? existing.coinsEarned ?? 0;
       } else {
         this.otherPlayers.set(name, {
           username: name,
@@ -415,6 +426,8 @@ export class WorldMap {
           color: p.color || "#3a5a8a",
           br_hp: p.br_hp ?? 120,
           br_alive: p.br_alive ?? true,
+          kills: p.kills ?? 0,
+          coinsEarned: p.coinsEarned ?? 0,
         });
       }
     }
@@ -1001,7 +1014,7 @@ export class WorldMap {
       defBonus = this._allianceManager.defenseBonus;
     }
     if (this._upgradeTree) {
-      dmgBonus += this._upgradeTree.getEffect("damage");
+      dmgBonus += this._upgradeTree.getEffect("army");
       defBonus += this._upgradeTree.getEffect("defense");
     }
     this.leader.upgradeDmg = dmgBonus;

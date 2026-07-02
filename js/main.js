@@ -242,14 +242,14 @@ async function init() {
       return result;
     };
 
-    // ربط ترقيات الضرر/الدفاع/السعة/السرعة بالإنجازات
+    // ربط ترقيات الجيش/المعرفة/الدفاع/التجارة بالإنجازات
     const _upgradeOrig = upgradeTree._onChanged;
     upgradeTree._onChanged = (pathId, level) => {
       if (_upgradeOrig) _upgradeOrig(pathId, level);
-      if (pathId === 'damage') achievements.updateProgress('upgrade_damage', level);
+      if (pathId === 'army') achievements.updateProgress('upgrade_damage', level);
       else if (pathId === 'defense') achievements.updateProgress('upgrade_defense', level);
-      else if (pathId === 'capacity') achievements.updateProgress('upgrade_capacity', level);
-      else if (pathId === 'speed') achievements.updateProgress('upgrade_speed', level);
+      else if (pathId === 'trade') achievements.updateProgress('upgrade_capacity', level);
+      else if (pathId === 'knowledge') achievements.updateProgress('upgrade_speed', level);
     };
 
     // ربط cash_earned (من قتل الوحوش + دخل المباني)
@@ -523,6 +523,9 @@ async function init() {
     };
 
     world._onPlayersChanged = (players) => {
+      // تحديث لوحة المتصلين في الوضع العادي و BR
+      ui._lastPlayerList = players;
+      ui.updatePlayerPanel(players);
       if (world.mode !== 'battle_royale') return;
       if (brAliveCount && brTotalCount) {
         const alive = players.filter(p => p.br_alive !== false).length + 1;

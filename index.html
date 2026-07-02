@@ -68,7 +68,7 @@
     <p class="loading-pct" id="loading-pct">0%</p>
   </div>
 
-  <!-- ====== خلفية الشاشة الكاملة (قابلة للتبديل) ====== -->
+  <!-- ====== خلفية الشاشة الكاملة (FIXED - لا تتحرك أبداً) ====== -->
   <div id="fullscreen-bg" class="fullscreen-bg"></div>
   <script>
     // تعيين خلفية الشاشة الكاملة من ImageResolver
@@ -117,8 +117,9 @@
           <span class="res-val" id="power-display">0</span>
         </div>
       </div>
-      <!-- الجهة اليسرى: زر القائمة فقط -->
+      <!-- الجهة اليسرى: أزرار التحكم بالواجهة -->
       <div class="top-multiplier-section">
+        <button id="ui-toggle-btn" class="panel-toggle-btn" type="button" title="إخفاء/إظهار الواجهة" style="margin-left:2px">👁️</button>
         <button id="panel-toggle" class="panel-toggle-btn" type="button" title="القائمة">☰</button>
       </div>
     </header>
@@ -162,38 +163,38 @@
         <div class="quick-upgrade-card">
           <span class="qu-icon">⚔️</span>
           <div class="qu-info">
-            <span class="qu-label">ترقية الضرر</span>
-            <span class="qu-level" id="qu-level-damage">Lv.0</span>
-            <div class="qu-track"><div class="qu-fill" id="qu-fill-damage" style="width:0%"></div></div>
+            <span class="qu-label">الجيش</span>
+            <span class="qu-level" id="qu-level-army">Lv.0</span>
+            <div class="qu-track"><div class="qu-fill" id="qu-fill-army" style="width:0%"></div></div>
           </div>
-          <button class="qu-btn" data-qu="damage">ترقية</button>
+          <button class="qu-btn" data-qu="army">ترقية</button>
+        </div>
+        <div class="quick-upgrade-card">
+          <span class="qu-icon">📜</span>
+          <div class="qu-info">
+            <span class="qu-label">المعرفة</span>
+            <span class="qu-level" id="qu-level-knowledge">Lv.0</span>
+            <div class="qu-track"><div class="qu-fill" id="qu-fill-knowledge" style="width:0%"></div></div>
+          </div>
+          <button class="qu-btn" data-qu="knowledge">ترقية</button>
         </div>
         <div class="quick-upgrade-card">
           <span class="qu-icon">🛡️</span>
           <div class="qu-info">
-            <span class="qu-label">ترقية الدفاع</span>
+            <span class="qu-label">الدفاع</span>
             <span class="qu-level" id="qu-level-defense">Lv.0</span>
             <div class="qu-track"><div class="qu-fill" id="qu-fill-defense" style="width:0%"></div></div>
           </div>
           <button class="qu-btn" data-qu="defense">ترقية</button>
         </div>
         <div class="quick-upgrade-card">
-          <span class="qu-icon">📦</span>
+          <span class="qu-icon">🐪</span>
           <div class="qu-info">
-            <span class="qu-label">ترقية السعة</span>
-            <span class="qu-level" id="qu-level-capacity">Lv.0</span>
-            <div class="qu-track"><div class="qu-fill" id="qu-fill-capacity" style="width:0%"></div></div>
+            <span class="qu-label">التجارة</span>
+            <span class="qu-level" id="qu-level-trade">Lv.0</span>
+            <div class="qu-track"><div class="qu-fill" id="qu-fill-trade" style="width:0%"></div></div>
           </div>
-          <button class="qu-btn" data-qu="capacity">ترقية</button>
-        </div>
-        <div class="quick-upgrade-card">
-          <span class="qu-icon">⚡</span>
-          <div class="qu-info">
-            <span class="qu-label">ترقية السرعة</span>
-            <span class="qu-level" id="qu-level-speed">Lv.0</span>
-            <div class="qu-track"><div class="qu-fill" id="qu-fill-speed" style="width:0%"></div></div>
-          </div>
-          <button class="qu-btn" data-qu="speed">ترقية</button>
+          <button class="qu-btn" data-qu="trade">ترقية</button>
         </div>
       </div>
     </div>
