@@ -225,8 +225,74 @@ export class GameUI {
 
   buildTerritoriesScreen() {
     const div = document.createElement("div");
-    div.className = "screen-panel";
-    div.innerHTML = `<div class="panel-header">🗺️ الأراضي والواحات</div><div id="territory-list"></div>`;
+    div.className = "lands-page";
+    div.innerHTML = `
+      <div class="lands-bg" id="lands-bg"></div>
+      <div class="lands-vignette"></div>
+
+      <!-- الشريط العلوي -->
+      <div class="lands-top-bar">
+        <div class="lands-room-id">غرفة ملك البحار ID: A3411461</div>
+        <div class="lands-resources" id="lands-resources">
+          <button class="lands-pill" data-resource="energy">⚡ <span id="lands-energy">1</span></button>
+          <button class="lands-pill" data-resource="gold">🪙 <span id="lands-gold">100</span></button>
+          <button class="lands-pill" data-resource="power">✊ <span id="lands-power">1,000</span></button>
+          <div class="lands-pill lands-pill-s">S</div>
+        </div>
+        <div class="lands-progress-row">
+          <div class="lands-progress-track">
+            <div class="lands-progress-fill" id="lands-progress-fill" style="width:0%"></div>
+          </div>
+          <span class="lands-progress-label" id="lands-progress-label">0 / 7</span>
+        </div>
+      </div>
+
+      <!-- المباني -->
+      <div id="lands-buildings" class="lands-buildings"></div>
+
+      <!-- الشريط السفلي -->
+      <div class="lands-bottom-bar">
+        <button class="lands-nav-btn lands-locked" data-tab="rank">
+          <span class="lands-nav-icon">🏆</span>
+          <span class="lands-nav-label">المرتبة</span>
+          <span class="lands-lock-icon">🔒</span>
+        </button>
+        <button class="lands-nav-btn lands-locked" data-tab="promotion">
+          <span class="lands-nav-icon">⭐</span>
+          <span class="lands-nav-label">الترقية</span>
+          <span class="lands-lock-icon">🔒</span>
+        </button>
+        <button class="lands-nav-btn lands-nav-active" data-tab="territories">
+          <span class="lands-nav-icon">🗺️</span>
+          <span class="lands-nav-label">أراضي</span>
+        </button>
+        <button class="lands-nav-btn lands-locked" data-tab="war">
+          <span class="lands-nav-icon">⚔️</span>
+          <span class="lands-nav-label">حرب</span>
+          <span class="lands-lock-icon">🔒</span>
+        </button>
+        <button class="lands-nav-btn lands-locked" data-tab="alliance">
+          <span class="lands-nav-icon">🤝</span>
+          <span class="lands-nav-label">التحالف</span>
+          <span class="lands-lock-icon">🔒</span>
+        </button>
+      </div>
+
+      <!-- Toast -->
+      <div id="lands-toast" class="lands-toast hidden"></div>
+
+      <!-- Modal الترقية -->
+      <div id="lands-modal" class="lands-modal-overlay hidden">
+        <div class="lands-modal-card" id="lands-modal-card">
+          <img id="lands-modal-img" src="" width="72" height="72" style="border-radius:14px">
+          <h3 id="lands-modal-name" class="lands-modal-name"></h3>
+          <p id="lands-modal-level" class="lands-modal-level">المستوى 1</p>
+          <div id="lands-modal-cost" class="lands-modal-cost">تكلفة الترقية: 🪙 50</div>
+          <button id="lands-modal-upgrade" class="lands-btn-upgrade">ترقية الآن</button>
+          <button id="lands-modal-close" class="lands-btn-close">إغلاق</button>
+        </div>
+      </div>
+    `;
     return div;
   }
 
@@ -289,6 +355,14 @@ export class GameUI {
       b.classList.toggle("active", b.dataset.screen === name);
     });
     this.renderScreen(name);
+  }
+
+  showPlayerPanel() {
+    if (this._playerPanel) {
+      this._playerPanel.classList.remove("hidden");
+    }
+    // عرض اللاعب فوراً حتى لو WebSocket مش متصل
+    this.updatePlayerPanel([]);
   }
 
   buildAchievementsScreen() {
@@ -752,42 +826,228 @@ export class GameUI {
   }
 
   renderTerritories() {
-    const list = document.getElementById("territory-list");
-    if (!list) return;
-    list.innerHTML = "";
-    if (!this.oasisManager) return;
-    const oases = this.oasisManager.getState();
-    for (const o of oases) {
-      const card = document.createElement("div");
-      card.className = `territory-card${o.captured ? " territory-owned" : ""}`;
-      const canCapture = !o.captured && this.oasisManager.canCapture(o.id);
-      card.innerHTML = `
-        <div class="territory-icon">${o.icon}</div>
-        <div class="territory-info">
-          <div class="territory-name">${o.name}</div>
-          <div class="territory-status">${o.captured ? "🟢 محررة" : "🔴 تحت السيطرة"}</div>
-          <div class="territory-detail">🪙 ${o.income}/ث</div>
-        </div>
-      `;
-      if (canCapture) {
-        const capBtn = document.createElement("button");
-        capBtn.className = "action-btn capture-btn";
-        capBtn.textContent = `⚔️ احتلال (${this.economy.power.toFixed(0)}/${o.capturePower})`;
-        capBtn.addEventListener("click", () => {
-          if (this.oasisManager.capture(o.id)) {
-            this.renderTerritories();
-            this.updateTopBar();
-          }
-        });
-        card.appendChild(capBtn);
-      } else if (!o.captured) {
-        const need = document.createElement("div");
-        need.className = "territory-need";
-        need.textContent = `👊 تحتاج ${o.capturePower}`;
-        card.appendChild(need);
-      }
-      list.appendChild(card);
+    const container = document.getElementById("lands-buildings");
+    if (!container) return;
+    if (!this._landsInitialized) {
+      this._initLandsPage();
     }
+  }
+
+  _initLandsPage() {
+    if (this._landsInitialized) return;
+    this._landsInitialized = true;
+
+    // ==================== CONFIG — استبدل الروابط هنا فقط ====================
+    const L = {
+      bg: ImageResolver ? ImageResolver.src('landsBg') : 'assets/images/bg-village.jpg',
+      buildings: [
+        {
+          id: 'b1', x: 72, y: 38, name: 'الميناء',
+          img_empty: ImageResolver ? ImageResolver.src('b1Empty') : '',
+          img_building: ImageResolver ? ImageResolver.src('b1Construction') : '',
+          img_built: ImageResolver ? ImageResolver.src('b1Built') : '',
+          locked: false, level: 1
+        },
+        {
+          id: 'b2', x: 25, y: 55, name: 'سوق السمك',
+          img_empty: ImageResolver ? ImageResolver.src('b2Empty') : '',
+          img_building: ImageResolver ? ImageResolver.src('b2Construction') : '',
+          img_built: ImageResolver ? ImageResolver.src('b2Built') : '',
+          locked: false, level: 1
+        },
+        {
+          id: 'b3', x: 78, y: 70, name: 'مستودع البضائع',
+          img_empty: ImageResolver ? ImageResolver.src('b3Empty') : '',
+          img_building: ImageResolver ? ImageResolver.src('b3Construction') : '',
+          img_built: ImageResolver ? ImageResolver.src('b3Built') : '',
+          locked: false, level: 1
+        },
+        {
+          id: 'b4', x: 20, y: 28, name: 'قلعة الحراسة',
+          img_empty: ImageResolver ? ImageResolver.src('b4Empty') : '',
+          img_building: ImageResolver ? ImageResolver.src('b4Construction') : '',
+          img_built: ImageResolver ? ImageResolver.src('b4Built') : '',
+          locked: false, level: 1
+        },
+        {
+          id: 'b5', x: 50, y: 18, name: 'المنارة',
+          img_empty: ImageResolver ? ImageResolver.src('b5Empty') : '',
+          img_building: ImageResolver ? ImageResolver.src('b5Construction') : '',
+          img_built: ImageResolver ? ImageResolver.src('b5Built') : '',
+          locked: false, level: 1
+        },
+        {
+          id: 'b6', x: 45, y: 82, name: 'ساحة التدريب',
+          img_empty: ImageResolver ? ImageResolver.src('b6Empty') : '',
+          img_building: ImageResolver ? ImageResolver.src('b6Construction') : '',
+          img_built: ImageResolver ? ImageResolver.src('b6Built') : '',
+          locked: false, level: 1
+        },
+      ]
+    };
+
+    // حالة المباني (فارغ/قيد الإنشاء/مبني)
+    this._landsState = {};
+    for (const b of L.buildings) {
+      this._landsState[b.id] = { state: 'empty', level: b.level };
+    }
+    this._landsData = L;
+    this._landsProgress = 0;
+    this._landsMax = L.buildings.length;
+
+    // ضبط خلفية الأراضي
+    const bgEl = document.getElementById('lands-bg');
+    if (bgEl) bgEl.style.backgroundImage = `url('${L.bg}')`;
+
+    // بناء عناصر المباني
+    this._renderLandsBuildings();
+
+    // ربط أحداث النافبار السفلية
+    this._bindLandsNav();
+
+    // ربط أزرار الموارد
+    this._bindLandsResources();
+  }
+
+  _renderLandsBuildings() {
+    const container = document.getElementById('lands-buildings');
+    if (!container) return;
+    container.innerHTML = '';
+    for (const b of this._landsData.buildings) {
+      const st = this._landsState[b.id];
+      const imgSrc = st.state === 'built' ? b.img_built
+        : st.state === 'building' ? b.img_building
+        : b.img_empty;
+      const badgeText = st.state === 'built' ? 'تم'
+        : st.state === 'building' ? 'يبني'
+        : 'فارغ';
+      const badgeClass = st.state === 'built' ? 'lands-badge-done'
+        : st.state === 'building' ? 'lands-badge-progress'
+        : 'lands-badge-empty';
+
+      const btn = document.createElement('button');
+      btn.className = 'lands-building';
+      btn.style.right = b.x + '%';
+      btn.style.top = b.y + '%';
+      btn.dataset.id = b.id;
+      btn.innerHTML = `
+        <div class="lands-building-pad">
+          <img src="${imgSrc}" width="56" height="56" onerror="this.style.display='none'" loading="lazy">
+          <span class="lands-state-badge ${badgeClass}">${badgeText}</span>
+          ${b.locked ? '<span class="lands-lock-badge">🔒</span>' : ''}
+        </div>
+        <div class="lands-building-name">${b.name}</div>
+      `;
+      btn.addEventListener('click', () => this._onLandsBuildingClick(b.id));
+      container.appendChild(btn);
+    }
+  }
+
+  _onLandsBuildingClick(id) {
+    const b = this._landsData.buildings.find(x => x.id === id);
+    if (!b) return;
+    const st = this._landsState[id];
+    if (b.locked) { this._landsToast(b.name + ' • مقفل'); return; }
+    if (st.state === 'empty') {
+      st.state = 'building';
+      this._landsToast('قيد الإنشاء: ' + b.name);
+      this._renderLandsBuildings();
+    } else if (st.state === 'building') {
+      st.state = 'built';
+      this._landsProgress++;
+      this._landsToast('تم البناء: ' + b.name);
+      this._updateLandsProgress();
+      this._renderLandsBuildings();
+      this._openLandsUpgradeModal(id);
+    } else if (st.state === 'built') {
+      this._openLandsUpgradeModal(id);
+    }
+  }
+
+  _updateLandsProgress() {
+    const fill = document.getElementById('lands-progress-fill');
+    const label = document.getElementById('lands-progress-label');
+    if (fill) fill.style.width = (this._landsProgress / this._landsMax * 100) + '%';
+    if (label) label.textContent = this._landsProgress + ' / ' + this._landsMax;
+  }
+
+  _openLandsUpgradeModal(id) {
+    const b = this._landsData.buildings.find(x => x.id === id);
+    if (!b) return;
+    const st = this._landsState[id];
+    if (st.state !== 'built') return;
+
+    const overlay = document.getElementById('lands-modal');
+    const imgEl = document.getElementById('lands-modal-img');
+    const nameEl = document.getElementById('lands-modal-name');
+    const levelEl = document.getElementById('lands-modal-level');
+    const costEl = document.getElementById('lands-modal-cost');
+    if (!overlay) return;
+
+    if (imgEl) imgEl.src = b.img_built;
+    if (nameEl) nameEl.textContent = b.name;
+    if (levelEl) levelEl.textContent = 'المستوى ' + st.level;
+    const cost = 50 + (st.level - 1) * 25;
+    if (costEl) costEl.textContent = 'تكلفة الترقية: 🪙 ' + cost;
+    overlay.classList.remove('hidden');
+
+    // ربط أزرار المودال
+    const upgradeBtn = document.getElementById('lands-modal-upgrade');
+    const closeBtn = document.getElementById('lands-modal-close');
+    if (upgradeBtn) {
+      upgradeBtn.onclick = () => {
+        const gold = parseInt(document.getElementById('lands-gold')?.textContent || '0');
+        if (gold >= cost) {
+          document.getElementById('lands-gold').textContent = gold - cost;
+          st.level++;
+          this._landsToast('تمت الترقية إلى المستوى ' + st.level);
+          if (levelEl) levelEl.textContent = 'المستوى ' + st.level;
+          const newCost = 50 + (st.level - 1) * 25;
+          if (costEl) costEl.textContent = 'تكلفة الترقية: 🪙 ' + newCost;
+        } else {
+          this._landsToast('ذهب غير كافي');
+        }
+      };
+    }
+    if (closeBtn) closeBtn.onclick = () => overlay.classList.add('hidden');
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.add('hidden'); };
+  }
+
+  _bindLandsNav() {
+    document.querySelectorAll('.lands-nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('lands-locked')) {
+          this._landsToast('هذه الميزة مقفلة');
+          return;
+        }
+        document.querySelectorAll('.lands-nav-btn').forEach(b => b.classList.remove('lands-nav-active'));
+        btn.classList.add('lands-nav-active');
+      });
+    });
+  }
+
+  _bindLandsResources() {
+    document.querySelectorAll('.lands-pill[data-resource]').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const type = pill.dataset.resource;
+        const span = pill.querySelector('span');
+        if (!span) return;
+        let val = parseInt(span.textContent.replace(/,/g, '')) || 0;
+        if (type === 'energy') { val += 1; }
+        else if (type === 'gold') { val += 10; }
+        else if (type === 'power') { val += 50; }
+        span.textContent = val.toLocaleString();
+      });
+    });
+  }
+
+  _landsToast(msg) {
+    const el = document.getElementById('lands-toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.add('hidden'), 1600);
   }
 
   renderWar() {
@@ -817,7 +1077,7 @@ export class GameUI {
     if (bottomBar) bottomBar.style.display = "none";
     if (content) content.style.display = "none";
     if (worldButtons) worldButtons.classList.remove("hidden");
-    if (this._playerPanel) this._playerPanel.classList.remove("hidden");
+    this.showPlayerPanel();
     this.world.enterWorldMap();
   }
 

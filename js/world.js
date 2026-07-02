@@ -38,6 +38,8 @@ export class WorldMap {
     this._wipeFlag = false;
     this._allianceManager = null;
     this._upgradeTree = null;
+    this.images = new Map();
+    this._preloadImages();
 
     // === القائد (الشيخ) ===
     this.leader = {
@@ -103,6 +105,32 @@ export class WorldMap {
     this._onPvPWin = null;
     this._onPvPLose = null;
     this._onDropCollected = null;
+  }
+
+  _preloadImages() {
+    const keys = [
+      "leader-player", "avatar-player", "soldier-player",
+      "leader-enemy", "soldier-enemy", "bandit-br",
+      "monster-1", "monster-2", "monster-3",
+    ];
+    for (const key of keys) {
+      const img = new Image();
+      img.onload = () => this.images.set(key, img);
+      img.onerror = () => {}; // silent → fallback shapes
+      img.src = ImageResolver ? ImageResolver.src(key) : ("assets/images/" + key + ".png");
+    }
+  }
+
+  _drawSprite(ctx, key, fallbackColor, radius) {
+    const img = this.images.get(key);
+    if (img) {
+      ctx.drawImage(img, -radius, -radius, radius * 2, radius * 2);
+    } else {
+      ctx.fillStyle = fallbackColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   _initSandParticles(count) {
@@ -498,21 +526,16 @@ export class WorldMap {
       ctx.save();
       ctx.translate(p.x, p.y);
 
-      // رسم جيش اللاعب الآخر
+      // رسم جيش اللاعب الآخر (صور الأعداء)
       for (let i = 0; i < armyCount; i++) {
-        const ux = -30 - (i % 4) * 18;
-        const uy = 20 + Math.floor(i / 4) * 22;
-        ctx.fillStyle = col + "99";
-        ctx.beginPath();
-        ctx.arc(ux, uy, 8, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.save();
+        ctx.translate(-30 - (i % 4) * 18, 20 + Math.floor(i / 4) * 22);
+        this._drawSprite(ctx, "soldier-enemy", col + "99", 8);
+        ctx.restore();
       }
 
-      // رسم القائد
-      ctx.fillStyle = col;
-      ctx.beginPath();
-      ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
-      ctx.fill();
+      // رسم قائد العدو
+      this._drawSprite(ctx, "leader-enemy", col, p.radius);
 
       ctx.strokeStyle = "rgba(255,255,255,0.3)";
       ctx.lineWidth = 2;
@@ -611,7 +634,7 @@ export class WorldMap {
       this.mapImage = img; 
       this.sendLoginNotification();
     };
-    img.src = "img/map.jpg";
+    img.src = window.ImageResolver ? ImageResolver.src('mapDesert') : "img/map.jpg";
 
     this.engine.start((dt, ctx, cam) => this.update(dt, ctx, cam));
 
@@ -668,9 +691,9 @@ export class WorldMap {
 
   createMonster(id, spawnX, spawnY) {
     const types = [
-      { name: "ذئب صحراوي", color: "#8a5a3a", radius: 14, hp: 35, maxHp: 35, damage: 6, rewardMoney: 8 },
-      { name: "محارب ظل", color: "#2a1a1a", radius: 18, hp: 65, maxHp: 65, damage: 13, rewardMoney: 18 },
-      { name: "زعيم الرمال", color: "#c0392b", radius: 22, hp: 130, maxHp: 130, damage: 24, rewardMoney: 45 },
+      { name: "ذئب صحراوي", color: "#8a5a3a", radius: 14, hp: 35, maxHp: 35, damage: 6, rewardMoney: 8, imageKey: "monster-1" },
+      { name: "محارب ظل", color: "#2a1a1a", radius: 18, hp: 65, maxHp: 65, damage: 13, rewardMoney: 18, imageKey: "monster-2" },
+      { name: "زعيم الرمال", color: "#c0392b", radius: 22, hp: 130, maxHp: 130, damage: 24, rewardMoney: 45, imageKey: "monster-3" },
     ];
     const t = types[Math.floor(Math.random() * types.length)];
     return {
@@ -1208,11 +1231,9 @@ export class WorldMap {
     ctx.save();
     ctx.translate(this.leader.x, this.leader.y);
 
-    ctx.fillStyle = "#2c1810";
-    ctx.beginPath();
-    ctx.arc(0, 0, this.leader.radius, 0, Math.PI * 2);
-    ctx.fill();
+    this._drawSprite(ctx, "leader-player", "#2c1810", this.leader.radius);
 
+    // تاج ذهبي (يُحتفظ به كعلامة فوق الصورة)
     ctx.fillStyle = "#f5d76e";
     ctx.fillRect(-6, -this.leader.radius - 8, 12, 8);
 
@@ -1230,10 +1251,7 @@ export class WorldMap {
       ctx.save();
       ctx.translate(u.x, u.y);
 
-      ctx.fillStyle = "#3d2b1f";
-      ctx.beginPath();
-      ctx.arc(0, 0, u.radius, 0, Math.PI * 2);
-      ctx.fill();
+      this._drawSprite(ctx, "soldier-player", "#3d2b1f", u.radius);
 
       const hp = u.hp / u.maxHp;
       ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -1251,10 +1269,7 @@ export class WorldMap {
       ctx.save();
       ctx.translate(m.x, m.y);
 
-      ctx.fillStyle = m.color;
-      ctx.beginPath();
-      ctx.arc(0, 0, m.radius, 0, Math.PI * 2);
-      ctx.fill();
+      this._drawSprite(ctx, m.imageKey, m.color, m.radius);
 
       const hp = m.hp / m.maxHp;
       ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -1618,18 +1633,22 @@ export class WorldMap {
       // ظل
       ctx.fillStyle = "rgba(0,0,0,0.12)";
       ctx.beginPath(); ctx.ellipse(0, 12, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
-      // جسد
-      ctx.fillStyle = "#4a4a3a";
-      ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
-      // رأس
-      ctx.fillStyle = "#8a7a5a";
-      ctx.beginPath(); ctx.arc(0, -14, 7, 0, Math.PI * 2); ctx.fill();
-      // عصابة عين
-      ctx.fillStyle = "#222";
-      ctx.fillRect(-8, -16, 16, 3);
-      // سلاح
-      ctx.strokeStyle = "#666"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(15, -2); ctx.lineTo(25, -12); ctx.stroke();
+
+      const banditImg = this.images.get("bandit-br");
+      if (banditImg) {
+        // صورة كاملة لقطاع الطرق
+        ctx.drawImage(banditImg, -14, -20, 28, 40);
+      } else {
+        // رسم تفصيلي يدوي — جسد + رأس + عصابة + سلاح
+        ctx.fillStyle = "#4a4a3a";
+        ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#8a7a5a";
+        ctx.beginPath(); ctx.arc(0, -14, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#222";
+        ctx.fillRect(-8, -16, 16, 3);
+        ctx.strokeStyle = "#666"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(15, -2); ctx.lineTo(25, -12); ctx.stroke();
+      }
       // شريط صحة
       const hpPct = b.hp / b.maxHp;
       ctx.fillStyle = "rgba(0,0,0,0.5)";
