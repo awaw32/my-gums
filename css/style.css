@@ -1278,7 +1278,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: linear-gradient(180deg, #0d0a05, #1a1208);
+  background: transparent;
   box-shadow: 0 0 60px rgba(0,0,0,0.8);
 }
 
@@ -1290,8 +1290,10 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   display: flex;
   align-items: center;
   gap: 3px;
-  background: linear-gradient(180deg, rgba(20,14,8,0.98), rgba(13,10,5,0.95));
-  border-bottom: 1px solid rgba(255,215,0,0.12);
+  background: rgba(12,10,8,0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(255,215,0,0.08);
   z-index: 100;
   flex-shrink: 0;
   direction: rtl;
@@ -1309,15 +1311,15 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px solid var(--gold);
+  border: 2px solid rgba(255,215,0,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
   background:
     url('../assets/images/avatar-default.png') center / cover no-repeat,
-    radial-gradient(circle at 30% 30%, rgba(255,215,0,0.2), rgba(255,215,0,0.05));
-  box-shadow: 0 0 12px var(--gold-glow);
+    radial-gradient(circle at 30% 30%, rgba(255,215,0,0.15), transparent);
+  box-shadow: 0 0 12px rgba(255,215,0,0.35);
   flex-shrink: 0;
 }
 .top-level-info {
@@ -1332,6 +1334,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   color: var(--gold);
   line-height: 1;
   white-space: nowrap;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.7);
 }
 .top-level-track {
   width: 60px;
@@ -1348,9 +1351,10 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 }
 .top-level-amount {
   font-size: 0.45rem;
-  color: var(--beige-dark);
+  color: var(--beige);
   direction: ltr;
   font-family: monospace;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
 
 /* الوسط: الموارد */
@@ -1375,23 +1379,23 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   min-width: 0;
 }
 .gold-res {
-  background: rgba(255,215,0,0.1);
-  border-color: rgba(255,215,0,0.25);
+  background: rgba(255,215,0,0.08);
+  border-color: rgba(255,215,0,0.15);
   color: var(--gold);
 }
 .cash-res {
-  background: var(--green-bg);
-  border-color: rgba(46,204,113,0.25);
+  background: rgba(46,204,113,0.08);
+  border-color: rgba(46,204,113,0.15);
   color: var(--green);
 }
 .food-res {
-  background: rgba(241,196,15,0.08);
-  border-color: rgba(241,196,15,0.2);
+  background: rgba(241,196,15,0.06);
+  border-color: rgba(241,196,15,0.12);
   color: #f1c40f;
 }
 .power-res {
-  background: var(--red-bg);
-  border-color: rgba(255,68,68,0.2);
+  background: rgba(255,68,68,0.08);
+  border-color: rgba(255,68,68,0.15);
   color: #ff6b6b;
 }
 .top-res .res-icon { font-size: 0.65rem; }
@@ -1399,6 +1403,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   font-size: 0.6rem;
   font-weight: 800;
   min-width: 30px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 
 /* الجهة اليسرى: المضاعف */
@@ -1408,8 +1413,8 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   flex-shrink: 0;
 }
 .top-multiplier {
-  background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05));
-  border: 1px solid rgba(255,215,0,0.25);
+  background: rgba(255,215,0,0.08);
+  border: 1px solid rgba(255,215,0,0.15);
   color: var(--gold);
   padding: 3px 8px;
   border-radius: 14px;
@@ -1418,6 +1423,8 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   align-items: center;
   font-size: 0.6rem;
   font-weight: 700;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .multiplier-icon { font-size: 0.65rem; }
 .multiplier-value { font-size: 0.7rem; }
@@ -1434,8 +1441,10 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  background: linear-gradient(180deg, rgba(26,18,8,0.95), rgba(13,10,5,0.9));
-  border-bottom: 1px solid rgba(255,215,0,0.08);
+  background: rgba(12,10,8,0.25);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-bottom: 1px solid rgba(255,215,0,0.05);
   flex-shrink: 0;
   direction: rtl;
   scroll-behavior: smooth;
@@ -1468,18 +1477,21 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.04);
-  border: 1.5px solid rgba(255,215,0,0.12);
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,215,0,0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
   transition: all 0.3s;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 .csb-label {
   font-size: 0.48rem;
   font-weight: 600;
   white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 .csb-badge {
   position: absolute;
@@ -1511,8 +1523,10 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  background: rgba(13,10,5,0.8);
-  border-bottom: 1px solid rgba(255,215,0,0.06);
+  background: rgba(12,10,8,0.3);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-bottom: 1px solid rgba(255,215,0,0.04);
   flex-shrink: 0;
   direction: rtl;
 }
@@ -1522,11 +1536,13 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  background: rgba(40,24,12,0.7);
-  border: 1px solid rgba(255,215,0,0.1);
+  background: rgba(20,14,8,0.4);
+  border: 1px solid rgba(255,215,0,0.08);
   border-radius: 12px;
   flex-shrink: 0;
   min-width: 140px;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 .qu-icon {
   font-size: 1.3rem;
@@ -1586,6 +1602,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   overflow-x: hidden;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  background: transparent;
 }
 #screen-content::-webkit-scrollbar { width: 2px; }
 #screen-content::-webkit-scrollbar-track { background: transparent; }
@@ -1594,12 +1611,10 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .game-map {
   position: relative;
   width: 100%;
-  min-height: calc(100dvh - var(--top-h) - var(--sub-h) - var(--qu-h) - var(--chat-overlay-h) - var(--bottom-h) - var(--safe-t) - var(--safe-b));
+  flex: 1;
+  min-height: 0;
   background:
-    url('../assets/images/bg-village.jpg') center / cover no-repeat,
-    radial-gradient(ellipse at 30% 20%, rgba(60,40,20,0.4), transparent 50%),
-    radial-gradient(ellipse at 70% 80%, rgba(40,26,12,0.3), transparent 50%),
-    linear-gradient(180deg, #1a1208, #2c1a0a, #1a0e06);
+    url('../assets/images/bg-village.jpg') center / cover no-repeat;
   overflow: hidden;
   padding: 12px;
 }
@@ -1622,7 +1637,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   margin-bottom: 12px;
   position: relative;
   z-index: 1;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.8);
 }
 
 /* شبكة المباني العائمة */
@@ -1795,8 +1810,10 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   display: flex;
   align-items: flex-end;
   justify-content: space-around;
-  background: linear-gradient(0deg, rgba(13,10,5,0.98), rgba(26,18,8,0.95));
-  border-top: 1px solid rgba(255,215,0,0.1);
+  background: rgba(12,10,8,0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255,215,0,0.06);
   z-index: 100;
   flex-shrink: 0;
   direction: rtl;
@@ -1818,7 +1835,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   position: relative;
 }
 .nav-btn .nav-icon { font-size: 1.3rem; line-height: 1; }
-.nav-btn .nav-label { font-size: 0.55rem; font-weight: 700; }
+.nav-btn .nav-label { font-size: 0.55rem; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
 .nav-btn.active {
   color: var(--gold);
 }

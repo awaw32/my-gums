@@ -69,21 +69,23 @@ const ImageResolver = {
     // خلفيات
     bgVillage: 'assets/images/bg-village.jpg',
     mapDesert: 'img/map.jpg',
+    // صورة افتراضية للأفاتار (مرجع من CSS)
+    'avatar-default': 'assets/images/avatar-default.png',
     // مباني
     buildingRuins:        'assets/images/building-ruins.png',
     buildingConstruction: 'assets/images/building-construction.png',
     buildingComplete:     'assets/images/building-complete.png',
-    // جيش
-    leaderPlayer:  'assets/images/army/leader-player.png',
-    avatarPlayer:  'assets/images/army/avatar-player.png',
-    soldierPlayer: 'assets/images/army/soldier-player.png',
-    leaderEnemy:   'assets/images/army/leader-enemy.png',
-    soldierEnemy:  'assets/images/army/soldier-enemy.png',
-    banditBr:      'assets/images/army/bandit-br.png',
-    // وحوش
-    monster1: 'assets/images/monsters/monster-1-wolf.png',
-    monster2: 'assets/images/monsters/monster-2-shadow.png',
-    monster3: 'assets/images/monsters/monster-3-chief.png',
+    // جيش — المفاتيح kebab-case تطابق world.js
+    'leader-player':  'assets/images/army/leader-player.png',
+    'avatar-player':  'assets/images/army/avatar-player.png',
+    'soldier-player': 'assets/images/army/soldier-player.png',
+    'leader-enemy':   'assets/images/army/leader-enemy.png',
+    'soldier-enemy':  'assets/images/army/soldier-enemy.png',
+    'bandit-br':      'assets/images/army/bandit-br.png',
+    // وحوش — المفاتيح تطابق world.js (_preloadImages)
+    'monster-1': 'assets/images/monsters/monster-1-wolf.png',
+    'monster-2': 'assets/images/monsters/monster-2-shadow.png',
+    'monster-3': 'assets/images/monsters/monster-3-chief.png',
     // الأراضي
     landsBg: 'assets/images/bg-village.jpg',
     b1Empty: 'assets/images/building-ruins.png',

@@ -6,6 +6,33 @@
   <meta name="theme-color" content="#0d0a05" />
   <meta name="mobile-web-app-capable" content="yes">
   <title>ملك السحراء</title>
+
+  <!-- ===== Cache Busting ===== -->
+  <!-- 💡 إذا تستخدم Nginx/Apache/Node، أضف هذي الإعدادات:
+       location ~* \.(js|css)$ { add_header Cache-Control "no-cache, must-revalidate"; }
+       location = /index.html { add_header Cache-Control "no-cache, no-store, must-revalidate"; }
+  -->
+  <script>
+    // فحص التحديث كل 30 ثانية — يعيد تحميل الصفحة إذا تغير ETag
+    (function() {
+      const CHECK_INTERVAL = 30000;
+      const CACHE_KEY = 'game_etag';
+      setInterval(async () => {
+        try {
+          const res = await fetch(window.location.href, { cache: 'no-cache', method: 'HEAD' });
+          const newTag = res.headers.get('ETag') || res.headers.get('Last-Modified') || '';
+          const oldTag = localStorage.getItem(CACHE_KEY);
+          if (oldTag && newTag && newTag !== oldTag) {
+            localStorage.setItem(CACHE_KEY, newTag);
+            window.location.reload(true);
+          } else if (newTag) {
+            localStorage.setItem(CACHE_KEY, newTag);
+          }
+        } catch(e) {}
+      }, CHECK_INTERVAL);
+    })();
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -22,9 +49,11 @@
       }
     }
   </script>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=20260702" />
 </head>
 <body>
+  <!-- ====== تجنب 404 favicon ====== -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
   <!-- ====== شاشة التحميل ====== -->
   <div id="loading-screen">
     <div class="loading-wheel">
@@ -287,7 +316,7 @@
 
   </div>
 
-  <script src="config/images.js"></script>
-  <script type="module" src="js/main.js"></script>
+  <script src="config/images.js?v=20260702"></script>
+  <script type="module" src="js/main.js?v=20260702"></script>
 </body>
 </html>

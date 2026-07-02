@@ -6,6 +6,20 @@
   <meta name="theme-color" content="#0d0a05">
   <meta name="mobile-web-app-capable" content="yes">
   <title>ملك الصحراء — الأراضي</title>
+  <!-- ===== Cache Busting + Auto-Update ===== -->
+  <script>
+    (function(){
+      setInterval(async ()=>{
+        try {
+          const r = await fetch(window.location.href, { cache:'no-cache', method:'HEAD' });
+          const n = r.headers.get('ETag')||r.headers.get('Last-Modified')||'';
+          const o = localStorage.getItem('lands_etag');
+          if (o && n && n !== o) { localStorage.setItem('lands_etag', n); window.location.reload(true); }
+          else if (n) { localStorage.setItem('lands_etag', n); }
+        } catch(e){}
+      }, 30000);
+    })();
+  </script>
   <style>
     /* ===== Reset & Base ===== */
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}

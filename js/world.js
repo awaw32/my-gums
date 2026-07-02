@@ -1125,7 +1125,7 @@ export class WorldMap {
       const CHASE_RANGE = 300;
 
       if (minDist < CHASE_RANGE) {
-        // مطاردة (Chase)
+        // ===== مطاردة سلسة (Chase) =====
         if (minDist < 30) {
           m.attackCD -= dt;
           if (m.attackCD <= 0) {
@@ -1136,27 +1136,58 @@ export class WorldMap {
             }
             m.attackCD = 1.2;
           }
+          // تباطؤ تدريجي عند الاقتراب (حركة ناعمة حول الهدف)
+          m._patrolTarget = null;
+          m._idleTimer = 0;
         } else {
-          const dx = target.x - m.x;
-          const dy = target.y - m.y;
+          // سير باتجاه الهدف مع سموث
+          const speed = 35 + (300 - minDist) / 300 * 20; // أسرع كلما اقترب
+          if (!m._chaseTarget || Math.hypot(m._chaseTarget.x - target.x, m._chaseTarget.y - target.y) > 30) {
+            m._chaseTarget = { x: target.x, y: target.y };
+          } else if (!m._chaseTarget) {
+            m._chaseTarget = { x: target.x, y: target.y };
+          }
+          // تحديث هدف المطاردة تدريجياً
+          m._chaseTarget.x += (target.x - m._chaseTarget.x) * Math.min(1, dt * 3);
+          m._chaseTarget.y += (target.y - m._chaseTarget.y) * Math.min(1, dt * 3);
+
+          const dx = m._chaseTarget.x - m.x;
+          const dy = m._chaseTarget.y - m.y;
           const dist = Math.hypot(dx, dy);
-          m.x += (dx / dist) * 35 * dt;
-          m.y += (dy / dist) * 35 * dt;
+          if (dist > 1) {
+            m.x += (dx / dist) * speed * dt;
+            m.y += (dy / dist) * speed * dt;
+          }
+          m._patrolTarget = null;
+          m._idleTimer = 0;
         }
       } else {
-        // دورية (Patrol) — التحرك العشوائي (بديل محلي فقط)
-        if (!m._patrolTarget || Math.hypot(m.x - m._patrolTarget.x, m.y - m._patrolTarget.y) < 20) {
+        // ===== دورية سلسة (Patrol) =====
+        if (!m._patrolTarget) {
+          // اختيار هدف دورية جديد
           m._patrolTarget = {
-            x: m.spawnX + (Math.random() - 0.5) * 200,
-            y: m.spawnY + (Math.random() - 0.5) * 200,
+            x: m.spawnX + (Math.random() - 0.5) * 120,
+            y: m.spawnY + (Math.random() - 0.5) * 120,
           };
+          m._idleTimer = 0;
         }
+
         const dx = m._patrolTarget.x - m.x;
         const dy = m._patrolTarget.y - m.y;
         const dist = Math.hypot(dx, dy);
-        if (dist > 5) {
-          m.x += (dx / dist) * 20 * dt;
-          m.y += (dy / dist) * 20 * dt;
+
+        if (dist < 8) {
+          // وصلنا لنقطة الدورية — توقف قصير ثم اختر هدفاً جديداً
+          m._idleTimer = (m._idleTimer || 0) + dt;
+          if (m._idleTimer > 1.5 + Math.random() * 2) {
+            m._patrolTarget = null;
+          }
+        } else {
+          // تحرك سلس نحو هدف الدورية
+          const speed = 15 + Math.random() * 5; // سرعة متغيرة قليلاً
+          m.x += (dx / dist) * speed * dt;
+          m.y += (dy / dist) * speed * dt;
+          m._idleTimer = 0;
         }
       }
     }
