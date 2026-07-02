@@ -206,6 +206,50 @@ async function init() {
     economy.powerSources.push(() => allianceManager.level * 10);
     economy.powerSources.push(() => prestige.level * 50);
 
+    // ربط إنجازات المباني
+    village.setBuildingCallbacks(
+      (b) => achievements.updateProgress('builds', 1),
+      (b) => achievements.updateProgress('upgrades', 1)
+    );
+
+    // ربط إنجازات الواحات
+    oasisManager._onOasesChanged = (() => {
+      const orig = oasisManager._onOasesChanged;
+      return (state) => {
+        if (orig) orig(state);
+        const captured = state.filter(o => o.captured).length;
+        achievements.updateProgress('oases', captured);
+      };
+    })();
+
+    // ربط army_level
+    const origArmyUpgrade = army.upgradeUnits.bind(army);
+    army.upgradeUnits = function() {
+      const result = origArmyUpgrade();
+      if (result) achievements.updateProgress('army_level', this.unitLevel);
+      return result;
+    };
+
+    // ربط alliance_level
+    const origAllianceUpgrade = allianceManager.upgrade.bind(allianceManager);
+    allianceManager.upgrade = function() {
+      const result = origAllianceUpgrade();
+      if (result) achievements.updateProgress('alliance_level', this.level);
+      return result;
+    };
+
+    // ربط gold_earned
+    world._onCashEarned = (amount) => {
+      achievements.updateProgress('cash_earned', amount);
+    };
+
+    // ربط الإنجازات اليومية
+    const origDailyClaim = dailyLogin._onClaim;
+    dailyLogin._onClaim = (day, reward) => {
+      if (origDailyClaim) origDailyClaim(day, reward);
+      achievements.updateProgress('login_days', day);
+    };
+
     const saveToDB = () => {
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
         method: "POST",
@@ -243,10 +287,11 @@ async function init() {
     ui.setShopBuyCallback(function shopBuy(item) {
       switch (item) {
         case "unit":
-          if (army.unitLevel < army.maxUnitLevel) {
+            if (army.unitLevel < army.maxUnitLevel) {
             const cost = army.unitUpgradeCost;
             if (economy.spend("cash", cost)) {
               army.unitLevel++;
+              achievements.updateProgress('army_level', army.unitLevel);
               saveToDB();
               ui.updateTopBar();
             }
@@ -269,6 +314,7 @@ async function init() {
             const cost = weapon.upgradeCost;
             if (economy.spend("gold", cost)) {
               weapon.level++;
+              achievements.updateProgress('weapon_max', weapon.level);
               saveToDB();
               ui.updateTopBar();
             }
@@ -284,13 +330,29 @@ async function init() {
       ui.updateTopBar();
     };
 
-    // توصيل الأصوات بأحداث اللعبة
-    world._onMonsterKilled = () => audio.playSound('kill');
-    world._onDropCollected = () => audio.playSound('collect');
-    world._onPvPWin = () => audio.playSound('levelup');
+    // توصيل الأصوات والإنجازات بأحداث اللعبة
+    world._onMonsterKilled = () => {
+      audio.playSound('kill');
+      achievements.updateProgress('kills', 1);
+      achievements.updateProgress('cash_earned', 10);
+    };
+    world._onDropCollected = () => {
+      audio.playSound('collect');
+      achievements.updateProgress('cash_earned', 5);
+    };
+    world._onPvPWin = () => {
+      audio.playSound('levelup');
+      achievements.updateProgress('pvp_wins', 1);
+    };
     world._onPvPLose = () => audio.playSound('hit');
 
     // توصيل الإنجازات
+    economy._onGoldEarned = (amount) => {
+      achievements.updateProgress('gold_earned', amount);
+    };
+    inventory._onCrafted = () => {
+      achievements.updateProgress('crafts', 1);
+    };
     achievements._onUnlock = (a) => {
       ui.showNotification(`🏆 إنجاز: ${a.title} — ${a.desc}`);
       audio.playSound('levelup');
@@ -304,6 +366,7 @@ async function init() {
     // توصيل Prestige
     prestige._onPrestige = (lvl) => {
       ui.showNotification(`🔄 Prestige ${lvl}! القوة تتضاعف!`);
+      achievements.updateProgress('prestige', 1);
       saveToDB();
       if (world.leader) world.leader.maxHp = 100 + lvl * 20;
       if (world.leader) world.leader.hp = world.leader.maxHp;
@@ -380,6 +443,20 @@ async function init() {
       }
     };
 
+    // ربط شاشة الخسارة
+    world._onWipe = (lost, killed) => {
+      audio.playSound('hit');
+    };
+
+    // ربط أحداث الإنجازات الأخرى
+    economy._onLevelUp = (() => {
+      const orig = economy._onLevelUp;
+      return (lvl) => {
+        if (orig) orig(lvl);
+        achievements.updateProgress('player_level', lvl);
+      };
+    })();
+
     world._onNotification = (msg) => {
       ui.showNotification(msg);
       if (msg.includes('المنطقة تتصغر') && brZoneWarningEl) {
@@ -432,9 +509,16 @@ async function init() {
 
     // تشغيل الأحداث الدورية
     let eventTimer = 0;
+    let lastPowerCheck = 0;
     setInterval(() => {
       eventTimer += 15;
       events.update(15);
+      // تتبع إنجازات القوة
+      const curPower = economy.power;
+      if (curPower > lastPowerCheck) {
+        achievements.updateProgress('power', curPower - lastPowerCheck);
+        lastPowerCheck = curPower;
+      }
       if (eventTimer > 300) {
         eventTimer = 0;
         // بدء أحداث عشوائية إذا لم يكن هناك حدث نشط

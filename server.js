@@ -214,7 +214,7 @@ function initWorldMonsters() {
     });
   }
 }
-// دورة respawn كل ثانية
+// دورة respawn + تحريك الوحوش كل ثانية
 setInterval(() => {
   let changed = false;
   for (const m of worldMonsters) {
@@ -225,12 +225,27 @@ setInterval(() => {
         m.x = m.spawnX; m.y = m.spawnY;
         changed = true;
       }
+    } else {
+      // تحريك الوحوش بدورية خفيفة (كل اللاعبين يشوفون نفس الحركة)
+      if (!m._patrolTarget || Math.hypot(m.x - m._patrolTarget.x, m.y - m._patrolTarget.y) < 15) {
+        m._patrolTarget = {
+          x: m.spawnX + (Math.random() - 0.5) * 180,
+          y: m.spawnY + (Math.random() - 0.5) * 180,
+        };
+      }
+      const dx = m._patrolTarget.x - m.x;
+      const dy = m._patrolTarget.y - m.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 3) {
+        m.x += (dx / dist) * 18;
+        m.y += (dy / dist) * 18;
+        changed = true;
+      }
     }
   }
-  if (changed) {
-    const msg = JSON.stringify({ type: "world_monsters", list: worldMonsters });
-    worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
-  }
+  // بث الوحوش كل ثانية عشان الكل يشوف نفس الحركة
+  const msg = JSON.stringify({ type: "world_monsters", list: worldMonsters });
+  worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
 }, 1000);
 
 function broadcastWorld(excludeWs = null) {

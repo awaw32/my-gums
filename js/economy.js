@@ -46,6 +46,7 @@ export class GameEconomy {
     this.kills = 0;
     this.totalEarned = 0;
     this._onLevelUp = null;
+    this._onGoldEarned = null;
   }
 
   get power() {
@@ -98,6 +99,9 @@ export class GameEconomy {
   addRaw(type, amt) {
     if (this.resources[type] !== undefined) {
       this.resources[type] += amt;
+      if (type === "gold" && amt > 0 && this._onGoldEarned) {
+        this._onGoldEarned(amt);
+      }
     }
   }
 

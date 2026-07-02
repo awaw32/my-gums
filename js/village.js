@@ -37,6 +37,8 @@ class VillageBuilding {
     this.fightResult = null;
     this.productionAccum = 0;
     this.productionInterval = 5;
+    this._onBuilt = null;
+    this._onUpgraded = null;
   }
 
   get productionRate() {
@@ -84,6 +86,7 @@ class VillageBuilding {
         this.constructTimer = 0;
         this.state = "ready";
         this.level = 1;
+        if (this._onBuilt) this._onBuilt(this);
       }
     }
     if (this.state === "ready") {
@@ -102,6 +105,7 @@ class VillageBuilding {
     const cost = this.upgradeCost;
     if (!economy.spend('cash', cost)) return false;
     this.level++;
+    if (this._onUpgraded) this._onUpgraded(this);
     return true;
   }
 }
@@ -142,6 +146,13 @@ export class GameVillage {
 
   upgradeBuilding(building) {
     return building.upgrade(this.economy);
+  }
+
+  setBuildingCallbacks(onBuilt, onUpgraded) {
+    for (const b of this.buildings) {
+      b._onBuilt = onBuilt;
+      b._onUpgraded = onUpgraded;
+    }
   }
 
   update(dt) {

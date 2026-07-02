@@ -42,6 +42,7 @@ export class GameUI {
         if (text && this.world) {
           this.world._sendWS({ type: "chat", message: text });
           chatInput.value = "";
+          if (this.achievements) this.achievements.updateProgress('chat_messages', 1);
         }
       });
       chatInput.addEventListener("keydown", (e) => {
@@ -124,17 +125,21 @@ export class GameUI {
   updatePlayerPanel(players) {
     if (!this._playerListEl) return;
     const filtered = players.filter(p => p && p.username !== this.world?.username);
-    this._playerCountEl.textContent = filtered.length;
+    this._playerCountEl.textContent = filtered.length + 1;
     this._playerListEl.innerHTML = "";
-    // إظهار اللاعب نفسه أولاً
-    const me = players.find(p => p && p.username === this.world?.username);
-    if (me) {
+    // إظهار اللاعب نفسه أولاً بإحصائياته الحقيقية من اللعبة
+    if (this.world) {
       const myItem = document.createElement("div");
       myItem.className = "player-item player-item-me";
+      const myPower = this.economy?.power || 0;
+      const myKills = this.world.sessionStats?.kills || 0;
+      const myCoins = this.world.sessionStats?.coinsEarned || 0;
       myItem.innerHTML = `
-        <div class="player-item-name" style="color:var(--gold)">⭐ ${me.username} (أنت)</div>
+        <div class="player-item-name" style="color:var(--gold)">⭐ ${this.world.username} (أنت)</div>
         <div class="player-item-stats">
-          <span class="player-stat">👊 ${formatNumber(me.army_power || 0)}</span>
+          <span class="player-stat"><span class="player-stat-icon">👊</span><span class="player-stat-value">${formatNumber(myPower)}</span></span>
+          <span class="player-stat"><span class="player-stat-icon">💀</span><span class="player-stat-value">${myKills}</span></span>
+          <span class="player-stat"><span class="player-stat-icon">💵</span><span class="player-stat-value">${formatNumber(myCoins)}</span></span>
         </div>`;
       this._playerListEl.appendChild(myItem);
     }
@@ -690,6 +695,7 @@ export class GameUI {
       const card = document.createElement("div");
       card.className = `achievement-card${a.completed ? (a.claimed ? ' achievement-claimed' : ' achievement-done') : ''}`;
       const pct = a.target > 0 ? Math.min(100, (a.progress / a.target) * 100) : 0;
+      const rewardStr = Object.entries(a.reward).map(([k, v]) => `${v} ${k === 'gold' ? '🪙' : k === 'gems' ? '💎' : '💵'}`).join(' + ');
       card.innerHTML = `
         <div class="achievement-icon">${a.icon}</div>
         <div class="achievement-info">
@@ -698,17 +704,22 @@ export class GameUI {
           <div class="achievement-progress-track">
             <div class="achievement-progress-fill" style="width:${pct}%"></div>
           </div>
-          <div class="achievement-progress-text">${a.completed ? (a.claimed ? '✅ تم' : '🏆 استلم!') : `${a.progress}/${a.target}`}</div>
+          <div class="achievement-progress-text">${a.completed ? (a.claimed ? '✅ تم الاستلام' : `🏆 المكافأة: ${rewardStr}`) : `${a.progress}/${a.target}`}</div>
         </div>
+        ${a.completed && !a.claimed ? '<button class="achievement-claim-btn">📦 استلم</button>' : ''}
       `;
       if (a.completed && !a.claimed) {
-        card.style.cursor = "pointer";
-        card.addEventListener("click", () => {
-          if (this.achievements.claim(a.id)) {
-            this.renderAchievements();
-            this.updateTopBar();
-          }
-        });
+        const btn = card.querySelector('.achievement-claim-btn');
+        if (btn) {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.achievements.claim(a.id)) {
+              this.renderAchievements();
+              this.updateTopBar();
+              this.showNotification(`🏆 حصلت على ${rewardStr}`);
+            }
+          });
+        }
       }
       list.appendChild(card);
     }

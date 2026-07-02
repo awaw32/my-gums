@@ -98,6 +98,7 @@ export class WorldMap {
     this._onBRMatchEnd = null;
     this._onBRKillFeed = null;
     this._onChatMessage = null;
+    this._onCashEarned = null;
   }
 
   _initSandParticles(count) {
@@ -798,18 +799,51 @@ export class WorldMap {
 
   onWipe() {
     const lost = this.sessionStats.coinsEarned;
+    const killed = this.sessionStats.kills;
     if (this.economy && lost > 0) {
       this.economy.addRaw("cash", -lost);
+      this.economy.addXp(-Math.floor(killed * 5));
       this.sendPositionUpdate();
     }
     this.sessionStats = { kills: 0, coinsEarned: 0 };
-    this.worldFx.push({ x: this.leader.x, y: this.leader.y, text: `💀 خسرت ${lost} 💵!`, color: "#ff0000", life: 3, maxLife: 3 });
     this.leader.hp = this.leader.maxHp;
     this.leader.x = this.W / 2;
     this.leader.y = this.H / 2;
     this.leader.path = null;
     this.initArmyUnits(8);
+    // عرض شاشة الخسارة
+    this._showWipeScreen(lost, killed);
     if (this._onNotification) this._onNotification(`💀 هُزمت! خسرت ${lost} 💵`);
+    if (this._onWipe) this._onWipe(lost, killed);
+  }
+
+  _showWipeScreen(lost, killed) {
+    // إزالة أي شاشة خسارة سابقة
+    const existing = document.getElementById("wipe-overlay");
+    if (existing) existing.remove();
+    const overlay = document.createElement("div");
+    overlay.id = "wipe-overlay";
+    overlay.style.cssText = `
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85);
+      direction: rtl; text-align: center;
+      padding: 20px; box-sizing: border-box;
+    `;
+    overlay.innerHTML = `
+      <div style="font-size:3rem;margin-bottom:8px;">💀</div>
+      <div style="color:#ff4444;font-size:1.1rem;font-weight:700;margin-bottom:12px;">هُزم جيشك!</div>
+      <div style="color:var(--gold);font-size:0.85rem;margin-bottom:6px;">الغنائم التي خسرتها:</div>
+      <div style="color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:4px;">${lost} 💵</div>
+      <div style="color:var(--beige-dark);font-size:0.7rem;margin-bottom:16px;">الوحوش المقتولة: ${killed}</div>
+      <button id="wipe-dismiss-btn" style="
+        padding: 12px 32px; font-size:1rem; font-weight:700;
+        background:var(--gold); color:var(--dark); border:none; border-radius:12px;
+        cursor:pointer; touch-action:manipulation;
+      ">✅ حسناً</button>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById("wipe-dismiss-btn").onclick = () => overlay.remove();
   }
 
   drawArmyHUD(dt, ctx) {
@@ -1019,13 +1053,19 @@ export class WorldMap {
   }
 
   updateMonstersAI(dt) {
-    this._lerpMonsterPositions(dt);
+    // إذا السيرفر متصل، نسحب مواقع الوحوش من السيرفر (حركة سلسة)
+    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+      this._lerpMonsterPositions(dt);
+    }
     for (const m of this.monsters) {
       if (!m.alive) {
         m.respawnTimer -= dt;
         if (m.respawnTimer <= 0) this.respawnMonster(m);
         continue;
       }
+
+      // إذا السيرفر متصل — لا نحرك الوحوش محلياً (السيرفر هو المسؤول)
+      if (this._ws && this._ws.readyState === WebSocket.OPEN) continue;
 
       let target = this.leader;
       let minDist = Math.hypot(m.x - this.leader.x, m.y - this.leader.y);
@@ -1061,7 +1101,7 @@ export class WorldMap {
           m.y += (dy / dist) * 35 * dt;
         }
       } else {
-        // دورية (Patrol) — التحرك العشوائي
+        // دورية (Patrol) — التحرك العشوائي (بديل محلي فقط)
         if (!m._patrolTarget || Math.hypot(m.x - m._patrolTarget.x, m.y - m._patrolTarget.y) < 20) {
           m._patrolTarget = {
             x: m.spawnX + (Math.random() - 0.5) * 200,
@@ -1094,6 +1134,7 @@ export class WorldMap {
       if (this.economy) {
         this.economy.addRaw("cash", reward);
         this.economy.addRaw("gold", Math.floor(reward * 0.3));
+        if (this._onCashEarned) this._onCashEarned(reward);
         this.worldFx.push({ x: monster.x, y: monster.y, text: `+${reward} 💵 +${Math.floor(reward * 0.3)} 🪙`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
         fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
           method: "POST",

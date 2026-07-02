@@ -45,6 +45,7 @@ export class InventoryManager {
   constructor(economy) {
     this.economy = economy;
     this.items = {};
+    this._onCrafted = null;
   }
 
   getAllRecipes() { return RECIPES; }
@@ -65,6 +66,7 @@ export class InventoryManager {
       if (!this.economy.spend(res, amt)) return false;
     }
     this.items[r.product] = (this.items[r.product] || 0) + 1;
+    if (this._onCrafted) this._onCrafted(r);
     return true;
   }
 
