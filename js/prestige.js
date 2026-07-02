@@ -40,7 +40,7 @@ export class PrestigeManager {
     this.economy.resources.gold = 100;
     this.economy.resources.gems = Math.max(50, this.economy.gems);
     this.army.unitLevel = 1;
-    this.army.weapons.forEach(w => w.level = 0);
+    this.army.weapons.forEach(w => { w.level = 0; w.upgradeLevel = 0; });
     this.village.initVillage(1);
     if (this._onPrestige) this._onPrestige(this.level);
     return true;

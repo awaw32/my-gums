@@ -79,7 +79,10 @@ async function loadFromDatabase(economy, army, username) {
       if (data.weapons && Array.isArray(data.weapons)) {
         for (const wd of data.weapons) {
           const w = army.weapons.find(ww => ww.id === wd.id);
-          if (w) w.level = wd.level || 0;
+          if (w) {
+            w.level = wd.level || 0;
+            w.upgradeLevel = wd.upgradeLevel ?? (wd.level > 0 ? wd.level * 8 : 0);
+          }
         }
       }
       window._loadedLandsState = data.landsState || null;
@@ -283,7 +286,7 @@ async function init() {
           army_power: economy.power,
           unitLevel: army.unitLevel,
           trainingLevel: army.trainingLevel,
-          weapons: army.weapons.map(w => ({ id: w.id, level: w.level })),
+          weapons: army.weapons.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel })),
           x_position: world.leader ? Math.floor(world.leader.x) : 0,
           y_position: world.leader ? Math.floor(world.leader.y) : 0,
           xp: economy.xp,

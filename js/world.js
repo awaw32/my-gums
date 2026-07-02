@@ -325,7 +325,7 @@ export class WorldMap {
           horns: this.economy?.horns || 0,
           army_power: this.economy ? this.economy.power : 0,
           unitLevel: this.army?.unitLevel || 1,
-          weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level })) || [],
+          weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel })) || [],
           x_position: Math.floor(this.leader.x),
           y_position: Math.floor(this.leader.y),
           kills: this.sessionStats.kills,
@@ -499,7 +499,7 @@ export class WorldMap {
           horns: this.economy?.horns || 0,
           army_power: this.economy ? this.economy.power : 0,
           unitLevel: this.army?.unitLevel || 1,
-          weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level })) || [],
+          weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel })) || [],
           last_active: Date.now()
         })
       });
@@ -1245,7 +1245,7 @@ export class WorldMap {
             horns: this.economy.horns,
             army_power: this.economy.power,
             unitLevel: this.army?.unitLevel || 1,
-            weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level })) || [],
+            weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel })) || [],
             last_active: Date.now()
           })
         }).catch(() => {});

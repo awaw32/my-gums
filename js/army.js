@@ -16,7 +16,9 @@ export class Weapon {
     this.gemCost = data.gemCost;
     this.requireLevel = data.requireLevel;
     this.level = 0;
-    this.maxLevel = 5; // 5 نجوم
+    this.maxLevel = 5;
+    this.upgradeLevel = 0;
+    this.maxUpgradeLevel = 40;
   }
 
   get power() {
@@ -24,11 +26,11 @@ export class Weapon {
   }
 
   get upgradeCost() {
-    return Math.floor(this.gemCost * (1 + this.level * 0.3));
+    return Math.floor(this.gemCost * (1 + Math.floor(this.upgradeLevel / 3) * 0.5));
   }
 
   canUpgrade(economy, houseLevel) {
-    if (this.level >= this.maxLevel) return false;
+    if (this.upgradeLevel >= this.maxUpgradeLevel) return false;
     if (houseLevel < this.requireLevel) return false;
     return economy.canAfford('gems', this.upgradeCost);
   }
@@ -37,7 +39,11 @@ export class Weapon {
     if (!this.canUpgrade(economy, houseLevel)) return false;
     const cost = this.upgradeCost;
     if (!economy.spend('gems', cost)) return false;
-    this.level++;
+    this.upgradeLevel++;
+    const newLevel = Math.min(5, Math.floor(this.upgradeLevel / 8));
+    if (newLevel > this.level) {
+      this.level = newLevel;
+    }
     return true;
   }
 }

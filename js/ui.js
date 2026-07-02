@@ -1,4 +1,5 @@
 import { formatNumber, RESOURCE_TYPES } from "./economy.js";
+import { WeaponsLibrary } from "./weapons.js";
 
 export class GameUI {
   constructor(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial) {
@@ -643,6 +644,20 @@ export class GameUI {
     }
   }
 
+  /** عرض الـ Hub وإخفاء الصفحات الفرعية */
+  _promotionShowHub() {
+    this._promoSubPage = null;
+    this.renderPromotion();
+  }
+
+  /** فتح مكتبة الأسلحة كاملة الشاشة */
+  _openWeaponsLibrary() {
+    const existing = document.getElementById('weapons-library-overlay');
+    if (existing) existing.remove();
+    const lib = new WeaponsLibrary(this.army.weapons, this.economy, this);
+    document.body.appendChild(lib.render());
+  }
+
   /** رسم بطاقات الـ Hub الأربع — تصميم جديد */
   _renderPromotionHub() {
     const hubGrid = document.getElementById("promo-hub-grid");
@@ -654,7 +669,7 @@ export class GameUI {
     const totalMax = treePaths.reduce((sum, p) => sum + p.maxLevel, 0);
 
     const wCount = this.army?.weapons?.length || 6;
-    const wUpgraded = this.army?.weapons?.filter(w => w.level > 0).length || 0;
+    const wUpgraded = this.army?.weapons?.filter(w => w.upgradeLevel > 0).length || 0;
 
     const cards = [
       {
@@ -703,8 +718,14 @@ export class GameUI {
         </div>
       `;
       card.addEventListener('click', () => {
-        this._promoSubPage = c.id;
-        this.renderPromotion();
+        if (c.id === 'weapons') {
+          this._promoSubPage = null;
+          this.renderPromotion();
+          this._openWeaponsLibrary();
+        } else {
+          this._promoSubPage = c.id;
+          this.renderPromotion();
+        }
       });
       hubGrid.appendChild(card);
     }
