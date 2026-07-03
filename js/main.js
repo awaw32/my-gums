@@ -137,6 +137,7 @@ async function init() {
   const netSync = new NetworkSync(API_BASE, PLAYER_USERNAME);
   world.netSync = netSync;
   netSync.world = world;
+  world.store = store;
   const assets = new AssetManager();
   const audio = new AudioManager();
   const achievements = new AchievementManager(economy);
@@ -206,8 +207,7 @@ async function init() {
   if (loadingScreen) loadingScreen.classList.add("fade-out");
   if (appShell) appShell.classList.remove("hidden");
 
-  setTimeout(() => {
-    const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial);
+    const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store);
     world.onExit = () => ui.exitWorldMap();
 
     // ربط العالم بأنظمة الترقيات والتحالف
@@ -491,16 +491,17 @@ async function init() {
       audio.playSound('hit');
     };
 
-    world._onNotification = (msg) => {
-      ui.showNotification(msg);
-      if (msg.includes('المنطقة تتصغر') && brZoneWarningEl) {
+    store.on('notification', (data) => {
+      if (!data || !data.text) return;
+      ui.showNotification(data.text);
+      if (data.text.includes('المنطقة تتصغر') && brZoneWarningEl) {
         brZoneWarningEl.classList.remove('hidden');
         clearTimeout(brZoneWarningEl._hideTimer);
         brZoneWarningEl._hideTimer = setTimeout(() => {
           if (brZoneWarningEl) brZoneWarningEl.classList.add('hidden');
         }, 2500);
       }
-    };
+    });
 
     if (brVictoryBtn) {
       brVictoryBtn.addEventListener('click', async () => {
@@ -532,17 +533,16 @@ async function init() {
       }
     };
 
-    world._onPlayersChanged = (players) => {
-      // تحديث لوحة المتصلين في الوضع العادي و BR
-      ui._lastPlayerList = players;
-      ui.updatePlayerPanel(players);
+    store.on('players', (list) => {
+      ui._lastPlayerList = list;
+      ui.updatePlayerPanel(list);
       if (world.mode !== 'battle_royale') return;
       if (brAliveCount && brTotalCount) {
-        const alive = players.filter(p => p.br_alive !== false).length + 1;
+        const alive = list.filter(p => p.br_alive !== false).length + 1;
         brAliveCount.textContent = alive;
-        brTotalCount.textContent = players.length + 1;
+        brTotalCount.textContent = list.length + 1;
       }
-    };
+    });
 
     // تشغيل الأحداث الدورية
     let eventTimer = 0;
@@ -617,7 +617,6 @@ async function init() {
         console.warn("💾 [DB] قاعدة البيانات غير متصلة — الحفظ في الذاكرة مؤقتاً");
       }
     }).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
-  }, 400);
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

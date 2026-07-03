@@ -258,18 +258,18 @@ export class NetworkSync {
     if (!w) return;
     if (msg.type === "world_players") {
       this.syncOtherPlayers(msg.list || []);
-      if (w._onPlayersChanged) w._onPlayersChanged(msg.list || []);
+      if (w.store) w.store.set('players', msg.list || []);
     } else if (msg.type === "world_monsters") {
       this.syncMonsters(msg.list || []);
     } else if (msg.type === "monster_killed") {
       const mon = w.monsters.find(m => m.id === msg.id);
       if (mon && mon.alive) { mon.alive = false; mon.hp = 0; mon.respawnTimer = 25; }
     } else if (msg.type === "pvp_notify") {
-      if (w._onNotification) w._onNotification(`⚔️ ${msg.attacker} هاجمك بقوة ${msg.power}!`);
+      if (w.store) w.store.set('notification', { text: `⚔️ ${msg.attacker} هاجمك بقوة ${msg.power}!`, t: Date.now() });
     } else if (msg.type === "player_joined") {
-      if (w._onNotification) w._onNotification(`👋 ${msg.username} دخل إلى الصحراء`);
+      if (w.store) w.store.set('notification', { text: `👋 ${msg.username} دخل إلى الصحراء`, t: Date.now() });
     } else if (msg.type === "player_left") {
-      if (w._onNotification) w._onNotification(`🚪 ${msg.username} خرج من الصحراء`);
+      if (w.store) w.store.set('notification', { text: `🚪 ${msg.username} خرج من الصحراء`, t: Date.now() });
     } else if (msg.type === "broadcast_chat") {
       if (w._onChatMessage) w._onChatMessage(msg.username, msg.message);
     } else if (msg.type === "br_zone_shrink") {
@@ -283,7 +283,7 @@ export class NetworkSync {
         w.bandits.push(msg.bandit);
       }
     } else if (msg.type === "br_player_eliminated") {
-      if (w._onNotification) w._onNotification(`💀 ${msg.playerId} قُتل بواسطة ${msg.by}`);
+      if (w.store) w.store.set('notification', { text: `💀 ${msg.playerId} قُتل بواسطة ${msg.by}`, t: Date.now() });
     } else if (msg.type === "br_match_end") {
       if (w.mode === "battle_royale") {
         w.matchEnded = true;

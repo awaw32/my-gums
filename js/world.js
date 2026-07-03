@@ -22,14 +22,13 @@ export class WorldMap {
 
     // ==================== الملتيكاملة (WebSocket عبر NetworkSync) ====================
     this.netSync = null; // يُضبط من main.js بعد الإنشاء
+    this.store = null; // يُضبط من main.js
     this.otherPlayers = new Map();
     this.nearbyPlayer = null;
     this.combatCooldown = 0;
     this.attackRange = 60;
     this.onExit = null;
     this.sessionStats = { kills: 0, coinsEarned: 0 };
-    this._onPlayersChanged = null;
-    this._onNotification = null;
     this._monstersSynced = false;
     this._pvpTarget = null;
     this._wipeFlag = false;
@@ -585,7 +584,7 @@ export class WorldMap {
     this.initArmyUnits(8);
     // عرض شاشة الخسارة
     this._showWipeScreen(lost, killed);
-    if (this._onNotification) this._onNotification(`💀 هُزمت! خسرت ${lost} 💵`);
+    if (this.store) this.store.set('notification', { text: `💀 هُزمت! خسرت ${lost} 💵`, t: Date.now() });
     if (this._onWipe) this._onWipe(lost, killed);
   }
 
@@ -1205,7 +1204,7 @@ export class WorldMap {
       this.leader.maxHp = 120;
     }
     this.netSync.send({ type: "br_match_start", mapSize: this.brMapSize, matchDuration: this.matchDuration });
-    if (this._onNotification) this._onNotification("🚀 بدأت المعركة الملكية! كن آخر من يبقى!");
+    if (this.store) this.store.set('notification', { text: "🚀 بدأت المعركة الملكية! كن آخر من يبقى!", t: Date.now() });
   }
 
   updateBR(dt) {
@@ -1222,7 +1221,7 @@ export class WorldMap {
       this.zone.nextShrink = 30;
       this.zone.radius = Math.max(this.zone.minRadius, this.zone.radius - 80);
       this.netSync.send({ type: "br_zone_shrink", radius: this.zone.radius, centerX: this.zone.x, centerY: this.zone.y });
-      if (this._onNotification) this._onNotification("⚠️ المنطقة تتصغر! تحرك إلى الداخل!");
+      if (this.store) this.store.set('notification', { text: "⚠️ المنطقة تتصغر! تحرك إلى الداخل!", t: Date.now() });
     }
     // ضرر للاعب خارج المنطقة
     if (this.leader) {
@@ -1358,7 +1357,7 @@ export class WorldMap {
     if (killedByMe) this.brKills++;
     const msg = isMe ? `💀 ${by} قتلك!` : `💀 ${playerId} قُتل بواسطة ${by}`;
     this.killFeed.push({ text: msg, time: 3 });
-    if (this._onNotification) this._onNotification(msg);
+    if (this.store) this.store.set('notification', { text: msg, t: Date.now() });
     this.netSync.send({ type: "br_player_eliminated", playerId, by });
     this._checkBRWinner();
   }
@@ -1497,6 +1496,6 @@ export class WorldMap {
     const canvas = document.getElementById("gameCanvas");
     if (canvas) canvas.classList.add("hidden");
     if (this.onExit) this.onExit();
-    if (this._onPlayersChanged) this._onPlayersChanged([]);
+    if (this.store) this.store.set('players', []);
   }
 }

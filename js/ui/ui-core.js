@@ -3,11 +3,12 @@ import { injectPromotionMethods } from "./ui-promotion.js";
 import { injectGameplayMethods } from "./ui-gameplay.js";
 
 export class GameUI {
-  constructor(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial) {
+  constructor(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store) {
     this.village = village;
     this.army = army;
     this.economy = economy;
     this.world = world;
+    this.store = store;
     this.oasisManager = oasisManager;
     this.upgradeTree = upgradeTree;
     this.allianceManager = allianceManager;
@@ -138,15 +139,19 @@ export class GameUI {
     this._chatPanel = document.getElementById("chat-panel");
     this._chatMessages = document.getElementById("chat-messages");
     this._lastPlayerList = [];
-    if (this.world) {
-      this.world._onPlayersChanged = (list) => {
+    if (this.store) {
+      this.store.on('players', (list) => {
         this._lastPlayerList = list;
         this.updatePlayerPanel(list);
-      };
+      });
+      this.store.on('notification', (data) => {
+        if (data && data.text) this.showNotification(data.text);
+      });
+    }
+    if (this.world) {
       this.world._onSelfStatsChanged = () => {
         this.updatePlayerPanel(this._lastPlayerList);
       };
-      this.world._onNotification = (msg) => this.showNotification(msg);
       this.world._onChatMessage = (username, msg) => {
         this.addChatMessage(username, msg);
         this.addChatToOverlay(username, msg);

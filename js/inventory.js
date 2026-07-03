@@ -80,7 +80,7 @@ export class InventoryManager {
       case 'heal_potion':
         if (world && world.leader) {
           world.leader.hp = Math.min(world.leader.maxHp, world.leader.hp + 50);
-          if (world._onNotification) world._onNotification('🧪 استخدمت جرعة علاج! +50 HP');
+          if (world.store) world.store.set('notification', { text: '🧪 استخدمت جرعة علاج! +50 HP', t: Date.now() });
         }
         break;
       case 'xp_scroll':
@@ -98,14 +98,14 @@ export class InventoryManager {
         if (world && world.leader) {
           world.leader.upgradeDmg += 100;
           setTimeout(() => { if (world.leader) world.leader.upgradeDmg -= 100; }, 30000);
-          if (world._onNotification) world._onNotification('🗡️ سيف ناري! +100 ضرر لمدة 30 ثانية');
+          if (world.store) world.store.set('notification', { text: '🗡️ سيف ناري! +100 ضرر لمدة 30 ثانية', t: Date.now() });
         }
         break;
       case 'desert_shield':
         if (world && world.leader) {
           world.leader.upgradeDef += 20;
           setTimeout(() => { if (world.leader) world.leader.upgradeDef -= 20; }, 60000);
-          if (world._onNotification) world._onNotification('🛡️ درع صحراوي! دفاع +20 لمدة 60 ثانية');
+          if (world.store) world.store.set('notification', { text: '🛡️ درع صحراوي! دفاع +20 لمدة 60 ثانية', t: Date.now() });
         }
         break;
       case 'power_helmet':
@@ -114,7 +114,7 @@ export class InventoryManager {
           const bonus = 50;
           for (const u of world.armyUnits) u.dmgBonus += bonus;
           setTimeout(() => { for (const u of world.armyUnits) u.dmgBonus = Math.max(0, u.dmgBonus - bonus); }, 60000);
-          if (world._onNotification) world._onNotification('⛑️ خوذة القوة! +50 ضرر للجيش لمدة 60 ثانية');
+          if (world.store) world.store.set('notification', { text: '⛑️ خوذة القوة! +50 ضرر للجيش لمدة 60 ثانية', t: Date.now() });
         }
         break;
       case 'power_gem':
@@ -122,7 +122,7 @@ export class InventoryManager {
         if (this.economy) {
           if (this._gemTimer) clearTimeout(this._gemTimer);
           this.economy.multiplier = 2;
-          if (world && world._onNotification) world._onNotification('💎 جوهرة القوة! ×2 كل العملات لمدة 5 دقائق!');
+          if (world && world.store) world.store.set('notification', { text: '💎 جوهرة القوة! ×2 كل العملات لمدة 5 دقائق!', t: Date.now() });
           this._gemTimer = setTimeout(() => {
             if (this.economy) this.economy.multiplier = 1;
             this._gemTimer = null;
@@ -131,7 +131,7 @@ export class InventoryManager {
         break;
       case 'tower_blueprint':
         // يفتح برج دفاع جديد — للمستقبل
-        if (world && world._onNotification) world._onNotification('📐 حصلت على مخطط برج! سيُضاف لقائمة المباني قريباً');
+        if (world && world.store) world.store.set('notification', { text: '📐 حصلت على مخطط برج! سيُضاف لقائمة المباني قريباً', t: Date.now() });
         break;
       default:
         // عنصر غير معروف — فقط نستهلكه
