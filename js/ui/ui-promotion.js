@@ -440,9 +440,10 @@ GameUI.prototype._openArmyYard = function() {
   overlay.id = 'army-yard-overlay';
   overlay.className = 'wl-overlay';
   overlay.style.alignItems = 'center';
+  overlay.style.touchAction = 'pan-y';
   const card = document.createElement('div');
   card.className = 'weapons-library';
-  card.style.cssText = 'max-width:430px;max-height:90vh;border-radius:24px;padding:20px;overflow-y:auto';
+  card.style.cssText = 'max-width:430px;max-height:88vh;border-radius:24px;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y';
   card.innerHTML = `
     <div class="wl-header">
       <div class="wl-title" style="font-size:1.3rem">💪 ساحة الجيش</div>
