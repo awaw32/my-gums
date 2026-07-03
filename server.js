@@ -36,19 +36,23 @@ const wss = new WebSocketServer({ server });
 const rooms = new Map();
 const playerData = new Map();          // playerId → { save data }
 const DATA_DIR = process.env.DATA_DIR || "./data";
-try { require("fs").mkdirSync(DATA_DIR, { recursive: true }); } catch {}
+try { require("fs").mkdirSync(DATA_DIR, { recursive: true }); } catch (e) { console.warn("[Server] Cannot create DATA_DIR:", e.message); }
 
 // ═══════════════════════════════════════════════════════════════════
 //  MongoDB — مباشر بدون n8n
 // ═══════════════════════════════════════════════════════════════════
 const mongoose = require("mongoose");
-mongoose.set("bufferCommands", false); // fail fast إذا MongoDB مش متاح
-const MONGO_URL = process.env.MONGO_URL || "mongodb://root:Qwer1%4034@grdjzjetwzevwrj3yy3o82wo:27017/?directConnection=true";
+mongoose.set("bufferCommands", false);
+const MONGO_URL = process.env.MONGO_URL;
 let mongoConnected = false;
-mongoose.connect(MONGO_URL, { serverSelectionTimeoutMS: 3000 })
-  .then(() => { mongoConnected = true; console.log("[MongoDB] Connected ✅"); })
-  .catch(err => { mongoConnected = false; console.warn("[MongoDB] غير متاح — اللعبة تشتغل بدون حفظ:", err.message); });
-mongoose.connection.on("disconnected", () => { mongoConnected = false; });
+if (!MONGO_URL) {
+  console.warn("[MongoDB] MONGO_URL غير مضبوط — اللعبة تشتغل بدون حفظ (in-memory only)");
+} else {
+  mongoose.connect(MONGO_URL, { serverSelectionTimeoutMS: 3000 })
+    .then(() => { mongoConnected = true; console.log("[MongoDB] Connected ✅"); })
+    .catch(err => { mongoConnected = false; console.warn("[MongoDB] غير متاح — اللعبة تشتغل بدون حفظ:", err.message); });
+  mongoose.connection.on("disconnected", () => { mongoConnected = false; });
+}
 
 const playerSchema = new mongoose.Schema({
   username:      { type: String, required: true, unique: true, index: true },
@@ -380,7 +384,7 @@ wss.on("connection", (ws, req) => {
       }
     });
 
-    ws.on("error", () => {});
+    ws.on("error", (err) => { console.warn(`[WorldWS] Connection error:`, err.message); });
 
     // أرسل القائمة الكاملة فور الاتصال
     const list = [];
