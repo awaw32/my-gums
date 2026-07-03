@@ -16,6 +16,8 @@ import { PrestigeManager } from "./prestige.js";
 import { InventoryManager } from "./inventory.js";
 import { EventManager } from "./events.js";
 import { TutorialManager } from "./tutorial.js";
+import { GameStore } from "./game-store.js";
+import { NetworkSync } from "./network-sync.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
@@ -131,6 +133,10 @@ async function init() {
   const allianceManager = new AllianceManager(economy);
   const quests = new QuestManager(economy, army, village); 
   const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE, army);
+  const store = new GameStore();
+  const netSync = new NetworkSync(API_BASE, PLAYER_USERNAME);
+  world.netSync = netSync;
+  netSync.world = world;
   const assets = new AssetManager();
   const audio = new AudioManager();
   const achievements = new AchievementManager(economy);
@@ -458,7 +464,7 @@ async function init() {
     delete window._brWins;
     delete window._brKills;
 
-    world._onBRMatchEnd = (result) => {
+    const onBRMatchEnd = (result) => {
       if (result.winner) {
         brWins++;
         brKillsTotal += result.kills || 0;
@@ -467,7 +473,6 @@ async function init() {
         economy.addRaw('kingCoins', 100 + (result.kills || 0) * 10);
         economy.addRaw('gems', 50);
         saveToDB();
-        // حفظ إحصائيات BR منفصلة
         fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -479,7 +484,8 @@ async function init() {
         if (brDefeatStats) brDefeatStats.textContent = `💀 قُتلت — قتلت ${result.kills || 0} أعداء`;
       }
     };
-
+    world._onBRMatchEnd = onBRMatchEnd;
+    netSync.onBRMatchEnd = onBRMatchEnd;
     // ربط شاشة الخسارة
     world._onWipe = (lost, killed) => {
       audio.playSound('hit');

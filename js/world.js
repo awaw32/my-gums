@@ -20,12 +20,9 @@ export class WorldMap {
     this.engine = null;
     this.running = false;
 
-    // ==================== نظام الملتيكاملة (WebSocket) ====================
+    // ==================== الملتيكاملة (WebSocket عبر NetworkSync) ====================
+    this.netSync = null; // يُضبط من main.js بعد الإنشاء
     this.otherPlayers = new Map();
-    this._ws = null;
-    this._wsReconnectTimer = null;
-    this._posInterval = null;
-    this._boundUnload = null;
     this.nearbyPlayer = null;
     this.combatCooldown = 0;
     this.attackRange = 60;
@@ -97,9 +94,7 @@ export class WorldMap {
       minRadius: 100,
       nextShrink: 30,
     };
-    this._onBRMatchEnd = null;
     this._onBRKillFeed = null;
-    this._onChatMessage = null;
     this._onCashEarned = null;
     this._events = null; // مرجع لـ EventManager
     this._onPvPWin = null;
@@ -149,230 +144,13 @@ export class WorldMap {
     return pts;
   }
 
-  async sendLoginNotification() {
-    try {
-      await fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: this.username,
-          x_position: Math.floor(this.leader.x),
-          y_position: Math.floor(this.leader.y),
-          army_power: this.economy ? this.economy.power : 0,
-          last_active: Date.now()
-        })
-      });
-      console.log("🚀 [API] إشعار دخول اللاعب!");
-    } catch (err) {
-      console.warn("⚠️ [API] فشل إشعار الدخول:", err.message);
-    }
-  }
-
-  // ==================== WebSocket — ملتيكاملة فورية ====================
+  // ==================== WebSocket — ملتيكاملة فورية (عبر NetworkSync) ====================
   startMultiplayerSync() {
-    if (this._ws) return;
-    this._connectWS();
-    this.sendWSUpdate();
-    this.sendPositionUpdate();
-    // WS update كل 100ms للحركة الفورية
-    this._wsInterval = setInterval(() => this.sendWSUpdate(), 100);
-    // HTTP save كل 5 ثوانٍ للحفظ في قاعدة البيانات
-    this._posInterval = setInterval(() => this.sendPositionUpdate(), 5000);
-    this._boundUnload = () => this.stopMultiplayerSync();
-    window.addEventListener("beforeunload", this._boundUnload);
+    if (this.netSync) this.netSync.start();
   }
 
   stopMultiplayerSync() {
-    if (this._wsInterval) {
-      clearInterval(this._wsInterval);
-      this._wsInterval = null;
-    }
-    if (this._posInterval) {
-      clearInterval(this._posInterval);
-      this._posInterval = null;
-    }
-    if (this._wsReconnectTimer) {
-      clearTimeout(this._wsReconnectTimer);
-      this._wsReconnectTimer = null;
-    }
-    if (this._ws) {
-      this._ws.onclose = null;
-      this._ws.onmessage = null;
-      this._ws.onerror = null;
-      try { this._ws.close(); } catch {}
-      this._ws = null;
-    }
-    if (this._boundUnload) {
-      window.removeEventListener("beforeunload", this._boundUnload);
-      this._boundUnload = null;
-    }
-  }
-
-  _connectWS() {
-    if (this._ws) return;
-    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-    const base = this.apiBase ? this.apiBase.replace(/^http/, "ws") : `${protocol}//${location.host}`;
-    const url = `${base}/ws/world`;
-    this._ws = new WebSocket(url);
-
-    this._ws.onopen = () => {
-      console.log("[WS] متصل بالخادم ✅");
-      this._sendWS({
-        type: "join", username: this.username,
-        x_position: Math.floor(this.leader?.x || 1200),
-        y_position: Math.floor(this.leader?.y || 1200),
-        army_power: this.economy ? this.economy.power : 0,
-        kills: this.sessionStats.kills,
-        coinsEarned: this.sessionStats.coinsEarned,
-        unitLevel: this.army?.unitLevel || 1,
-        armyAlive: this.armyUnits.filter(u => u.hp > 0).length
-      });
-    };
-
-    this._ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.type === "world_players") {
-          this.syncOtherPlayers(msg.list || []);
-          if (this._onPlayersChanged) this._onPlayersChanged(msg.list || []);
-        } else if (msg.type === "world_monsters") {
-          this.syncMonsters(msg.list || []);
-        } else if (msg.type === "monster_killed") {
-          const mon = this.monsters.find(m => m.id === msg.id);
-          if (mon && mon.alive) { mon.alive = false; mon.hp = 0; mon.respawnTimer = 25; }
-        } else if (msg.type === "pvp_notify") {
-          if (this._onNotification) this._onNotification(`⚔️ ${msg.attacker} هاجمك بقوة ${msg.power}!`);
-        } else if (msg.type === "player_joined") {
-          if (this._onNotification) this._onNotification(`👋 ${msg.username} دخل إلى الصحراء`);
-        } else if (msg.type === "player_left") {
-          if (this._onNotification) this._onNotification(`🚪 ${msg.username} خرج من الصحراء`);
-        } else if (msg.type === "broadcast_chat") {
-          if (this._onChatMessage) this._onChatMessage(msg.username, msg.message);
-        } else if (msg.type === "br_zone_shrink") {
-          if (this.mode === "battle_royale") {
-            this.zone.radius = msg.radius;
-            this.zone.x = msg.centerX;
-            this.zone.y = msg.centerY;
-          }
-        } else if (msg.type === "br_bandit_spawn") {
-          if (this.mode === "battle_royale" && msg.bandit) {
-            this.bandits.push(msg.bandit);
-          }
-        } else if (msg.type === "br_player_eliminated") {
-          if (this._onNotification) this._onNotification(`💀 ${msg.playerId} قُتل بواسطة ${msg.by}`);
-        } else if (msg.type === "br_match_end") {
-          if (this.mode === "battle_royale") {
-            this.matchEnded = true;
-            this.matchStarted = false;
-            if (this._onBRMatchEnd) this._onBRMatchEnd(msg);
-          }
-        }
-      } catch {}
-    };
-
-    this._ws.onclose = () => {
-      console.warn("[WS] قطع الاتصال، إعادة محاولة...");
-      this._ws = null;
-      this._wsReconnectTimer = setTimeout(() => this._connectWS(), 2000);
-    };
-
-    this._ws.onerror = () => {};
-  }
-
-  _sendWS(data) {
-    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
-      this._ws.send(JSON.stringify(data));
-    }
-  }
-
-  sendWSUpdate() {
-    if (!this.leader || !this._ws || this._ws.readyState !== WebSocket.OPEN) return;
-    const update = {
-      type: "update",
-      x_position: Math.floor(this.leader.x),
-      y_position: Math.floor(this.leader.y),
-      army_power: this.economy ? this.economy.power : 0,
-      kills: this.sessionStats.kills,
-      coinsEarned: this.sessionStats.coinsEarned,
-      unitLevel: this.army?.unitLevel || 1,
-      armyAlive: this.armyUnits.filter(u => u.hp > 0).length
-    };
-    if (this.mode === "battle_royale") {
-      update.br_hp = this.leader.hp;
-      update.br_alive = this.leader.hp > 0;
-      update.br_kills = this.brKills;
-    }
-    this._sendWS(update);
-    // تحديث إحصائيات اللاعب نفسه في اللوحة كل 100ms
-    if (this._onSelfStatsChanged) {
-      this._onSelfStatsChanged(this.sessionStats.kills, this.sessionStats.coinsEarned);
-    }
-  }
-
-  async sendPositionUpdate() {
-    if (!this.leader) return;
-    try {
-      await fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cash: this.economy?.cash || 0,
-          gems: this.economy?.gems || 0,
-          gold: this.economy?.gold || 0,
-          kingCoins: this.economy?.kingCoins || 0,
-          hammers: this.economy?.hammers || 0,
-          scrolls: this.economy?.scrolls || 0,
-          horns: this.economy?.horns || 0,
-          army_power: this.economy ? this.economy.power : 0,
-          unitLevel: this.army?.unitLevel || 1,
-          weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel })) || [],
-          x_position: Math.floor(this.leader.x),
-          y_position: Math.floor(this.leader.y),
-          kills: this.sessionStats.kills,
-          coinsEarned: this.sessionStats.coinsEarned,
-          last_active: Date.now()
-        })
-      });
-    } catch {}
-  }
-
-  syncMonsters(serverMonsters) {
-    if (!serverMonsters || serverMonsters.length === 0) return;
-    this._monstersSynced = true;
-    const newIds = new Set();
-    for (const sm of serverMonsters) {
-      newIds.add(sm.id);
-      const local = this.monsters.find(m => m.id === sm.id);
-      if (local) {
-        // لا نغير موقع الوحوش أثناء القتال — نستخدم lerp سلس
-        if (!local._targetX) { local._targetX = local.x; local._targetY = local.y; }
-        local._targetX = sm.x;
-        local._targetY = sm.y;
-        local.hp = sm.hp;
-        local.maxHp = sm.maxHp;
-        if (local.alive && !sm.alive) {
-          local.alive = false;
-          local.respawnTimer = sm.respawnTimer || 25;
-        } else if (!local.alive && sm.alive) {
-          local.alive = true;
-          local.hp = sm.hp;
-          local.respawnTimer = 0;
-        }
-      } else {
-        this.monsters.push({
-          ...sm,
-          facing: 1, attackCD: 0,
-          _targetX: sm.x, _targetY: sm.y,
-          respawnTimer: sm.alive ? 0 : (sm.respawnTimer || 25)
-        });
-      }
-    }
-    // إزالة الوحوش التي لم تعد موجودة عند السيرفر
-    for (let i = this.monsters.length - 1; i >= 0; i--) {
-      if (!newIds.has(this.monsters[i].id)) {
-        this.monsters.splice(i, 1);
-      }
-    }
+    if (this.netSync) this.netSync.stop();
   }
 
   // حركة سلسة للوحوش (تُستدعى من updateMonstersAI)
@@ -382,59 +160,6 @@ export class WorldMap {
       if (m.alive) {
         m.x += (m._targetX - m.x) * Math.min(1, dt * 8);
         m.y += (m._targetY - m.y) * Math.min(1, dt * 8);
-      }
-    }
-  }
-
-  syncOtherPlayers(players) {
-    const now = Date.now();
-    const activeUsernames = new Set();
-
-    for (const p of players) {
-      const name = p.username;
-      if (!name || name === this.username) continue;
-
-      const lastActive = p.last_active ? new Date(p.last_active).getTime() : 0;
-      if (now - lastActive > 10000) continue;
-
-      activeUsernames.add(name);
-      const x = p.x_position ?? this.W / 2 + (Math.random() - 0.5) * 400;
-      const y = p.y_position ?? this.H / 2 + (Math.random() - 0.5) * 400;
-
-      if (this.otherPlayers.has(name)) {
-        const existing = this.otherPlayers.get(name);
-        existing.targetX = x;
-        existing.targetY = y;
-        existing.army_power = p.army_power || 0;
-        existing.unitLevel = p.unitLevel || 1;
-        existing.armyAlive = p.armyAlive ?? 8;
-        existing.lastActive = lastActive;
-        existing.br_hp = p.br_hp ?? existing.br_hp;
-        existing.br_alive = p.br_alive ?? existing.br_alive;
-        existing.kills = p.kills ?? existing.kills ?? 0;
-        existing.coinsEarned = p.coinsEarned ?? existing.coinsEarned ?? 0;
-      } else {
-        this.otherPlayers.set(name, {
-          username: name,
-          x: x, y: y,
-          targetX: x, targetY: y,
-          radius: 16,
-          army_power: p.army_power || 0,
-          unitLevel: p.unitLevel || 1,
-          armyAlive: p.armyAlive ?? 8,
-          lastActive: lastActive,
-          color: p.color || "#3a5a8a",
-          br_hp: p.br_hp ?? 120,
-          br_alive: p.br_alive ?? true,
-          kills: p.kills ?? 0,
-          coinsEarned: p.coinsEarned ?? 0,
-        });
-      }
-    }
-
-    for (const [name, player] of this.otherPlayers) {
-      if (!activeUsernames.has(name)) {
-        this.otherPlayers.delete(name);
       }
     }
   }
@@ -481,8 +206,8 @@ export class WorldMap {
       if (this._onPvPLose) this._onPvPLose();
     }
 
-    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
-      this._sendWS({ type: "pvp_attack", target: target.username, myPower: this.economy ? this.economy.power : 0 });
+    if (this.netSync) {
+      this.netSync.send({ type: "pvp_attack", target: target.username, myPower: this.economy ? this.economy.power : 0 });
     }
 
     try {
@@ -645,7 +370,7 @@ export class WorldMap {
     const img = new Image();
     img.onload = () => { 
       this.mapImage = img; 
-      this.sendLoginNotification();
+      if (this.netSync) this.netSync.sendLoginNotification();
     };
     img.src = window.ImageResolver ? ImageResolver.src('mapDesert') : "img/map.jpg";
 
@@ -794,7 +519,7 @@ export class WorldMap {
       u.fighting = null;
     });
 
-    this.sendWSUpdate();
+    if (this.netSync) this.netSync.sendWSUpdate();
   }
 
   findMonsterAt(x, y) {
@@ -850,7 +575,7 @@ export class WorldMap {
     if (this.economy && lost > 0) {
       this.economy.addRaw("cash", -lost);
       this.economy.addXp(-Math.floor(killed * 5));
-      this.sendPositionUpdate();
+      if (this.netSync) this.netSync.sendPositionUpdate();
     }
     this.sessionStats = { kills: 0, coinsEarned: 0 };
     this.leader.hp = this.leader.maxHp;
@@ -1118,8 +843,9 @@ export class WorldMap {
   }
 
   updateMonstersAI(dt) {
+    const connected = this.netSync && this.netSync.isConnected;
     // إذا السيرفر متصل، نسحب مواقع الوحوش من السيرفر (حركة سلسة)
-    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+    if (connected) {
       this._lerpMonsterPositions(dt);
     }
     for (const m of this.monsters) {
@@ -1130,7 +856,7 @@ export class WorldMap {
       }
 
       // إذا السيرفر متصل — لا نحرك الوحوش محلياً (السيرفر هو المسؤول)
-      if (this._ws && this._ws.readyState === WebSocket.OPEN) continue;
+      if (connected) continue;
 
       let target = this.leader;
       let minDist = Math.hypot(m.x - this.leader.x, m.y - this.leader.y);
@@ -1225,7 +951,7 @@ export class WorldMap {
       const reward = monster.rewardMoney || 10;
       this.sessionStats.kills++;
       this.sessionStats.coinsEarned += reward;
-      this._sendWS({ type: "monster_killed", id: monster.id });
+      this.netSync.send({ type: "monster_killed", id: monster.id });
       this.createDrop(monster.x, monster.y, reward);
       if (this.economy) {
         this.economy.addRaw("cash", reward);
@@ -1478,7 +1204,7 @@ export class WorldMap {
       this.leader.hp = 120;
       this.leader.maxHp = 120;
     }
-    this._sendWS({ type: "br_match_start", mapSize: this.brMapSize, matchDuration: this.matchDuration });
+    this.netSync.send({ type: "br_match_start", mapSize: this.brMapSize, matchDuration: this.matchDuration });
     if (this._onNotification) this._onNotification("🚀 بدأت المعركة الملكية! كن آخر من يبقى!");
   }
 
@@ -1495,7 +1221,7 @@ export class WorldMap {
     if (this.zone.nextShrink <= 0) {
       this.zone.nextShrink = 30;
       this.zone.radius = Math.max(this.zone.minRadius, this.zone.radius - 80);
-      this._sendWS({ type: "br_zone_shrink", radius: this.zone.radius, centerX: this.zone.x, centerY: this.zone.y });
+      this.netSync.send({ type: "br_zone_shrink", radius: this.zone.radius, centerX: this.zone.x, centerY: this.zone.y });
       if (this._onNotification) this._onNotification("⚠️ المنطقة تتصغر! تحرك إلى الداخل!");
     }
     // ضرر للاعب خارج المنطقة
@@ -1569,7 +1295,7 @@ export class WorldMap {
       patrolTarget: null, targetId: null,
     };
     this.bandits.push(bandit);
-    this._sendWS({ type: "br_bandit_spawn", bandit });
+    this.netSync.send({ type: "br_bandit_spawn", bandit });
     return bandit;
   }
 
@@ -1633,7 +1359,7 @@ export class WorldMap {
     const msg = isMe ? `💀 ${by} قتلك!` : `💀 ${playerId} قُتل بواسطة ${by}`;
     this.killFeed.push({ text: msg, time: 3 });
     if (this._onNotification) this._onNotification(msg);
-    this._sendWS({ type: "br_player_eliminated", playerId, by });
+    this.netSync.send({ type: "br_player_eliminated", playerId, by });
     this._checkBRWinner();
   }
 
@@ -1654,7 +1380,7 @@ export class WorldMap {
     this.matchStarted = false;
     const isWinner = reason === "winner" || (reason === "last" && this.leader && this.leader.hp > 0);
     if (this._onBRMatchEnd) this._onBRMatchEnd({ winner: isWinner, kills: this.brKills, reason });
-    this._sendWS({ type: "br_match_end", winner: isWinner ? this.username : null, kills: this.brKills });
+    this.netSync.send({ type: "br_match_end", winner: isWinner ? this.username : null, kills: this.brKills });
   }
 
   drawBRZone(ctx) {
@@ -1748,8 +1474,10 @@ export class WorldMap {
   }
 
   async exitWorldMap() {
-    this.sendWSUpdate();
-    await this.sendPositionUpdate();
+    if (this.netSync) {
+      this.netSync.sendWSUpdate();
+      await this.netSync.sendPositionUpdate();
+    }
     if (this.mode === "battle_royale") {
       this.matchStarted = false;
       this.matchEnded = false;
