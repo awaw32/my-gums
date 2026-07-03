@@ -92,11 +92,29 @@ function computePlayerStats(data) {
   };
 }
 
+function computeArmyYardUpgradeCost(currentLevel) {
+  const next = currentLevel + 1;
+  return {
+    cash: 200 + next * 50,
+    gold: 5 + next * 3,
+    hammers: 1 + Math.floor(next / 5),
+  };
+}
+
 function computeArmyYardStats(armyYardLevel) {
   const level = armyYardLevel || 1;
   const maxTroops = Math.min(8 + level, 20);
   const hpBonus = level * 6;
   return { maxTroops, hpBonus };
+}
+
+function computeKnowledgeUpgradeCost(currentLevel) {
+  const next = currentLevel + 1;
+  return {
+    cash: 300 + next * 60,
+    gold: 10 + next * 5,
+    scrolls: 1 + Math.floor(next / 3),
+  };
 }
 
 function computeKnowledgeBonuses(data) {
@@ -132,7 +150,9 @@ const INITIAL_ARMY_POWER = 5000;
 module.exports = {
   computePlayerStats,
   computeWeaponDamage,
+  computeArmyYardUpgradeCost,
   computeArmyYardStats,
+  computeKnowledgeUpgradeCost,
   computeKnowledgeBonuses,
   getWeaponDef,
   computeEffectivePower,

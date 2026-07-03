@@ -299,116 +299,115 @@ export class NetworkSync {
   _handleMessage(msg) {
     const w = this.world;
     if (!w) return;
-    if (msg.type === "world_players") {
-      this.syncOtherPlayers(msg.list || []);
-      if (w.store) w.store.set('players', msg.list || []);
-    } else if (msg.type === "world_monsters") {
-      this.syncMonsters(msg.list || []);
-    } else if (msg.type === "monster_killed") {
-      const mon = w.monsters.find(m => m.id === msg.id);
-      if (mon && mon.alive) { mon.alive = false; mon.hp = 0; mon.respawnTimer = 25; }
-    } else if (msg.type === "pvp_notify") {
-      if (w.store) w.store.set('notification', { text: `⚔️ ${msg.attacker} هاجمك بقوة ${msg.power}!`, t: Date.now() });
-    } else if (msg.type === "player_joined") {
-      if (w.store) w.store.set('notification', { text: `👋 ${msg.username} دخل إلى الصحراء`, t: Date.now() });
-    } else if (msg.type === "player_left") {
-      if (w.store) w.store.set('notification', { text: `🚪 ${msg.username} خرج من الصحراء`, t: Date.now() });
-    } else if (msg.type === "broadcast_chat") {
-      if (w._onChatMessage) w._onChatMessage(msg.username, msg.message);
-    } else if (msg.type === "br_zone_shrink") {
-      if (w.mode === "battle_royale") {
-        w.zone.radius = msg.radius;
-        w.zone.x = msg.centerX;
-        w.zone.y = msg.centerY;
+    switch (msg.type) {
+      case "world_players":
+        this.syncOtherPlayers(msg.list || []);
+        if (w.store) w.store.set('players', msg.list || []);
+        break;
+      case "world_monsters":
+        this.syncMonsters(msg.list || []);
+        break;
+      case "monster_killed": {
+        const mon = w.monsters.find(m => m.id === msg.id);
+        if (mon && mon.alive) { mon.alive = false; mon.hp = 0; mon.respawnTimer = 25; }
+        break;
       }
-    } else if (msg.type === "br_bandit_spawn") {
-      if (w.mode === "battle_royale" && msg.bandit) {
-        w.bandits.push(msg.bandit);
-      }
-    } else if (msg.type === "br_player_eliminated") {
-      if (w.store) w.store.set('notification', { text: `💀 ${msg.playerId} قُتل بواسطة ${msg.by}`, t: Date.now() });
-    } else if (msg.type === "br_match_end") {
-      if (w.mode === "battle_royale") {
-        w.matchEnded = true;
-        w.matchStarted = false;
-        if (this.onBRMatchEnd) this.onBRMatchEnd(msg);
-      }
-    } else if (msg.type === "equip_weapon_ack") {
-      w._equippedWeapon = msg.weaponId || "";
-      if (w.store) w.store.set('equippedWeapon', w._equippedWeapon);
-    } else if (msg.type === "upgrade_army_yard_ack") {
-      if (w.economy) w.economy.armyYardLevel = msg.armyYardLevel;
-      if (w.store) w.store.set('notification', { text: `⬆️ ساحة الجيش → المستوى ${msg.armyYardLevel} (السعة: ${msg.maxTroops})`, t: Date.now() });
-    } else if (msg.type === "upgrade_knowledge_ack") {
-      if (w.economy) {
-        w.economy.knowledgeLevel = msg.knowledgeLevel;
-        w.economy.knowledgeType = msg.knowledgeType;
-      }
-      let buffText = "";
-      if (msg.defensePercent > 0) buffText += ` دفاع +${msg.defensePercent}%`;
-      if (msg.moveSpeedPercent > 0) buffText += ` سرعة +${msg.moveSpeedPercent}%`;
-      if (msg.resourceSpeed > 1) buffText += ` انتاج ×${msg.resourceSpeed}`;
-      if (w.store) w.store.set('notification', { text: `⬆️ المعرفة → المستوى ${msg.knowledgeLevel}${buffText}`, t: Date.now() });
-    } else if (msg.type === "player_despawn") {
-      w.otherPlayers.delete(msg.username);
-      if (w.store) w.store.set('notification', { text: `💀 ${msg.username} قُتل في PvP`, t: Date.now() });
-    } else if (msg.type === "claim_gift_ack") {
-      if (msg.claimed && msg.reward) {
-        if (w.economy) {
-          w.economy.cash += msg.reward.gold || 0;
-          w.economy.gems += msg.reward.gems || 0;
-          w.economy.gold += msg.reward.gold || 0;
-          w.economy.hammers += msg.reward.hammers || 0;
-          w.economy.scrolls += msg.reward.scrolls || 0;
+      case "pvp_notify":
+        if (w.store) w.store.set('notification', { text: `⚔️ ${msg.attacker} هاجمك بقوة ${msg.power}!`, t: Date.now() });
+        break;
+      case "player_joined":
+        if (w.store) w.store.set('notification', { text: `👋 ${msg.username} دخل إلى الصحراء`, t: Date.now() });
+        break;
+      case "player_left":
+        if (w.store) w.store.set('notification', { text: `🚪 ${msg.username} خرج من الصحراء`, t: Date.now() });
+        break;
+      case "broadcast_chat":
+        if (w._onChatMessage) w._onChatMessage(msg.username, msg.message);
+        break;
+      case "br_zone_shrink":
+        if (w.mode === "battle_royale") { w.zone.radius = msg.radius; w.zone.x = msg.centerX; w.zone.y = msg.centerY; }
+        break;
+      case "br_bandit_spawn":
+        if (w.mode === "battle_royale" && msg.bandit) w.bandits.push(msg.bandit);
+        break;
+      case "br_player_eliminated":
+        if (w.store) w.store.set('notification', { text: `💀 ${msg.playerId} قُتل بواسطة ${msg.by}`, t: Date.now() });
+        break;
+      case "br_match_end":
+        if (w.mode === "battle_royale") { w.matchEnded = true; w.matchStarted = false; if (this.onBRMatchEnd) this.onBRMatchEnd(msg); }
+        break;
+      case "equip_weapon_ack":
+        w._equippedWeapon = msg.weaponId || "";
+        if (w.store) w.store.set('equippedWeapon', w._equippedWeapon);
+        break;
+      case "upgrade_army_yard_ack":
+        if (w.economy) w.economy.armyYardLevel = msg.armyYardLevel;
+        if (w.store) w.store.set('notification', { text: `⬆️ ساحة الجيش → المستوى ${msg.armyYardLevel} (السعة: ${msg.maxTroops})`, t: Date.now() });
+        break;
+      case "upgrade_knowledge_ack":
+        if (w.economy) { w.economy.knowledgeLevel = msg.knowledgeLevel; w.economy.knowledgeType = msg.knowledgeType; }
+        if (w.store) {
+          let buffText = "";
+          if (msg.defensePercent > 0) buffText += ` دفاع +${msg.defensePercent}%`;
+          if (msg.moveSpeedPercent > 0) buffText += ` سرعة +${msg.moveSpeedPercent}%`;
+          if (msg.resourceSpeed > 1) buffText += ` انتاج ×${msg.resourceSpeed}`;
+          w.store.set('notification', { text: `⬆️ المعرفة → المستوى ${msg.knowledgeLevel}${buffText}`, t: Date.now() });
         }
-        if (w.store) w.store.set('notification', { text: `🎁 حصلت على ${msg.reward.gold} 💵 ${msg.reward.gems} 💎`, t: Date.now() });
-      } else if (!msg.claimed && w.store) {
-        const mins = Math.floor((msg.remainingMs || 0) / 60000);
-        w.store.set('notification', { text: `⏳ باقي ${mins} دقيقة للصندوق القادم`, t: Date.now() });
-      } else if (msg.type === "upgrade_weapon_ack") {
+        break;
+      case "player_despawn":
+        w.otherPlayers.delete(msg.username);
+        if (w.store) w.store.set('notification', { text: `💀 ${msg.username} قُتل في PvP`, t: Date.now() });
+        break;
+      case "claim_gift_ack":
+        if (msg.claimed && msg.reward) {
+          if (w.economy) {
+            w.economy.gems += msg.reward.gems || 0;
+            w.economy.gold += msg.reward.gold || 0;
+            w.economy.hammers += msg.reward.hammers || 0;
+            w.economy.scrolls += msg.reward.scrolls || 0;
+          }
+          if (w.store) w.store.set('notification', { text: `🎁 حصلت على ${msg.reward.gold} 💵 ${msg.reward.gems} 💎`, t: Date.now() });
+        } else if (!msg.claimed && w.store) {
+          const mins = Math.floor((msg.remainingMs || 0) / 60000);
+          w.store.set('notification', { text: `⏳ باقي ${mins} دقيقة للصندوق القادم`, t: Date.now() });
+        }
+        break;
+      case "upgrade_weapon_ack":
         if (msg.ok) {
           w._weaponStarLevel = msg.starLevel;
           w._weaponGemLevel = msg.gemLevel;
           if (w.army && w.army.weapons) {
             const existing = w.army.weapons.find(x => x.id === msg.weaponId);
-            if (existing) {
-              existing.starLevel = msg.starLevel;
-              existing.gemLevel = msg.gemLevel;
-            } else {
-              w.army.weapons.push({ id: msg.weaponId, starLevel: msg.starLevel, gemLevel: msg.gemLevel });
-            }
+            if (existing) { existing.starLevel = msg.starLevel; existing.gemLevel = msg.gemLevel; }
+            else { w.army.weapons.push({ id: msg.weaponId, starLevel: msg.starLevel, gemLevel: msg.gemLevel }); }
           }
           if (w.store) w.store.set('weaponStats', { starLevel: msg.starLevel, gemLevel: msg.gemLevel, combinedLevel: msg.combinedLevel, damageMult: msg.damageMult });
-          if (msg.breakthrough) {
-            if (w.store) w.store.set('notification', { text: `🌟 اختراق نجمة! السلاح الآن ${msg.starLevel} ★ — ضرر ×${(msg.damageMult || 1).toFixed(2)}`, t: Date.now() });
-          } else {
-            if (w.store) w.store.set('notification', { text: `💎 ترقية الجوهرة → ${msg.gemLevel} | الضرر ×${(msg.damageMult || 1).toFixed(2)}`, t: Date.now() });
-          }
+          if (w.store) w.store.set('notification', { text: msg.breakthrough
+            ? `🌟 اختراق نجمة! السلاح الآن ${msg.starLevel} ★ — ضرر ×${(msg.damageMult || 1).toFixed(2)}`
+            : `💎 ترقية الجوهرة → ${msg.gemLevel} | الضرر ×${(msg.damageMult || 1).toFixed(2)}`, t: Date.now() });
           if (w._onWeaponUpgraded) w._onWeaponUpgraded(msg);
-        } else {
-          if (w.store) w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
+        } else if (w.store) {
+          w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
         }
-      } else if (msg.type === "weapon_glow") {
+        break;
+      case "weapon_glow": {
         const target = w.otherPlayers.get(msg.username);
-        if (target) {
-          target._glowActive = true;
-          target._glowTime = Date.now();
-          target._glowStarLevel = msg.starLevel;
-          target._glowColor = msg.color;
-        }
-      } else if (msg.type === "upgrade_building_ack") {
+        if (target) { target._glowActive = true; target._glowTime = Date.now(); target._glowStarLevel = msg.starLevel; target._glowColor = msg.color; }
+        break;
+      }
+      case "upgrade_building_ack":
         if (msg.ok) {
           if (w.economy) {
             if (!w.economy.buildings) w.economy.buildings = {};
             w.economy.buildings[msg.buildingId] = msg.newLevel;
           }
           if (w._onBuildingUpgraded) w._onBuildingUpgraded(msg);
-          const bldName = msg.buildingId || "";
-          if (w.store) w.store.set('notification', { text: `🏛️ ${bldName} → المستوى ${msg.newLevel}`, t: Date.now() });
-        } else {
-          if (w.store) w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
+          if (w.store) w.store.set('notification', { text: `🏛️ ${msg.buildingId || ""} → المستوى ${msg.newLevel}`, t: Date.now() });
+        } else if (w.store) {
+          w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
         }
-      } else if (msg.type === "upgrade_research_ack") {
+        break;
+      case "upgrade_research_ack":
         if (msg.ok) {
           if (w.economy) {
             if (!w.economy.research) w.economy.research = {};
@@ -416,10 +415,10 @@ export class NetworkSync {
           }
           if (w._onResearchUpgraded) w._onResearchUpgraded(msg);
           if (w.store) w.store.set('notification', { text: `🧠 ${msg.skillId} → المستوى ${msg.newLevel}`, t: Date.now() });
-        } else {
-          if (w.store) w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
+        } else if (w.store) {
+          w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
         }
-      }
+        break;
     }
   }
 }

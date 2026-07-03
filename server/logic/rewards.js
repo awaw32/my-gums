@@ -28,7 +28,6 @@ function claimReward(playerData) {
     return { claimed: false, remainingMs: remaining };
   }
   const reward = rollReward();
-  playerData.cash      = (playerData.cash || 0) + reward.gold;
   playerData.gems      = (playerData.gems || 0) + reward.gems;
   playerData.hammers   = (playerData.hammers || 0) + reward.hammers;
   playerData.scrolls   = (playerData.scrolls || 0) + reward.scrolls;

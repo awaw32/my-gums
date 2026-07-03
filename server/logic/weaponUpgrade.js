@@ -106,8 +106,17 @@ function applyGemUpgrade(playerData, weaponId) {
   const weapons = [...(playerData.weapons || [])];
   let w = weapons.find(x => x.id === weaponId);
   if (!w) {
-    w = { id: weaponId, starLevel: 1, gemLevel: 0 };
+    w = { id: weaponId, starLevel: 1, gemLevel: 1 };
     weapons.push(w);
+    playerData.weapons = weapons;
+    const bonus = computeWeaponBonus(w.starLevel, w.gemLevel);
+    return {
+      ok: true, weaponId,
+      starLevel: 1, gemLevel: 1,
+      combinedLevel: 1,
+      damageMult: 1 + bonus,
+      breakthrough: false,
+    };
   }
   w.gemLevel = (w.gemLevel || 1) + 1;
   if (!w.starLevel) w.starLevel = 1;

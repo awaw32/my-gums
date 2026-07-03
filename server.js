@@ -57,7 +57,9 @@ const {
 // ═══════════════════════════════════════════════════════════════════
 const {
   computePlayerStats,
+  computeArmyYardUpgradeCost,
   computeArmyYardStats,
+  computeKnowledgeUpgradeCost,
   computeKnowledgeBonuses,
   getWeaponDef,
 } = require("./server/logic/formulas");
@@ -365,10 +367,27 @@ wss.on("connection", (ws, req) => {
       } else if (msg.type === "upgrade_army_yard" && username) {
         const c = worldClients.get(username);
         if (c) {
-          c.armyYardLevel = (c.armyYardLevel || 1) + 1;
+          const playerData = memStore.get(username) || getDefaultPlayer(username);
+          const currentLevel = c.armyYardLevel || 1;
+          const cost = computeArmyYardUpgradeCost(currentLevel);
+          for (const [res, val] of Object.entries(cost)) {
+            const have = (playerData[res] || 0);
+            if (have < val) {
+              if (c.ws.readyState === 1) c.ws.send(JSON.stringify({
+                type: "upgrade_army_yard_ack", ok: false,
+                reason: `غير كافٍ ${res}: تحتاج ${val}، لديك ${have}`
+              }));
+              return;
+            }
+          }
+          for (const [res, val] of Object.entries(cost)) {
+            playerData[res] = (playerData[res] || 0) - val;
+          }
+          memStore.set(username, playerData);
+          c.armyYardLevel = currentLevel + 1;
           const stats = computeArmyYardStats(c.armyYardLevel);
           const reply = JSON.stringify({
-            type: "upgrade_army_yard_ack",
+            type: "upgrade_army_yard_ack", ok: true,
             armyYardLevel: c.armyYardLevel,
             maxTroops: stats.maxTroops,
             hpBonus: stats.hpBonus,
@@ -379,11 +398,28 @@ wss.on("connection", (ws, req) => {
       } else if (msg.type === "upgrade_knowledge" && username) {
         const c = worldClients.get(username);
         if (c) {
-          c.knowledgeLevel = (c.knowledgeLevel || 1) + 1;
+          const playerData = memStore.get(username) || getDefaultPlayer(username);
+          const currentLevel = c.knowledgeLevel || 1;
+          const cost = computeKnowledgeUpgradeCost(currentLevel);
+          for (const [res, val] of Object.entries(cost)) {
+            const have = (playerData[res] || 0);
+            if (have < val) {
+              if (c.ws.readyState === 1) c.ws.send(JSON.stringify({
+                type: "upgrade_knowledge_ack", ok: false,
+                reason: `غير كافٍ ${res}: تحتاج ${val}، لديك ${have}`
+              }));
+              return;
+            }
+          }
+          for (const [res, val] of Object.entries(cost)) {
+            playerData[res] = (playerData[res] || 0) - val;
+          }
+          memStore.set(username, playerData);
+          c.knowledgeLevel = currentLevel + 1;
           if (msg.knowledgeType) c.knowledgeType = msg.knowledgeType;
           const bonuses = computeKnowledgeBonuses({ knowledgeLevel: c.knowledgeLevel, knowledgeType: c.knowledgeType });
           const reply = JSON.stringify({
-            type: "upgrade_knowledge_ack",
+            type: "upgrade_knowledge_ack", ok: true,
             knowledgeLevel: c.knowledgeLevel,
             knowledgeType: c.knowledgeType,
             ...bonuses,
@@ -398,9 +434,10 @@ wss.on("connection", (ws, req) => {
           const result = claimReward(playerData);
           memStore.set(username, playerData);
           if (result.claimed) {
-            c.cash = (c.cash || 0) + result.reward.gold;
             c.gems = (c.gems || 0) + result.reward.gems;
             c.gold = (c.gold || 0) + result.reward.gold;
+            c.hammers = (c.hammers || 0) + result.reward.hammers;
+            c.scrolls = (c.scrolls || 0) + result.reward.scrolls;
           }
           const reply = JSON.stringify({ type: "claim_gift_ack", ...result });
           if (c.ws.readyState === 1) c.ws.send(reply);
@@ -896,7 +933,12 @@ server.on("request", async (req, res) => {
   if (upgradeMatch && req.method === "POST") {
     const uname = decodeURIComponent(upgradeMatch[1]);
     let body = "";
-    req.on("data", chunk => { body += chunk; });
+    let size = 0;
+    req.on("data", chunk => {
+      size += chunk.length;
+      if (size > 65_536) { req.destroy(); return; }
+      body += chunk;
+    });
     req.on("end", async () => {
       try {
         const data = JSON.parse(body);

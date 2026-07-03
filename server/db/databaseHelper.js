@@ -69,11 +69,20 @@ const memStore = new Map();
 function getDefaultPlayer(username) {
   return {
     username, cash: 0, gems: 0, gold: 0, kingCoins: 0,
-    hammers: 0, scrolls: 0, horns: 0, army_power: 5000,
+    hammers: 0, scrolls: 0, horns: 0, food: 50,
+    army_power: 5000,
     x_position: 1200, y_position: 1200, last_active: 0,
-    unitLevel: 1, weapons: [], equippedWeapon: "",
+    unitLevel: 1, trainingLevel: 1,
+    weapons: [], equippedWeapon: "",
     armyYardLevel: 1, knowledgeLevel: 1, knowledgeType: "economic",
     lastGiftClaimedTimestamp: 0,
+    landsState: {},
+    xp: 0, level: 1,
+    allianceLevel: 0, upgrades: {},
+    oases: [], prestigeLevel: 0,
+    achievements: [], dailyLogin: {},
+    inventory: {}, events: [], tutorial: {},
+    brWins: 0, brKills: 0,
     buildings: {},
     research: {},
   };
