@@ -786,7 +786,7 @@ function serveStatic(rawUrl, res) {
   }
   res.writeHead(200, {
     "Content-Type": STATIC_EXTS[ext],
-    "Cache-Control": "public, max-age=31536000, immutable",
+    "Cache-Control": "public, max-age=86400",
     "X-Content-Type-Options": "nosniff"
   });
   res.end(content);

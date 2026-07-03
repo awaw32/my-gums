@@ -1,7 +1,0 @@
-
-Desert Kingdom Server
-  HTTP + WS
-  Port: 3000
-  Tick: 50ms (20Hz)
-  Health: http://localhost:3000/health
-
