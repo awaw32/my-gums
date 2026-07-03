@@ -141,6 +141,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 
 /* ====== الشريط العلوي — Glassmorphism بألوان الصحراء ====== */
 #top-bar {
+  position: relative;
   height: var(--top-h);
   padding: 2px 6px;
   padding-top: calc(2px + var(--safe-t));
@@ -581,6 +582,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 
 /* ====== شريط المحادثة الشفاف ====== */
 #chat-overlay {
+  position: relative;
   height: var(--chat-overlay-h);
   display: flex;
   align-items: center;
@@ -644,6 +646,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 
 /* ====== القائمة السفلية — أزرار ذهبية متوهجة ====== */
 #bottom-bar {
+  position: relative;
   height: var(--bottom-h);
   padding: 2px 4px;
   padding-bottom: var(--safe-b);
