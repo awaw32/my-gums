@@ -1,0 +1,13 @@
+{
+  "customCommands": [
+    { "name": "dev", "command": "node server.js" },
+    { "name": "start", "command": "node server.js" }
+  ],
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-playwright"],
+      "type": "stdio"
+    }
+  }
+}
