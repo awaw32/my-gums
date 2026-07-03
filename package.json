@@ -17,6 +17,8 @@
     "ws": "^8.21.0"
   },
   "devDependencies": {
+    "@playwright/mcp": "^0.0.77",
+    "@playwright/test": "^1.61.1",
     "jsdom": "^29.1.1",
     "vitest": "^4.1.9"
   }
