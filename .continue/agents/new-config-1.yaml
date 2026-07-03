@@ -1,0 +1,5 @@
+models:
+  - title: Llama 3.2
+    provider: ollama
+    model: llama3.2:3b
+    apiBase: http://localhost:11434/v1
