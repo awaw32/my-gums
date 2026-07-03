@@ -8,6 +8,8 @@ import {
   simplifyPath,
   worldPos
 } from "./pathfinding.js";
+import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles } from "./combat/combat-effects.js";
+import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/context-menu.js";
 
 export class WorldMap {
   constructor(economy, username = "بطل الصحراء", apiBase = "", army = null) {
@@ -26,11 +28,22 @@ export class WorldMap {
     this.otherPlayers = new Map();
     this.nearbyPlayer = null;
     this.combatCooldown = 0;
-    this.attackRange = 60;
+    this.engagementRadius = 80;
     this.onExit = null;
     this.sessionStats = { kills: 0, coinsEarned: 0 };
     this._monstersSynced = false;
     this._pvpTarget = null;
+    this._pvpAttackTarget = null;
+    this._isPvPEngaged = false;
+    this._pvpDamageCD = 0;
+    this._pvpDamageInterval = 0.8;
+    this._pvpResultSent = false;
+    this._pvpFledTarget = null;
+    this._pvpEscapeCheckTimer = 0;
+    this._moveTargetX = null;
+    this._moveTargetY = null;
+    this._pvpParticles = [];
+    this._pvpDefeatShown = false;
     this._wipeFlag = false;
     this._allianceManager = null;
     this._upgradeTree = null;
@@ -54,7 +67,9 @@ export class WorldMap {
       upgradeDmg: 0,
       upgradeDef: 0,
       fighting: null,
-      isLeader: true
+      isLeader: true,
+      _posHistory: [],
+      _maxHist: 50
     };
 
     this.armyUnits = [];
@@ -98,6 +113,7 @@ export class WorldMap {
     this._events = null; // مرجع لـ EventManager
     this._onPvPWin = null;
     this._onPvPLose = null;
+    this._onPvPReturn = null;
     this._onDropCollected = null;
     this._onSelfStatsChanged = null;
   }
@@ -176,13 +192,19 @@ export class WorldMap {
     return closest;
   }
 
-  async attackPlayer(target) {
-    if (this.combatCooldown > 0) return;
-    this.combatCooldown = 3;
+  resolvePvP(target, iWon) {
+    const tgt = target || this._pvpAttackTarget;
+    if (!tgt) return;
 
+    const won = iWon !== undefined ? iWon : false;
     const myPower = this.economy ? this.economy.power : 0;
-    const theirPower = target.army_power || 0;
-    const won = myPower >= theirPower * 0.9;
+    const theirPower = tgt.army_power || 0;
+
+    const myStats = this.computePvPStats();
+    const enemyStats = this.estimateEnemyStats(tgt);
+    const lootBase = Math.max(10, Math.floor(theirPower * 0.08));
+    const lootAmount = Math.min(this.sessionStats.coinsEarned || 0, lootBase);
+    const powerLoss = Math.max(5, Math.floor(theirPower * 0.03));
 
     if (won) {
       let reward = Math.max(10, Math.floor(theirPower * 0.05));
@@ -191,26 +213,64 @@ export class WorldMap {
         const pvpMult = this._events.getMult("mult_pvp");
         if (pvpMult > 1) { reward = Math.floor(reward * pvpMult); goldReward = Math.floor(goldReward * pvpMult); }
       }
+
+      const stolenLoot = Math.min(lootBase, tgt._sessionCoins || 0);
       if (this.economy) {
-        this.economy.addRaw("cash", reward);
+        this.economy.addRaw("cash", reward + stolenLoot);
         this.economy.addRaw("gold", goldReward);
       }
-      this.worldFx.push({ x: target.x, y: target.y, text: `⚔️ انتصرت! +${reward} 💵 +${goldReward} 🪙`, color: "#4cd964", life: 2, maxLife: 2 });
+
+      this.worldFx.push({
+        x: this.leader.x, y: this.leader.y,
+        text: `⚔️ انتصرت على ${tgt.username}! +${reward + stolenLoot} 💵 +${goldReward} 🪙`,
+        color: "#4cd964", life: 2.5, maxLife: 2.5
+      });
+      if (this.store) {
+        this.store.set('notification', {
+          text: `⚔️ انتصرت على ${tgt.username}! +${reward + stolenLoot} 💵`,
+          t: Date.now()
+        });
+      }
       if (this._onPvPWin) this._onPvPWin();
     } else {
-      this.worldFx.push({ x: target.x, y: target.y, text: "💥 هُزمت!", color: "#ff4444", life: 2, maxLife: 2 });
-      if (this.leader) {
-        this.leader.hp = Math.max(0, this.leader.hp - 20);
+      this.worldFx.push({
+        x: this.leader.x, y: this.leader.y,
+        text: `💥 هُزمت أمام ${tgt.username}!`,
+        color: "#ff4444", life: 2.5, maxLife: 2.5
+      });
+      this.leader.hp = 0;
+
+      const actualLoot = Math.min(lootBase, this.sessionStats.coinsEarned || 0);
+      if (actualLoot > 0) {
+        if (this.economy) this.economy.addRaw("cash", -actualLoot);
+        this.sessionStats.coinsEarned -= actualLoot;
       }
+
+      this._pvpDefeatShown = true;
+      this._showPvPDefeat(
+        tgt.username,
+        theirPower,
+        actualLoot,
+        powerLoss,
+        enemyStats.maxHp,
+        enemyStats.damage
+      );
       if (this._onPvPLose) this._onPvPLose();
     }
 
     if (this.netSync) {
-      this.netSync.send({ type: "pvp_attack", target: target.username, myPower: this.economy ? this.economy.power : 0 });
+      this.netSync.send({
+        type: "pvp_result",
+        target: tgt.username,
+        won,
+        myPower,
+        loot: won ? 0 : lootAmount,
+        winnerReward: won ? Math.max(10, Math.floor(theirPower * 0.05)) : 0,
+      });
     }
 
     try {
-      await fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
+      fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -228,6 +288,58 @@ export class WorldMap {
         })
       });
     } catch (err) { console.warn("⚠️ [MP] فشل إرسال نتيجة الهجوم:", err.message); }
+
+    this._pvpAttackTarget = null;
+    this._isPvPEngaged = false;
+    this._pvpDamageCD = 0;
+    this._pvpResultSent = false;
+    this._pvpParticles = [];
+  }
+
+  _showPvPDefeat(killerName, killerPower, lootTaken, powerLoss, enemyMaxHp, enemyDamage) {
+    showPvPDefeat(this, killerName, killerPower, lootTaken, powerLoss, enemyMaxHp, enemyDamage);
+  }
+
+  computePvPStats() {
+    const e = this.economy;
+    const playerLevel = e?.level || 1;
+    const unitLevel = this.army?.unitLevel || 1;
+    const trainingLevel = e?.trainingLevel || 1;
+    const prestigeLevel = e?.prestigeLevel || 0;
+    const armyPower = e?.power || 0;
+
+    const baseHP = 120;
+    const baseDMG = 12;
+
+    const maxHp = baseHP
+      + playerLevel * 2
+      + unitLevel * 3
+      + trainingLevel * 2
+      + prestigeLevel * 5;
+
+    let totalDamage = baseDMG
+      + Math.floor(armyPower / 10)
+      + playerLevel
+      + unitLevel * 2
+      + prestigeLevel * 3;
+
+    if (this._upgradeTree) {
+      totalDamage += this._upgradeTree.getEffect("army") || 0;
+    }
+    if (this._allianceManager) {
+      totalDamage += this._allianceManager.damageBonus || 0;
+    }
+
+    return { maxHp, totalDamage };
+  }
+
+  estimateEnemyStats(target) {
+    const u = target.unitLevel || 1;
+    const ap = target.army_power || 0;
+    return {
+      maxHp: 120 + u * 3 + Math.floor(ap / 20),
+      damage: 12 + Math.floor(ap / 15) + u,
+    };
   }
 
   checkCombatProximity() {
@@ -235,7 +347,7 @@ export class WorldMap {
     this.nearbyPlayer = null;
 
     let closest = null;
-    let minDist = this.attackRange;
+    let minDist = this.engagementRadius;
     for (const [, p] of this.otherPlayers) {
       const d = Math.hypot(p.x - this.leader.x, p.y - this.leader.y);
       if (d < minDist) {
@@ -248,9 +360,10 @@ export class WorldMap {
 
   updateOtherPlayers(dt) {
     for (const [, p] of this.otherPlayers) {
-      // مع updates كل 100ms، lerp بسرعة 10× الثانية يعطي حركة سلسة
       const lerp = Math.min(1, dt * 10);
-      p.x += (p.targetX - p.x) * lerp;
+      const dx = p.targetX - p.x;
+      if (Math.abs(dx) > 1) p.facing = dx >= 0 ? 1 : -1;
+      p.x += dx * lerp;
       p.y += (p.targetY - p.y) * lerp;
     }
   }
@@ -260,29 +373,47 @@ export class WorldMap {
       const armyCount = Math.min(p.armyAlive || 8, 8);
       const col = p.color;
 
-      ctx.save();
-      ctx.translate(p.x, p.y);
-
-      // رسم جيش اللاعب الآخر (صور الأعداء)
       for (let i = 0; i < armyCount; i++) {
         ctx.save();
-        ctx.translate(-30 - (i % 4) * 18, 20 + Math.floor(i / 4) * 22);
+        ctx.translate(p.x - 30 - (i % 4) * 18, p.y + 20 + Math.floor(i / 4) * 22);
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.beginPath();
+        ctx.ellipse(0, 5, 6, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.scale(p.facing || 1, 1);
         this._drawSprite(ctx, "soldier-enemy", col + "99", 8);
         ctx.restore();
       }
 
-      // رسم قائد العدو
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.beginPath();
+      ctx.ellipse(0, p.radius * 0.5, p.radius * 0.7, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.scale(p.facing || 1, 1);
       this._drawSprite(ctx, "leader-enemy", col, p.radius);
+      ctx.restore();
 
-      ctx.strokeStyle = "rgba(255,255,255,0.3)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
+      ctx.save();
+      ctx.translate(p.x, p.y);
       ctx.fillStyle = "#fff";
       ctx.font = "bold 11px Cairo, sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(p.username, 0, -p.radius - 10);
+      ctx.restore();
 
+      // ── HP bar for other player (synced from server) ──
+      const hp = p.hp ?? p._hp ?? 120;
+      const maxHp = p.maxHp ?? 120;
+      const hpRatio = Math.max(0, Math.min(1, hp / maxHp));
+      const barW = p.radius * 2 + 4;
+      ctx.save();
+      ctx.translate(p.x, p.y - p.radius - 20);
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(-barW / 2, 0, barW, 4);
+      ctx.fillStyle = hpRatio > 0.5 ? "#4cd964" : hpRatio > 0.25 ? "#ffaa00" : "#ff4444";
+      ctx.fillRect(-barW / 2, 0, barW * hpRatio, 4);
       ctx.restore();
     }
   }
@@ -291,9 +422,11 @@ export class WorldMap {
   initArmyUnits(count) {
     this.armyUnits = [];
     for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * 25;
       this.armyUnits.push({
-        x: this.leader.x - 30 - (i % 4) * 18,
-        y: this.leader.y + 20 + Math.floor(i / 4) * 22,
+        x: this.leader.x + Math.cos(a) * dist,
+        y: this.leader.y + Math.sin(a) * dist,
         speed: 135 + Math.random() * 10,
         radius: 10,
         hp: 40,
@@ -302,11 +435,10 @@ export class WorldMap {
         dmgBonus: 0,
         defBonus: 0,
         attackCD: 0,
-        offsetX: -30 - (i % 4) * 18,
-        offsetY: 20 + Math.floor(i / 4) * 22,
         path: null,
         pathIdx: 0,
-        fighting: null
+        fighting: null,
+        facing: 1
       });
     }
   }
@@ -326,6 +458,28 @@ export class WorldMap {
 
     const recenterBtn = document.getElementById("recenter-btn");
     if (recenterBtn) recenterBtn.onclick = () => this.recenterCamera();
+
+    // أزرار PvP — هجوم / استعلام
+    const pvpAttackBtn = document.getElementById("pvp-attack-btn");
+    const pvpInspectBtn = document.getElementById("pvp-inspect-btn");
+    const pvpContextBg = document.querySelector(".pvp-context-bg");
+    if (pvpAttackBtn) pvpAttackBtn.onclick = () => this._onPvPAttack();
+    if (pvpInspectBtn) pvpInspectBtn.onclick = () => this._onPvPInspect();
+    if (pvpContextBg) pvpContextBg.onclick = () => this._hidePvPMenu();
+
+    // PvP Inspect Popup
+    const inspectClose = document.getElementById("pvp-inspect-close");
+    const inspectPopup = document.getElementById("pvp-inspect-popup");
+    if (inspectClose && inspectPopup) inspectClose.onclick = () => inspectPopup.classList.add("hidden");
+
+    // Defeat modal
+    const defeatReturnBtn = document.getElementById("pvp-defeat-return-btn");
+    if (defeatReturnBtn) {
+      defeatReturnBtn.onclick = () => {
+        document.getElementById("pvp-defeat-modal")?.classList.add("hidden");
+        if (this._onPvPReturn) this._onPvPReturn();
+      };
+    }
 
     const zoomInBtn = document.getElementById("zoom-in-btn");
     const zoomOutBtn = document.getElementById("zoom-out-btn");
@@ -363,6 +517,23 @@ export class WorldMap {
     markObstacle(890, 1680, 95);
     markObstacle(1280, 1820, 65);
     markObstacle(1600, 1590, 85);
+
+    // مصفوفة عوائق الصخور الظاهرة في الخريطة
+    this.MAP_OBSTACLES = [
+      { x: 350, y: 350, r: 40 },   // صخرة شمال غرب
+      { x: 1100, y: 250, r: 50 },  // صخرة شمال
+      { x: 1850, y: 380, r: 45 },  // صخرة شمال شرق
+      { x: 250, y: 800, r: 35 },   // صخرة غرب
+      { x: 2050, y: 900, r: 55 },  // صخرة شرق
+      { x: 400, y: 1480, r: 40 },  // صخرة جنوب غرب
+      { x: 1500, y: 1900, r: 48 }, // صخرة جنوب
+      { x: 2100, y: 1500, r: 42 }, // صخرة جنوب شرق
+      { x: 750, y: 750, r: 30 },   // صخرة وسط غرب
+      { x: 1600, y: 600, r: 35 },  // صخرة وسط شرق
+    ];
+    for (const rock of this.MAP_OBSTACLES) {
+      markObstacle(rock.x, rock.y, rock.r);
+    }
 
     this.spawnMonsters();
 
@@ -482,43 +653,119 @@ export class WorldMap {
     const dropIdx = this.findDropAt(wx, wy);
     if (dropIdx >= 0) {
       this.collectDrop(dropIdx);
+      this._hidePvPMenu();
       return;
     }
 
     const monster = this.findMonsterAt(wx, wy);
     if (monster && monster.alive) {
       this.engageMonster(monster);
-      this._pvpTarget = null;
+      this._hidePvPMenu();
       return;
     }
 
     const otherPlayer = this.findOtherPlayerAt(wx, wy);
     if (otherPlayer) {
-      if (this._pvpTarget && this._pvpTarget.username === otherPlayer.username) {
-        this._pvpTarget = null;
-        this.attackPlayer(otherPlayer);
-      } else {
-        this._pvpTarget = otherPlayer;
+      if (this._pvpFledTarget && this._pvpFledTarget.username === otherPlayer.username) {
+        this._hidePvPMenu();
+        this._startPvPPursuit(otherPlayer);
+        return;
       }
+      this._showPvPMenu(otherPlayer);
       return;
     }
-    this._pvpTarget = null;
 
-    // إلغاء القتال عند التحرك
+    this._hidePvPMenu();
+    this._cancelPvPAttack();
+
     this.leader.fighting = null;
     this.armyUnits.forEach(u => u.fighting = null);
 
-    this.leader.path = simplifyPath(aStar(this.leader.x, this.leader.y, wx, wy, this.W, this.H));
+    const path = aStar(this.leader.x, this.leader.y, wx, wy, this.W, this.H);
+    this.leader.path = simplifyPath(path);
     this.leader.pathIdx = 0;
+    this._moveTargetX = wx;
+    this._moveTargetY = wy;
     this.leader.fighting = null;
-
-    this.armyUnits.forEach(u => {
-      u.path = simplifyPath(aStar(u.x, u.y, wx + (Math.random() - 0.5) * 50, wy + (Math.random() - 0.5) * 50, this.W, this.H));
-      u.pathIdx = 0;
-      u.fighting = null;
-    });
+    this.armyUnits.forEach(u => { u.fighting = null; });
 
     if (this.netSync) this.netSync.sendWSUpdate();
+  }
+
+  _startPvPPursuit(target) {
+    this._isPvPEngaged = false;
+    this._pvpResultSent = false;
+    this._pvpDamageCD = 0;
+    this._pvpAttackTarget = target;
+    this._pvpFledTarget = null;
+
+    const path = aStar(this.leader.x, this.leader.y, target.x, target.y, this.W, this.H);
+    this.leader.path = simplifyPath(path);
+    this.leader.pathIdx = 0;
+    this._moveTargetX = target.x;
+    this._moveTargetY = target.y;
+  }
+
+  _showPvPMenu(otherPlayer) {
+    showPvPMenu(this, otherPlayer);
+  }
+
+  _hidePvPMenu() {
+    hidePvPMenu(this);
+  }
+
+  _onPvPAttack() {
+    const target = this._pvpTarget;
+    if (!target) return;
+    this._hidePvPMenu();
+    this._startPvPAttack(target);
+  }
+
+  _onPvPInspect() {
+    const target = this._pvpTarget;
+    if (!target) return;
+    const popup = document.getElementById("pvp-inspect-popup");
+    const nameEl = document.getElementById("pvp-inspect-name");
+    const powerEl = document.getElementById("pvp-inspect-power");
+    const killsEl = document.getElementById("pvp-inspect-kills");
+    const coinsEl = document.getElementById("pvp-inspect-coins");
+    if (popup && nameEl) {
+      nameEl.textContent = target.username || "—";
+      const est = this.estimateEnemyStats(target);
+      if (powerEl) powerEl.textContent = `${target.army_power || 0} 👊 (DMG: ${est.damage} | HP: ${est.maxHp})`;
+      if (killsEl) killsEl.textContent = target.kills || 0;
+      if (coinsEl) coinsEl.textContent = target.coinsEarned || 0;
+      popup.classList.remove("hidden");
+    }
+  }
+
+  _startPvPAttack(target) {
+    const myStats = this.computePvPStats();
+    this.leader.maxHp = myStats.maxHp;
+    if (this.leader.hp > this.leader.maxHp) this.leader.hp = this.leader.maxHp;
+
+    target._hp = null;
+    this._pvpAttackTarget = target;
+    this._isPvPEngaged = false;
+    this._pvpDamageCD = 0;
+    this._pvpResultSent = false;
+    this._pvpFledTarget = null;
+    this._pvpParticles = [];
+
+    const path = aStar(this.leader.x, this.leader.y, target.x, target.y, this.W, this.H);
+    this.leader.path = simplifyPath(path);
+    this.leader.pathIdx = 0;
+    this._moveTargetX = target.x;
+    this._moveTargetY = target.y;
+  }
+
+  _cancelPvPAttack() {
+    this._pvpAttackTarget = null;
+    this._isPvPEngaged = false;
+    this._pvpDamageCD = 0;
+    this._pvpResultSent = false;
+    this._pvpFledTarget = null;
+    this._pvpParticles = [];
   }
 
   findMonsterAt(x, y) {
@@ -541,24 +788,12 @@ export class WorldMap {
   }
 
   drawPathLine(ctx, cam) {
-    const h = this.leader;
-    if (!h.path || h.pathIdx >= h.path.length) return;
-    ctx.save();
-    ctx.strokeStyle = "rgba(255,215,0,0.25)";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 6]);
-    ctx.beginPath();
-    ctx.moveTo(h.x, h.y);
-    for (let i = h.pathIdx; i < h.path.length; i++) {
-      ctx.lineTo(h.path[i].x, h.path[i].y);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
+    drawPathLine(this, ctx, cam);
   }
 
   checkWipe() {
     if (this.mode === "battle_royale") return;
+    if (this.leader.hp <= 0 && this._pvpDefeatShown) return;
     if (this.leader.hp <= 0) {
       this._wipeFlag = true;
     }
@@ -569,6 +804,9 @@ export class WorldMap {
   }
 
   onWipe() {
+    this._cancelPvPAttack();
+    this._pvpDefeatShown = false;
+    document.getElementById("pvp-defeat-modal")?.classList.add("hidden");
     const lost = this.sessionStats.coinsEarned;
     const killed = this.sessionStats.kills;
     if (this.economy && lost > 0) {
@@ -582,48 +820,13 @@ export class WorldMap {
     this.leader.y = this.H / 2;
     this.leader.path = null;
     this.initArmyUnits(8);
-    // عرض شاشة الخسارة
     this._showWipeScreen(lost, killed);
     if (this.store) this.store.set('notification', { text: `💀 هُزمت! خسرت ${lost} 💵`, t: Date.now() });
     if (this._onWipe) this._onWipe(lost, killed);
   }
 
   _showWipeScreen(lost, killed) {
-    const existing = document.getElementById("wipe-overlay");
-    if (existing) existing.remove();
-    const overlay = document.createElement("div");
-    overlay.id = "wipe-overlay";
-    overlay.style.cssText = `
-      position: fixed; inset: 0; z-index: 9999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.88);
-      direction: rtl; text-align: center;
-      padding: 20px; box-sizing: border-box;
-    `;
-    overlay.innerHTML = `
-      <div style="font-size:3rem;margin-bottom:8px;">💀</div>
-      <div style="color:#ff4444;font-size:1.1rem;font-weight:700;margin-bottom:12px;">هُزم جيشك بالكامل!</div>
-      <div style="color:var(--gold);font-size:0.85rem;margin-bottom:6px;">الغنائم التي خسرتها:</div>
-      <div style="color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:4px;">${lost} 💵</div>
-      <div style="color:var(--beige-dark);font-size:0.7rem;margin-bottom:16px;">الوحوش المقتولة: ${killed}</div>
-      <div style="color:#ff6b6b;font-size:0.85rem;margin-bottom:16px;">قوتك: ${this.economy ? this.economy.power : 0} 👊</div>
-      <button id="wipe-return-btn" style="
-        padding: 12px 32px; font-size:1rem; font-weight:700;
-        background:linear-gradient(180deg,#3a8ab5,#1a5a7a); color:#fff; border:none; border-radius:12px;
-        cursor:pointer; touch-action:manipulation; margin-bottom:8px; width:200px;
-      ">🗺️ العودة للخريطة</button>
-      <button id="wipe-exit-btn" style="
-        padding: 12px 32px; font-size:1rem; font-weight:700;
-        background:linear-gradient(180deg,#8a2020,#5a1010); color:#fff; border:none; border-radius:12px;
-        cursor:pointer; touch-action:manipulation; width:200px;
-      ">🚪 الخروج للقائمة</button>
-    `;
-    document.body.appendChild(overlay);
-    document.getElementById("wipe-return-btn").onclick = () => overlay.remove();
-    document.getElementById("wipe-exit-btn").onclick = () => {
-      overlay.remove();
-      if (this.onExit) this.onExit();
-    };
+    showWipeScreen(this, lost, killed);
   }
 
   drawArmyHUD(dt, ctx) {
@@ -650,20 +853,12 @@ export class WorldMap {
     const sx = target.x - cam.x;
     const sy = target.y - cam.y;
     ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.75)";
-    ctx.fillRect(sx - 40, sy - 65, 80, 28);
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(sx - 38, sy - 48, 76, 22);
     ctx.fillStyle = "#FFD700";
-    ctx.font = "bold 10px Cairo, sans-serif";
+    ctx.font = "bold 9px Cairo, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`🔍 ${target.username}`, sx, sy - 47);
-    ctx.fillStyle = "rgba(0,0,0,0.75)";
-    ctx.fillRect(sx - 40, sy + 30, 80, 30);
-    ctx.fillStyle = "#fff";
-    ctx.font = "10px Cairo, sans-serif";
-    ctx.fillText(`👊 ${target.army_power || 0} | ⚔️ ${target.kills || 0}`, sx, sy + 50);
-    ctx.fillStyle = "#ff4444";
-    ctx.font = "bold 10px Cairo, sans-serif";
-    ctx.fillText(`🗡️ اضغط مرة أخرى للهجوم`, sx, sy - 70);
+    ctx.fillText(`👤 ${target.username}`, sx, sy - 34);
     ctx.restore();
   }
 
@@ -675,7 +870,9 @@ export class WorldMap {
     this.updateProjectiles(dt);
     this.updateFx(dt);
     this.updateSandParticles(dt);
+    this.updatePvPParticles(dt);
     this.checkCombatProximity();
+    this.updatePvPCombat(dt);
     this.checkWipe();
     if (this.mode === "battle_royale") this.updateBR(dt);
 
@@ -699,6 +896,7 @@ export class WorldMap {
     this.drawBRBandits(ctx);
     this.drawArmy(ctx);
     this.drawHero(ctx);
+    this.drawPvPParticles(ctx);
     this.drawWorldFx(ctx, cam);
     this.drawMiniMap(ctx, cam);
 
@@ -707,6 +905,107 @@ export class WorldMap {
     this.drawArmyHUD(dt, ctx);
     this.drawPvPMenu(ctx, cam);
     this.drawBRUI(ctx, cam);
+  }
+
+  updatePvPCombat(dt) {
+    if (this._pvpResultSent) return;
+    const target = this._pvpAttackTarget;
+    if (!target) return;
+
+    const dist = Math.hypot(this.leader.x - target.x, this.leader.y - target.y);
+    const inRange = dist <= this.engagementRadius;
+
+    // ── Engagement check ──
+    if (inRange) {
+      this._isPvPEngaged = true;
+    }
+
+    if (!this._isPvPEngaged) return;
+
+    // ── Escape detection (check ALL units every 0.5s) ──
+    this._pvpEscapeCheckTimer += dt;
+    if (this._pvpEscapeCheckTimer >= 0.5) {
+      this._pvpEscapeCheckTimer = 0;
+      if (this._checkPvPEscape(target)) {
+        this._onPvPEscape(target);
+        return;
+      }
+    }
+
+    // ── Particles ──
+    this.spawnPvPParticles(
+      (this.leader.x + target.x) / 2 + (Math.random() - 0.5) * 30,
+      (this.leader.y + target.y) / 2 + (Math.random() - 0.5) * 30
+    );
+
+    // ── Damage tick ──
+    this._pvpDamageCD -= dt;
+    if (this._pvpDamageCD <= 0) {
+      this._pvpDamageCD = this._pvpDamageInterval;
+
+      const myStats = this.computePvPStats();
+      const enemyStats = this.estimateEnemyStats(target);
+
+      const myDmg = myStats.totalDamage;
+      const theirDmg = enemyStats.damage;
+
+      target._hp = (target._hp ?? enemyStats.maxHp) - myDmg;
+      this.leader.hp -= theirDmg * 0.6;
+
+      if (target._hp <= 0) target._hp = 0;
+      if (this.leader.hp <= 0) this.leader.hp = 0;
+
+      this.worldFx.push({
+        x: (this.leader.x + target.x) / 2,
+        y: (this.leader.y + target.y) / 2 - 20,
+        text: `💥 -${myDmg}`,
+        color: "#ff6b35",
+        life: 0.8, maxLife: 0.8
+      });
+
+      if (this.leader.hp <= 0 || target._hp <= 0) {
+        this._pvpResultSent = true;
+        this.resolvePvP(target, target._hp <= 0);
+        return;
+      }
+    }
+  }
+
+  _checkPvPEscape(target) {
+    if (!target) return true;
+    const leaderIn = Math.hypot(this.leader.x - target.x, this.leader.y - target.y) <= this.engagementRadius;
+    if (leaderIn) return false;
+    for (const u of this.armyUnits) {
+      if (u.hp > 0 && Math.hypot(u.x - target.x, u.y - target.y) <= this.engagementRadius) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  _onPvPEscape(target) {
+    this._isPvPEngaged = false;
+    this._pvpAttackTarget = null;
+    this._pvpFledTarget = target;
+    this._pvpDamageCD = 0;
+
+    this.leader.path = null;
+    this.leader.fighting = null;
+    this.armyUnits.forEach(u => { u.fighting = null; });
+
+    this.worldFx.push({
+      x: this.leader.x, y: this.leader.y,
+      text: "🛑 انسحاب! الجيش في الانتظار",
+      color: "#ffaa00",
+      life: 1.5, maxLife: 1.5
+    });
+
+    if (this.store) {
+      this.store.set('notification', {
+        text: `🛑 انسحبت من المعركة ضد ${target.username} — اضغط عليه للمطاردة`,
+        t: Date.now()
+      });
+    }
   }
 
   updateSandParticles(dt) {
@@ -731,6 +1030,20 @@ export class WorldMap {
     ctx.restore();
   }
 
+  // ==================== PvP Combat Particles ====================
+
+  spawnPvPParticles(x, y) {
+    spawnPvPParticles(this, x, y);
+  }
+
+  updatePvPParticles(dt) {
+    updatePvPParticles(this, dt);
+  }
+
+  drawPvPParticles(ctx) {
+    drawPvPParticles(this, ctx);
+  }
+
   _syncBonuses() {
     let dmgBonus = 0, defBonus = 0;
     if (this._allianceManager) {
@@ -753,6 +1066,10 @@ export class WorldMap {
     this._syncBonuses();
     const h = this.leader;
 
+    // سجل مسار القائد للجيش التابع
+    h._posHistory.push({ x: h.x, y: h.y });
+    if (h._posHistory.length > h._maxHist) h._posHistory.shift();
+
     if (h.fighting && h.fighting.alive) {
       const dx = h.fighting.x - h.x;
       const dy = h.fighting.y - h.y;
@@ -772,7 +1089,11 @@ export class WorldMap {
       return;
     }
 
-    if (!h.path || h.pathIdx >= h.path.length) return;
+    if (!h.path || h.pathIdx >= h.path.length) {
+      this._moveTargetX = null;
+      this._moveTargetY = null;
+      return;
+    }
 
     const target = h.path[h.pathIdx];
     const dx = target.x - h.x;
@@ -806,13 +1127,22 @@ export class WorldMap {
         this.collectDrop(i);
       }
     }
-    for (const unit of this.armyUnits) {
+    const h = this.leader;
+    const history = h._posHistory;
+    const len = history.length;
+    const time = Date.now();
+
+    for (let i = 0; i < this.armyUnits.length; i++) {
+      const unit = this.armyUnits[i];
+
+      // ── اشتباك مع الوحوش (بدون تغيير) ──
       if (unit.fighting && unit.fighting.alive) {
         const dx = unit.fighting.x - unit.x;
         const dy = unit.fighting.y - unit.y;
         const dist = Math.hypot(dx, dy);
 
         if (dist > 25) {
+          unit.facing = dx >= 0 ? 1 : -1;
           unit.x += (dx / dist) * unit.speed * dt;
           unit.y += (dy / dist) * unit.speed * dt;
         } else {
@@ -825,18 +1155,43 @@ export class WorldMap {
         continue;
       }
 
-      if (!unit.path || unit.pathIdx >= unit.path.length) continue;
+      // ── Leader Following (بدون path فردي) ──
+      const delay = (i + 1) * 3 + 2;
+      const idx = Math.max(0, len - delay);
 
-      const target = unit.path[unit.pathIdx];
-      const dx = target.x - unit.x;
-      const dy = target.y - unit.y;
+      let tx, ty;
+
+      if (this.leader.path && this.leader.pathIdx < this.leader.path.length) {
+        // القائد يتحرك → اتباع المسار المتأخر مع تشتت بسيط
+        if (len > delay && idx > 0 && idx < len - 1) {
+          const scatter = 5;
+          const angleOff = i * 1.3;
+          tx = history[idx].x + Math.sin(angleOff + time * 0.002) * scatter;
+          ty = history[idx].y + Math.cos(angleOff + time * 0.002) * scatter;
+        } else {
+          const aliveLen = Math.max(1, this.armyUnits.length);
+          const a = (i / aliveLen) * Math.PI * 2;
+          tx = h.x + Math.cos(a) * 30;
+          ty = h.y + Math.sin(a) * 30;
+        }
+      } else {
+        // القائد متوقف → تشكيل دائري طبيعي
+        const aliveLen = Math.max(1, this.armyUnits.length);
+        const a = (i / aliveLen) * Math.PI * 2 + Math.sin(i * 2.3) * 0.15;
+        const r = 26 + Math.sin(i * 1.7) * 6;
+        tx = h.x + Math.cos(a) * r;
+        ty = h.y + Math.sin(a) * r;
+      }
+
+      const dx = tx - unit.x;
+      const dy = ty - unit.y;
       const dist = Math.hypot(dx, dy);
 
-      if (dist < 6) {
-        unit.pathIdx++;
-      } else {
-        unit.x += (dx / dist) * unit.speed * dt;
-        unit.y += (dy / dist) * unit.speed * dt;
+      if (dist > 3) {
+        unit.facing = dx >= 0 ? 1 : -1;
+        const step = Math.min(unit.speed * dt, dist);
+        unit.x += (dx / dist) * step;
+        unit.y += (dy / dist) * step;
       }
     }
   }
@@ -1006,20 +1361,30 @@ export class WorldMap {
 
   // ==================== الرسم ====================
   drawHero(ctx) {
+    const l = this.leader;
     ctx.save();
-    ctx.translate(this.leader.x, this.leader.y);
+    ctx.translate(l.x, l.y);
 
-    this._drawSprite(ctx, "leader-player", "#2c1810", this.leader.radius);
+    // ظل
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath();
+    ctx.ellipse(0, l.radius * 0.6, l.radius * 0.8, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // تاج ذهبي (يُحتفظ به كعلامة فوق الصورة)
+    // قلب الاتجاه حسب الجهة
+    ctx.scale(l.facing || 1, 1);
+    this._drawSprite(ctx, "leader-player", "#2c1810", l.radius);
+    ctx.scale(1 / (l.facing || 1), 1);
+
+    // تاج ذهبي
     ctx.fillStyle = "#f5d76e";
-    ctx.fillRect(-6, -this.leader.radius - 8, 12, 8);
+    ctx.fillRect(-6, -l.radius - 8, 12, 8);
 
-    const hp = this.leader.hp / this.leader.maxHp;
+    const hp = l.hp / l.maxHp;
     ctx.fillStyle = "rgba(0,0,0,0.5)";
-    ctx.fillRect(-this.leader.radius, -this.leader.radius - 18, this.leader.radius * 2, 4);
+    ctx.fillRect(-l.radius, -l.radius - 18, l.radius * 2, 4);
     ctx.fillStyle = hp > 0.5 ? "#4cd964" : "#ff4444";
-    ctx.fillRect(-this.leader.radius, -this.leader.radius - 18, this.leader.radius * 2 * hp, 4);
+    ctx.fillRect(-l.radius, -l.radius - 18, l.radius * 2 * hp, 4);
 
     ctx.restore();
   }
@@ -1029,7 +1394,16 @@ export class WorldMap {
       ctx.save();
       ctx.translate(u.x, u.y);
 
+      // ظل
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.beginPath();
+      ctx.ellipse(0, u.radius * 0.6, u.radius * 0.7, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // قلب الاتجاه
+      ctx.scale(u.facing || 1, 1);
       this._drawSprite(ctx, "soldier-player", "#3d2b1f", u.radius);
+      ctx.scale(1 / (u.facing || 1), 1);
 
       const hp = u.hp / u.maxHp;
       ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -1047,7 +1421,16 @@ export class WorldMap {
       ctx.save();
       ctx.translate(m.x, m.y);
 
+      // ظل
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.beginPath();
+      ctx.ellipse(0, m.radius * 0.5, m.radius * 0.7, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // قلب الاتجاه
+      ctx.scale(m.facing || 1, 1);
       this._drawSprite(ctx, m.imageKey, m.color, m.radius);
+      ctx.scale(1 / (m.facing || 1), 1);
 
       const hp = m.hp / m.maxHp;
       ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -1407,10 +1790,11 @@ export class WorldMap {
       if (!b.alive) continue;
       ctx.save();
       ctx.translate(b.x, b.y);
-      ctx.scale(b.facing || 1, 1);
-      // ظل
-      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      // ظل (قبل القلب)
+      ctx.fillStyle = "rgba(0,0,0,0.2)";
       ctx.beginPath(); ctx.ellipse(0, 12, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
+      // قلب الاتجاه
+      ctx.scale(b.facing || 1, 1);
 
       const banditImg = this.images.get("bandit-br");
       if (banditImg) {

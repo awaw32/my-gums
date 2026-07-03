@@ -39,69 +39,39 @@ const DATA_DIR = process.env.DATA_DIR || "./data";
 try { require("fs").mkdirSync(DATA_DIR, { recursive: true }); } catch (e) { console.warn("[Server] Cannot create DATA_DIR:", e.message); }
 
 // ═══════════════════════════════════════════════════════════════════
-//  MongoDB — مباشر بدون n8n
+//  Database Helper — MongoDB + in-memory fallback
 // ═══════════════════════════════════════════════════════════════════
-const mongoose = require("mongoose");
-mongoose.set("bufferCommands", false);
-const MONGO_URL = process.env.MONGO_URL;
-let mongoConnected = false;
-if (!MONGO_URL) {
-  console.warn("[MongoDB] MONGO_URL غير مضبوط — اللعبة تشتغل بدون حفظ (in-memory only)");
-} else {
-  mongoose.connect(MONGO_URL, { serverSelectionTimeoutMS: 3000 })
-    .then(() => { mongoConnected = true; console.log("[MongoDB] Connected ✅"); })
-    .catch(err => { mongoConnected = false; console.warn("[MongoDB] غير متاح — اللعبة تشتغل بدون حفظ:", err.message); });
-  mongoose.connection.on("disconnected", () => { mongoConnected = false; });
-}
+const {
+  mongoConnected,
+  memStore,
+  Player,
+  getDefaultPlayer,
+  savePlayer,
+  loadPlayer,
+  listPlayers,
+  getLeaderboard,
+} = require("./server/db/databaseHelper");
 
-const playerSchema = new mongoose.Schema({
-  username:      { type: String, required: true, unique: true, index: true },
-  cash:          { type: Number, default: 0 },
-  gems:          { type: Number, default: 0 },
-  gold:          { type: Number, default: 0 },
-  kingCoins:     { type: Number, default: 0 },
-  hammers:       { type: Number, default: 0 },
-  scrolls:       { type: Number, default: 0 },
-  horns:         { type: Number, default: 0 },
-  food:          { type: Number, default: 50 },
-  army_power:    { type: Number, default: 0 },
-  x_position:    { type: Number, default: 1200 },
-  y_position:    { type: Number, default: 1200 },
-  last_active:   { type: Number, default: 0 },
-  unitLevel:     { type: Number, default: 1 },
-  trainingLevel: { type: Number, default: 1 },
-  weapons:       { type: Array, default: [] },
-  landsState:    { type: Object, default: {} },
-  xp:           { type: Number, default: 0 },
-  level:        { type: Number, default: 1 },
-  allianceLevel: { type: Number, default: 0 },
-  upgrades:     { type: Object, default: {} },
-  oases:        { type: Array, default: [] },
-  prestigeLevel: { type: Number, default: 0 },
-  achievements: { type: Array, default: [] },
-  dailyLogin:   { type: Object, default: {} },
-  inventory:    { type: Object, default: {} },
-  events:       { type: Array, default: [] },
-  tutorial:     { type: Object, default: {} },
-  brWins:       { type: Number, default: 0 },
-  brKills:      { type: Number, default: 0 },
-}, { collection: "players_data", timestamps: false });
-
-const Player = mongoose.model("Player", playerSchema);
-
-// ── In-memory fallback عندما MongoDB مش متاح ──
-const memStore = new Map(); // username → data
-function getDefaultPlayer(username) {
-  return {
-    username, cash: 0, gems: 0, gold: 0, kingCoins: 0,
-    hammers: 0, scrolls: 0, horns: 0, army_power: 0,
-    x_position: 1200, y_position: 1200, last_active: 0, unitLevel: 1, weapons: []
-  };
-}
+// ═══════════════════════════════════════════════════════════════════
+//  Combat Formulas
+// ═══════════════════════════════════════════════════════════════════
+const { computePlayerStats } = require("./server/logic/formulas");
 
 const WORLD_W = 3200;
 const WORLD_H = 3200;
 const TICK_MS = 50;
+
+// ═══════════════════════════════════════════════════════════════════
+//  Combat Loop — arena ticks + world monster patrol
+// ═══════════════════════════════════════════════════════════════════
+const MONSTER_TYPES = [
+  { name: "ذئب صحراوي", color: "#8a5a3a", radius: 14, hp: 35, maxHp: 35, damage: 6, rewardMoney: 8 },
+  { name: "محارب ظل", color: "#2a1a1a", radius: 18, hp: 65, maxHp: 65, damage: 13, rewardMoney: 18 },
+  { name: "زعيم الرمال", color: "#c0392b", radius: 22, hp: 130, maxHp: 130, damage: 24, rewardMoney: 45 },
+];
+const worldMonsters = [];
+const WORLD_W2 = 2400, WORLD_H2 = 2400;
+const SAFE_ZONE = { x: WORLD_W2/2 - 120, y: WORLD_H2/2 - 120, w: 240, h: 240 };
 
 const MSG_SCHEMAS = {
   join: {
@@ -114,7 +84,7 @@ const MSG_SCHEMAS = {
   },
   attack: {
     required: ["targetId"],
-    fields: { targetId: "string" },       // ← no client-sent damage
+    fields: { targetId: "string" },
   },
 };
 
@@ -146,46 +116,18 @@ function broadcast(roomCode, message, excludeId = null) {
   });
 }
 
-function gameTick() {
-  rooms.forEach((room, roomCode) => {
-    if (!room.matchStarted) return;
-    for (const [id, player] of room.players) {
-      if (!player.alive) continue;
-      if (player.moveTarget && player.moveTarget.length > 0) {
-        const target = player.moveTarget[0];
-        const dx = target.x - player.x;
-        const dy = target.y - player.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < 5) {
-          player.moveTarget.shift();
-          player.moving = false;
-        } else {
-          player.x += (dx / dist) * player.speed * (TICK_MS / 1000);
-          player.y += (dy / dist) * player.speed * (TICK_MS / 1000);
-          player.moving = true;
-        }
-      } else {
-        player.moving = false;
-      }
-    }
-    broadcast(roomCode, {
-      type: "state_update",
-      tick: room.tick,
-      players: Array.from(room.players.entries()).map(([id, p]) => ({
-        id, name: p.name, x: Math.round(p.x), y: Math.round(p.y),
-        hp: p.hp, alive: p.alive, kills: p.kills, moving: p.moving,
-      })),
-    });
-    room.tick++;
-  });
-}
+const worldClients = new Map();
 
-setInterval(gameTick, TICK_MS);
+const { createCombatLoop } = require("./server/logic/combatLoop");
+const combatSystem = createCombatLoop({
+  rooms, broadcast, WORLD_W, TICK_MS,
+  worldMonsters, worldClients,
+  MONSTER_TYPES, SAFE_ZONE, WORLD_W2, WORLD_H2,
+});
 
 // ═══════════════════════════════════════════════════════════════════
 //  World Map WebSocket — ملتيكاملة العالم المفتوح (بدون Polling)
 // ═══════════════════════════════════════════════════════════════════
-const worldClients = new Map(); // username → { ws, x, y, army_power, kills, coinsEarned, unitLevel, armyAlive, color }
 
 // ── ألوان مميزة لكل لاعب ──
 const PLAYER_COLORS = ["#c0392b","#2980b9","#27ae60","#8e44ad","#d35400","#16a085","#2c3e50","#f39c12","#1abc9c","#e67e22","#9b59b6","#34495e"];
@@ -195,64 +137,7 @@ function playerColor(username) {
   return PLAYER_COLORS[Math.abs(h) % PLAYER_COLORS.length];
 }
 
-// ── وحوش العالم (مشتركة لكل اللاعبين) ──
-const WORLD_W2 = 2400, WORLD_H2 = 2400;
-const SAFE_ZONE = { x: WORLD_W2/2 - 120, y: WORLD_H2/2 - 120, w: 240, h: 240 };
-const MONSTER_TYPES = [
-  { name: "ذئب صحراوي", color: "#8a5a3a", radius: 14, hp: 35, maxHp: 35, damage: 6, rewardMoney: 8 },
-  { name: "محارب ظل", color: "#2a1a1a", radius: 18, hp: 65, maxHp: 65, damage: 13, rewardMoney: 18 },
-  { name: "زعيم الرمال", color: "#c0392b", radius: 22, hp: 130, maxHp: 130, damage: 24, rewardMoney: 45 },
-];
-const worldMonsters = [];
-function initWorldMonsters() {
-  if (worldMonsters.length > 0) return;
-  for (let i = 0; i < 12; i++) {
-    let x, y;
-    do {
-      x = 150 + Math.random() * (WORLD_W2 - 300);
-      y = 150 + Math.random() * (WORLD_H2 - 300);
-    } while (x >= SAFE_ZONE.x && x <= SAFE_ZONE.x + SAFE_ZONE.w && y >= SAFE_ZONE.y && y <= SAFE_ZONE.y + SAFE_ZONE.h);
-    const t = MONSTER_TYPES[Math.floor(Math.random() * MONSTER_TYPES.length)];
-    worldMonsters.push({
-      id: i, ...t,
-      x, y, spawnX: x, spawnY: y,
-      alive: true, hp: t.maxHp, respawnTimer: 0
-    });
-  }
-}
-// دورة respawn + تحريك الوحوش كل ثانية
-setInterval(() => {
-  let changed = false;
-  for (const m of worldMonsters) {
-    if (!m.alive) {
-      m.respawnTimer -= 1;
-      if (m.respawnTimer <= 0) {
-        m.alive = true; m.hp = m.maxHp;
-        m.x = m.spawnX; m.y = m.spawnY;
-        changed = true;
-      }
-    } else {
-      // تحريك الوحوش بدورية خفيفة (كل اللاعبين يشوفون نفس الحركة)
-      if (!m._patrolTarget || Math.hypot(m.x - m._patrolTarget.x, m.y - m._patrolTarget.y) < 15) {
-        m._patrolTarget = {
-          x: m.spawnX + (Math.random() - 0.5) * 180,
-          y: m.spawnY + (Math.random() - 0.5) * 180,
-        };
-      }
-      const dx = m._patrolTarget.x - m.x;
-      const dy = m._patrolTarget.y - m.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist > 3) {
-        m.x += (dx / dist) * 18;
-        m.y += (dy / dist) * 18;
-        changed = true;
-      }
-    }
-  }
-  // بث الوحوش كل ثانية عشان الكل يشوف نفس الحركة
-  const msg = JSON.stringify({ type: "world_monsters", list: worldMonsters });
-  worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
-}, 1000);
+// ── وحوش العالم يتم إدارتها في combatLoop ──
 
 function broadcastWorld(excludeWs = null) {
   const list = [];
@@ -265,6 +150,8 @@ function broadcastWorld(excludeWs = null) {
       unitLevel: c.unitLevel || 1,
       armyAlive: c.armyAlive ?? 8,
       color: c.color,
+      hp: c.hp ?? c.br_hp ?? 120,
+      maxHp: c.maxHp ?? 120,
       br_hp: c.br_hp ?? 120,
       br_alive: c.br_alive ?? true,
       last_active: Date.now()
@@ -296,8 +183,10 @@ wss.on("connection", (ws, req) => {
       if (msg.type === "join") {
         username = msg.username;
         if (!username) return;
-        initWorldMonsters();
+        combatSystem.initWorldMonsters();
         const color = playerColor(username);
+        const initHP = msg.hp ?? 120;
+        const initMaxHP = msg.maxHp ?? 120;
         worldClients.set(username, {
           ws, username, color,
           x: msg.x_position || 1200,
@@ -307,6 +196,11 @@ wss.on("connection", (ws, req) => {
           coinsEarned: msg.coinsEarned || 0,
           unitLevel: msg.unitLevel || 1,
           armyAlive: msg.armyAlive ?? 8,
+          hp: initHP,
+          maxHp: initMaxHP,
+          level: msg.level || 1,
+          trainingLevel: msg.trainingLevel || 1,
+          prestigeLevel: msg.prestigeLevel || 0,
           br_hp: msg.br_hp ?? 120,
           br_alive: msg.br_alive ?? true,
         });
@@ -329,6 +223,9 @@ wss.on("connection", (ws, req) => {
           c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
           c.unitLevel = msg.unitLevel ?? c.unitLevel;
           c.armyAlive = msg.armyAlive ?? c.armyAlive;
+          if (msg.hp !== undefined) c.hp = msg.hp;
+          if (msg.maxHp !== undefined) c.maxHp = msg.maxHp;
+          if (msg.level !== undefined) c.level = msg.level;
           if (msg.br_hp !== undefined) c.br_hp = msg.br_hp;
           if (msg.br_alive !== undefined) c.br_alive = msg.br_alive;
           broadcastWorld(ws);
@@ -349,6 +246,37 @@ wss.on("connection", (ws, req) => {
         if (tc && tc.ws.readyState === 1) {
           tc.ws.send(JSON.stringify({ type: "pvp_notify", attacker, power: msg.myPower || 0 }));
         }
+      } else if (msg.type === "pvp_result" && username) {
+        const targetName = msg.target;
+        const won = msg.won;
+        const loot = msg.loot || 0;
+        const reward = msg.winnerReward || 0;
+        const tc = worldClients.get(targetName);
+        // notify target about the result
+        if (tc && tc.ws.readyState === 1) {
+          tc.ws.send(JSON.stringify({
+            type: "pvp_result",
+            attacker: username,
+            won: !won,
+            loot: won ? 0 : loot,
+            reward: won ? 0 : reward,
+            myPower: msg.myPower || 0,
+          }));
+        }
+        // if winner gets loot, the target's session coins are lost
+        if (!won && loot > 0 && tc) {
+          // server-side tally (for future DB persistence)
+          tc.sessionCoins = Math.max(0, (tc.sessionCoins || 0) - loot);
+        }
+        // broadcast PvP notification
+        const pvpMsg = JSON.stringify({
+          type: "broadcast_chat",
+          username: "⚔️ النظام",
+          message: won
+            ? `${username} انتصر على ${targetName}!`
+            : `${targetName} هزم ${username}!`,
+        });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(pvpMsg); });
       } else if (msg.type === "chat" && username) {
         const chatMsg = JSON.stringify({ type: "broadcast_chat", username, message: String(msg.message).slice(0, 200) });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });
@@ -397,6 +325,8 @@ wss.on("connection", (ws, req) => {
         unitLevel: c.unitLevel || 1,
         armyAlive: c.armyAlive ?? 8,
         color: c.color,
+        hp: c.hp ?? c.br_hp ?? 120,
+        maxHp: c.maxHp ?? 120,
         br_hp: c.br_hp ?? 120,
         br_alive: c.br_alive ?? true,
         last_active: Date.now()
@@ -597,25 +527,34 @@ wss.on("close", () => clearInterval(INTERVAL));
 const STATIC_EXTS = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
 function serveStatic(rawUrl, res) {
-  const url = rawUrl.split("?")[0]; // strip cache-busting query strings
+  const url = rawUrl.split("?")[0];
   const ext = path.extname(url).toLowerCase();
   if (!STATIC_EXTS[ext]) return false;
   // SECURITY: منع Path Traversal عبر resolve مع startsWith
-  const safePath = path.resolve(__dirname, url === "/" ? "index.html" : url.replace(/^\//, ""));
+  const cleanPath = url === "/" ? "index.html" : url.replace(/^\//, "");
+  const safePath = path.resolve(__dirname, cleanPath);
   if (!safePath.startsWith(__dirname)) {
     res.writeHead(403); res.end("Forbidden"); return true;
   }
+  // Try primary path first, then public/ fallback
+  let content = null;
   try {
-    const content = fs.readFileSync(safePath);
-    // HTTP Security headers + Cache Control
-    res.writeHead(200, {
-      "Content-Type": STATIC_EXTS[ext],
-      "Cache-Control": "public, max-age=31536000, immutable",
-      "X-Content-Type-Options": "nosniff"
-    });
-    res.end(content);
-    return true;
-  } catch { return false; }
+    content = fs.readFileSync(safePath);
+  } catch {
+    const pubPath = path.resolve(__dirname, "public", cleanPath);
+    if (pubPath.startsWith(path.resolve(__dirname, "public"))) {
+      try { content = fs.readFileSync(pubPath); } catch { return false; }
+    } else {
+      return false;
+    }
+  }
+  res.writeHead(200, {
+    "Content-Type": STATIC_EXTS[ext],
+    "Cache-Control": "public, max-age=31536000, immutable",
+    "X-Content-Type-Options": "nosniff"
+  });
+  res.end(content);
+  return true;
 }
 
 server.on("request", async (req, res) => {

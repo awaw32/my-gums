@@ -69,7 +69,10 @@ export class NetworkSync {
       kills: w.sessionStats.kills,
       coinsEarned: w.sessionStats.coinsEarned,
       unitLevel: w.army?.unitLevel || 1,
-      armyAlive: w.armyUnits.filter(u => u.hp > 0).length
+      armyAlive: w.armyUnits.filter(u => u.hp > 0).length,
+      hp: Math.floor(w.leader.hp),
+      maxHp: Math.floor(w.leader.maxHp),
+      level: w.economy?.level || 1,
     };
     if (w.mode === "battle_royale") {
       update.br_hp = w.leader.hp;
@@ -187,6 +190,8 @@ export class NetworkSync {
         existing.unitLevel = p.unitLevel || 1;
         existing.armyAlive = p.armyAlive ?? 8;
         existing.lastActive = lastActive;
+        existing.hp = p.hp ?? existing.hp ?? 120;
+        existing.maxHp = p.maxHp ?? existing.maxHp ?? 120;
         existing.br_hp = p.br_hp ?? existing.br_hp;
         existing.br_alive = p.br_alive ?? existing.br_alive;
         existing.kills = p.kills ?? existing.kills ?? 0;
@@ -202,6 +207,8 @@ export class NetworkSync {
           armyAlive: p.armyAlive ?? 8,
           lastActive,
           color: p.color || "#3a5a8a",
+          hp: p.hp ?? 120,
+          maxHp: p.maxHp ?? 120,
           br_hp: p.br_hp ?? 120,
           br_alive: p.br_alive ?? true,
           kills: p.kills ?? 0,
@@ -233,7 +240,12 @@ export class NetworkSync {
         kills: w?.sessionStats?.kills || 0,
         coinsEarned: w?.sessionStats?.coinsEarned || 0,
         unitLevel: w?.army?.unitLevel || 1,
-        armyAlive: w?.armyUnits?.filter(u => u.hp > 0).length || 0
+        armyAlive: w?.armyUnits?.filter(u => u.hp > 0).length || 0,
+        hp: Math.floor(w?.leader?.hp || 120),
+        maxHp: Math.floor(w?.leader?.maxHp || 120),
+        level: w?.economy?.level || 1,
+        trainingLevel: w?.economy?.trainingLevel || 1,
+        prestigeLevel: w?.economy?.prestigeLevel || 0,
       });
     };
 

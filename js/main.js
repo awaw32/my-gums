@@ -379,6 +379,9 @@ async function init() {
       achievements.updateProgress('pvp_wins', 1);
     };
     world._onPvPLose = () => audio.playSound('hit');
+    world._onPvPReturn = async () => {
+      await world.exitWorldMap();
+    };
 
     // توصيل الإنجازات
     economy._onGoldEarned = (amount) => {

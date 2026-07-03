@@ -54,6 +54,8 @@ class DesertGame {
       alive: true,
       path: null,
       pathIdx: 0,
+      _posHistory: [],
+      _maxHist: 50,
     };
 
     // ─── State ────────────────────────────────────────────────
@@ -232,6 +234,10 @@ class DesertGame {
     const h = this.hero, sp = this.sprite;
     if (!h.alive) return;
 
+    // سجل موقع القائد كل فريم للمسار المتأخر
+    h._posHistory.push({ x: h.x, y: h.y });
+    if (h._posHistory.length > h._maxHist) h._posHistory.shift();
+
     if (h.attacking) {
       h.atkTimer -= dt;
       sp.walkRow = sp.atkRow;
@@ -347,15 +353,17 @@ class DesertGame {
   // ══════════════════════════════════════════════════════════════
 
   _updateUnits(dt) {
-    const spd = this.hero.speed * 0.85;
-    for (const u of this.units) {
+    const h = this.hero;
+    const spd = h.speed * 0.85;
+    const history = h._posHistory;
+    const len = history.length;
+    const time = Date.now();
+
+    for (let i = 0; i < this.units.length; i++) {
+      const u = this.units[i];
       if (!u.alive) continue;
-      const dx = u.fx - u.x, dy = u.fy - u.y, d = Math.hypot(dx, dy);
-      if (d > 5) {
-        u.facing = dx >= 0 ? 1 : -1;
-        u.x += (dx/d) * Math.min(spd*dt, d);
-        u.y += (dy/d) * Math.min(spd*dt, d);
-      }
+
+      // ── اشتباك مع الأعداء (بدون تغيير) ──
       const e = this._findEnemy(u.x, u.y, 35);
       if (e && e.alive) {
         u.atkTimer = (u.atkTimer||0) - dt;
@@ -365,6 +373,45 @@ class DesertGame {
           e.hp -= dmg; this._hit(e.x, e.y, dmg);
           if (e.hp <= 0) { e.alive=false; this.state.kills++; this._gain(e.gold||3, e.food||2); this._addXp(5+this.state.level); this.enemies = this.enemies.filter(x=>x!==e); }
         }
+        continue;
+      }
+
+      // ── Leader Following ──
+      // كل جندي يتأخر عن القائد بمقدار (i+1)*3 فريم
+      const delay = (i + 1) * 3 + 2;
+      const idx = Math.max(0, len - delay);
+
+      let tx, ty;
+
+      if (len > delay && idx > 0 && idx < len - 1) {
+        const scatter = h.moving ? 5 : 0;
+        const angleOff = i * 1.3;
+        tx = history[idx].x + Math.sin(angleOff + time * 0.002) * scatter;
+        ty = history[idx].y + Math.cos(angleOff + time * 0.002) * scatter;
+      } else {
+        // بديل: دائرة حول القائد
+        const aliveCnt = this.units.filter(uu => uu.alive).length;
+        const a = (i / Math.max(1, aliveCnt)) * Math.PI * 2;
+        tx = h.x + Math.cos(a) * 30;
+        ty = h.y + Math.sin(a) * 30;
+      }
+
+      const dx = tx - u.x, dy = ty - u.y, d = Math.hypot(dx, dy);
+
+      if (d > 3) {
+        u.facing = dx >= 0 ? 1 : -1;
+        u.x += (dx/d) * Math.min(spd*dt, d);
+        u.y += (dy/d) * Math.min(spd*dt, d);
+      } else if (!h.moving && len > 10) {
+        // استرخاء في تشكيل دائري طبيعي عندما يتوقف القائد
+        const aliveCnt = this.units.filter(uu => uu.alive).length;
+        const a = (i / Math.max(1, aliveCnt)) * Math.PI * 2 + Math.sin(i * 2.3) * 0.15;
+        const r = 28 + Math.sin(i * 1.7) * 6;
+        const cx = h.x + Math.cos(a) * r;
+        const cy = h.y + Math.sin(a) * r;
+        u.x += (cx - u.x) * Math.min(1, dt * 3);
+        u.y += (cy - u.y) * Math.min(1, dt * 3);
+        u.facing = cx >= h.x ? 1 : -1;
       }
     }
   }
@@ -483,21 +530,13 @@ class DesertGame {
   }
 
   _spawnUnit() {
-    const n = this.units.filter(u=>u.alive).length;
-    const a = (n / this.state.armyCap) * Math.PI * 2;
+    const a = Math.random() * Math.PI * 2;
+    const dist = 20 + Math.random() * 20;
     this.units.push({
-      x: this.hero.x+Math.cos(a)*35, y: this.hero.y+Math.sin(a)*35,
-      fx: this.hero.x+Math.cos(a)*35, fy: this.hero.y+Math.sin(a)*35,
+      x: this.hero.x + Math.cos(a) * dist,
+      y: this.hero.y + Math.sin(a) * dist,
       alive: true, moving: false, attacking: false, atkTimer: 0, facing: 1,
       hp: 30+this.state.level*5, maxHp: 30+this.state.level*5,
-    });
-  }
-
-  _updForm() {
-    this.units.filter(u=>u.alive).forEach((u,i) => {
-      const a = (i / this.state.armyCap) * Math.PI * 2;
-      u.fx = this.hero.x + Math.cos(a)*35;
-      u.fy = this.hero.y + Math.sin(a)*35;
     });
   }
 
@@ -579,7 +618,6 @@ class DesertGame {
       h.atkTarget = null;
     }
     this.sprite.walkRow = 0;
-    if (h.path) this._updForm();
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -965,10 +1003,14 @@ class DesertGame {
     if (!cam.visible(h.x, h.y, 80)) return;
 
     if (sp.loaded && sp.fw > 0) {
-      // Use sprite sheet
       const sc = 1.25, dw = sp.fw * sc, dh = sp.fh * sc;
       ctx.save();
       ctx.translate(sx, sy);
+      // ظل البطل
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.beginPath();
+      ctx.ellipse(0, dh * 0.3, 12, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.scale(h.facing, 1);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(sp.img, sp.frame * sp.fw, sp.walkRow * sp.fh, sp.fw, sp.fh, -dw / 2, -dh, dw, dh);

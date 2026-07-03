@@ -302,6 +302,49 @@
       <button id="zoom-out-btn" class="zoom-btn" title="تصغير">－</button>
     </div>
 
+    <!-- PvP Context Menu (Floating Attack / Inspect) -->
+    <div id="pvp-context-menu" class="pvp-context-menu hidden">
+      <div class="pvp-context-bg"></div>
+      <button id="pvp-attack-btn" class="pvp-action-btn attack-btn" title="هجوم">🗡️</button>
+      <button id="pvp-inspect-btn" class="pvp-action-btn inspect-btn" title="استعلام">🔍</button>
+    </div>
+
+    <!-- PvP Inspect Popup -->
+    <div id="pvp-inspect-popup" class="pvp-inspect-popup hidden">
+      <div class="pvp-inspect-card">
+        <div class="pvp-inspect-name" id="pvp-inspect-name">—</div>
+        <div class="pvp-inspect-stat"><span>👊 القوة</span><span id="pvp-inspect-power">0</span></div>
+        <div class="pvp-inspect-stat"><span>⚔️ القتلى</span><span id="pvp-inspect-kills">0</span></div>
+        <div class="pvp-inspect-stat"><span>💵 الأرباح</span><span id="pvp-inspect-coins">0</span></div>
+        <button id="pvp-inspect-close" class="pvp-inspect-close">حسناً</button>
+      </div>
+    </div>
+
+    <!-- PvP Defeat Modal -->
+    <div id="pvp-defeat-modal" class="pvp-defeat-modal hidden">
+      <div class="pvp-defeat-card">
+        <div class="pvp-defeat-icon">💀</div>
+        <h2 class="pvp-defeat-title">لقد تم هزيمتك!</h2>
+        <div class="pvp-defeat-detail">
+          <span class="pvp-defeat-label">القاتل</span>
+          <span class="pvp-defeat-val" id="pvp-defeat-killer">—</span>
+        </div>
+        <div class="pvp-defeat-detail">
+          <span class="pvp-defeat-label">قوة الخصم</span>
+          <span class="pvp-defeat-val" id="pvp-defeat-power">0 👊</span>
+        </div>
+        <div class="pvp-defeat-detail">
+          <span class="pvp-defeat-label">المسروق منك</span>
+          <span class="pvp-defeat-val lost" id="pvp-defeat-loot">0 💵</span>
+        </div>
+        <div class="pvp-defeat-detail">
+          <span class="pvp-defeat-label">نقص القوة</span>
+          <span class="pvp-defeat-val lost" id="pvp-defeat-power-loss">0 👊</span>
+        </div>
+        <button id="pvp-defeat-return-btn" class="pvp-defeat-btn">🗺️ إعادة دخول الخريطة</button>
+      </div>
+    </div>
+
     <!-- Player Panel -->
     <div id="player-panel" class="player-panel hidden">
       <div class="player-panel-header">
