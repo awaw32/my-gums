@@ -1,0 +1,8 @@
+<svg width="220" height="180" xmlns="http://www.w3.org/2000/svg">
+<rect width="220" height="180" rx="16" fill="url(#g)"/>
+<defs><radialGradient id="g"><stop offset="0%" stop-color="#e63946"/><stop offset="100%" stop-color="#4a0e0e"/></radialGradient></defs>
+<circle cx="110" cy="72" r="39.6" fill="#1a0a05"/>
+<circle cx="92" cy="62" r="5" fill="#ffd700"/><circle cx="128" cy="62" r="5" fill="#ffd700"/><circle cx="110" cy="78" r="4" fill="#e63946"/><path d="M85 25 L65 0" stroke="#ffd700" stroke-width="4" stroke-linecap="round"/><path d="M135 25 L155 0" stroke="#ffd700" stroke-width="4" stroke-linecap="round"/>
+<path d="M66 108 Q110 135 154 108" stroke="#ffd700" stroke-width="3" fill="none" stroke-linecap="round"/>
+<text x="110" y="162" text-anchor="middle" fill="#d4a373" font-size="11" font-family="sans-serif">👹 وحش الصحراء</text>
+</svg>

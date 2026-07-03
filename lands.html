@@ -24,7 +24,6 @@
     })();
   </script>
   <style>
-    /* ===== Reset & Base ===== */
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html,body{
       height:100%;overflow:hidden;
@@ -34,21 +33,21 @@
       user-select:none;
     }
 
-    /* =====Game Shell===== */
     .game-shell{
       max-width:430px;width:100%;margin:0 auto;position:relative;
       height:100dvh;overflow:hidden;background:#0d0a05;
       contain:layout style;
     }
-    /* شاشات كبيرة — تثبيت الأبعاد */
     @media (min-width:431px){
       .game-shell{width:430px;height:100dvh}
     }
 
-    /* =====Layer 0: خلفية القرية===== */
+    /* خلفية القرية — ثابتة بالكامل */
     .map-bg{
       position:fixed;inset:0;z-index:0;
-      width:100vw;height:100dvh;
+      width:100%;max-width:430px;
+      left:50%;transform:translateX(-50%);
+      height:100dvh;
       background-image:url('assets/images/bg-village.jpg');
       background-size:cover;background-position:center top;
       background-repeat:no-repeat;
@@ -58,14 +57,13 @@
       background:linear-gradient(180deg,rgba(0,0,0,.18) 0%,transparent 22%,transparent 68%,rgba(0,0,0,.22) 100%);
       pointer-events:none;
     }
-    /* vignette حول الحواف */
     .map-vignette{
       position:fixed;inset:0;z-index:1;
       pointer-events:none;
       background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.35) 100%);
     }
 
-    /* =====Layer 1: المباني===== */
+    /* المباني — ثابتة تماماً (position:fixed داخل إطار game-shell) */
     .buildings-layer{
       position:absolute;inset:0;z-index:12;
       pointer-events:none;contain:layout style;
@@ -100,7 +98,7 @@
     .badge-built{background:rgba(76,217,100,.78);color:#fff}
     .building-lock{position:absolute;top:-3px;right:-3px;font-size:13px}
 
-    /* =====Layer 2a: شريط الترقية — Glassmorphism بألوان الصحراء ===== */
+    /* شريط الترقية */
     .upgrade-row{
       position:absolute;top:62px;left:8px;right:8px;z-index:25;
       display:flex;gap:8px;overflow-x:auto;
@@ -130,7 +128,7 @@
     }
     .uc-btn:active{transform:scale(.92)}
 
-    /* =====Layer 2b: شريط الموارد — Glassmorphism ذهبي ===== */
+    /* شريط الموارد */
     .top-hud{
       position:absolute;top:0;left:0;right:0;z-index:30;
       padding:calc(8px + env(safe-area-inset-top)) 10px 8px;
@@ -161,45 +159,54 @@
     .hud-level{font-size:10px;color:rgba(255,215,0,0.8);font-weight:700}
     .hud-toggle{
       position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);
-      background:rgba(18,12,6,.65);color:#ffd36a;border:0;
-      border-radius:0 0 10px 10px;padding:2px 14px;font-size:12px;
-      cursor:pointer;z-index:31;font-family:inherit;
-      line-height:1.6;transition:transform .2s;
-    }
-    .hud-toggle:active{transform:translateX(-50%) scale(.92)}
-
-    /* =====Layer 3: الشريط السفلي — ذهبي متوهج ===== */
-    .bottom-nav{
-      position:fixed;bottom:0;left:0;right:0;z-index:40;
-      background:linear-gradient(0deg, rgba(40,30,15,0.55), rgba(60,45,25,0.35), rgba(80,60,35,0.15));
-      backdrop-filter:blur(14px) saturate(1.3);
-      -webkit-backdrop-filter:blur(14px) saturate(1.3);
-      display:flex;justify-content:space-around;align-items:center;
-      padding:6px 0 calc(6px + env(safe-area-inset-bottom));
-      height:68px;border-top:1px solid rgba(255,215,0,0.1);
-      box-shadow:0 -2px 20px rgba(0,0,0,0.3);
-    }
-    .nav-btn{
-      background:none;border:0;cursor:pointer;
-      display:flex;flex-direction:column;align-items:center;
-      gap:1px;padding:4px 10px;position:relative;
-      font-family:inherit;transition:all .25s ease;
-    }
-    .nav-btn:active{transform:scale(.9)}
-    .nav-icon{font-size:20px;transition:all .25s ease}
-    .nav-label{font-size:10px;font-weight:700;color:#c4a070;transition:all .25s ease}
-    .nav-btn.active .nav-label{color:var(--gold, #FFD700);text-shadow:0 0 10px rgba(255,215,0,0.4)}
-    .nav-btn.active .nav-icon{color:var(--gold, #FFD700);filter:drop-shadow(0 0 8px rgba(255,215,0,0.6));transform:scale(1.1)}
-    .nav-lock{position:absolute;top:-2px;right:-2px;font-size:9px}
-    .nav-btn.locked .nav-icon{opacity:.5}
-    /* توهج أسفل الأزرار النشطة */
-    .nav-btn.active::after{
-      content:'';position:absolute;bottom:-2px;left:20%;right:20%;
-      height:2px;background:linear-gradient(90deg,transparent,var(--gold, #FFD700),transparent);
-      border-radius:2px;
+      background:rgba(180,140,80,0.15);border:1px solid rgba(255,215,0,.15);
+      color:#d4a76a;width:32px;height:18px;border-radius:0 0 999px 999px;
+      cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;
+      font-family:inherit;z-index:31;
     }
 
-    /* =====Modal — صحراوي فاخر ===== */
+    /* ===== القائمة المنبثقة (ميني بوب أب بدل الشريط المنسدل) ===== */
+    .lands-popup-overlay{
+      position:fixed;inset:0;z-index:9999;
+      background:rgba(0,0,0,0.4);
+      display:flex;align-items:flex-start;justify-content:center;
+      padding-top:calc(80px + env(safe-area-inset-top));
+      transition:opacity .2s;
+    }
+    .lands-popup-overlay.hidden{display:none}
+    .lands-popup-card{
+      background:linear-gradient(180deg,#2c1a0a,#1a0e06);
+      border:1px solid rgba(255,215,0,0.2);
+      border-radius:20px;padding:16px;width:240px;
+      box-shadow:0 20px 60px rgba(0,0,0,.6);
+      display:flex;flex-direction:column;gap:10px;
+    }
+    .lands-popup-title{
+      font-size:14px;font-weight:900;color:#ffd700;text-align:center;
+      padding-bottom:8px;border-bottom:1px solid rgba(255,215,0,0.1);
+    }
+    .lands-popup-btns{
+      display:grid;grid-template-columns:1fr 1fr;gap:8px;
+    }
+    .lands-popup-btn{
+      display:flex;flex-direction:column;align-items:center;gap:4px;
+      padding:10px;border-radius:14px;
+      background:linear-gradient(135deg,rgba(180,140,80,0.15),rgba(120,90,40,0.08));
+      border:1px solid rgba(255,215,0,0.15);
+      cursor:pointer;font-family:inherit;
+      transition:all .15s;
+    }
+    .lands-popup-btn:active{transform:scale(.92);background:rgba(255,215,0,0.15)}
+    .lands-popup-btn-icon{font-size:22px}
+    .lands-popup-btn-label{font-size:11px;color:#d4a76a;font-weight:700}
+    .lands-popup-close{
+      margin-top:4px;padding:8px;border-radius:12px;
+      background:rgba(255,255,255,0.05);border:none;
+      color:#999;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+    }
+    .lands-popup-close:active{background:rgba(255,255,255,0.1)}
+
+    /* =====Modal===== */
     .modal-overlay{
       position:fixed;inset:0;z-index:90;
       background:rgba(0,0,0,.55);
@@ -240,94 +247,66 @@
       border-radius:999px;padding:10px 16px;font-size:13px;
       font-weight:700;white-space:nowrap;
       transition:opacity .25s;pointer-events:none;
-      box-shadow:0 4px 14px rgba(0,0,0,.3);
     }
     .toast.hidden{opacity:0}
 
-    /* =====Fallback صورة gray===== */
-    .img-fallback{
-      background:rgba(60,50,40,.35);border-radius:12px;
-      display:flex;align-items:center;justify-content:center;
-      color:rgba(255,232,194,.3);font-size:18px;
+    /* =====الشريط السفلي===== */
+    .bottom-nav{
+      position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+      z-index:50;width:100%;max-width:430px;
+      display:flex;justify-content:space-around;align-items:center;
+      padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+      background:linear-gradient(0deg,rgba(26,15,8,.95) 0%,rgba(26,15,8,.6) 100%);
+      backdrop-filter:blur(14px) saturate(1.3);
+      -webkit-backdrop-filter:blur(14px) saturate(1.3);
+      border-top:1px solid rgba(255,215,0,0.08);
     }
-
-    /* =====Scrollbar hide===== */
-    body{-ms-overflow-style:none;scrollbar-width:none}
-    body::-webkit-scrollbar{display:none}
-
-    /* =====Safe area for notch===== */
+    .nav-btn{
+      background:none;border:0;cursor:pointer;
+      display:flex;flex-direction:column;align-items:center;
+      gap:1px;padding:4px 10px;position:relative;
+      font-family:inherit;transition:all .25s ease;
+    }
+    .nav-btn:active{transform:scale(.9)}
+    .nav-icon{font-size:20px;transition:all .25s ease}
+    .nav-label{font-size:10px;font-weight:700;color:#c4a070;transition:all .25s ease}
+    .nav-btn.active .nav-label{color:#ffd700;text-shadow:0 0 10px rgba(255,215,0,0.4)}
+    .nav-btn.active .nav-icon{color:#ffd700;filter:drop-shadow(0 0 8px rgba(255,215,0,0.6));transform:scale(1.1)}
+    .nav-lock{position:absolute;top:-2px;right:-2px;font-size:9px}
+    .nav-btn.locked .nav-icon{opacity:.5}
+    .nav-btn.active::after{
+      content:'';position:absolute;bottom:-2px;left:20%;right:20%;
+      height:2px;background:linear-gradient(90deg,transparent,#ffd700,transparent);
+      border-radius:2px;
+    }
     @supports(padding:max(0px)){
       .top-hud{padding-top:max(8px,env(safe-area-inset-top))}
       .bottom-nav{padding-bottom:max(6px,env(safe-area-inset-bottom))}
     }
-
-    /* =====القائمة المنسدلة (خارج game-shell لثبات البيوت)===== */
-    .lands-quick-panel{
-      position:fixed;top:0;left:50%;width:100%;max-width:430px;
-      transform:translateX(-50%);z-index:9999;
-      pointer-events:none;
-      transition:transform .35s ease,opacity .35s ease;
-      padding-top:env(safe-area-inset-top, 0px);
-    }
-    .lands-quick-panel.hidden{transform:translateY(-100%) translateX(-50%)!important;opacity:0!important}
-    .lqp-sub-bar{
-      background:linear-gradient(135deg,rgba(180,140,80,0.22),rgba(160,120,60,0.14));
-      backdrop-filter:blur(20px) saturate(1.4);
-      -webkit-backdrop-filter:blur(20px) saturate(1.4);
-      border:1px solid rgba(255,215,0,.18);
-      border-radius:0 0 22px 22px;
-      padding:12px 16px calc(12px + env(safe-area-inset-top));
-      display:flex;gap:12px;justify-content:center;
-      box-shadow:0 8px 30px rgba(0,0,0,.4);
-      pointer-events:auto;
-    }
-    .lqp-btn{
-      width:44px;height:44px;border-radius:50%;
-      background:linear-gradient(135deg,rgba(180,140,80,0.18),rgba(120,90,40,0.1));
-      border:1px solid rgba(255,215,0,.22);
-      color:#ffe8c2;font-size:20px;cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
-      transition:all .2s;font-family:inherit;
-    }
-    .lqp-btn:active{transform:scale(.85);background:rgba(255,215,0,.2)}
   </style>
 </head>
 <body>
+  <div class="map-bg"></div>
+  <div class="map-vignette"></div>
+
   <div class="game-shell">
-
-    <!-- =====Layer 0: خلفية القرية===== -->
-    <div class="map-bg" id="mapBg"></div>
-    <div class="map-vignette"></div>
-
-    <!-- =====Layer 1: المباني===== -->
-    <div class="buildings-layer" id="buildingsLayer"></div>
-
-    <!-- =====Layer 2a: شريط الترقية===== -->
+    <!-- شريط الترقية -->
     <div class="upgrade-row" id="upgradeRow">
-      <div class="upgrade-card">
-        <div class="uc-header">
-          <span class="uc-icon">⚔️</span>
-          <div><div class="uc-label">ترقية الضرر</div><div class="uc-level" id="ucLevel0">Lv.0</div></div>
-        </div>
+      <div class="upgrade-card" id="uc0">
+        <div class="uc-header"><span class="uc-icon">⚔️</span><span class="uc-label">الضرر</span><span class="uc-level" id="ucLevel0">Lv.0</span></div>
         <button class="uc-btn" onclick="upgradeStat(0)">ترقية</button>
       </div>
-      <div class="upgrade-card">
-        <div class="uc-header">
-          <span class="uc-icon">🛡️</span>
-          <div><div class="uc-label">ترقية الدفاع</div><div class="uc-level" id="ucLevel1">Lv.0</div></div>
-        </div>
+      <div class="upgrade-card" id="uc1">
+        <div class="uc-header"><span class="uc-icon">🛡️</span><span class="uc-label">الدفاع</span><span class="uc-level" id="ucLevel1">Lv.0</span></div>
         <button class="uc-btn" onclick="upgradeStat(1)">ترقية</button>
       </div>
-      <div class="upgrade-card">
-        <div class="uc-header">
-          <span class="uc-icon">📦</span>
-          <div><div class="uc-label">ترقية السلاح</div><div class="uc-level" id="ucLevel2">Lv.0</div></div>
-        </div>
+      <div class="upgrade-card" id="uc2">
+        <div class="uc-header"><span class="uc-icon">🗡️</span><span class="uc-label">السلاح</span><span class="uc-level" id="ucLevel2">Lv.0</span></div>
         <button class="uc-btn" onclick="upgradeStat(2)">ترقية</button>
       </div>
     </div>
 
-    <!-- =====Layer 2b: شريط الموارد===== -->
+    <!-- شريط الموارد -->
     <div class="top-hud" id="topHud">
       <div class="hud-row">
         <div class="hud-pill hud-pill-click" id="avatar-btn">
@@ -345,10 +324,11 @@
       </div>
       <button class="hud-toggle" id="hudToggle">▲</button>
     </div>
-    <!-- =====Toast===== -->
+
+    <!-- Toast -->
     <div class="toast hidden" id="toast"></div>
 
-    <!-- =====Modal الترقية===== -->
+    <!-- Modal الترقية -->
     <div class="modal-overlay hidden" id="modalOverlay" onclick="closeModal(event)">
       <div class="modal-card" id="modalCard">
         <img class="modal-img" id="modalImg" src="" alt="" onerror="this.classList.add('img-fallback')">
@@ -360,103 +340,68 @@
       </div>
     </div>
 
-    <!-- =====Layer 3: الشريط السفلي===== -->
-    <div class="bottom-nav">
-      <button class="nav-btn locked">
-        <span class="nav-icon">🏆</span>
-        <span class="nav-label">المرتبة</span>
-        <span class="nav-lock">🔒</span>
-      </button>
-      <button class="nav-btn locked">
-        <span class="nav-icon">🐪</span>
-        <span class="nav-label">الترقية</span>
-        <span class="nav-lock">🔒</span>
-      </button>
-      <button class="nav-btn active">
-        <span class="nav-icon">🗺️</span>
-        <span class="nav-label">أراضي</span>
-      </button>
-      <button class="nav-btn locked">
-        <span class="nav-icon">⚔️</span>
-        <span class="nav-label">حرب</span>
-        <span class="nav-lock">🔒</span>
-      </button>
-      <button class="nav-btn locked">
-        <span class="nav-icon">👑</span>
-        <span class="nav-label">التحالف</span>
-        <span class="nav-lock">🔒</span>
-      </button>
-    </div>
+    <!-- المباني — ثابتة لا تتغير -->
+    <div class="buildings-layer" id="buildingsLayer"></div>
 
+    <!-- الشريط السفلي -->
+    <div class="bottom-nav">
+      <button class="nav-btn locked"><span class="nav-icon">🏠</span><span class="nav-label">الرئيسية</span><span class="nav-lock">🔒</span></button>
+      <button class="nav-btn locked"><span class="nav-icon">🐪</span><span class="nav-label">الترقية</span><span class="nav-lock">🔒</span></button>
+      <button class="nav-btn active"><span class="nav-icon">🗺️</span><span class="nav-label">أراضي</span></button>
+      <button class="nav-btn locked"><span class="nav-icon">⚔️</span><span class="nav-label">حرب</span><span class="nav-lock">🔒</span></button>
+      <button class="nav-btn locked"><span class="nav-icon">👑</span><span class="nav-label">التحالف</span><span class="nav-lock">🔒</span></button>
+    </div>
+  </div>
+
+  <!-- القائمة المنبثقة بدل الشريط المنسدل — خارج game-shell عشان ما تأثر -->
+  <div id="lands-popup-overlay" class="lands-popup-overlay hidden" onclick="closeLandsPopup(event)">
+    <div class="lands-popup-card">
+      <div class="lands-popup-title">☰ القائمة</div>
+      <div class="lands-popup-btns">
+        <button class="lands-popup-btn" id="popup-mute"><span class="lands-popup-btn-icon">🔊</span><span class="lands-popup-btn-label">كتم الصوت</span></button>
+        <button class="lands-popup-btn" id="popup-fullscreen"><span class="lands-popup-btn-icon">⛶</span><span class="lands-popup-btn-label">تكبير الشاشة</span></button>
+        <button class="lands-popup-btn" id="popup-daily"><span class="lands-popup-btn-icon">📅</span><span class="lands-popup-btn-label">المكافآت اليومية</span></button>
+        <button class="lands-popup-btn" id="popup-achievements"><span class="lands-popup-btn-icon">🏆</span><span class="lands-popup-btn-label">الإنجازات</span></button>
+      </div>
+      <button class="lands-popup-close" onclick="closeLandsPopup()">إغلاق ✕</button>
+    </div>
   </div>
 
   <script>
-    // ==========================================================================
-    // CONFIG — استبدل روابط الصور هنا فقط
-    // ==========================================================================
     const CONFIG = {
       villageBackgroundUrl: 'assets/images/bg-village.jpg',
       buildings: [
-        {
-          id:'weapon_store', name:'مستودع السلاح',
-          x:22, y:42, locked:false,
+        { id:'weapon_store', name:'مستودع السلاح', x:22, y:42, locked:false,
           img_empty:'assets/images/building-ruins.png',
           img_building:'assets/images/building-construction.png',
-          img_built:'assets/images/building-complete.png'
-        },
-        {
-          id:'supply_tent', name:'خيمة المؤن',
-          x:78, y:40, locked:false,
+          img_built:'assets/images/building-complete.png' },
+        { id:'main_castle', name:'القلعة', x:50, y:32, locked:false,
           img_empty:'assets/images/building-ruins.png',
           img_building:'assets/images/building-construction.png',
-          img_built:'assets/images/building-complete.png'
-        },
-        {
-          id:'watch_tower', name:'برج المراقبة',
-          x:25, y:62, locked:false,
+          img_built:'assets/images/building-complete.png' },
+        { id:'barracks', name:'الثكنة', x:78, y:40, locked:false,
           img_empty:'assets/images/building-ruins.png',
           img_building:'assets/images/building-construction.png',
-          img_built:'assets/images/building-complete.png'
-        },
-        {
-          id:'training_yard', name:'ساحة التدريب',
-          x:75, y:60, locked:false,
+          img_built:'assets/images/building-complete.png' },
+        { id:'watch_tower', name:'برج المراقبة', x:25, y:62, locked:false,
           img_empty:'assets/images/building-ruins.png',
           img_building:'assets/images/building-construction.png',
-          img_built:'assets/images/building-complete.png'
-        }
+          img_built:'assets/images/building-complete.png' },
+        { id:'training_yard', name:'ساحة التدريب', x:75, y:60, locked:false,
+          img_empty:'assets/images/building-ruins.png',
+          img_building:'assets/images/building-construction.png',
+          img_built:'assets/images/building-complete.png' }
       ]
     };
 
-    // ==========================================================================
-    // حالة اللعبة
-    // ==========================================================================
     const state = {
-      gold: 675,
-      cash: 0,
-      food: 50,
-      power: 344,
-      energy: 1,
-      multiplier: 1,
-      level: 1,
-      buildingProgress: 0,
-      totalBuildings: CONFIG.buildings.length,
-      // حالات المباني: كل مبنى له state (empty|building|built) و level
-      buildings: {},
-      // إحصائيات الترقية
-      stats: [0, 0, 0], // damage, defense, weapon
-      statCosts: [50, 40, 60],
+      gold: 675, cash: 0, food: 50, power: 344, energy: 1, multiplier: 1, level: 1,
+      buildingProgress: 0, totalBuildings: CONFIG.buildings.length,
+      buildings: {}, stats: [0, 0, 0], statCosts: [50, 40, 60],
       statNames: ['الضرر', 'الدفاع', 'السلاح'],
     };
+    for (const b of CONFIG.buildings) { state.buildings[b.id] = { state: 'empty', level: 1 }; }
 
-    // تهيئة حالة المباني
-    for (const b of CONFIG.buildings) {
-      state.buildings[b.id] = { state: 'empty', level: 1 };
-    }
-
-    // ==========================================================================
-    // Toast
-    // ==========================================================================
     let toastTimer = null;
     function showToast(msg) {
       const el = document.getElementById('toast');
@@ -467,9 +412,6 @@
       toastTimer = setTimeout(() => el.classList.add('hidden'), 1600);
     }
 
-    // ==========================================================================
-    // الموارد
-    // ==========================================================================
     function addResource(type, amount) {
       if (type === 'gold') { state.gold += amount; updateResources(); }
       else if (type === 'cash') { state.cash += amount; updateResources(); }
@@ -480,19 +422,13 @@
     }
 
     function updateResources() {
-      const el = document.getElementById('resGold');
-      if (el) el.textContent = state.gold;
-      const el2 = document.getElementById('resCash');
-      if (el2) el2.textContent = state.cash;
-      const el3 = document.getElementById('resFood');
-      if (el3) el3.textContent = state.food;
-      const el4 = document.getElementById('resPower');
-      if (el4) el4.textContent = state.power;
+      const ids = { resGold:'gold', resCash:'cash', resFood:'food', resPower:'power' };
+      for (const [id, key] of Object.entries(ids)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = state[key];
+      }
     }
 
-    // ==========================================================================
-    // إحصائيات الترقية
-    // ==========================================================================
     function upgradeStat(idx) {
       const cost = state.statCosts[idx];
       if (state.gold < cost) { showToast('ذهب غير كافي'); return; }
@@ -505,9 +441,7 @@
       showToast('ترقية ' + state.statNames[idx] + ' → المستوى ' + state.stats[idx]);
     }
 
-    // ==========================================================================
-    // HUD toggle (إخفاء / إظهار)
-    // ==========================================================================
+    // HUD toggle
     let hudHidden = false;
     document.addEventListener('DOMContentLoaded', () => {
       const toggle = document.getElementById('hudToggle');
@@ -523,21 +457,13 @@
       }
     });
 
-    // ==========================================================================
-    // المباني — الرسم والمنطق
-    // ==========================================================================
+    // المباني
     function getBuildingImgUrl(b) {
       const st = state.buildings[b.id];
+      if (!st) return b.img_empty;
       if (st.state === 'built') return b.img_built;
       if (st.state === 'building') return b.img_building;
       return b.img_empty;
-    }
-
-    function getBuildingBadge(b) {
-      const st = state.buildings[b.id];
-      if (st.state === 'built') return { text: 'تم', cls: 'badge-built' };
-      if (st.state === 'building') return { text: 'يبني', cls: 'badge-building' };
-      return { text: 'فارغ', cls: 'badge-empty' };
     }
 
     function renderBuildings() {
@@ -545,163 +471,106 @@
       if (!layer) return;
       layer.innerHTML = '';
       for (const b of CONFIG.buildings) {
-        const st = state.buildings[b.id];
-        const badge = getBuildingBadge(b);
-        const imgSrc = getBuildingImgUrl(b);
-
-        const btn = document.createElement('button');
-        btn.className = 'building';
-        btn.style.right = b.x + '%';
-        btn.style.top = b.y + '%';
-        btn.dataset.id = b.id;
-
-        btn.innerHTML = `
+        const st = state.buildings[b.id] || { state: 'empty', level: 1 };
+        let badgeClass = 'badge-empty', badgeText = 'فارغ';
+        if (st.state === 'building') { badgeClass = 'badge-building'; badgeText = 'قيد البناء'; }
+        else if (st.state === 'built') { badgeClass = 'badge-built'; badgeText = '✓ مبني'; }
+        const div = document.createElement('div');
+        div.className = 'building';
+        div.style.left = b.x + '%'; div.style.top = b.y + '%';
+        div.innerHTML = `
           <div class="building-pad">
-            <img src="${imgSrc}" width="56" height="56"
-                 alt="${b.name}"
-                 onerror="this.style.display='none';this.nextElementSibling?this.nextElementSibling.style.display='flex':null"
-                 loading="lazy">
-            <div class="building-state-badge ${badge.cls}">${badge.text}</div>
+            <img src="${getBuildingImgUrl(b)}" alt="${b.name}" loading="lazy" onerror="this.style.display='none'">
             ${b.locked ? '<span class="building-lock">🔒</span>' : ''}
           </div>
           <div class="building-name">${b.name}</div>
+          <span class="building-state-badge ${badgeClass}">${badgeText}</span>
         `;
-
-        btn.addEventListener('click', () => handleBuildingClick(b.id));
-        layer.appendChild(btn);
+        div.addEventListener('click', () => openBuildingModal(b));
+        layer.appendChild(div);
       }
     }
 
-    function handleBuildingClick(id) {
-      const b = CONFIG.buildings.find(x => x.id === id);
-      if (!b) return;
-      const st = state.buildings[id];
-      if (b.locked) { showToast(b.name + ' • مقفل'); return; }
-      if (st.state === 'empty') {
-        st.state = 'building';
-        showToast('قيد الإنشاء: ' + b.name);
-        renderBuildings();
-      } else if (st.state === 'building') {
-        st.state = 'built';
-        state.buildingProgress++;
-        showToast('تم البناء: ' + b.name);
-        updateProgressBar();
-        renderBuildings();
-        // فتح مودال الترقية بعد البناء مباشرة
-        openUpgradeModal(id);
-      } else if (st.state === 'built') {
-        openUpgradeModal(id);
-      }
-    }
-
-    function updateProgressBar() {
-      const fill = document.getElementById('progressFill');
-      const label = document.getElementById('progressLabel');
-      const pct = state.totalBuildings > 0 ? (state.buildingProgress / state.totalBuildings) * 100 : 0;
-      if (fill) fill.style.width = pct + '%';
-      if (label) label.textContent = state.buildingProgress + ' / ' + state.totalBuildings;
-    }
-
-    // ==========================================================================
-    // مودال الترقية
-    // ==========================================================================
-    let _activeModalBuilding = null;
-
-    function openUpgradeModal(id) {
-      const b = CONFIG.buildings.find(x => x.id === id);
-      if (!b) return;
-      const st = state.buildings[id];
-      if (st.state !== 'built') return;
-
-      _activeModalBuilding = id;
-      const overlay = document.getElementById('modalOverlay');
+    // Modal المباني
+    function openBuildingModal(b) {
+      const st = state.buildings[b.id] || { state: 'empty', level: 1 };
+      const modal = document.getElementById('modalOverlay');
       const img = document.getElementById('modalImg');
       const name = document.getElementById('modalName');
       const level = document.getElementById('modalLevel');
       const cost = document.getElementById('modalCost');
-      if (!overlay) return;
-
-      if (img) { img.src = b.img_built; img.classList.remove('img-fallback'); }
-      if (name) name.textContent = b.name;
-      if (level) level.textContent = 'المستوى ' + st.level;
-      const upgradeCost = 50 + (st.level - 1) * 25;
-      if (cost) cost.textContent = 'تكلفة الترقية: 🪙 ' + upgradeCost;
-
-      const upgradeBtn = document.getElementById('modalUpgradeBtn');
-      if (upgradeBtn) {
-        upgradeBtn.onclick = () => {
-          if (state.gold >= upgradeCost) {
-            state.gold -= upgradeCost;
-            st.level++;
-            updateResources();
-            showToast('تمت الترقية إلى المستوى ' + st.level);
-            if (level) level.textContent = 'المستوى ' + st.level;
-            const newCost = 50 + (st.level - 1) * 25;
-            if (cost) cost.textContent = 'تكلفة الترقية: 🪙 ' + newCost;
-            // تحديث زر الترقية ليكلف الجديد
-            upgradeBtn.onclick = null; // force rebind
-          } else {
-            showToast('ذهب غير كافي');
-          }
-        };
-      }
-
-      overlay.classList.remove('hidden');
+      const btn = document.getElementById('modalUpgradeBtn');
+      if (!modal) return;
+      img.src = getBuildingImgUrl(b);
+      name.textContent = b.name;
+      level.textContent = 'المستوى ' + st.level + ' | الحالة: ' + st.state;
+      cost.textContent = '🪙 ٢٠٠ ذهب للترقية';
+      btn.textContent = st.state === 'built' ? '✦ جاهز' : (st.state === 'building' ? '⏳ قيد الإنشاء' : '▲ بناء');
+      btn.disabled = st.state === 'building';
+      btn.onclick = () => {
+        if (st.state === 'empty') {
+          if (state.gold < 200) { showToast('ذهب غير كافي'); return; }
+          state.gold -= 200;
+          st.state = 'building';
+          closeModal();
+          renderBuildings();
+          updateResources();
+          showToast('🔨 بدأ بناء ' + b.name);
+        }
+      };
+      modal.classList.remove('hidden');
     }
 
-    function closeModal(e) {
+    window.closeModal = function(e) {
       if (e && e.target !== e.currentTarget) return;
-      const overlay = document.getElementById('modalOverlay');
-      if (overlay) overlay.classList.add('hidden');
-      _activeModalBuilding = null;
+      const modal = document.getElementById('modalOverlay');
+      if (modal) modal.classList.add('hidden');
+    };
+
+    // القائمة المنبثقة (بدل الشريط المنسدل)
+    let menuOpen = false;
+    function openLandsPopup() {
+      menuOpen = true;
+      const overlay = document.getElementById('lands-popup-overlay');
+      if (overlay) overlay.classList.remove('hidden');
     }
+    window.closeLandsPopup = function(e) {
+      if (e && e.target !== e.currentTarget) return;
+      menuOpen = false;
+      const overlay = document.getElementById('lands-popup-overlay');
+      if (overlay) overlay.classList.add('hidden');
+    };
 
-    // إغلاق المودال بـ Escape
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeModal();
-    });
-
-    // ==========================================================================
-    // ضبط خلفية القرية
-    // ==========================================================================
-    // الصوت — كتم/تشغيل
-    // ==========================================================================
+    // الصوت والملء
     let _landsMuted = false;
     function toggleLandsMute() {
       _landsMuted = !_landsMuted;
-      const btn = document.getElementById('lands-mute-btn');
-      if (btn) btn.textContent = _landsMuted ? '🔇' : '🔊';
-      try {
-        const a = document.getElementById('lands-audio');
-        if (a) a.muted = _landsMuted;
-      } catch(e){}
+      const icons = document.querySelectorAll('#lands-mute-btn, #popup-mute .lands-popup-btn-icon');
+      icons.forEach(el => { el.textContent = _landsMuted ? '🔇' : '🔊'; });
+      const labels = document.querySelectorAll('#popup-mute .lands-popup-btn-label');
+      labels.forEach(el => { el.textContent = _landsMuted ? 'إلغاء الكتم' : 'كتم الصوت'; });
+      try { if (window.Howler) Howler.mute(_landsMuted); } catch(e){}
     }
 
-    // ==========================================================================
-    // النبذة المنبثقة لليوميات والمهام
-    // ==========================================================================
+    // اليوميات والمهام
     function showDailyQuests() {
-      const overlay = document.getElementById('quests-overlay');
+      const overlay = document.getElementById('quests-overlay') || (()=>{
+        const d = document.createElement('div'); d.id = 'quests-overlay'; document.body.appendChild(d); return d;
+      })();
       const today = new Date().toDateString();
       const saved = JSON.parse(localStorage.getItem('lands_daily') || '{}');
       const isNewDay = saved.date !== today;
       const day = isNewDay ? 1 : (saved.day || 1);
-
       const rewards = [
-        { icon: '🪙', label: '+50 ذهب' },
-        { icon: '💵', label: '+100 نقد' },
-        { icon: '💎', label: '+5 جوهرة' },
-        { icon: '🌾', label: '+200 طعام' },
-        { icon: '🪙', label: '+150 ذهب' },
-        { icon: '👊', label: '+500 قوة' },
+        { icon: '🪙', label: '+50 ذهب' }, { icon: '💵', label: '+100 نقد' },
+        { icon: '💎', label: '+5 جوهرة' }, { icon: '🌾', label: '+200 طعام' },
+        { icon: '🪙', label: '+150 ذهب' }, { icon: '👊', label: '+500 قوة' },
         { icon: '🎁', label: 'صندوق كنز' },
       ];
-
-      let html = `<div class="modal-overlay" onclick="if(event.target===this)closeQuests()">
+      let html = `<div class="modal-overlay" onclick="if(event.target===this)window.closeQuests()">
         <div class="modal-card" style="max-width:360px;max-height:80vh;overflow-y:auto">
           <div style="font-size:20px;font-weight:900;color:#ffd700;margin-bottom:10px">📅 المكافآت اليومية</div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">`;
-
       for (let i = 0; i < rewards.length; i++) {
         const claimed = i < day - 1;
         const today = i === day - 1;
@@ -711,34 +580,20 @@
           ${claimed ? '<div style="font-size:10px;color:#4cd964">✅</div>' : ''}
         </div>`;
       }
-
-      html += `</div>
-        <button class="modal-btn-upgrade" onclick="claimDailyQuest()" style="padding:10px 24px;font-size:13px">
-          📦 استلم مكافأة اليوم
-        </button>
+      html += `</div><button class="modal-btn-upgrade" onclick="window.claimDailyQuest()" style="padding:10px 24px;font-size:13px">📦 استلم مكافأة اليوم</button>
         <div style="margin:12px 0 6px;border-top:1px solid rgba(255,215,0,0.15);padding-top:10px">
           <div style="font-size:16px;font-weight:800;color:#ffd700;margin-bottom:8px">📜 المهام</div>
           <div style="font-size:12px;color:#d4a76a;text-align:center">المهام قريباً...</div>
         </div>
-        <button class="modal-btn-close" onclick="closeQuests()">إغلاق</button>
+        <button class="modal-btn-close" onclick="window.closeQuests()">إغلاق</button>
       </div></div>`;
-
-      const existing = document.getElementById('quests-overlay');
-      if (!existing) {
-        const div = document.createElement('div');
-        div.id = 'quests-overlay';
-        document.body.appendChild(div);
-      }
-      document.getElementById('quests-overlay').innerHTML = html;
+      overlay.innerHTML = html;
     }
 
     window.claimDailyQuest = function() {
       const today = new Date().toDateString();
       const saved = JSON.parse(localStorage.getItem('lands_daily') || '{}');
-      if (saved.date === today && saved.claimed) {
-        alert('✅ استلمت مكافأة اليوم مسبقاً!');
-        return;
-      }
+      if (saved.date === today && saved.claimed) { alert('✅ استلمت مكافأة اليوم مسبقاً!'); return; }
       const day = saved.date !== today ? 1 : (saved.day || 1);
       const rewards = [
         { gold: 50, cash: 100 }, { gold: 0, cash: 150 }, { gems: 5 },
@@ -761,69 +616,38 @@
       if (el) el.innerHTML = '';
     };
 
-    // ==========================================================================
     document.addEventListener('DOMContentLoaded', () => {
       const bg = document.getElementById('mapBg');
-      if (bg && CONFIG.villageBackgroundUrl) {
-        bg.style.backgroundImage = 'url(\'' + CONFIG.villageBackgroundUrl + '\')';
-      }
-      // زر كتم الصوت
+      if (bg && CONFIG.villageBackgroundUrl) bg.style.backgroundImage = 'url(\'' + CONFIG.villageBackgroundUrl + '\')';
+
       document.getElementById('lands-mute-btn')?.addEventListener('click', toggleLandsMute);
-      // زر تكبير الشاشة
       document.getElementById('lands-fullscreen-btn')?.addEventListener('click', function() {
         const el = document.documentElement;
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-          const req = el.requestFullscreen || el.webkitRequestFullscreen;
-          if (req) req.call(el).catch(() => {});
+          (el.requestFullscreen || el.webkitRequestFullscreen).call(el).catch(() => {});
         } else {
-          const exit = document.exitFullscreen || document.webkitExitFullscreen;
-          if (exit) exit.call(document);
+          (document.exitFullscreen || document.webkitExitFullscreen).call(document);
         }
       });
-      // ضغطة على الأفاتار ← اليوميات والمهام
+
       document.getElementById('avatar-btn')?.addEventListener('click', showDailyQuests);
-      // القائمة المنسدلة (☰)
-      let menuOpen = false;
-      document.getElementById('lands-menu-btn')?.addEventListener('click', function() {
-        menuOpen = !menuOpen;
-        const panel = document.getElementById('lands-quick-panel');
-        if (panel) panel.classList.toggle('hidden', !menuOpen);
+
+      // ☰ menu button → popup
+      document.getElementById('lands-menu-btn')?.addEventListener('click', openLandsPopup);
+
+      // Popup buttons
+      document.getElementById('popup-mute')?.addEventListener('click', () => { toggleLandsMute(); closeLandsPopup(); });
+      document.getElementById('popup-fullscreen')?.addEventListener('click', () => {
+        document.getElementById('lands-fullscreen-btn')?.click();
+        closeLandsPopup();
       });
-      document.getElementById('lqp-mute')?.addEventListener('click', function() {
-        const btn = document.getElementById('lands-mute-btn');
-        if (btn) btn.click();
-      });
-      document.getElementById('lqp-fullscreen')?.addEventListener('click', function() {
-        const btn = document.getElementById('lands-fullscreen-btn');
-        if (btn) btn.click();
-      });
-      document.getElementById('lqp-achievements')?.addEventListener('click', function() {
-        showDailyQuests();
-        menuOpen = false;
-        const panel = document.getElementById('lands-quick-panel');
-        if (panel) panel.classList.add('hidden');
-      });
-      document.getElementById('lqp-daily')?.addEventListener('click', function() {
-        showDailyQuests();
-        menuOpen = false;
-        const panel = document.getElementById('lands-quick-panel');
-        if (panel) panel.classList.add('hidden');
-      });
-      // رسم المباني
+      document.getElementById('popup-daily')?.addEventListener('click', () => { showDailyQuests(); closeLandsPopup(); });
+      document.getElementById('popup-achievements')?.addEventListener('click', () => { showDailyQuests(); closeLandsPopup(); });
+
       renderBuildings();
     });
 
-    console.log('🏝️ Lands page ready!');
-    console.log('📝 To update background: updateBackground("URL")');
+    console.log('🏝️ Lands page updated — fixed popup + stable buildings');
   </script>
-  <!-- ===== القائمة المنسدلة (خارج game-shell لتجنب مشاكل iOS) ===== -->
-  <div id="lands-quick-panel" class="lands-quick-panel hidden">
-    <div class="lqp-sub-bar">
-      <button class="lqp-btn" id="lqp-mute">🔊</button>
-      <button class="lqp-btn" id="lqp-fullscreen">⛶</button>
-      <button class="lqp-btn" id="lqp-achievements">🏆</button>
-      <button class="lqp-btn" id="lqp-daily">📅</button>
-    </div>
-  </div>
 </body>
 </html>
