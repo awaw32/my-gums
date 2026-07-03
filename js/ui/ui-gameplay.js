@@ -329,37 +329,37 @@ GameUI.prototype.showBuildingModal = function(b, cardEl) {
   const canFight = playerPower >= b.currentMonsterPower;
   card.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[#FFD700] font-bold text-base" style="font-family:'Cairo',sans-serif">${b.name}</h3>
-      <button id="modal-close-btn" class="text-[#a08060] hover:text-[#FFD700] text-xl leading-none" style="background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
+      <h3 class="font-bold text-base" style="color:var(--accent-red);font-family:'Cairo',sans-serif">${b.name}</h3>
+      <button id="modal-close-btn" class="text-xl leading-none" style="color:var(--text-secondary);background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
     </div>
     <div class="flex flex-col items-center gap-3">
-      <div class="w-20 h-20 rounded-xl flex items-center justify-center text-4xl" style="background:rgba(44,26,10,0.5);border:1px solid rgba(255,215,0,0.12)">
+      <div class="w-20 h-20 rounded-xl flex items-center justify-center text-4xl" style="background:var(--bg-input);border:1px solid var(--border-light)">
         👹
       </div>
-      <p class="text-[#a08060] text-sm text-center">${b.desc}</p>
-      <div class="w-full rounded-lg p-3 space-y-2" style="background:rgba(26,18,8,0.8);border:1px solid rgba(255,215,0,0.08)">
+      <p style="color:var(--text-secondary);font-size:0.85rem;text-align:center">${b.desc}</p>
+      <div class="w-full rounded-lg p-3 space-y-2" style="background:var(--bg-card);border:1px solid var(--border-light)">
         <div class="flex justify-between text-sm">
-          <span class="text-[#a08060]">👹 ${b.monsterName}</span>
-          <span class="text-[#ff4444] font-bold">⚔️ ${b.currentMonsterPower.toFixed(0)}</span>
+          <span style="color:var(--text-secondary)">👹 ${b.monsterName}</span>
+          <span style="color:var(--accent-red);font-weight:bold">⚔️ ${b.currentMonsterPower.toFixed(0)}</span>
         </div>
         <div class="flex justify-between text-sm">
-          <span class="text-[#a08060]">📊 الصعوبة</span>
-          <span class="text-[#e67e22] font-bold">${diff}</span>
+          <span style="color:var(--text-secondary)">📊 الصعوبة</span>
+          <span style="color:#e67e22;font-weight:bold">${diff}</span>
         </div>
         <div class="flex justify-between text-sm">
-          <span class="text-[#a08060]">⏱️ وقت البناء</span>
-          <span class="text-[#FFD700] font-bold">${b.buildTime}ث</span>
+          <span style="color:var(--text-secondary)">⏱️ وقت البناء</span>
+          <span style="color:var(--accent-red);font-weight:bold">${b.buildTime}ث</span>
         </div>
         <div class="flex justify-between text-sm">
-          <span class="text-[#a08060]">🪙 الإنتاج</span>
-          <span class="text-[#2ecc71] font-bold">${b.baseProduction}/ث</span>
+          <span style="color:var(--text-secondary)">🪙 الإنتاج</span>
+          <span style="color:#2ecc71;font-weight:bold">${b.baseProduction}/ث</span>
         </div>
         <div class="flex justify-between text-sm">
-          <span class="text-[#a08060]">👊 قوتك</span>
-          <span class="font-bold" style="color:${canFight ? '#2ecc71' : '#ff4444'}">${playerPower.toFixed(0)}</span>
+          <span style="color:var(--text-secondary)">👊 قوتك</span>
+          <span class="font-bold" style="color:${canFight ? '#2ecc71' : 'var(--accent-red)'}">${playerPower.toFixed(0)}</span>
         </div>
       </div>
-      <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:linear-gradient(180deg,#d43a3a,#8a2020);color:#fff;border:none;cursor:pointer;font-family:inherit">
+      <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:var(--accent-red);color:#fff;border:none;cursor:pointer;font-family:inherit">
         ${canFight ? `⚔️ مقاتلة ${b.monsterName}` : `💥 قوة غير كافية (تحتاج ${b.currentMonsterPower.toFixed(0)})`}
       </button>
     </div>
@@ -399,27 +399,27 @@ GameUI.prototype._renderWeaponUpgradeModal = function() {
   const weapons = this.army?.weapons || [];
   card.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[#FFD700] font-bold text-base" style="font-family:'Cairo',sans-serif">🗡️ مستودع السلاح</h3>
-      <button id="modal-close-btn" class="text-[#a08060] hover:text-[#FFD700] text-xl leading-none" style="background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
+      <h3 class="font-bold text-base" style="color:var(--accent-red);font-family:'Cairo',sans-serif">🗡️ مستودع السلاح</h3>
+      <button id="modal-close-btn" style="color:var(--text-secondary);background:none;border:none;cursor:pointer;font-family:inherit;font-size:1.2rem">&times;</button>
     </div>
     <div class="flex flex-col gap-2" style="max-height:60vh;overflow-y:auto">
-      <div style="color:var(--beige-dark);font-size:0.65rem;text-align:center;margin-bottom:6px">🏠 بيت الزعيم المستوى ${houseLevel} — السلاح يتطلب مستوى معين لفتحه</div>
+      <div style="color:var(--text-secondary);font-size:0.65rem;text-align:center;margin-bottom:6px">🏠 بيت الزعيم المستوى ${houseLevel} — السلاح يتطلب مستوى معين لفتحه</div>
       ${weapons.map(w => {
         const canUpg = w.canUpgrade(this.economy, houseLevel);
         const starStr = '⭐'.repeat(w.level) + '☆'.repeat(w.maxLevel - w.level);
         const isLocked = houseLevel < w.requireLevel;
-        return `<div style="background:rgba(40,24,12,0.9);border:1px solid rgba(255,215,0,0.08);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:6px">
+        return `<div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:6px">
           <div style="flex:1">
-            <div style="font-size:0.75rem;font-weight:700;color:${isLocked ? '#666' : 'var(--beige)'}">${isLocked ? '🔒 ' : ''}${w.name}</div>
-            <div style="font-size:0.55rem;color:var(--beige-dark)">${w.desc}</div>
-            <div style="font-size:0.6rem;color:var(--gold)">${starStr}</div>
+            <div style="font-size:0.75rem;font-weight:700;color:${isLocked ? 'var(--text-muted)' : 'var(--text-primary)'}">${isLocked ? '🔒 ' : ''}${w.name}</div>
+            <div style="font-size:0.55rem;color:var(--text-secondary)">${w.desc}</div>
+            <div style="font-size:0.6rem;color:var(--accent-red)">${starStr}</div>
           </div>
           <div style="text-align:center;min-width:50px">
-            <div style="font-size:0.6rem;color:#ff6b6b">👊 ${w.power.toFixed(0)}</div>
+            <div style="font-size:0.6rem;color:var(--accent-red)">👊 ${w.power.toFixed(0)}</div>
           </div>
-          ${isLocked ? `<div style="font-size:0.5rem;color:#666">تحتاج\nمستوى ${w.requireLevel}</div>` :
-          w.level >= w.maxLevel ? `<div style="font-size:0.55rem;color:var(--gold)">⭐⭐⭐</div>` :
-          `<button class="weapon-upg-btn" data-wid="${w.id}" style="padding:6px 12px;font-size:0.6rem;font-weight:700;background:linear-gradient(180deg,${canUpg ? '#9b59b6,#7d3c98' : '#444,#333'});color:#fff;border:none;border-radius:8px;cursor:${canUpg ? 'pointer' : 'default'};font-family:inherit" ${canUpg ? '' : 'disabled'}>
+          ${isLocked ? `<div style="font-size:0.5rem;color:var(--text-muted)">تحتاج\nمستوى ${w.requireLevel}</div>` :
+          w.level >= w.maxLevel ? `<div style="font-size:0.55rem;color:var(--accent-red)">⭐⭐⭐</div>` :
+          `<button class="weapon-upg-btn" data-wid="${w.id}" style="padding:6px 12px;font-size:0.6rem;font-weight:700;background:${canUpg ? 'var(--accent-red)' : '#999'};color:#fff;border:none;border-radius:8px;cursor:${canUpg ? 'pointer' : 'default'};font-family:inherit" ${canUpg ? '' : 'disabled'}>
             ${w.upgradeCost} 💎
           </button>`}
         </div>`;
@@ -465,33 +465,33 @@ GameUI.prototype._renderTrainingGroundModal = function() {
   }
   card.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[#FFD700] font-bold text-base" style="font-family:'Cairo',sans-serif">🏋️ ساحة التدريب</h3>
-      <button id="modal-close-btn" class="text-[#a08060] hover:text-[#FFD700] text-xl leading-none" style="background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
+      <h3 class="font-bold text-base" style="color:var(--accent-red);font-family:'Cairo',sans-serif">🏋️ ساحة التدريب</h3>
+      <button id="modal-close-btn" style="color:var(--text-secondary);background:none;border:none;cursor:pointer;font-family:inherit;font-size:1.2rem">&times;</button>
     </div>
     <div class="flex flex-col gap-2">
-      <div style="background:rgba(40,24,12,0.9);border:1px solid rgba(255,215,0,0.08);border-radius:10px;padding:10px">
-        <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid rgba(255,215,0,0.06)">
-          <span style="color:var(--beige-dark)">🎖️ مستوى الجندي</span>
-          <span style="color:var(--gold);font-weight:700">${army.unitLevel}</span>
+      <div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:10px;padding:10px">
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid var(--border-light)">
+          <span style="color:var(--text-secondary)">🎖️ مستوى الجندي</span>
+          <span style="color:var(--accent-red);font-weight:700">${army.unitLevel}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid rgba(255,215,0,0.06)">
-          <span style="color:var(--beige-dark)">👊 قوة الجندي</span>
-          <span style="color:#ff6b6b;font-weight:700">${army.unitPower.toFixed(0)}</span>
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid var(--border-light)">
+          <span style="color:var(--text-secondary)">👊 قوة الجندي</span>
+          <span style="color:var(--accent-red);font-weight:700">${army.unitPower.toFixed(0)}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid rgba(255,215,0,0.06)">
-          <span style="color:var(--beige-dark)">📊 مستوى التدريب</span>
-          <span style="color:var(--gold);font-weight:700">${army.trainingLevel}/${army.maxTrainingLevel}</span>
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid var(--border-light)">
+          <span style="color:var(--text-secondary)">📊 مستوى التدريب</span>
+          <span style="color:var(--accent-red);font-weight:700">${army.trainingLevel}/${army.maxTrainingLevel}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid rgba(255,215,0,0.06)">
-          <span style="color:var(--beige-dark)">🛏️ سكن الجنود</span>
-          <span style="color:var(--gold);font-weight:700">المستوى ${barLevel}</span>
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0;border-bottom:1px solid var(--border-light)">
+          <span style="color:var(--text-secondary)">🛏️ سكن الجنود</span>
+          <span style="color:var(--accent-red);font-weight:700">المستوى ${barLevel}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:0.7rem;padding:3px 0">
-          <span style="color:var(--beige-dark)">👥 أقصى عدد جنود</span>
+          <span style="color:var(--text-secondary)">👥 أقصى عدد جنود</span>
           <span style="color:#2ecc71;font-weight:700">${maxUnits}</span>
         </div>
       </div>
-      <button id="train-units-btn" style="padding:10px;font-size:0.75rem;font-weight:700;background:linear-gradient(180deg,#3a8ab5,#1a5a7a);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit">
+      <button id="train-units-btn" style="padding:10px;font-size:0.75rem;font-weight:700;background:var(--accent-red);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit">
         🎓 ترقية التدريب (${army.trainingUpgradeCost} 🪙)
       </button>
     </div>
@@ -535,36 +535,36 @@ GameUI.prototype.showUpgradeModal = function(b) {
   const canAfford = this.economy ? this.economy.canAfford('cash', b.upgradeCost) : false;
   card.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-[#FFD700] font-bold text-base" style="font-family:'Cairo',sans-serif">${b.name}</h3>
-      <button id="modal-close-btn" class="text-[#a08060] hover:text-[#FFD700] text-xl leading-none" style="background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
+      <h3 class="font-bold text-base" style="color:var(--accent-red);font-family:'Cairo',sans-serif">${b.name}</h3>
+      <button id="modal-close-btn" style="color:var(--text-secondary);background:none;border:none;cursor:pointer;font-family:inherit;font-size:1.2rem">&times;</button>
     </div>
     <div class="flex flex-col items-center gap-3">
-      <div class="w-20 h-20 rounded-xl flex items-center justify-center text-4xl" style="background:rgba(44,26,10,0.5);border:1px solid rgba(46,204,113,0.2)">
+      <div class="w-20 h-20 rounded-xl flex items-center justify-center text-4xl" style="background:var(--bg-input);border:1px solid var(--border-light)">
         🏠
       </div>
-      <div class="rounded-lg px-3 py-1" style="background:rgba(26,18,8,0.8);border:1px solid rgba(255,215,0,0.08)">
-        <span class="text-[#FFD700] font-bold text-sm">LV ${b.level}</span>
+      <div class="rounded-lg px-3 py-1" style="background:var(--bg-card);border:1px solid var(--border-light)">
+        <span style="color:var(--accent-red);font-weight:bold;font-size:0.85rem">LV ${b.level}</span>
       </div>
-      <div class="w-full rounded-lg p-3 space-y-2" style="background:rgba(26,18,8,0.8);border:1px solid rgba(255,215,0,0.08)">
+      <div class="w-full rounded-lg p-3 space-y-2" style="background:var(--bg-card);border:1px solid var(--border-light)">
         <div class="flex justify-between text-sm">
-          <span class="text-[#a08060]">🪙 الإنتاج الحالي</span>
-          <span class="text-[#2ecc71] font-bold">${b.productionRate.toFixed(1)}/ث</span>
+          <span style="color:var(--text-secondary)">🪙 الإنتاج الحالي</span>
+          <span style="color:#2ecc71;font-weight:bold">${b.productionRate.toFixed(1)}/ث</span>
         </div>
         ${!isMax ? `
         <div class="flex justify-between text-sm">
-          <span class="text-[#a08060]">⬆️ بعد الترقية</span>
-          <span class="text-[#FFD700] font-bold">${(b.productionRate + b.baseProduction * 0.1).toFixed(1)}/ث</span>
+          <span style="color:var(--text-secondary)">⬆️ بعد الترقية</span>
+          <span style="color:var(--accent-red);font-weight:bold">${(b.productionRate + b.baseProduction * 0.1).toFixed(1)}/ث</span>
         </div>
         <div class="flex justify-between text-sm">
-          <span class="text-[#a08060]">💵 التكلفة</span>
-          <span class="font-bold" style="color:${canAfford ? '#2ecc71' : '#ff4444'}">${b.upgradeCost}</span>
+          <span style="color:var(--text-secondary)">💵 التكلفة</span>
+          <span class="font-bold" style="color:${canAfford ? '#2ecc71' : 'var(--accent-red)'}">${b.upgradeCost}</span>
         </div>` : ''}
       </div>
       ${!isMax ? `
-      <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:linear-gradient(180deg,#3a8ab5,#1a5a7a);color:#fff;border:none;cursor:pointer;font-family:inherit">
+      <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:var(--accent-red);color:#fff;border:none;cursor:pointer;font-family:inherit">
         ▲ ترقية (${b.upgradeCost} 💵)
       </button>` : `
-      <div class="text-[#FFD700] font-bold text-sm py-2">⭐⭐⭐ المستوى الأقصى</div>`}
+      <div style="color:var(--accent-red);font-weight:bold;font-size:0.85rem;padding:8px 0">⭐⭐⭐ المستوى الأقصى</div>`}
     </div>
   `;
   overlay.classList.remove("hidden");

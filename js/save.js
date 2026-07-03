@@ -9,7 +9,7 @@ export function saveGame(economy, village, army) {
     xpToNext: economy.xpToNext,
     currentVillageId: village.currentVillageId,
     unitLevel: army.unitLevel,
-    weapons: army.weapons.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel })),
+    weapons: army.weapons.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })),
     buildings: village.buildings.map(b => ({
       id: b.id, level: b.level, state: b.state,
       constructTimer: b.constructTimer,
@@ -27,7 +27,7 @@ export function saveGame(economy, village, army) {
 export function loadGame(economy, village, army) {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return false;
+    if (!raw) return { lastSave: 0 };
     const data = JSON.parse(raw);
 
     if (data.resources) {
@@ -51,6 +51,8 @@ export function loadGame(economy, village, army) {
         if (w) {
           w.level = wd.level || 0;
           w.upgradeLevel = wd.upgradeLevel ?? (wd.level > 0 ? wd.level * 8 : 0);
+          if (wd.starLevel) w.starLevel = wd.starLevel;
+          if (wd.gemLevel) w.gemLevel = wd.gemLevel;
         }
       }
     }
@@ -67,10 +69,10 @@ export function loadGame(economy, village, army) {
       }
     }
 
-    return true;
+    return { lastSave: data.timestamp || 0 };
   } catch (e) {
     console.warn("[Save] Failed to load:", e);
-    return false;
+    return { lastSave: 0 };
   }
 }
 

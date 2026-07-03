@@ -91,6 +91,62 @@ export class AudioManager {
     this.sfxCollect();
   }
 
+  sfxUpgrade() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    [500, 700, 900].forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 0.15, "sine", this.sfxGain), i * 80);
+    });
+  }
+
+  sfxHeal() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    [400, 500, 600, 700].forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 0.12, "sine", this.sfxGain), i * 60);
+    });
+  }
+
+  sfxBuy() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    [300, 500].forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 0.1, "square", this.sfxGain), i * 70);
+    });
+  }
+
+  sfxAbility() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    [600, 800, 1000, 1200].forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 0.1, "sine", this.sfxGain), i * 50);
+    });
+  }
+
+  sfxError() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    [200, 150].forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 0.15, "sawtooth", this.sfxGain), i * 100);
+    });
+  }
+
+  sfxHeroLevelup() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    [400, 500, 600, 700, 800].forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 0.15, "sine", this.sfxGain), i * 70);
+    });
+  }
+
+  sfxOffline() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    [300, 400, 500].forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 0.2, "triangle", this.sfxGain), i * 120);
+    });
+  }
+
   playSound(type) {
     switch (type) {
       case 'kill': this.sfxSword(); break;
@@ -100,6 +156,13 @@ export class AudioManager {
       case 'pvp_win': this.sfxVictory(); break;
       case 'click': this.sfxClick(); break;
       case 'build': this.sfxBuild(); break;
+      case 'upgrade': this.sfxUpgrade(); break;
+      case 'heal': this.sfxHeal(); break;
+      case 'buy': this.sfxBuy(); break;
+      case 'ability': this.sfxAbility(); break;
+      case 'error': this.sfxError(); break;
+      case 'hero_levelup': this.sfxHeroLevelup(); break;
+      case 'offline': this.sfxOffline(); break;
     }
   }
 }

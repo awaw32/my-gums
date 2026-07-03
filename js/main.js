@@ -19,6 +19,7 @@ import { TutorialManager } from "./tutorial.js";
 import { GameStore } from "./game-store.js";
 import { NetworkSync } from "./network-sync.js";
 import { WorldUpgradesUI } from "./ui/world-upgrades.js";
+import { GameHero } from "./hero.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
@@ -40,7 +41,7 @@ function getOrPromptUsername() {
   Object.assign(overlay.style, {
     position: "fixed", inset: "0", zIndex: "10000",
     display: "flex", alignItems: "center", justifyContent: "center",
-    background: "radial-gradient(ellipse at center, #3d2a15, #1a0e06)",
+    background: "var(--bg-page)",
   });
   document.body.appendChild(overlay);
 
@@ -105,6 +106,7 @@ async function loadFromDatabase(economy, army, username) {
       window._loadedTutorial = data.tutorial || null;
       window._brWins = data.brWins ?? 0;
       window._brKills = data.brKills ?? 0;
+      window._loadedHero = data.hero || null;
       console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!");
     }
   } catch (err) {
@@ -133,6 +135,11 @@ async function init() {
   
   await loadFromDatabase(economy, army, PLAYER_USERNAME);
   
+  // التحقق من أن اللاعب جديد فعلاً (لا توجد بيانات محفوظة)
+  const hasSavedData = economy.level > 1 || economy.xp > 0 || economy.cash > 0 || 
+                       economy.gold > 0 || economy.gems > 0 || 
+                       (economy.buildings && Object.keys(economy.buildings).length > 0);
+  
   const oasisManager = new OasisManager(economy);
   const upgradeTree = new UpgradeTree(economy);
   const allianceManager = new AllianceManager(economy);
@@ -146,6 +153,7 @@ async function init() {
   const wu = new WorldUpgradesUI(world);
   const assets = new AssetManager();
   const audio = new AudioManager();
+  const hero = new GameHero();
   const achievements = new AchievementManager(economy);
   const dailyLogin = new DailyLoginManager(economy);
   const prestige = new PrestigeManager(economy, village, army);
@@ -154,7 +162,7 @@ async function init() {
   const tutorial = new TutorialManager();
   
   setProgress(80);
-  loadGame(economy, village, army);
+  const { lastSave } = loadGame(economy, village, army);
 
   // استعادة بيانات التحالف والترقيات والواحات من التخزين المؤقت
   if (window._loadedAllianceLevel !== undefined) allianceManager.loadState(window._loadedAllianceLevel);
@@ -166,6 +174,7 @@ async function init() {
   if (window._loadedInventory) inventory.loadState(window._loadedInventory);
   if (window._loadedEvents) events.loadState(window._loadedEvents);
   if (window._loadedTutorial) tutorial.loadState(window._loadedTutorial);
+  if (window._loadedHero) hero.loadState(window._loadedHero);
   delete window._loadedAllianceLevel;
   delete window._loadedUpgrades;
   delete window._loadedOases;
@@ -175,14 +184,14 @@ async function init() {
   delete window._loadedInventory;
   delete window._loadedEvents;
   delete window._loadedTutorial;
+  delete window._loadedHero;
   if (window._loadedLandsState) {
     window._pendingLandsState = window._loadedLandsState;
     delete window._loadedLandsState;
   }
   
   // 🎁 بونص ترحيبي للاعب الجديد (1000 من كل عملة)
-  const isNew = [!economy.cash, !economy.gems, !economy.gold, !economy.kingCoins, !economy.hammers, !economy.scrolls, !economy.horns].every(v => v === true);
-  if (isNew) {
+  if (!hasSavedData) {
     economy.addRaw("cash", 1000);
     economy.addRaw("gems", 1000);
     economy.addRaw("gold", 1000);
@@ -207,13 +216,69 @@ async function init() {
       }).catch(() => {});
     } catch {}
   }
-  
+
+  // حساب المكافآت غير المتصلة (Offline Rewards)
+  if (lastSave && lastSave > 0) {
+    const offlineSeconds = Math.floor((Date.now() - lastSave) / 1000);
+    if (offlineSeconds > 60) {
+      const incomeRate = village.getIncomeRate();
+      const oasisIncome = oasisManager.totalIncome;
+      const villageCash = Math.floor(incomeRate * offlineSeconds * 0.5);
+      const oasisGold = Math.floor(oasisIncome * offlineSeconds * 0.5);
+      const armyFood = Math.floor(8 * offlineSeconds * 0.02);
+
+      if (villageCash > 0 || oasisGold > 0) {
+        economy.addRaw("cash", villageCash);
+        economy.addRaw("gold", oasisGold);
+        if (armyFood > 0) economy.resources.food = Math.max(0, economy.food - armyFood);
+
+        const rewardsList = document.getElementById("offline-rewards-list");
+        const offlineTimeText = document.getElementById("offline-time-text");
+        const offlinePopup = document.getElementById("offline-rewards-popup");
+
+        if (offlineTimeText) {
+          const hours = Math.floor(offlineSeconds / 3600);
+          const mins = Math.floor((offlineSeconds % 3600) / 60);
+          offlineTimeText.textContent = hours > 0
+            ? `لقد غبت لمدة ${hours} ساعة و ${mins} دقيقة`
+            : `لقد غبت لمدة ${mins} دقيقة`;
+        }
+
+        if (rewardsList) {
+          rewardsList.innerHTML = "";
+          if (villageCash > 0) {
+            rewardsList.innerHTML += `<div class="offline-reward-item"><span class="reward-icon">💵</span><span class="reward-label">دخل القرية</span><span class="reward-amount">+${villageCash.toLocaleString()}</span></div>`;
+          }
+          if (oasisGold > 0) {
+            rewardsList.innerHTML += `<div class="offline-reward-item"><span class="reward-icon">🪙</span><span class="reward-label">ذهب الواحات</span><span class="reward-amount">+${oasisGold.toLocaleString()}</span></div>`;
+          }
+          if (armyFood > 0) {
+            rewardsList.innerHTML += `<div class="offline-reward-item"><span class="reward-icon">🌾</span><span class="reward-label">استهلاك الجيش</span><span class="reward-amount">-${armyFood.toLocaleString()}</span></div>`;
+          }
+        }
+
+        if (offlinePopup) {
+          offlinePopup.classList.remove("hidden");
+          const claimBtn = document.getElementById("offline-claim-btn");
+          if (claimBtn) {
+            claimBtn.onclick = () => {
+              offlinePopup.classList.add("hidden");
+              audio.playSound('offline');
+            };
+          }
+        }
+
+        audio.playSound('offline');
+      }
+    }
+  }
+
   setProgress(100);
 
   if (loadingScreen) loadingScreen.classList.add("fade-out");
   if (appShell) appShell.classList.remove("hidden");
 
-    const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store);
+    const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests);
     world.onExit = () => ui.exitWorldMap();
 
     document.getElementById("wu-weapon-btn")?.addEventListener("click", () => wu.showWeapon());
@@ -230,11 +295,12 @@ async function init() {
     economy.powerSources.push(() => Math.floor(economy.level * 5));
     economy.powerSources.push(() => allianceManager.level * 10);
     economy.powerSources.push(() => prestige.level * 50);
+    economy.powerSources.push(() => hero.powerContribution);
 
     // ربط إنجازات المباني
     village.setBuildingCallbacks(
-      (b) => achievements.updateProgress('builds', 1),
-      (b) => achievements.updateProgress('upgrades', 1)
+      (b) => { achievements.updateProgress('builds', 1); audio.playSound('build'); hero.addXp(10); },
+      (b) => { achievements.updateProgress('upgrades', 1); audio.playSound('upgrade'); hero.addXp(8); }
     );
 
     // ربط إنجازات الواحات
@@ -245,11 +311,14 @@ async function init() {
       achievements.updateProgress('oases', captured);
     };
 
-    // ربط army_level
+    // ربط army_level + مهام التدريب
     const origArmyUpgrade = army.upgradeUnits.bind(army);
     army.upgradeUnits = function() {
       const result = origArmyUpgrade();
-      if (result) achievements.updateProgress('army_level', this.unitLevel);
+      if (result) {
+        achievements.updateProgress('army_level', this.unitLevel);
+        quests.updateProgress('train', 1);
+      }
       return result;
     };
 
@@ -302,7 +371,7 @@ async function init() {
           army_power: economy.power,
           unitLevel: army.unitLevel,
           trainingLevel: army.trainingLevel,
-          weapons: army.weapons.map(w => ({ id: w.id, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })),
+          weapons: army.weapons.map(w => ({ id: w.id, level: w.level || 0, upgradeLevel: w.upgradeLevel || 0, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })),
           equippedWeapon: world._equippedWeapon || "",
           armyYardLevel: economy.armyYardLevel || 1,
           knowledgeLevel: economy.knowledgeLevel || 1,
@@ -325,6 +394,7 @@ async function init() {
           brWins: window._brWinsGlobal || 0,
           brKills: window._brKillsGlobal || 0,
           landsState: landsState,
+          hero: hero.getSaveData(),
           last_active: Date.now()
         })
       }).catch(() => {});
@@ -339,6 +409,7 @@ async function init() {
             if (economy.spend("cash", cost)) {
               army.unitLevel++;
               achievements.updateProgress('army_level', army.unitLevel);
+              audio.playSound('upgrade');
               saveToDB();
               ui.updateTopBar();
             }
@@ -350,6 +421,7 @@ async function init() {
             if (world.leader) {
               world.leader.hp = Math.min(world.leader.maxHp, world.leader.hp + 30);
             }
+            audio.playSound('heal');
             saveToDB();
             ui.updateTopBar();
           }
@@ -361,6 +433,7 @@ async function init() {
             const houseLevel = ui._landsState?.['b1']?.level || 1;
             if (weapon.upgrade(economy, houseLevel)) {
               achievements.updateProgress('weapon_max', weapon.level);
+              audio.playSound('upgrade');
               saveToDB();
               ui.updateTopBar();
               ui.showNotification(`⬆️ ${weapon.name} → المستوى ${weapon.level}/5 ⭐`);
@@ -378,12 +451,15 @@ async function init() {
       audio.playSound('levelup');
       ui.updateTopBar();
       achievements.updateProgress('player_level', lvl);
+      hero.addXp(30);
     };
 
-    // توصيل الأصوات والإنجازات بأحداث اللعبة
+    // توصيل الأصوات والإنجازات والمهام بأحداث اللعبة
     world._onMonsterKilled = () => {
       audio.playSound('kill');
       achievements.updateProgress('kills', 1);
+      hero.addXp(15);
+      quests.updateProgress('kill', 1);
       // cash_earned يُتبع في damageMonster عبر _onCashEarned(reward)
     };
     world._onDropCollected = () => {
@@ -393,15 +469,17 @@ async function init() {
     world._onPvPWin = () => {
       audio.playSound('levelup');
       achievements.updateProgress('pvp_wins', 1);
+      hero.addXp(50);
     };
     world._onPvPLose = () => audio.playSound('hit');
     world._onPvPReturn = async () => {
       await world.exitWorldMap();
     };
 
-    // توصيل الإنجازات
+    // توصيل الإنجازات والمهام
     economy._onGoldEarned = (amount) => {
       achievements.updateProgress('gold_earned', amount);
+      quests.updateProgress('collect', amount);
     };
     inventory._onCrafted = () => {
       achievements.updateProgress('crafts', 1);
@@ -409,6 +487,23 @@ async function init() {
     achievements._onUnlock = (a) => {
       ui.showNotification(`🏆 إنجاز: ${a.title} — ${a.desc}`);
       audio.playSound('levelup');
+    };
+
+    quests._onQuestCompleted = (q) => {
+      ui.showNotification(`📜 اكتملت المهمة: ${q.title} — حصلت على المكافأة!`);
+      audio.playSound('levelup');
+    };
+
+    hero._onLevelUp = (lvl) => {
+      ui.showNotification(`🦸 البطل وصل المستوى ${lvl}!`);
+      audio.playSound('hero_levelup');
+      hero.maxHp = 120 + (lvl - 1) * 10;
+      hero.hp = hero.maxHp;
+    };
+
+    hero._onAbilityUnlock = (key, ab) => {
+      ui.showNotification(`🔓 قدرة جديدة: ${key} متاحة!`);
+      audio.playSound('ability');
     };
 
 
@@ -436,6 +531,90 @@ async function init() {
       const tutEl = document.getElementById('tutorial-overlay');
       if (tutEl) tutEl.style.display = 'none';
     };
+
+    // زر كتم الصوت
+    const muteBtn = document.getElementById('mute-btn');
+    if (muteBtn) {
+      muteBtn.onclick = () => {
+        audio.toggleMute();
+        muteBtn.textContent = audio.muted ? '🔇' : '🔊';
+        audio.playSound('click');
+      };
+    }
+
+    // لوحة البطل
+    const heroPanel = document.getElementById('hero-panel');
+    const heroCloseBtn = document.getElementById('hero-close-btn');
+    const heroToggleBtn = document.getElementById('hero-toggle-btn');
+    if (heroCloseBtn) {
+      heroCloseBtn.onclick = () => {
+        if (heroPanel) heroPanel.classList.add('hidden');
+      };
+    }
+    if (heroToggleBtn) {
+      heroToggleBtn.onclick = () => {
+        if (heroPanel) heroPanel.classList.toggle('hidden');
+        audio.playSound('click');
+      };
+    }
+
+    // أزرار قدرات البطل
+    const heroAbilityBtns = {
+      'hero-ability-1': 'heal',
+      'hero-ability-2': 'powerStrike',
+      'hero-ability-3': 'shield',
+      'hero-ability-4': 'rally',
+    };
+
+    for (const [btnId, abilityKey] of Object.entries(heroAbilityBtns)) {
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        btn.onclick = () => {
+          if (hero.useAbility(abilityKey)) {
+            audio.playSound('ability');
+            ui.showNotification(`⚡ تم استخدام: ${abilityKey}`);
+          } else {
+            audio.playSound('error');
+          }
+        };
+      }
+    }
+
+    // تحديث واجهة البطل كل ثانية
+    setInterval(() => {
+      const levelLabel = document.getElementById('hero-level-label');
+      const xpFill = document.getElementById('hero-xp-fill');
+      const xpText = document.getElementById('hero-xp-text');
+      const hpEl = document.getElementById('hero-hp');
+      const dmgEl = document.getElementById('hero-dmg');
+      const defEl = document.getElementById('hero-def');
+
+      if (levelLabel) levelLabel.textContent = `المستوى ${hero.level}`;
+      if (xpFill) xpFill.style.width = `${Math.min(100, (hero.xp / hero.xpToNext) * 100)}%`;
+      if (xpText) xpText.textContent = `${hero.xp}/${hero.xpToNext}`;
+      if (hpEl) hpEl.textContent = hero.hp;
+      if (dmgEl) dmgEl.textContent = hero.damage;
+      if (defEl) defEl.textContent = hero.defense;
+
+      for (const [btnId, abilityKey] of Object.entries(heroAbilityBtns)) {
+        const btn = document.getElementById(btnId);
+        const ab = hero.abilities[abilityKey];
+        if (btn && ab) {
+          btn.disabled = !ab.unlocked || ab.cooldown > 0;
+          btn.classList.toggle('active-ability', ab.active);
+          const descEl = btn.querySelector('.hero-ab-desc');
+          if (descEl) {
+            if (!ab.unlocked) {
+              descEl.textContent = `Lv.${ab.levelReq}`;
+            } else if (ab.cooldown > 0) {
+              descEl.textContent = `${Math.ceil(ab.cooldown)}s`;
+            } else {
+              descEl.textContent = 'جاهز';
+            }
+          }
+        }
+      }
+    }, 1000);
 
     // ====== Battle Royale ======
     const brBtn = document.getElementById('br-enter-btn');
@@ -597,8 +776,9 @@ async function init() {
 
     setInterval(() => {
       economy.tick();
-      village.update(0.5);
+      village.update(15);
       oasisManager.tick(15); // 15 ثانية انقضت
+      hero.tick(15);
       // مزامنة مستوى مباني الأراضي مع أنظمة اللعبة
       if (ui._landsState) {
         const b1 = ui._landsState['b1']; // بيت الزعيم

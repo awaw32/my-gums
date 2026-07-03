@@ -3,12 +3,13 @@ import { injectPromotionMethods } from "./ui-promotion.js";
 import { injectGameplayMethods } from "./ui-gameplay.js";
 
 export class GameUI {
-  constructor(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store) {
+  constructor(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests) {
     this.village = village;
     this.army = army;
     this.economy = economy;
     this.world = world;
     this.store = store;
+    this.quests = quests;
     this.oasisManager = oasisManager;
     this.upgradeTree = upgradeTree;
     this.allianceManager = allianceManager;
@@ -267,6 +268,9 @@ export class GameUI {
     this.screens.events_panel = this.buildEventsScreen();
     this.screens.prestige_panel = this.buildPrestigeScreen();
     this.screens.daily = this.buildDailyLoginScreen();
+    this.screens.oases = this.buildOasesScreen();
+    this.screens.quests = this.buildQuestsScreen();
+    this.screens.challenges = this.buildChallengesScreen();
   }
 
   buildAllianceScreen() {
@@ -317,6 +321,293 @@ export class GameUI {
     div.className = "screen-panel";
     div.innerHTML = `<div class="panel-header">📅 المكافآت اليومية</div><div id="daily-content"></div>`;
     return div;
+  }
+
+  buildQuestsScreen() {
+    const div = document.createElement("div");
+    div.className = "screen-panel";
+    div.innerHTML = `
+      <div class="panel-header">📜 المهام</div>
+      <div id="quests-content"></div>
+    `;
+    return div;
+  }
+
+  buildChallengesScreen() {
+    const div = document.createElement("div");
+    div.className = "screen-panel";
+    div.innerHTML = `
+      <div class="panel-header">⚔️ التحديات اليومية</div>
+      <div id="challenges-content"></div>
+    `;
+    return div;
+  }
+
+  renderChallenges() {
+    const container = document.getElementById("challenges-content");
+    if (!container) return;
+    
+    // تحديات يومية عشوائية
+    const challenges = this._getDailyChallenges();
+    const completed = this._getCompletedChallenges();
+    
+    let html = '<div class="challenges-grid">';
+    for (const ch of challenges) {
+      const isCompleted = completed.includes(ch.id);
+      const progress = this._getChallengeProgress(ch);
+      const canClaim = isCompleted && !this._isChallengeClaimed(ch.id);
+      
+      html += `
+        <div class="challenge-card${isCompleted ? ' challenge-done' : ''}">
+          <div class="challenge-icon">${ch.icon}</div>
+          <div class="challenge-info">
+            <div class="challenge-title">${ch.title}</div>
+            <div class="challenge-desc">${ch.desc}</div>
+            <div class="challenge-progress">
+              <div class="challenge-progress-track">
+                <div class="challenge-progress-fill" style="width:${Math.min(100, (progress / ch.target) * 100)}%"></div>
+              </div>
+              <span class="challenge-progress-text">${progress}/${ch.target}</span>
+            </div>
+            <div class="challenge-reward">🏆 ${ch.reward}</div>
+          </div>
+          ${canClaim ? `<button class="action-btn challenge-claim-btn" data-challenge="${ch.id}">📦 استلم</button>` : ''}
+        </div>
+      `;
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    // أزرار استلام المكافآت
+    container.querySelectorAll('.challenge-claim-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const chId = btn.dataset.challenge;
+        if (this._claimChallenge(chId)) {
+          this.showNotification('✅ تم استلام المكافأة!');
+          this.renderChallenges();
+          this.updateTopBar();
+        }
+      });
+    });
+  }
+
+  _getDailyChallenges() {
+    // تحديات يومية ثابتة (يمكن جعلها عشوائية لاحقاً)
+    return [
+      {
+        id: 'daily_kills',
+        title: 'صائد الوحوش',
+        desc: 'اقتل 20 وحشاً',
+        icon: '⚔️',
+        target: 20,
+        type: 'kills',
+        reward: '500 🪙 + 50 💎'
+      },
+      {
+        id: 'daily_pvp',
+        title: 'محترف القتال',
+        desc: 'اربح 3 معارك PvP',
+        icon: '🛡️',
+        target: 3,
+        type: 'pvp_wins',
+        reward: '1000 💰 + 30 💎'
+      },
+      {
+        id: 'daily_gold',
+        title: 'جامع الذهب',
+        desc: 'اجمع 2000 ذهب',
+        icon: '🪙',
+        target: 2000,
+        type: 'gold_earned',
+        reward: '500 🔨 + 100 📜'
+      },
+      {
+        id: 'daily_buildings',
+        title: 'المهندس',
+        desc: 'طوّر 5 مباني',
+        icon: '🏗️',
+        target: 5,
+        type: 'upgrades',
+        reward: '300 💰 + 20 💎'
+      }
+    ];
+  }
+
+  _getCompletedChallenges() {
+    // جلب من localStorage
+    try {
+      const saved = localStorage.getItem('desert_challenges');
+      if (!saved) return [];
+      const data = JSON.parse(saved);
+      const today = new Date().toDateString();
+      if (data.date !== today) {
+        localStorage.setItem('desert_challenges', JSON.stringify({ date: today, completed: [], claimed: [] }));
+        return [];
+      }
+      return data.completed || [];
+    } catch {
+      return [];
+    }
+  }
+
+  _isChallengeClaimed(chId) {
+    try {
+      const saved = localStorage.getItem('desert_challenges');
+      if (!saved) return false;
+      const data = JSON.parse(saved);
+      const today = new Date().toDateString();
+      if (data.date !== today) return false;
+      return (data.claimed || []).includes(chId);
+    } catch {
+      return false;
+    }
+  }
+
+  _getChallengeProgress(challenge) {
+    // تقدم التحدي من الإحصائيات الحالية
+    if (challenge.type === 'kills') return this.world?.sessionStats?.kills || 0;
+    if (challenge.type === 'pvp_wins') return this.world?.sessionStats?.pvpWins || 0;
+    if (challenge.type === 'gold_earned') return this.world?.sessionStats?.coinsEarned || 0;
+    if (challenge.type === 'upgrades') {
+      // حساب عدد الترقيات اليوم
+      return this._getTodayUpgrades();
+    }
+    return 0;
+  }
+
+  _getTodayUpgrades() {
+    // يمكن تتبع الترقيات في sessionStats
+    return this.world?.sessionStats?.upgradesToday || 0;
+  }
+
+  _claimChallenge(chId) {
+    const claimed = this._isChallengeClaimed(chId);
+    if (claimed) return false;
+    
+    const challenges = this._getDailyChallenges();
+    const ch = challenges.find(c => c.id === chId);
+    if (!ch) return false;
+    
+    const progress = this._getChallengeProgress(ch);
+    if (progress < ch.target) return false;
+    
+    // حفظ كـ مكتمل ومستلم
+    try {
+      const saved = localStorage.getItem('desert_challenges');
+      const data = saved ? JSON.parse(saved) : { date: new Date().toDateString(), completed: [], claimed: [] };
+      if (data.date !== new Date().toDateString()) {
+        data.date = new Date().toDateString();
+        data.completed = [];
+        data.claimed = [];
+      }
+      if (!data.completed.includes(chId)) data.completed.push(chId);
+      data.claimed.push(chId);
+      localStorage.setItem('desert_challenges', JSON.stringify(data));
+    } catch {}
+    
+    // إعطاء المكافأة
+    this._giveChallengeReward(ch);
+    return true;
+  }
+
+  _giveChallengeReward(challenge) {
+    // تحليل المكافأة وإعطاؤها
+    const rewardStr = challenge.reward;
+    // يمكن تحليل النص أو إضافة نظام مكافآت منفصل
+    // للتبسيط، سنعطي مكافآت ثابتة حسب النوع
+    if (challenge.id === 'daily_kills') {
+      this.economy.addRaw('gold', 500);
+      this.economy.addRaw('gems', 50);
+    } else if (challenge.id === 'daily_pvp') {
+      this.economy.addRaw('cash', 1000);
+      this.economy.addRaw('gems', 30);
+    } else if (challenge.id === 'daily_gold') {
+      this.economy.addRaw('hammers', 500);
+      this.economy.addRaw('scrolls', 100);
+    } else if (challenge.id === 'daily_buildings') {
+      this.economy.addRaw('cash', 300);
+      this.economy.addRaw('gems', 20);
+    }
+  }
+
+  renderQuests() {
+    const container = document.getElementById("quests-content");
+    if (!container || !this.quests) {
+      if (container) container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--beige-dark)">⚠️ المهام غير متاحة</div>';
+      return;
+    }
+    const dailyQuests = this.quests.getDailyQuests();
+    const storyChapter = this.quests.getStoryChapter();
+    
+    let html = '';
+    
+    // القصة الرئيسية
+    if (storyChapter) {
+      html += `
+        <div class="quest-story-card">
+          <div class="quest-story-header">📖 الفصل ${storyChapter.id}: ${storyChapter.title}</div>
+          <div class="quest-story-desc">${storyChapter.desc}</div>
+          <div class="quest-story-reward">المكافأة: 🪙 ${storyChapter.reward.gold || 0} + ⚔️ قوة +${storyChapter.reward.armyPower || 0}</div>
+          <button class="action-btn quest-advance-btn" id="quest-advance-btn">تقدم في القصة →</button>
+        </div>
+      `;
+    } else {
+      html += '<div class="quest-story-complete">✅ أكملت جميع الفصول المتاحة!</div>';
+    }
+    
+    // المهام اليومية
+    html += '<div class="quests-section-title">📋 المهام اليومية</div>';
+    html += '<div class="quests-list">';
+    for (const quest of dailyQuests) {
+      const progress = Math.min(100, (quest.progress / quest.target) * 100);
+      const completed = quest.progress >= quest.target;
+      html += `
+        <div class="quest-card${completed ? ' quest-completed' : ''}">
+          <div class="quest-header">
+            <div class="quest-title">${quest.title}</div>
+            <div class="quest-progress-text">${quest.progress}/${quest.target}</div>
+          </div>
+          <div class="quest-desc">${quest.desc}</div>
+          <div class="quest-progress-track">
+            <div class="quest-progress-fill" style="width:${progress}%"></div>
+          </div>
+          <div class="quest-reward">🏆 ${Object.entries(quest.reward).map(([k,v]) => `${v} ${k === 'gold' ? '🪙' : k === 'gems' ? '💎' : '💵'}`).join(' + ')}</div>
+        </div>
+      `;
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    this._updateQuestBadge();
+    
+    // زر تقدم القصة
+    const advanceBtn = document.getElementById('quest-advance-btn');
+    if (advanceBtn) {
+      advanceBtn.addEventListener('click', () => {
+        if (this.quests.advanceStory()) {
+          this.showNotification('📖 تقدمت في القصة!');
+          this.renderQuests();
+          this.updateTopBar();
+        } else {
+          this.showNotification('❌ لم تكمل الفصل الحالي بعد');
+        }
+      });
+    }
+  }
+
+  _updateQuestBadge() {
+    if (!this.quests) return;
+    const badge = document.getElementById('badge-quests');
+    if (!badge) return;
+    const completable = this.quests.dailyQuests.filter(q => q.progress >= q.target).length;
+    if (completable > 0) {
+      badge.textContent = completable;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
   }
 
   bindNav() {
@@ -387,6 +678,9 @@ export class GameUI {
       case "events_panel": this.renderEvents(); break;
       case "prestige_panel": this.renderPrestige(); break;
       case "daily": this.renderDailyLogin(); break;
+      case "oases": this.renderOases(); break;
+      case "quests": this.renderQuests(); break;
+      case "challenges": this.renderChallenges(); break;
     }
   }
 
@@ -620,6 +914,52 @@ export class GameUI {
     }
   }
 
+  buildOasesScreen() {
+    const div = document.createElement("div");
+    div.className = "screen-panel";
+    div.innerHTML = `
+      <div class="panel-header">🌴 الواحات</div>
+      <div id="oases-content"></div>
+    `;
+    return div;
+  }
+
+  renderOases() {
+    const container = document.getElementById("oases-content");
+    if (!container || !this.oasisManager) {
+      if (container) container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--beige-dark)">⚠️ الواحات غير متاحة</div>';
+      return;
+    }
+    const state = this.oasisManager.getState();
+    container.innerHTML = `
+      <div class="oases-grid">
+        ${state.map((o, i) => `
+          <div class="oasis-card${o.captured ? ' oasis-captured' : ''}">
+            <div class="oasis-icon">${o.icon || '🌴'}</div>
+            <div class="oasis-name">${o.name || `واحة ${i + 1}`}</div>
+            <div class="oasis-income">💵 +${o.income || 0}/ثانية</div>
+            ${o.captured 
+              ? '<div class="oasis-status">✅ مأسور</div>' 
+              : `<button class="action-btn oasis-capture-btn" data-oasis="${i}">⚔️ احتل</button>`
+            }
+          </div>
+        `).join('')}
+      </div>
+    `;
+    container.querySelectorAll('.oasis-capture-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.oasis);
+        if (this.oasisManager.captureOasis(idx)) {
+          this.showNotification(`🌴 احتلت ${state[idx].name || 'واحة'}!`);
+          this.renderOases();
+          this.updateTopBar();
+        } else {
+          this.showNotification('❌ قوة الجيش غير كافية!');
+        }
+      });
+    });
+  }
+
   updateTopBar() {
     const eco = this.economy;
     if (this.els.goldDisplay) {
@@ -711,6 +1051,14 @@ export class GameUI {
       const badge = document.getElementById('badge-inventory');
       if (badge) badge.classList.toggle('hidden', usableCount === 0);
     }
+    if (this.quests) {
+      const completable = this.quests.dailyQuests.filter(q => q.progress >= q.target).length;
+      const badge = document.getElementById('badge-quests');
+      if (badge) {
+        if (completable > 0) { badge.textContent = completable; badge.classList.remove('hidden'); }
+        else { badge.classList.add('hidden'); }
+      }
+    }
   }
 
   startTopBarLoop() {
@@ -743,6 +1091,12 @@ export class GameUI {
         this.updateTopBar();
       };
     }
+    // تحديث تلقائي لشاشة المهام كل 3 ثوانٍ أثناء عرضها
+    this._questRefreshTimer = setInterval(() => {
+      if (this.currentScreen === "quests" && this.quests) {
+        this.renderQuests();
+      }
+    }, 3000);
     const chatOverlay = document.getElementById("chat-overlay");
     if (chatOverlay) {
       chatOverlay.addEventListener("click", () => {

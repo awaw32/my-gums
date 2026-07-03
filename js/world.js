@@ -1371,7 +1371,7 @@ export class WorldMap {
       const reward = monster.rewardMoney || 10;
       this.sessionStats.kills++;
       this.sessionStats.coinsEarned += reward;
-      this.netSync.send({ type: "monster_killed", id: monster.id });
+      if (this.netSync) this.netSync.send({ type: "monster_killed", id: monster.id });
       this.createDrop(monster.x, monster.y, reward);
       if (this.economy) {
         this.economy.addRaw("cash", reward);

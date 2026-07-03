@@ -53,18 +53,18 @@ export function showWipeScreen(worldMap, lost, killed) {
   overlay.innerHTML = `
     <div style="font-size:3rem;margin-bottom:8px;">💀</div>
     <div style="color:#ff4444;font-size:1.1rem;font-weight:700;margin-bottom:12px;">هُزم جيشك بالكامل!</div>
-    <div style="color:var(--gold);font-size:0.85rem;margin-bottom:6px;">الغنائم التي خسرتها:</div>
-    <div style="color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:4px;">${lost} 💵</div>
-    <div style="color:var(--beige-dark);font-size:0.7rem;margin-bottom:16px;">الوحوش المقتولة: ${killed}</div>
-    <div style="color:#ff6b6b;font-size:0.85rem;margin-bottom:16px;">قوتك: ${worldMap.economy ? worldMap.economy.power : 0} 👊</div>
+    <div style="color:var(--accent-red);font-size:0.85rem;margin-bottom:6px;">الغنائم التي خسرتها:</div>
+    <div style="color:var(--text-primary);font-size:1.5rem;font-weight:700;margin-bottom:4px;">${lost} 💵</div>
+    <div style="color:var(--text-secondary);font-size:0.7rem;margin-bottom:16px;">الوحوش المقتولة: ${killed}</div>
+    <div style="color:var(--accent-red);font-size:0.85rem;margin-bottom:16px;">قوتك: ${worldMap.economy ? worldMap.economy.power : 0} 👊</div>
     <button id="wipe-return-btn" style="
       padding: 12px 32px; font-size:1rem; font-weight:700;
-      background:linear-gradient(180deg,#3a8ab5,#1a5a7a); color:#fff; border:none; border-radius:12px;
+      background:var(--accent-red); color:#fff; border:none; border-radius:12px;
       cursor:pointer; touch-action:manipulation; margin-bottom:8px; width:200px;
     ">🗺️ العودة للخريطة</button>
     <button id="wipe-exit-btn" style="
       padding: 12px 32px; font-size:1rem; font-weight:700;
-      background:linear-gradient(180deg,#8a2020,#5a1010); color:#fff; border:none; border-radius:12px;
+      background:#8a2020; color:#fff; border:none; border-radius:12px;
       cursor:pointer; touch-action:manipulation; width:200px;
     ">🚪 الخروج للقائمة</button>
   `;

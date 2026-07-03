@@ -149,8 +149,7 @@ export class QuestManager {
     if (quest.reward.gems) this.economy.addRaw('gems', quest.reward.gems);
     if (quest.reward.armyPower) this.army.unitPowerBase += quest.reward.armyPower;
     
-    // إشعار بسيط
-    console.log(`[Quest] تم إكمال: ${quest.title} - مكافأة مستلمة`);
+    if (this._onQuestCompleted) this._onQuestCompleted(quest);
   }
 
   getStoryChapter() {

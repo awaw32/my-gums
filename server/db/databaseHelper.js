@@ -60,6 +60,7 @@ const playerSchema = new mongoose.Schema({
   brKills:       { type: Number, default: 0 },
   buildings:     { type: Object, default: {} },
   research:      { type: Object, default: {} },
+  hero:          { type: Object, default: {} },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);
@@ -85,6 +86,7 @@ function getDefaultPlayer(username) {
     brWins: 0, brKills: 0,
     buildings: {},
     research: {},
+    hero: {},
   };
 }
 

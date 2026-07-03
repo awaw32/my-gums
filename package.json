@@ -7,10 +7,16 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "prod": "NODE_ENV=production node server.js"
+    "prod": "NODE_ENV=production node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "mongoose": "^9.7.3",
     "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.9"
   }
 }

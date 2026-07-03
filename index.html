@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0d0a05" />
+  <meta name="theme-color" content="#FFF8F0" />
   <meta name="mobile-web-app-capable" content="yes">
   <title>ملك السحراء</title>
 
@@ -41,8 +41,8 @@
       theme: {
         extend: {
           colors: {
-            gold: { DEFAULT: '#FFD700', dim: '#b8960f' },
-            desert: { DEFAULT: '#0d0a05', 2: '#1a1208', 3: '#2c1a0a' },
+            gold: { DEFAULT: '#D4A017', dim: '#b8960f' },
+            desert: { DEFAULT: '#FFF8F0', 2: '#F5E6D0', 3: '#EDE4D6' },
           },
           fontFamily: { cairo: ['Cairo', 'system-ui', 'sans-serif'], amiri: ['Amiri', 'serif'] }
         }
@@ -119,6 +119,8 @@
       </div>
       <!-- الجهة اليسرى: أزرار التحكم بالواجهة -->
       <div class="top-multiplier-section">
+        <button id="mute-btn" class="panel-toggle-btn" type="button" title="كتم/تشغيل الصوت" style="font-size:1.1rem">🔊</button>
+        <button id="fullscreen-btn" class="panel-toggle-btn" type="button" title="ملء الشاشة" style="font-size:1.1rem">⛶</button>
         <button id="ui-toggle-btn" class="panel-toggle-btn" type="button" title="إخفاء/إظهار الواجهة" style="margin-left:2px">👁️</button>
         <button id="panel-toggle" class="panel-toggle-btn" type="button" title="القائمة">☰</button>
       </div>
@@ -152,6 +154,25 @@
           <span class="csb-icon">📦</span>
           <span class="csb-label">المخزون</span>
           <span class="csb-badge hidden" id="badge-inventory"></span>
+        </button>
+        <button class="circular-sub-btn" type="button" data-sub="oases">
+          <span class="csb-icon">🌴</span>
+          <span class="csb-label">الواحات</span>
+          <span class="csb-badge hidden" id="badge-oases"></span>
+        </button>
+        <button class="circular-sub-btn" type="button" data-sub="quests">
+          <span class="csb-icon">📜</span>
+          <span class="csb-label">المهام</span>
+          <span class="csb-badge hidden" id="badge-quests"></span>
+        </button>
+        <button class="circular-sub-btn" type="button" data-sub="challenges">
+          <span class="csb-icon">⚔️</span>
+          <span class="csb-label">التحديات</span>
+          <span class="csb-badge hidden" id="badge-challenges"></span>
+        </button>
+        <button class="circular-sub-btn" type="button" id="hero-toggle-btn">
+          <span class="csb-icon">🦸</span>
+          <span class="csb-label">البطل</span>
         </button>
         <button class="circular-sub-btn br-sub-btn" type="button" id="br-enter-btn">
           <span class="csb-icon">⚔️</span>
@@ -284,7 +305,7 @@
       </div>
     </div>
     <div id="br-defeat-screen" class="hidden">
-      <div class="victory-card" style="border-color:#ff4444">
+      <div class="victory-card" style="border-color:var(--accent-red)">
         <div class="victory-icon">💀</div>
         <h2>لقد هُزمت</h2>
         <p id="br-defeat-stats">قُتلت بواسطة لاعب</p>
@@ -360,9 +381,64 @@
     <!-- Notifications -->
     <div id="notification-container" class="notification-container"></div>
 
+    <!-- Offline Rewards Popup -->
+    <div id="offline-rewards-popup" class="offline-rewards-popup hidden">
+      <div class="offline-rewards-card">
+        <div class="offline-rewards-icon">🌙</div>
+        <h2 class="offline-rewards-title">مرحباً بعودتك!</h2>
+        <p class="offline-rewards-sub" id="offline-time-text">لقد غيّبت عن gameplay</p>
+        <div class="offline-rewards-list" id="offline-rewards-list"></div>
+        <button id="offline-claim-btn" class="offline-claim-btn">جمع المكافآت</button>
+      </div>
+    </div>
+
+    <!-- Hero UI Panel -->
+    <div id="hero-panel" class="hero-panel hidden">
+      <div class="hero-panel-header">
+        <span>🦸 البطل</span>
+        <button id="hero-close-btn" class="hero-close-btn">✕</button>
+      </div>
+      <div class="hero-panel-body">
+        <div class="hero-level-row">
+          <span class="hero-level-label" id="hero-level-label">المستوى 1</span>
+          <div class="hero-xp-track">
+            <div class="hero-xp-fill" id="hero-xp-fill" style="width:0%"></div>
+          </div>
+          <span class="hero-xp-text" id="hero-xp-text">0/100</span>
+        </div>
+        <div class="hero-stats-row">
+          <div class="hero-stat"><span>❤️</span><span id="hero-hp">120</span></div>
+          <div class="hero-stat"><span>⚔️</span><span id="hero-dmg">12</span></div>
+          <div class="hero-stat"><span>🛡️</span><span id="hero-def">0</span></div>
+        </div>
+        <div class="hero-abilities-row">
+          <button class="hero-ability-btn" id="hero-ability-1" disabled>
+            <span class="hero-ab-icon">💚</span>
+            <span class="hero-ab-name">علاج</span>
+            <span class="hero-ab-desc">Lv.5</span>
+          </button>
+          <button class="hero-ability-btn" id="hero-ability-2" disabled>
+            <span class="hero-ab-icon">⚡</span>
+            <span class="hero-ab-name">ضربة قوية</span>
+            <span class="hero-ab-desc">Lv.10</span>
+          </button>
+          <button class="hero-ability-btn" id="hero-ability-3" disabled>
+            <span class="hero-ab-icon">🛡️</span>
+            <span class="hero-ab-name">درع</span>
+            <span class="hero-ab-desc">Lv.15</span>
+          </button>
+          <button class="hero-ability-btn" id="hero-ability-4" disabled>
+            <span class="hero-ab-icon">📯</span>
+            <span class="hero-ab-name">نداء</span>
+            <span class="hero-ab-desc">Lv.20</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ====== Modal للنوافذ المنبثقة (بناء/ترقية) ====== -->
-    <div id="modal-overlay" class="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden" style="direction:rtl">
-      <div id="modal-card" class="w-full max-w-sm bg-[#0d0a05] rounded-2xl border border-[rgba(255,215,0,0.2)] p-5 shadow-2xl shadow-black/60" style="font-family:'Cairo',system-ui,sans-serif">
+    <div id="modal-overlay" class="fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4 hidden" style="direction:rtl">
+      <div id="modal-card" class="w-full max-w-sm bg-white rounded-2xl border border-[var(--border-light)] p-5 shadow-lg">
         <!-- المحتوى يُنشأ ديناميكياً من ui.js -->
       </div>
     </div>
@@ -371,5 +447,31 @@
 
   <script src="config/images.js?v=20260702"></script>
   <script type="module" src="js/main.js?v=20260702"></script>
+  <script>
+    // Fullscreen toggle for mobile
+    document.getElementById('fullscreen-btn')?.addEventListener('click', function() {
+      const el = document.documentElement;
+      if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
+        const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+        if (req) { req.call(el); this.textContent = '⛶'; }
+        else if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); }
+      } else {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+        if (exit) exit.call(document);
+      }
+    });
+    document.addEventListener('fullscreenchange webkitfullscreenchange', function() {
+      const btn = document.getElementById('fullscreen-btn');
+      if (!btn) return;
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      btn.textContent = isFull ? '⛶' : '⛶';
+      btn.style.color = isFull ? 'var(--accent-red)' : '';
+    });
+    // Fix iOS viewport height on resize
+    function setVH() { document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px'); }
+    setVH();
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', function() { setTimeout(setVH, 100); });
+  </script>
 </body>
 </html>
