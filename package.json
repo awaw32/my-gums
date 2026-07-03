@@ -13,13 +13,17 @@
     "lint": "node --check server.js && node --check server/db/databaseHelper.js && node --check server/db/buildings.js && node --check server/db/research.js && node --check server/logic/formulas.js && node --check server/logic/rewards.js && node --check server/logic/weaponUpgrade.js && node --check server/logic/combatLoop.js"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "mongoose": "^9.7.3",
     "ws": "^8.21.0"
   },
   "devDependencies": {
     "@playwright/mcp": "^0.0.77",
     "@playwright/test": "^1.61.1",
+    "@tailwindcss/cli": "^4.3.2",
+    "eslint": "^10.6.0",
     "jsdom": "^29.1.1",
+    "tailwindcss": "^4.3.2",
     "vitest": "^4.1.9"
   }
 }
