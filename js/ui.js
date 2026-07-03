@@ -654,6 +654,7 @@ export class GameUI {
   _openWeaponsLibrary() {
     const existing = document.getElementById('weapons-library-overlay');
     if (existing) existing.remove();
+    document.body.style.overflow = 'hidden';
     const lib = new WeaponsLibrary(this.army.weapons, this.economy, this);
     document.body.appendChild(lib.render());
   }

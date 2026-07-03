@@ -40,16 +40,19 @@ export class WeaponsLibrary {
     overlay.className = 'wl-overlay';
     overlay.id = 'weapons-library-overlay';
 
-    overlay.innerHTML = `
-      <div class="weapons-library">
-        <div class="wl-header">
-          <h2 class="wl-title">⚔ مكتبة القطع الأسطورية ⚔</h2>
-          <button class="wl-close-btn" id="wl-close-btn">✕</button>
-        </div>
-        <div class="weapons-grid" id="wl-grid"></div>
-        <div class="wl-hint">اضغط على السلاح لترقيته</div>
+    const lib = document.createElement('div');
+    lib.className = 'weapons-library';
+
+    lib.innerHTML = `
+      <div class="wl-header">
+        <h2 class="wl-title">⚔ مكتبة القطع الأسطورية</h2>
+        <button class="wl-close-btn" id="wl-close-btn">✕</button>
       </div>
+      <div class="weapons-grid" id="wl-grid"></div>
+      <div class="wl-hint">— اضغط على السلاح لترقيته —</div>
     `;
+
+    overlay.appendChild(lib);
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) this.close();
@@ -137,6 +140,7 @@ export class WeaponsLibrary {
     if (this.container) {
       this.container.remove();
       this.container = null;
+      document.body.style.overflow = '';
     }
     this.ui?._promotionShowHub();
   }
