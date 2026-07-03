@@ -6,18 +6,21 @@
   <meta name="theme-color" content="#0d0a05">
   <meta name="mobile-web-app-capable" content="yes">
   <title>ملك الصحراء — الأراضي</title>
-  <!-- ===== Cache Busting + Auto-Update ===== -->
+  <!-- ===== Auto-Update ===== -->
   <script>
     (function(){
-      setInterval(async ()=>{
+      const KEY = 'lands_build';
+      async function check() {
         try {
-          const r = await fetch(window.location.href, { cache:'no-cache', method:'HEAD' });
-          const n = r.headers.get('ETag')||r.headers.get('Last-Modified')||'';
-          const o = localStorage.getItem('lands_etag');
-          if (o && n && n !== o) { localStorage.setItem('lands_etag', n); window.location.reload(true); }
-          else if (n) { localStorage.setItem('lands_etag', n); }
+          const r = await fetch('/version', { cache:'no-cache' });
+          const d = await r.json();
+          const o = localStorage.getItem(KEY);
+          if (o && d.buildId && d.buildId !== o) { localStorage.setItem(KEY, d.buildId); window.location.reload(true); }
+          else if (d.buildId) { localStorage.setItem(KEY, d.buildId); }
         } catch(e){}
-      }, 30000);
+      }
+      check();
+      setInterval(check, 15000);
     })();
   </script>
   <style>

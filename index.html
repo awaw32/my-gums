@@ -7,29 +7,26 @@
   <meta name="mobile-web-app-capable" content="yes">
   <title>ملك السحراء</title>
 
-  <!-- ===== Cache Busting ===== -->
-  <!-- 💡 إذا تستخدم Nginx/Apache/Node، أضف هذي الإعدادات:
-       location ~* \.(js|css)$ { add_header Cache-Control "no-cache, must-revalidate"; }
-       location = /index.html { add_header Cache-Control "no-cache, no-store, must-revalidate"; }
-  -->
+  <!-- ===== Auto-Update ===== -->
   <script>
-    // فحص التحديث كل 30 ثانية — يعيد تحميل الصفحة إذا تغير ETag
+    // يفحص الإصدار كل 15 ثانية — يعيد تحميل الصفحة إذا تغير
     (function() {
-      const CHECK_INTERVAL = 30000;
-      const CACHE_KEY = 'game_etag';
-      setInterval(async () => {
+      const KEY = 'game_build';
+      async function check() {
         try {
-          const res = await fetch(window.location.href, { cache: 'no-cache', method: 'HEAD' });
-          const newTag = res.headers.get('ETag') || res.headers.get('Last-Modified') || '';
-          const oldTag = localStorage.getItem(CACHE_KEY);
-          if (oldTag && newTag && newTag !== oldTag) {
-            localStorage.setItem(CACHE_KEY, newTag);
+          const r = await fetch('/version', { cache: 'no-cache' });
+          const d = await r.json();
+          const old = localStorage.getItem(KEY);
+          if (old && d.buildId && d.buildId !== old) {
+            localStorage.setItem(KEY, d.buildId);
             window.location.reload(true);
-          } else if (newTag) {
-            localStorage.setItem(CACHE_KEY, newTag);
+          } else if (d.buildId) {
+            localStorage.setItem(KEY, d.buildId);
           }
         } catch(e) {}
-      }, CHECK_INTERVAL);
+      }
+      check();
+      setInterval(check, 15000);
     })();
   </script>
 

@@ -4,6 +4,7 @@ const PORT      = parseInt(process.env.PORT) || 3000;
 const USE_HTTPS = process.env.HTTPS === "true" || process.env.HTTPS === "1";
 const CERT_DIR  = process.env.CERT_DIR || "/etc/letsencrypt/live";
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
+const BUILD_ID = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
 
 let server;
 
@@ -762,33 +763,59 @@ wss.on("close", () => clearInterval(INTERVAL));
 
 const STATIC_EXTS = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
-function serveStatic(rawUrl, res) {
+/** ضبط سياسة التخزين المؤقت حسب نوع الملف */
+function cachePolicy(ext) {
+  if (ext === ".html") return "no-cache, must-revalidate";
+  if (ext === ".js" || ext === ".css") return "public, max-age=0, must-revalidate";
+  return "public, max-age=86400, must-revalidate"; // images
+}
+
+/** حساب ETag من تعديل الملف وحجمه */
+function computeETag(filePath) {
+  try {
+    const stat = fs.statSync(filePath);
+    const mtime = stat.mtimeMs;
+    const size = stat.size;
+    return `"${size.toString(16)}-${mtime.toString(16)}"`;
+  } catch { return null; }
+}
+
+function serveStatic(rawUrl, req, res) {
   const url = rawUrl.split("?")[0];
   const ext = path.extname(url).toLowerCase();
   if (!STATIC_EXTS[ext]) return false;
-  // SECURITY: منع Path Traversal عبر resolve مع startsWith
   const cleanPath = url === "/" ? "index.html" : url.replace(/^\//, "");
   const safePath = path.resolve(__dirname, cleanPath);
   if (!safePath.startsWith(__dirname)) {
     res.writeHead(403); res.end("Forbidden"); return true;
   }
-  // Try primary path first, then public/ fallback
+  // محاولة المسار الأساسي ثم public/ كاحتياطي
+  let filePath = safePath;
   let content = null;
   try {
     content = fs.readFileSync(safePath);
   } catch {
     const pubPath = path.resolve(__dirname, "public", cleanPath);
     if (pubPath.startsWith(path.resolve(__dirname, "public"))) {
-      try { content = fs.readFileSync(pubPath); } catch { return false; }
+      try { content = fs.readFileSync(pubPath); filePath = pubPath; } catch { return false; }
     } else {
       return false;
     }
   }
-  res.writeHead(200, {
+  // ETag للمقارنة — يرجع 304 إذا الملف ما تغير
+  const etag = computeETag(filePath);
+  if (etag && req.headers["if-none-match"] === etag) {
+    res.writeHead(304);
+    res.end();
+    return true;
+  }
+  const headers = {
     "Content-Type": STATIC_EXTS[ext],
-    "Cache-Control": "public, max-age=86400",
+    "Cache-Control": cachePolicy(ext),
     "X-Content-Type-Options": "nosniff"
-  });
+  };
+  if (etag) headers["ETag"] = etag;
+  res.writeHead(200, headers);
   res.end(content);
   return true;
 }
@@ -1026,9 +1053,15 @@ server.on("request", async (req, res) => {
     }));
     return;
   }
+  // ── API: GET /version ────────────────────────────────────────────
+  if (req.url === "/version") {
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
+    res.end(JSON.stringify({ buildId: BUILD_ID }));
+    return;
+  }
   // ── Static file serving ───────────────────────────────────────────
   const urlPath = req.url === "/" ? "/index.html" : req.url;
-  if (!serveStatic(urlPath, res)) {
+  if (!serveStatic(urlPath, req, res)) {
     res.writeHead(404, { "Content-Type": "text/plain" });
     res.end("404 Not Found");
   }
