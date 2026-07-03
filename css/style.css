@@ -3043,6 +3043,25 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .top-food { direction: ltr; }
 .top-power { direction: ltr; }
 
+/* ====== رقم الإصدار ====== */
+.version-badge {
+  position: fixed; bottom: 72px; right: 8px; z-index: 999;
+  background: rgba(0,0,0,0.5); color: rgba(255,215,0,0.5);
+  font-size: 9px; padding: 2px 8px; border-radius: 999px;
+  font-family: monospace; pointer-events: none;
+  backdrop-filter: blur(4px); border: 1px solid rgba(255,215,0,0.1);
+  direction: ltr;
+}
+
+/* ====== أيقونة الجوهرة (fallback للاموجي) ====== */
+.gem-icon {
+  display: inline-block; width: 14px; height: 14px;
+  background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  margin-right: 3px; vertical-align: middle;
+  box-shadow: 0 0 4px rgba(0,212,255,0.5);
+}
+
 /* ══════════════════════════════════════════════════════════════════
    ⚔  مكتبة القطع الأسطورية — نظام الترقية بالوردات (40 مستوى)
    ══════════════════════════════════════════════════════════════════ */

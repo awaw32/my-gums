@@ -5,7 +5,7 @@ export function injectGameplayMethods(GameUI) {
 GameUI.prototype.buildRankingScreen = function() {
   const div = document.createElement("div");
   div.className = "screen-panel";
-  div.innerHTML = `<div class="panel-header">🏆 قمة المجد</div><div id="ranking-list"></div>`;
+  div.innerHTML = `<div class="panel-header">🏆 قمة المجد</div><div id="ranking-list"></div><div class="version-badge" id="version-badge"></div>`;
   return div;
 };
 
@@ -61,6 +61,9 @@ GameUI.prototype.buildWarScreen = function() {
 GameUI.prototype.renderRanking = function() {
   const list = document.getElementById("ranking-list");
   if (!list) return;
+  // تحديث رقم الإصدار
+  const vb = document.getElementById("version-badge");
+  if (vb) vb.textContent = '🛠 v' + (window._buildId || localStorage.getItem('game_build') || '—');
   list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⏳ جاري التحميل...</div>`;
   fetch("/api/leaderboard")
     .then(r => r.json())

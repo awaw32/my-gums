@@ -531,9 +531,13 @@ async function init() {
     // زر كتم الصوت
     const muteBtn = document.getElementById('mute-btn');
     if (muteBtn) {
+      const muteIcon = document.getElementById('mute-icon') || muteBtn;
+      const muteLabel = document.getElementById('mute-label');
       muteBtn.onclick = () => {
         audio.toggleMute();
-        muteBtn.textContent = audio.muted ? '🔇' : '🔊';
+        if (muteIcon !== muteBtn) muteIcon.textContent = audio.muted ? '🔇' : '🔊';
+        else muteBtn.textContent = audio.muted ? '🔇' : '🔊';
+        if (muteLabel) muteLabel.textContent = audio.muted ? 'تشغيل الصوت' : 'كتم الصوت';
         audio.playSound('click');
       };
     }

@@ -352,7 +352,7 @@ GameUI.prototype._renderWeaponsPage = function() {
     const isMax = w.level >= w.maxLevel;
     const pct = w.maxLevel > 0 ? (w.level / w.maxLevel) * 100 : 0;
     const starsHtml = '⭐'.repeat(w.level) + '☆'.repeat(Math.max(0, w.maxLevel - w.level));
-    const cost = w.level < w.maxLevel ? `${w.upgradeCost} 💎` : '—';
+    const cost = w.level < w.maxLevel ? `${w.upgradeCost}` : '—';
     const card = document.createElement("div");
     card.className = "weapon-card-new";
     card.style.setProperty('--w-color', colors[w.id] || '#b8956a');
@@ -397,7 +397,7 @@ GameUI.prototype._openWeaponDetail = function(weaponId) {
   const isMax = w.level >= w.maxLevel;
   const starsHtml = '⭐'.repeat(w.level) + '☆'.repeat(Math.max(0, w.maxLevel - w.level));
   const pct = w.maxLevel > 0 ? (w.level / w.maxLevel) * 100 : 0;
-  const cost = w.level < w.maxLevel ? `${w.upgradeCost} 💎` : '—';
+  const cost = w.level < w.maxLevel ? `${w.upgradeCost}` : '—';
   const overlay = document.getElementById("weapon-detail-overlay");
   const card = document.getElementById("weapon-detail-card");
   if (!overlay || !card) return;
@@ -415,12 +415,12 @@ GameUI.prototype._openWeaponDetail = function(weaponId) {
     <div class="wd-stats-grid">
       <div class="wd-stat"><span class="wd-stat-label">القوة</span><span class="wd-stat-val">${Math.round(w.power)}</span></div>
       <div class="wd-stat"><span class="wd-stat-label">المستوى</span><span class="wd-stat-val">${w.level}/${w.maxLevel}</span></div>
-      <div class="wd-stat"><span class="wd-stat-label">التكلفة</span><span class="wd-stat-val">${cost}</span></div>
+      <div class="wd-stat"><span class="wd-stat-label">التكلفة</span><span class="wd-stat-val">💎 ${cost}</span></div>
       <div class="wd-stat"><span class="wd-stat-label">التقدم</span><span class="wd-stat-val">${Math.round(pct)}%</span></div>
     </div>
     <div class="wd-track"><div class="wd-fill" style="width:${pct}%"></div></div>
     <button class="wd-upgrade-btn" id="wd-upgrade-btn" ${isMax ? 'disabled' : ''}>
-      ${isMax ? '⭐ مكتمل — المستوى الأقصى' : `▲ ترقية إلى المستوى ${w.level + 1} (${cost})`}
+      ${isMax ? '⭐ مكتمل — المستوى الأقصى' : `▲ ترقية إلى المستوى ${w.level + 1} (💎 ${cost})`}
     </button>
   `;
   overlay.classList.remove("hidden");
