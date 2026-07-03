@@ -18,6 +18,7 @@ import { EventManager } from "./events.js";
 import { TutorialManager } from "./tutorial.js";
 import { GameStore } from "./game-store.js";
 import { NetworkSync } from "./network-sync.js";
+import { WorldUpgradesUI } from "./ui/world-upgrades.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
@@ -78,12 +79,16 @@ async function loadFromDatabase(economy, army, username) {
       economy.xpToNext = getXpForLevel(economy.level);
       army.unitLevel = data.unitLevel || 1;
       army.trainingLevel = data.trainingLevel || 1;
+      economy.buildings = data.buildings || {};
+      economy.research = data.research || {};
       if (data.weapons && Array.isArray(data.weapons)) {
         for (const wd of data.weapons) {
           const w = army.weapons.find(ww => ww.id === wd.id);
           if (w) {
             w.level = wd.level || 0;
             w.upgradeLevel = wd.upgradeLevel ?? (wd.level > 0 ? wd.level * 8 : 0);
+            if (wd.starLevel) w.starLevel = wd.starLevel;
+            if (wd.gemLevel) w.gemLevel = wd.gemLevel;
           }
         }
       }
@@ -138,6 +143,7 @@ async function init() {
   world.netSync = netSync;
   netSync.world = world;
   world.store = store;
+  const wu = new WorldUpgradesUI(world);
   const assets = new AssetManager();
   const audio = new AudioManager();
   const achievements = new AchievementManager(economy);
@@ -209,6 +215,10 @@ async function init() {
 
     const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store);
     world.onExit = () => ui.exitWorldMap();
+
+    document.getElementById("wu-weapon-btn")?.addEventListener("click", () => wu.showWeapon());
+    document.getElementById("wu-building-btn")?.addEventListener("click", () => wu.showBuildings());
+    document.getElementById("wu-research-btn")?.addEventListener("click", () => wu.showResearch());
 
     // ربط العالم بأنظمة الترقيات والتحالف
     world._allianceManager = allianceManager;

@@ -65,7 +65,7 @@ export class NetworkSync {
       type: "update",
       x_position: Math.floor(w.leader.x),
       y_position: Math.floor(w.leader.y),
-      army_power: w.economy ? w.economy.power : 0,
+      army_power: w.economy ? w.economy.power : 5000,
       kills: w.sessionStats.kills,
       coinsEarned: w.sessionStats.coinsEarned,
       unitLevel: w.army?.unitLevel || 1,
@@ -73,6 +73,12 @@ export class NetworkSync {
       hp: Math.floor(w.leader.hp),
       maxHp: Math.floor(w.leader.maxHp),
       level: w.economy?.level || 1,
+      armyYardLevel: w.economy?.armyYardLevel || 1,
+      knowledgeLevel: w.economy?.knowledgeLevel || 1,
+      knowledgeType: w.economy?.knowledgeType || "economic",
+      equippedWeapon: w._equippedWeapon || "",
+      weaponStarLevel: w._weaponStarLevel || 1,
+      weaponGemLevel: w._weaponGemLevel || 1,
     };
     if (w.mode === "battle_royale") {
       update.br_hp = w.leader.hp;
@@ -100,9 +106,15 @@ export class NetworkSync {
           hammers: w.economy?.hammers || 0,
           scrolls: w.economy?.scrolls || 0,
           horns: w.economy?.horns || 0,
-          army_power: w.economy ? w.economy.power : 0,
+          army_power: w.economy ? w.economy.power : 5000,
           unitLevel: w.army?.unitLevel || 1,
-          weapons: w.army?.weapons?.map(ww => ({ id: ww.id, level: ww.level, upgradeLevel: ww.upgradeLevel })) || [],
+          weapons: w.army?.weapons?.map(ww => ({ id: ww.id, starLevel: ww.starLevel || 1, gemLevel: ww.gemLevel || 1 })) || [],
+          equippedWeapon: w._equippedWeapon || "",
+          armyYardLevel: w.economy?.armyYardLevel || 1,
+          knowledgeLevel: w.economy?.knowledgeLevel || 1,
+          knowledgeType: w.economy?.knowledgeType || "economic",
+          buildings: w.economy?.buildings || {},
+          research: w.economy?.research || {},
           x_position: Math.floor(w.leader.x),
           y_position: Math.floor(w.leader.y),
           kills: w.sessionStats.kills,
@@ -124,7 +136,7 @@ export class NetworkSync {
           username: this.username,
           x_position: Math.floor(w.leader.x),
           y_position: Math.floor(w.leader.y),
-          army_power: w.economy ? w.economy.power : 0,
+          army_power: w.economy ? w.economy.power : 5000,
           last_active: Date.now()
         })
       });
@@ -186,7 +198,7 @@ export class NetworkSync {
         const existing = w.otherPlayers.get(name);
         existing.targetX = x;
         existing.targetY = y;
-        existing.army_power = p.army_power || 0;
+        existing.army_power = p.army_power || 5000;
         existing.unitLevel = p.unitLevel || 1;
         existing.armyAlive = p.armyAlive ?? 8;
         existing.lastActive = lastActive;
@@ -196,13 +208,19 @@ export class NetworkSync {
         existing.br_alive = p.br_alive ?? existing.br_alive;
         existing.kills = p.kills ?? existing.kills ?? 0;
         existing.coinsEarned = p.coinsEarned ?? existing.coinsEarned ?? 0;
+        existing.armyYardLevel = p.armyYardLevel ?? existing.armyYardLevel ?? 1;
+        existing.knowledgeLevel = p.knowledgeLevel ?? existing.knowledgeLevel ?? 1;
+        existing.knowledgeType = p.knowledgeType ?? existing.knowledgeType ?? "economic";
+        existing.equippedWeapon = p.equippedWeapon ?? existing.equippedWeapon ?? "";
+        existing.weaponStarLevel = p.weaponStarLevel ?? existing.weaponStarLevel ?? 1;
+        existing.weaponGemLevel = p.weaponGemLevel ?? existing.weaponGemLevel ?? 1;
       } else {
         w.otherPlayers.set(name, {
           username: name,
           x, y,
           targetX: x, targetY: y,
           radius: 16,
-          army_power: p.army_power || 0,
+          army_power: p.army_power || 5000,
           unitLevel: p.unitLevel || 1,
           armyAlive: p.armyAlive ?? 8,
           lastActive,
@@ -213,6 +231,12 @@ export class NetworkSync {
           br_alive: p.br_alive ?? true,
           kills: p.kills ?? 0,
           coinsEarned: p.coinsEarned ?? 0,
+          armyYardLevel: p.armyYardLevel || 1,
+          knowledgeLevel: p.knowledgeLevel || 1,
+          knowledgeType: p.knowledgeType || "economic",
+          equippedWeapon: p.equippedWeapon || "",
+          weaponStarLevel: p.weaponStarLevel || 1,
+          weaponGemLevel: p.weaponGemLevel || 1,
         });
       }
     }
@@ -236,7 +260,7 @@ export class NetworkSync {
         type: "join", username: this.username,
         x_position: Math.floor(w?.leader?.x || 1200),
         y_position: Math.floor(w?.leader?.y || 1200),
-        army_power: w?.economy ? w.economy.power : 0,
+        army_power: w?.economy ? w.economy.power : 5000,
         kills: w?.sessionStats?.kills || 0,
         coinsEarned: w?.sessionStats?.coinsEarned || 0,
         unitLevel: w?.army?.unitLevel || 1,
@@ -246,6 +270,13 @@ export class NetworkSync {
         level: w?.economy?.level || 1,
         trainingLevel: w?.economy?.trainingLevel || 1,
         prestigeLevel: w?.economy?.prestigeLevel || 0,
+        armyYardLevel: w?.economy?.armyYardLevel || 1,
+        knowledgeLevel: w?.economy?.knowledgeLevel || 1,
+        knowledgeType: w?.economy?.knowledgeType || "economic",
+        equippedWeapon: w?._equippedWeapon || "",
+        weapons: w?.army?.weapons?.map(ww => ({ id: ww.id, starLevel: ww.starLevel || 1, gemLevel: ww.gemLevel || 1 })) || [],
+        weaponStarLevel: w?._weaponStarLevel || 1,
+        weaponGemLevel: w?._weaponGemLevel || 1,
       });
     };
 
@@ -301,6 +332,93 @@ export class NetworkSync {
         w.matchEnded = true;
         w.matchStarted = false;
         if (this.onBRMatchEnd) this.onBRMatchEnd(msg);
+      }
+    } else if (msg.type === "equip_weapon_ack") {
+      w._equippedWeapon = msg.weaponId || "";
+      if (w.store) w.store.set('equippedWeapon', w._equippedWeapon);
+    } else if (msg.type === "upgrade_army_yard_ack") {
+      if (w.economy) w.economy.armyYardLevel = msg.armyYardLevel;
+      if (w.store) w.store.set('notification', { text: `⬆️ ساحة الجيش → المستوى ${msg.armyYardLevel} (السعة: ${msg.maxTroops})`, t: Date.now() });
+    } else if (msg.type === "upgrade_knowledge_ack") {
+      if (w.economy) {
+        w.economy.knowledgeLevel = msg.knowledgeLevel;
+        w.economy.knowledgeType = msg.knowledgeType;
+      }
+      let buffText = "";
+      if (msg.defensePercent > 0) buffText += ` دفاع +${msg.defensePercent}%`;
+      if (msg.moveSpeedPercent > 0) buffText += ` سرعة +${msg.moveSpeedPercent}%`;
+      if (msg.resourceSpeed > 1) buffText += ` انتاج ×${msg.resourceSpeed}`;
+      if (w.store) w.store.set('notification', { text: `⬆️ المعرفة → المستوى ${msg.knowledgeLevel}${buffText}`, t: Date.now() });
+    } else if (msg.type === "player_despawn") {
+      w.otherPlayers.delete(msg.username);
+      if (w.store) w.store.set('notification', { text: `💀 ${msg.username} قُتل في PvP`, t: Date.now() });
+    } else if (msg.type === "claim_gift_ack") {
+      if (msg.claimed && msg.reward) {
+        if (w.economy) {
+          w.economy.cash += msg.reward.gold || 0;
+          w.economy.gems += msg.reward.gems || 0;
+          w.economy.gold += msg.reward.gold || 0;
+          w.economy.hammers += msg.reward.hammers || 0;
+          w.economy.scrolls += msg.reward.scrolls || 0;
+        }
+        if (w.store) w.store.set('notification', { text: `🎁 حصلت على ${msg.reward.gold} 💵 ${msg.reward.gems} 💎`, t: Date.now() });
+      } else if (!msg.claimed && w.store) {
+        const mins = Math.floor((msg.remainingMs || 0) / 60000);
+        w.store.set('notification', { text: `⏳ باقي ${mins} دقيقة للصندوق القادم`, t: Date.now() });
+      } else if (msg.type === "upgrade_weapon_ack") {
+        if (msg.ok) {
+          w._weaponStarLevel = msg.starLevel;
+          w._weaponGemLevel = msg.gemLevel;
+          if (w.army && w.army.weapons) {
+            const existing = w.army.weapons.find(x => x.id === msg.weaponId);
+            if (existing) {
+              existing.starLevel = msg.starLevel;
+              existing.gemLevel = msg.gemLevel;
+            } else {
+              w.army.weapons.push({ id: msg.weaponId, starLevel: msg.starLevel, gemLevel: msg.gemLevel });
+            }
+          }
+          if (w.store) w.store.set('weaponStats', { starLevel: msg.starLevel, gemLevel: msg.gemLevel, combinedLevel: msg.combinedLevel, damageMult: msg.damageMult });
+          if (msg.breakthrough) {
+            if (w.store) w.store.set('notification', { text: `🌟 اختراق نجمة! السلاح الآن ${msg.starLevel} ★ — ضرر ×${(msg.damageMult || 1).toFixed(2)}`, t: Date.now() });
+          } else {
+            if (w.store) w.store.set('notification', { text: `💎 ترقية الجوهرة → ${msg.gemLevel} | الضرر ×${(msg.damageMult || 1).toFixed(2)}`, t: Date.now() });
+          }
+          if (w._onWeaponUpgraded) w._onWeaponUpgraded(msg);
+        } else {
+          if (w.store) w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
+        }
+      } else if (msg.type === "weapon_glow") {
+        const target = w.otherPlayers.get(msg.username);
+        if (target) {
+          target._glowActive = true;
+          target._glowTime = Date.now();
+          target._glowStarLevel = msg.starLevel;
+          target._glowColor = msg.color;
+        }
+      } else if (msg.type === "upgrade_building_ack") {
+        if (msg.ok) {
+          if (w.economy) {
+            if (!w.economy.buildings) w.economy.buildings = {};
+            w.economy.buildings[msg.buildingId] = msg.newLevel;
+          }
+          if (w._onBuildingUpgraded) w._onBuildingUpgraded(msg);
+          const bldName = msg.buildingId || "";
+          if (w.store) w.store.set('notification', { text: `🏛️ ${bldName} → المستوى ${msg.newLevel}`, t: Date.now() });
+        } else {
+          if (w.store) w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
+        }
+      } else if (msg.type === "upgrade_research_ack") {
+        if (msg.ok) {
+          if (w.economy) {
+            if (!w.economy.research) w.economy.research = {};
+            w.economy.research[`${msg.categoryId}.${msg.skillId}`] = msg.newLevel;
+          }
+          if (w._onResearchUpgraded) w._onResearchUpgraded(msg);
+          if (w.store) w.store.set('notification', { text: `🧠 ${msg.skillId} → المستوى ${msg.newLevel}`, t: Date.now() });
+        } else {
+          if (w.store) w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
+        }
       }
     }
   }

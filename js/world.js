@@ -10,6 +10,10 @@ import {
 } from "./pathfinding.js";
 import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles } from "./combat/combat-effects.js";
 import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/context-menu.js";
+import { computeWeaponDamage, getWeaponDef } from "./combat/weapon-system.js";
+import { computeKnowledgeBonuses } from "./combat/knowledge-system.js";
+import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.js";
+import { drawWeaponGlow, drawWeaponStarIcons } from "./combat/weapon-visuals.js";
 
 export class WorldMap {
   constructor(economy, username = "بطل الصحراء", apiBase = "", army = null) {
@@ -44,6 +48,10 @@ export class WorldMap {
     this._moveTargetY = null;
     this._pvpParticles = [];
     this._pvpDefeatShown = false;
+    this._equippedWeapon = "";
+    this._weaponStarLevel = 1;
+    this._weaponGemLevel = 1;
+    this._glowTime = 0;
     this._wipeFlag = false;
     this._allianceManager = null;
     this._upgradeTree = null;
@@ -197,14 +205,20 @@ export class WorldMap {
     if (!tgt) return;
 
     const won = iWon !== undefined ? iWon : false;
-    const myPower = this.economy ? this.economy.power : 0;
-    const theirPower = tgt.army_power || 0;
+    const myPower = this.economy ? this.economy.power : 5000;
+    const theirPower = tgt.army_power || 5000;
+    const myMaxHp = this.leader.maxHp || 120;
+    const myCurHp = Math.max(0, this.leader.hp);
+    const theirMaxHp = tgt.maxHp || 120;
+    const theirCurHp = Math.max(0, tgt._hp ?? theirMaxHp);
+
+    const myEffective = Math.floor(myPower * Math.max(0, myCurHp / myMaxHp));
+    const theirEffective = Math.floor(theirPower * Math.max(0, theirCurHp / theirMaxHp));
 
     const myStats = this.computePvPStats();
     const enemyStats = this.estimateEnemyStats(tgt);
     const lootBase = Math.max(10, Math.floor(theirPower * 0.08));
     const lootAmount = Math.min(this.sessionStats.coinsEarned || 0, lootBase);
-    const powerLoss = Math.max(5, Math.floor(theirPower * 0.03));
 
     if (won) {
       let reward = Math.max(10, Math.floor(theirPower * 0.05));
@@ -246,12 +260,15 @@ export class WorldMap {
         this.sessionStats.coinsEarned -= actualLoot;
       }
 
+      const newPower = Math.max(500, Math.floor(myPower * 0.9));
+      if (this.economy) this.economy.power = newPower;
+
       this._pvpDefeatShown = true;
       this._showPvPDefeat(
         tgt.username,
         theirPower,
         actualLoot,
-        powerLoss,
+        Math.floor(myPower * 0.1),
         enemyStats.maxHp,
         enemyStats.damage
       );
@@ -263,12 +280,13 @@ export class WorldMap {
         type: "pvp_result",
         target: tgt.username,
         won,
-        myPower,
+        myPower: myEffective,
         loot: won ? 0 : lootAmount,
         winnerReward: won ? Math.max(10, Math.floor(theirPower * 0.05)) : 0,
       });
     }
 
+    const newArmyPower = this.economy ? Math.max(500, Math.floor((this.economy.power || 5000))) : 5000;
     try {
       fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
         method: "POST",
@@ -281,9 +299,11 @@ export class WorldMap {
           hammers: this.economy?.hammers || 0,
           scrolls: this.economy?.scrolls || 0,
           horns: this.economy?.horns || 0,
-          army_power: this.economy ? this.economy.power : 0,
+          army_power: newArmyPower,
           unitLevel: this.army?.unitLevel || 1,
-          weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel })) || [],
+          weapons: this.army?.weapons?.map(w => ({ id: w.id, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })) || [],
+          buildings: this.economy?.buildings || {},
+          research: this.economy?.research || {},
           last_active: Date.now()
         })
       });
@@ -306,22 +326,31 @@ export class WorldMap {
     const unitLevel = this.army?.unitLevel || 1;
     const trainingLevel = e?.trainingLevel || 1;
     const prestigeLevel = e?.prestigeLevel || 0;
-    const armyPower = e?.power || 0;
+    const armyPower = e?.power || 5000;
+    const armyYardLevel = e?.armyYardLevel || 1;
 
     const baseHP = 120;
     const baseDMG = 12;
 
+    const armyYardHpBonus = armyYardLevel * 6;
     const maxHp = baseHP
       + playerLevel * 2
       + unitLevel * 3
       + trainingLevel * 2
-      + prestigeLevel * 5;
+      + prestigeLevel * 5
+      + armyYardHpBonus;
+
+    const weaponStats = computeWeaponDamage({
+      equippedWeapon: this._equippedWeapon || "",
+      weapons: this.army?.weapons || [],
+    });
 
     let totalDamage = baseDMG
       + Math.floor(armyPower / 10)
       + playerLevel
       + unitLevel * 2
-      + prestigeLevel * 3;
+      + prestigeLevel * 3
+      + weaponStats.weaponDamage;
 
     if (this._upgradeTree) {
       totalDamage += this._upgradeTree.getEffect("army") || 0;
@@ -330,15 +359,27 @@ export class WorldMap {
       totalDamage += this._allianceManager.damageBonus || 0;
     }
 
-    return { maxHp, totalDamage };
+    const knowledgeBonuses = computeKnowledgeBonuses({
+      knowledgeLevel: e?.knowledgeLevel || 1,
+      knowledgeType: e?.knowledgeType || "economic",
+    });
+
+    const defenseBuffPercent = knowledgeBonuses.defensePercent;
+    const moveSpeedBuffPercent = knowledgeBonuses.moveSpeedPercent;
+
+    return { maxHp, totalDamage, weaponStats, defenseBuffPercent, moveSpeedBuffPercent };
   }
 
   estimateEnemyStats(target) {
     const u = target.unitLevel || 1;
-    const ap = target.army_power || 0;
+    const ap = target.army_power || 5000;
+    const maxHp = 120 + u * 3 + Math.floor(ap / 20);
+    const curHp = target._hp ?? target.hp ?? maxHp;
+    const ratio = Math.max(0, Math.min(1, curHp / maxHp));
+    const effectivePower = Math.max(500, Math.floor(ap * ratio));
     return {
-      maxHp: 120 + u * 3 + Math.floor(ap / 20),
-      damage: 12 + Math.floor(ap / 15) + u,
+      maxHp,
+      damage: 12 + Math.floor(effectivePower / 15) + u,
     };
   }
 
@@ -370,18 +411,19 @@ export class WorldMap {
 
   drawOtherPlayers(ctx) {
     for (const [, p] of this.otherPlayers) {
-      const armyCount = Math.min(p.armyAlive || 8, 8);
-      const col = p.color;
+      const armyPower = p.army_power || 0;
+      const armyCount = getVisualTroopCount(armyPower);
 
       for (let i = 0; i < armyCount; i++) {
+        const pos = getTroopFormation(i, armyCount);
         ctx.save();
-        ctx.translate(p.x - 30 - (i % 4) * 18, p.y + 20 + Math.floor(i / 4) * 22);
+        ctx.translate(p.x + pos.ox, p.y + pos.oy);
         ctx.fillStyle = "rgba(0,0,0,0.25)";
         ctx.beginPath();
         ctx.ellipse(0, 5, 6, 2, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.scale(p.facing || 1, 1);
-        this._drawSprite(ctx, "soldier-enemy", col + "99", 8);
+        this._drawSprite(ctx, "soldier-enemy", p.color + "99", 8);
         ctx.restore();
       }
 
@@ -392,7 +434,7 @@ export class WorldMap {
       ctx.ellipse(0, p.radius * 0.5, p.radius * 0.7, 3, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.scale(p.facing || 1, 1);
-      this._drawSprite(ctx, "leader-enemy", col, p.radius);
+      this._drawSprite(ctx, "leader-enemy", p.color, p.radius);
       ctx.restore();
 
       ctx.save();
@@ -403,7 +445,6 @@ export class WorldMap {
       ctx.fillText(p.username, 0, -p.radius - 10);
       ctx.restore();
 
-      // ── HP bar for other player (synced from server) ──
       const hp = p.hp ?? p._hp ?? 120;
       const maxHp = p.maxHp ?? 120;
       const hpRatio = Math.max(0, Math.min(1, hp / maxHp));
@@ -415,6 +456,25 @@ export class WorldMap {
       ctx.fillStyle = hpRatio > 0.5 ? "#4cd964" : hpRatio > 0.25 ? "#ffaa00" : "#ff4444";
       ctx.fillRect(-barW / 2, 0, barW * hpRatio, 4);
       ctx.restore();
+
+      const effective = Math.floor((p.army_power || 0) * Math.max(0, Math.min(1, hp / maxHp)));
+      ctx.save();
+      ctx.translate(p.x, p.y - p.radius - 32);
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fillRect(-28, 0, 56, 10);
+      ctx.fillStyle = "#ffcc00";
+      ctx.font = "bold 8px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(effective.toLocaleString(), 0, 8);
+      ctx.restore();
+
+      const wStar = p.weaponStarLevel || 1;
+      if (wStar >= 2) {
+        drawWeaponGlow(ctx, p.x, p.y, wStar, p.radius, this._glowTime || 0);
+      }
+      if (wStar >= 1) {
+        drawWeaponStarIcons(ctx, p.x, p.y - p.radius - 44, wStar, 8);
+      }
     }
   }
 
@@ -863,6 +923,7 @@ export class WorldMap {
   }
 
   update(dt, ctx, cam) {
+    this._glowTime = (this._glowTime || 0) + dt;
     this.updateLeader(dt);
     this.updateArmy(dt);
     this.updateMonstersAI(dt);
@@ -1054,6 +1115,11 @@ export class WorldMap {
       dmgBonus += this._upgradeTree.getEffect("army");
       defBonus += this._upgradeTree.getEffect("defense");
     }
+    const knowBonuses = computeKnowledgeBonuses({
+      knowledgeLevel: this.economy?.knowledgeLevel || 1,
+      knowledgeType: this.economy?.knowledgeType || "economic",
+    });
+    defBonus += knowBonuses.defensePercent;
     this.leader.upgradeDmg = dmgBonus;
     this.leader.upgradeDef = defBonus;
     for (const u of this.armyUnits) {
@@ -1325,7 +1391,9 @@ export class WorldMap {
             horns: this.economy.horns,
             army_power: this.economy.power,
             unitLevel: this.army?.unitLevel || 1,
-            weapons: this.army?.weapons?.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel })) || [],
+            weapons: this.army?.weapons?.map(w => ({ id: w.id, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })) || [],
+            buildings: this.economy?.buildings || {},
+            research: this.economy?.research || {},
             last_active: Date.now()
           })
         }).catch(() => {});
@@ -1371,6 +1439,11 @@ export class WorldMap {
     ctx.ellipse(0, l.radius * 0.6, l.radius * 0.8, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    // Glow للسلاح إذا كان 2★+
+    if (this._weaponStarLevel >= 2) {
+      drawWeaponGlow(ctx, 0, 0, this._weaponStarLevel, l.radius, this._glowTime || 0);
+    }
+
     // قلب الاتجاه حسب الجهة
     ctx.scale(l.facing || 1, 1);
     this._drawSprite(ctx, "leader-player", "#2c1810", l.radius);
@@ -1387,6 +1460,10 @@ export class WorldMap {
     ctx.fillRect(-l.radius, -l.radius - 18, l.radius * 2 * hp, 4);
 
     ctx.restore();
+
+    if (this._weaponStarLevel >= 1) {
+      drawWeaponStarIcons(ctx, l.x, l.y - l.radius - 28, this._weaponStarLevel, 8);
+    }
   }
 
   drawArmy(ctx) {

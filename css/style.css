@@ -1334,6 +1334,18 @@ body.modal-open { overflow: hidden; }
   display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--panel-border);
 }
+.world-action-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(28,16,8,0.85);
+  color: var(--gold);
+  font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255,215,0,0.2);
+  cursor: pointer;
+  transition: transform 0.12s, background 0.15s;
+}
+.world-action-btn:active { transform: scale(0.88); background: rgba(255,215,0,0.15); }
 .recenter-btn {
   position: fixed;
   bottom: calc(80px + var(--safe-b));
@@ -3111,3 +3123,95 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   color: #2a1810;
 }
 .price-tag { font-size: 0.7rem; white-space: nowrap; }
+
+/* ===== World Upgrades UI (Weapon / Buildings / Research) ===== */
+.wu-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px;
+  backdrop-filter: blur(2px);
+}
+.wu-overlay.hidden { display: none; }
+.wu-card {
+  background: linear-gradient(180deg, #2c1a0a, #1a0e06);
+  border: 1px solid rgba(255,215,0,0.2);
+  border-radius: 22px;
+  max-width: 380px; width: 100%;
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  padding: 0;
+  direction: rtl;
+}
+.wu-body {
+  padding: 16px;
+}
+.wu-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.wu-title { font-size: 1.1rem; font-weight: 800; color: var(--gold); }
+.wu-btn-close {
+  background: none; border: 0; color: #999; font-size: 1.2rem;
+  cursor: pointer; font-family: inherit; padding: 4px 8px;
+}
+.wu-btn-close:hover { color: #fff; }
+.wu-btn-bottom {
+  display: block; width: 100%; margin-top: 10px;
+  text-align: center; color: var(--sand); font-size: 0.85rem;
+  border-top: 1px solid rgba(255,215,0,0.1); padding-top: 12px;
+}
+.wu-section { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,215,0,0.08); }
+.wu-subtitle { font-size: 0.85rem; font-weight: 700; color: var(--sand-light); margin-bottom: 8px; }
+.wu-loading, .wu-error { text-align: center; color: var(--sand); padding: 30px 0; font-size: 0.9rem; }
+.wu-error { color: #e74c3c; }
+
+/* Weapon panel */
+.wu-weapon-name { font-size: 1rem; font-weight: 700; color: #fff; text-align: center; margin: 4px 0; }
+.wu-stars { text-align: center; font-size: 1.4rem; color: var(--gold); letter-spacing: 2px; margin: 2px 0; }
+.wu-levels { text-align: center; font-size: 0.8rem; color: var(--sand); margin: 2px 0 8px; }
+.wu-stats { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 8px 0; }
+.wu-stats span {
+  background: rgba(255,215,0,0.08); padding: 4px 10px; border-radius: 8px;
+  font-size: 0.75rem; color: var(--sand-light);
+}
+.wu-dim { font-size: 0.75rem; color: #666; text-align: center; padding: 6px; }
+.wu-cost-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0; }
+.wu-cost { background: rgba(255,215,0,0.06); padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; color: var(--sand-light); }
+.wu-cost-icon { margin-left: 2px; }
+.wu-btn-upgrade {
+  display: block; width: 100%; padding: 10px;
+  background: linear-gradient(135deg, #f5d76e, #e67e22);
+  border: 0; border-radius: 999px; font-weight: 800; font-size: 0.82rem;
+  color: #1a0e06; cursor: pointer; font-family: inherit;
+  transition: transform 0.12s; margin: 4px 0;
+}
+.wu-btn-upgrade:active { transform: scale(0.96); }
+.wu-btn-upgrade.wu-btn-disabled, .wu-btn-upgrade:disabled {
+  background: #3a3a3a; color: #777; cursor: default; transform: none !important;
+}
+
+/* Building cards */
+.wu-building-card {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,215,0,0.08);
+  border-radius: 14px; padding: 12px; margin-bottom: 10px;
+}
+.wu-bd-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.wu-bd-icon { font-size: 1.2rem; }
+.wu-bd-name { font-weight: 700; font-size: 0.85rem; color: #fff; flex: 1; }
+.wu-bd-level { font-size: 0.7rem; color: var(--gold); }
+.wu-bd-desc { font-size: 0.72rem; color: var(--sand); margin-bottom: 6px; }
+.wu-palace-info { text-align: center; font-size: 0.78rem; color: var(--sand-light); padding: 6px; background: rgba(255,215,0,0.04); border-radius: 10px; }
+
+/* Research panel */
+.wu-category { margin-bottom: 14px; }
+.wu-cat-title { font-size: 0.9rem; font-weight: 700; color: var(--gold); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,215,0,0.1); }
+.wu-skill-card {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,215,0,0.06);
+  border-radius: 12px; padding: 10px; margin-bottom: 8px;
+}
+.wu-sk-header { display: flex; align-items: center; gap: 6px; }
+.wu-sk-name { font-weight: 700; font-size: 0.82rem; color: #fff; flex: 1; }
+.wu-sk-level { font-size: 0.7rem; color: var(--gold); }
+.wu-sk-desc { font-size: 0.7rem; color: var(--sand); margin: 4px 0 6px; }
+.wu-academy-info { text-align: center; font-size: 0.78rem; color: var(--sand-light); padding: 6px; background: rgba(255,215,0,0.04); border-radius: 10px; }

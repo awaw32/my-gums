@@ -55,7 +55,42 @@ const {
 // ═══════════════════════════════════════════════════════════════════
 //  Combat Formulas
 // ═══════════════════════════════════════════════════════════════════
-const { computePlayerStats } = require("./server/logic/formulas");
+const {
+  computePlayerStats,
+  computeArmyYardStats,
+  computeKnowledgeBonuses,
+  getWeaponDef,
+} = require("./server/logic/formulas");
+
+// ═══════════════════════════════════════════════════════════════════
+//  Rewards Box Engine
+// ═══════════════════════════════════════════════════════════════════
+const { claimReward, canClaimReward } = require("./server/logic/rewards");
+
+// ═══════════════════════════════════════════════════════════════════
+//  Weapon Upgrade — 5 Stars × 8 Gems
+// ═══════════════════════════════════════════════════════════════════
+const {
+  canUpgradeGem, canUpgradeStar,
+  applyGemUpgrade, applyStarUpgrade,
+  computeWeaponDamageWithUpgrades,
+} = require("./server/logic/weaponUpgrade");
+
+// ═══════════════════════════════════════════════════════════════════
+//  Buildings — Interconnected Building System
+// ═══════════════════════════════════════════════════════════════════
+const {
+  canUpgradeBuilding, applyBuildingUpgrade,
+  BUILDING_DEFS, getBuildingEffects,
+} = require("./server/db/buildings");
+
+// ═══════════════════════════════════════════════════════════════════
+//  Research — Research Tree
+// ═══════════════════════════════════════════════════════════════════
+const {
+  canUpgradeResearch, applyResearchUpgrade,
+  getResearchEffects,
+} = require("./server/db/research");
 
 const WORLD_W = 3200;
 const WORLD_H = 3200;
@@ -154,6 +189,12 @@ function broadcastWorld(excludeWs = null) {
       maxHp: c.maxHp ?? 120,
       br_hp: c.br_hp ?? 120,
       br_alive: c.br_alive ?? true,
+      armyYardLevel: c.armyYardLevel || 1,
+      knowledgeLevel: c.knowledgeLevel || 1,
+      knowledgeType: c.knowledgeType || "economic",
+      equippedWeapon: c.equippedWeapon || "",
+      weaponStarLevel: c.weaponStarLevel || 1,
+      weaponGemLevel: c.weaponGemLevel || 1,
       last_active: Date.now()
     });
   });
@@ -191,7 +232,7 @@ wss.on("connection", (ws, req) => {
           ws, username, color,
           x: msg.x_position || 1200,
           y: msg.y_position || 1200,
-          army_power: msg.army_power || 0,
+          army_power: msg.army_power || 5000,
           kills: msg.kills || 0,
           coinsEarned: msg.coinsEarned || 0,
           unitLevel: msg.unitLevel || 1,
@@ -201,8 +242,17 @@ wss.on("connection", (ws, req) => {
           level: msg.level || 1,
           trainingLevel: msg.trainingLevel || 1,
           prestigeLevel: msg.prestigeLevel || 0,
+          armyYardLevel: msg.armyYardLevel || 1,
+          knowledgeLevel: msg.knowledgeLevel || 1,
+          knowledgeType: msg.knowledgeType || "economic",
+          equippedWeapon: msg.equippedWeapon || "",
+          weapons: msg.weapons || [],
+          weaponStarLevel: msg.weaponStarLevel || 1,
+          weaponGemLevel: msg.weaponGemLevel || 1,
           br_hp: msg.br_hp ?? 120,
           br_alive: msg.br_alive ?? true,
+          buildings: msg.buildings || {},
+          research: msg.research || {},
         });
         // أرسل قائمة الوحوش للاعب الجديد
         ws.send(JSON.stringify({ type: "world_monsters", list: worldMonsters }));
@@ -228,6 +278,10 @@ wss.on("connection", (ws, req) => {
           if (msg.level !== undefined) c.level = msg.level;
           if (msg.br_hp !== undefined) c.br_hp = msg.br_hp;
           if (msg.br_alive !== undefined) c.br_alive = msg.br_alive;
+          if (msg.armyYardLevel !== undefined) c.armyYardLevel = msg.armyYardLevel;
+          if (msg.knowledgeLevel !== undefined) c.knowledgeLevel = msg.knowledgeLevel;
+          if (msg.knowledgeType !== undefined) c.knowledgeType = msg.knowledgeType;
+          if (msg.equippedWeapon !== undefined) c.equippedWeapon = msg.equippedWeapon;
           broadcastWorld(ws);
         }
       } else if (msg.type === "monster_killed" && username) {
@@ -265,8 +319,12 @@ wss.on("connection", (ws, req) => {
         }
         // if winner gets loot, the target's session coins are lost
         if (!won && loot > 0 && tc) {
-          // server-side tally (for future DB persistence)
           tc.sessionCoins = Math.max(0, (tc.sessionCoins || 0) - loot);
+        }
+        // if attacker won, broadcast player_despawn for the target
+        if (won) {
+          const despawnMsg = JSON.stringify({ type: "player_despawn", username: targetName });
+          worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(despawnMsg); });
         }
         // broadcast PvP notification
         const pvpMsg = JSON.stringify({
@@ -295,6 +353,141 @@ wss.on("connection", (ws, req) => {
       } else if (msg.type === "br_match_end" && username) {
         const endMsg = JSON.stringify({ type: "br_match_end", winner: msg.winner, kills: msg.kills });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(endMsg); });
+      } else if (msg.type === "equip_weapon" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const weaponId = msg.weaponId || "";
+          c.equippedWeapon = weaponId;
+          const reply = JSON.stringify({ type: "equip_weapon_ack", weaponId });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+          broadcastWorld(ws);
+        }
+      } else if (msg.type === "upgrade_army_yard" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          c.armyYardLevel = (c.armyYardLevel || 1) + 1;
+          const stats = computeArmyYardStats(c.armyYardLevel);
+          const reply = JSON.stringify({
+            type: "upgrade_army_yard_ack",
+            armyYardLevel: c.armyYardLevel,
+            maxTroops: stats.maxTroops,
+            hpBonus: stats.hpBonus,
+          });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+          broadcastWorld(ws);
+        }
+      } else if (msg.type === "upgrade_knowledge" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          c.knowledgeLevel = (c.knowledgeLevel || 1) + 1;
+          if (msg.knowledgeType) c.knowledgeType = msg.knowledgeType;
+          const bonuses = computeKnowledgeBonuses({ knowledgeLevel: c.knowledgeLevel, knowledgeType: c.knowledgeType });
+          const reply = JSON.stringify({
+            type: "upgrade_knowledge_ack",
+            knowledgeLevel: c.knowledgeLevel,
+            knowledgeType: c.knowledgeType,
+            ...bonuses,
+          });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+          broadcastWorld(ws);
+        }
+      } else if (msg.type === "claim_gift" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const playerData = memStore.get(username) || getDefaultPlayer(username);
+          const result = claimReward(playerData);
+          memStore.set(username, playerData);
+          if (result.claimed) {
+            c.cash = (c.cash || 0) + result.reward.gold;
+            c.gems = (c.gems || 0) + result.reward.gems;
+            c.gold = (c.gold || 0) + result.reward.gold;
+          }
+          const reply = JSON.stringify({ type: "claim_gift_ack", ...result });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+        }
+      } else if (msg.type === "upgrade_weapon_gem" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const playerData = memStore.get(username) || getDefaultPlayer(username);
+          const weaponId = msg.weaponId || c.equippedWeapon || "";
+          if (!weaponId) {
+            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "upgrade_weapon_ack", ok: false, reason: "اختر سلاحاً أولاً" }));
+            return;
+          }
+          const result = applyGemUpgrade(playerData, weaponId);
+          memStore.set(username, playerData);
+          if (result.ok) {
+            c.weaponStarLevel = result.starLevel;
+            c.weaponGemLevel = result.gemLevel;
+          }
+          const stats = computeWeaponDamageWithUpgrades(playerData);
+          const reply = JSON.stringify({ type: "upgrade_weapon_ack", ...result, ...stats });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+        }
+      } else if (msg.type === "upgrade_weapon_star" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const playerData = memStore.get(username) || getDefaultPlayer(username);
+          const weaponId = msg.weaponId || c.equippedWeapon || "";
+          if (!weaponId) {
+            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "upgrade_weapon_ack", ok: false, reason: "اختر سلاحاً أولاً" }));
+            return;
+          }
+          const result = applyStarUpgrade(playerData, weaponId);
+          memStore.set(username, playerData);
+          if (result.ok) {
+            c.weaponStarLevel = result.starLevel;
+            c.weaponGemLevel = result.gemLevel;
+            const glowMsg = JSON.stringify({
+              type: "weapon_glow",
+              username,
+              weaponId,
+              starLevel: result.starLevel,
+              color: "#FFD700"
+            });
+            worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(glowMsg); });
+          }
+          const stats = computeWeaponDamageWithUpgrades(playerData);
+          const reply = JSON.stringify({ type: "upgrade_weapon_ack", ...result, ...stats });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+        }
+      } else if (msg.type === "upgrade_building" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const buildingId = msg.buildingId;
+          if (!buildingId || !BUILDING_DEFS[buildingId]) {
+            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "upgrade_building_ack", ok: false, reason: "مبنى غير معروف" }));
+            return;
+          }
+          const playerData = memStore.get(username) || getDefaultPlayer(username);
+          const result = applyBuildingUpgrade(playerData, buildingId);
+          memStore.set(username, playerData);
+          if (result.ok && c) {
+            if (!c.buildings) c.buildings = {};
+            c.buildings[buildingId] = result.newLevel;
+          }
+          const reply = JSON.stringify({ type: "upgrade_building_ack", ...result });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+        }
+      } else if (msg.type === "upgrade_research" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const categoryId = msg.categoryId;
+          const skillId = msg.skillId;
+          if (!categoryId || !skillId) {
+            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "upgrade_research_ack", ok: false, reason: "بيانات البحث ناقصة" }));
+            return;
+          }
+          const playerData = memStore.get(username) || getDefaultPlayer(username);
+          const result = applyResearchUpgrade(playerData, categoryId, skillId);
+          memStore.set(username, playerData);
+          if (result.ok && c) {
+            if (!c.research) c.research = {};
+            c.research[`${categoryId}.${skillId}`] = result.newLevel;
+          }
+          const reply = JSON.stringify({ type: "upgrade_research_ack", ...result });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+        }
       }
     });
 
@@ -329,6 +522,12 @@ wss.on("connection", (ws, req) => {
         maxHp: c.maxHp ?? 120,
         br_hp: c.br_hp ?? 120,
         br_alive: c.br_alive ?? true,
+        armyYardLevel: c.armyYardLevel || 1,
+        knowledgeLevel: c.knowledgeLevel || 1,
+        knowledgeType: c.knowledgeType || "economic",
+        equippedWeapon: c.equippedWeapon || "",
+        weaponStarLevel: c.weaponStarLevel || 1,
+        weaponGemLevel: c.weaponGemLevel || 1,
         last_active: Date.now()
       });
     });
@@ -593,15 +792,35 @@ server.on("request", async (req, res) => {
 
     if (req.method === "GET") {
       if (!mongoConnected) {
-        const data = memStore.get(username) || getDefaultPlayer(username);
+        let data = memStore.get(username) || getDefaultPlayer(username);
+        // ترحيل السلاح القديم: لو level موجود و starLevel/ gemLevel مش موجودين
+        if (data.weapons) {
+          data.weapons = data.weapons.map(w => ({
+            id: w.id,
+            starLevel: w.starLevel || 1,
+            gemLevel: w.gemLevel || 1,
+            level: w.level || 0,
+            upgradeLevel: w.upgradeLevel || 0,
+          }));
+        }
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(data));
         return;
       }
       try {
-        const data = await Player.findOne({ username }).lean();
+        let data = await Player.findOne({ username }).lean();
+        if (!data) data = getDefaultPlayer(username);
+        if (data.weapons) {
+          data.weapons = data.weapons.map(w => ({
+            id: w.id,
+            starLevel: w.starLevel || 1,
+            gemLevel: w.gemLevel || 1,
+            level: w.level || 0,
+            upgradeLevel: w.upgradeLevel || 0,
+          }));
+        }
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(data || getDefaultPlayer(username)));
+        res.end(JSON.stringify(data));
       } catch (err) {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: err.message }));
@@ -669,6 +888,87 @@ server.on("request", async (req, res) => {
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: err.message }));
     }
+    return;
+  }
+
+  // ── API: POST /api/upgrades/:username ──────────────────────────
+  const upgradeMatch = req.url.match(/^\/api\/upgrades\/([a-zA-Z0-9_\-\.%\u0600-\u06FF]+)$/);
+  if (upgradeMatch && req.method === "POST") {
+    const uname = decodeURIComponent(upgradeMatch[1]);
+    let body = "";
+    req.on("data", chunk => { body += chunk; });
+    req.on("end", async () => {
+      try {
+        const data = JSON.parse(body);
+        const existing = memStore.get(uname) || getDefaultPlayer(uname);
+        const updated = { ...existing };
+        if (data.armyYardLevel !== undefined) updated.armyYardLevel = data.armyYardLevel;
+        if (data.knowledgeLevel !== undefined) updated.knowledgeLevel = data.knowledgeLevel;
+        if (data.knowledgeType !== undefined) updated.knowledgeType = data.knowledgeType;
+        if (data.equippedWeapon !== undefined) updated.equippedWeapon = data.equippedWeapon;
+        if (data.weapons !== undefined) updated.weapons = data.weapons;
+        memStore.set(uname, updated);
+        if (mongoConnected) {
+          await Player.updateOne({ username: uname }, { $set: updated }, { upsert: true });
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "invalid json" }));
+      }
+    });
+    return;
+  }
+
+  // ── API: GET /api/rewards/status/:username ──────────────────────
+  const rewardStatusMatch = req.url.match(/^\/api\/rewards\/status\/([a-zA-Z0-9_\-\.%\u0600-\u06FF]+)$/);
+  if (rewardStatusMatch && req.method === "GET") {
+    const uname = decodeURIComponent(rewardStatusMatch[1]);
+    const playerData = memStore.get(uname) || getDefaultPlayer(uname);
+    const { canClaimReward } = require("./server/logic/rewards");
+    const canClaim = canClaimReward(playerData);
+    const remainingMs = canClaim ? 0 : (4 * 60 * 60 * 1000) - (Date.now() - (playerData.lastGiftClaimedTimestamp || 0));
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ canClaim, remainingMs }));
+    return;
+  }
+
+  // ── API: POST /api/rewards/claim/:username ──────────────────────
+  const rewardClaimMatch = req.url.match(/^\/api\/rewards\/claim\/([a-zA-Z0-9_\-\.%\u0600-\u06FF]+)$/);
+  if (rewardClaimMatch && req.method === "POST") {
+    const uname = decodeURIComponent(rewardClaimMatch[1]);
+    const playerData = memStore.get(uname) || getDefaultPlayer(uname);
+    const result = claimReward(playerData);
+    memStore.set(uname, playerData);
+    if (result.claimed && mongoConnected) {
+      await Player.updateOne({ username: uname }, { $set: playerData }, { upsert: true });
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  // ── API: GET /api/buildings — building definitions ──────────────
+  if (req.url === "/api/buildings" && req.method === "GET") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(BUILDING_DEFS));
+    return;
+  }
+
+  // ── API: GET /api/research — research tree definitions ──────────
+  if (req.url === "/api/research" && req.method === "GET") {
+    const { RESEARCH_DEFS } = require("./server/db/research");
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(RESEARCH_DEFS));
+    return;
+  }
+
+  // ── API: GET /api/weapons/defs — weapon definitions ─────────────
+  if (req.url === "/api/weapons/defs" && req.method === "GET") {
+    const { WEAPON_DEFS } = require("./server/db/databaseHelper");
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(WEAPON_DEFS));
     return;
   }
 

@@ -1,7 +1,12 @@
 "use strict";
 
+const { computePlayerStats, computeEffectivePower } = require("./formulas");
+
 function createCombatLoop(deps) {
   const { rooms, broadcast, WORLD_W, TICK_MS, worldMonsters, worldClients, MONSTER_TYPES, SAFE_ZONE, WORLD_W2, WORLD_H2 } = deps;
+
+  const PVP_ENGAGEMENT_RADIUS = 80;
+  const PVP_TICK_MS = 300;
 
   function gameTick() {
     rooms.forEach((room, roomCode) => {
@@ -37,6 +42,35 @@ function createCombatLoop(deps) {
     });
   }
 
+  function pvpTick() {
+    const clients = Array.from(worldClients.entries());
+    const dead = [];
+    for (let i = 0; i < clients.length; i++) {
+      const [nameA, a] = clients[i];
+      if (!a || a.hp <= 0) continue;
+      for (let j = i + 1; j < clients.length; j++) {
+        const [nameB, b] = clients[j];
+        if (!b || b.hp <= 0) continue;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > PVP_ENGAGEMENT_RADIUS) continue;
+        const aStats = computePlayerStats(a);
+        const bStats = computePlayerStats(b);
+        const aDmg = Math.max(1, Math.floor(aStats.totalDamage * 0.6));
+        const bDmg = Math.max(1, Math.floor(bStats.totalDamage * 0.6));
+        a.hp -= bDmg;
+        b.hp -= aDmg;
+        if (a.hp <= 0) { a.hp = 0; dead.push(nameA); }
+        if (b.hp <= 0) { b.hp = 0; dead.push(nameB); }
+      }
+    }
+    for (const name of dead) {
+      const msg = JSON.stringify({ type: "player_despawn", username: name });
+      worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
+    }
+  }
+
   function initWorldMonsters() {
     if (worldMonsters.length > 0) return;
     for (let i = 0; i < 12; i++) {
@@ -55,6 +89,7 @@ function createCombatLoop(deps) {
   }
 
   const tickInterval = setInterval(gameTick, TICK_MS);
+  const pvpCombatInterval = setInterval(pvpTick, PVP_TICK_MS);
 
   const monsterInterval = setInterval(() => {
     let changed = false;
@@ -90,6 +125,7 @@ function createCombatLoop(deps) {
   return {
     tickInterval,
     monsterInterval,
+    pvpCombatInterval,
     initWorldMonsters,
     gameTick,
   };

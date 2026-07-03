@@ -15,37 +15,51 @@ if (!MONGO_URL) {
   mongoose.connection.on("disconnected", () => { mongoConnected = false; });
 }
 
+const WEAPON_DEFS = [
+  { id: "bedouin_sword",  name: "سيف بدوي",       baseDamage: 4,  damagePerLevel: 3,  range: "melee",  critChance: 0.05, critMultiplier: 1.5 },
+  { id: "long_bow",       name: "قوس طويل",       baseDamage: 3,  damagePerLevel: 2,  range: "ranged", critChance: 0.08, critMultiplier: 1.8 },
+  { id: "iron_spear",     name: "رمح حديدي",      baseDamage: 5,  damagePerLevel: 4,  range: "melee",  critChance: 0.12, critMultiplier: 2.0 },
+  { id: "damascus_sword", name: "سيف دمشقي",      baseDamage: 7,  damagePerLevel: 5,  range: "melee",  critChance: 0.15, critMultiplier: 2.5 },
+];
+
 const playerSchema = new mongoose.Schema({
-  username:      { type: String, required: true, unique: true, index: true },
-  cash:          { type: Number, default: 0 },
-  gems:          { type: Number, default: 0 },
-  gold:          { type: Number, default: 0 },
-  kingCoins:     { type: Number, default: 0 },
-  hammers:       { type: Number, default: 0 },
-  scrolls:       { type: Number, default: 0 },
-  horns:         { type: Number, default: 0 },
-  food:          { type: Number, default: 50 },
-  army_power:    { type: Number, default: 0 },
-  x_position:    { type: Number, default: 1200 },
-  y_position:    { type: Number, default: 1200 },
-  last_active:   { type: Number, default: 0 },
-  unitLevel:     { type: Number, default: 1 },
-  trainingLevel: { type: Number, default: 1 },
-  weapons:       { type: Array, default: [] },
-  landsState:    { type: Object, default: {} },
-  xp:           { type: Number, default: 0 },
-  level:        { type: Number, default: 1 },
-  allianceLevel: { type: Number, default: 0 },
-  upgrades:     { type: Object, default: {} },
-  oases:        { type: Array, default: [] },
-  prestigeLevel: { type: Number, default: 0 },
-  achievements: { type: Array, default: [] },
-  dailyLogin:   { type: Object, default: {} },
-  inventory:    { type: Object, default: {} },
-  events:       { type: Array, default: [] },
-  tutorial:     { type: Object, default: {} },
-  brWins:       { type: Number, default: 0 },
-  brKills:      { type: Number, default: 0 },
+  username:       { type: String, required: true, unique: true, index: true },
+  cash:           { type: Number, default: 0 },
+  gems:           { type: Number, default: 0 },
+  gold:           { type: Number, default: 0 },
+  kingCoins:      { type: Number, default: 0 },
+  hammers:        { type: Number, default: 0 },
+  scrolls:        { type: Number, default: 0 },
+  horns:          { type: Number, default: 0 },
+  food:           { type: Number, default: 50 },
+  army_power:     { type: Number, default: 5000 },
+  x_position:     { type: Number, default: 1200 },
+  y_position:     { type: Number, default: 1200 },
+  last_active:    { type: Number, default: 0 },
+  unitLevel:      { type: Number, default: 1 },
+  trainingLevel:  { type: Number, default: 1 },
+  weapons:        { type: Array, default: [] },
+  equippedWeapon: { type: String, default: "" },
+  armyYardLevel:  { type: Number, default: 1 },
+  knowledgeLevel: { type: Number, default: 1 },
+  knowledgeType:  { type: String, default: "economic" },
+  lastGiftClaimedTimestamp: { type: Number, default: 0 },
+  landsState:     { type: Object, default: {} },
+  xp:            { type: Number, default: 0 },
+  level:         { type: Number, default: 1 },
+  allianceLevel:  { type: Number, default: 0 },
+  upgrades:      { type: Object, default: {} },
+  oases:         { type: Array, default: [] },
+  prestigeLevel:  { type: Number, default: 0 },
+  achievements:  { type: Array, default: [] },
+  dailyLogin:    { type: Object, default: {} },
+  inventory:     { type: Object, default: {} },
+  events:        { type: Array, default: [] },
+  tutorial:      { type: Object, default: {} },
+  brWins:        { type: Number, default: 0 },
+  brKills:       { type: Number, default: 0 },
+  buildings:     { type: Object, default: {} },
+  research:      { type: Object, default: {} },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);
@@ -55,9 +69,21 @@ const memStore = new Map();
 function getDefaultPlayer(username) {
   return {
     username, cash: 0, gems: 0, gold: 0, kingCoins: 0,
-    hammers: 0, scrolls: 0, horns: 0, army_power: 0,
-    x_position: 1200, y_position: 1200, last_active: 0, unitLevel: 1, weapons: []
+    hammers: 0, scrolls: 0, horns: 0, army_power: 5000,
+    x_position: 1200, y_position: 1200, last_active: 0,
+    unitLevel: 1, weapons: [], equippedWeapon: "",
+    armyYardLevel: 1, knowledgeLevel: 1, knowledgeType: "economic",
+    lastGiftClaimedTimestamp: 0,
+    buildings: {},
+    research: {},
   };
+}
+
+function ensureMinPower(playerData) {
+  if (!playerData.army_power || playerData.army_power < 5000) {
+    playerData.army_power = 5000;
+  }
+  return playerData;
 }
 
 async function savePlayer(username, data) {
@@ -74,13 +100,13 @@ async function savePlayer(username, data) {
 
 async function loadPlayer(username) {
   if (!mongoConnected) {
-    return memStore.get(username) || getDefaultPlayer(username);
+    return ensureMinPower(memStore.get(username) || getDefaultPlayer(username));
   }
   try {
     const data = await Player.findOne({ username }).lean();
-    return data || getDefaultPlayer(username);
+    return ensureMinPower(data || getDefaultPlayer(username));
   } catch {
-    return memStore.get(username) || getDefaultPlayer(username);
+    return ensureMinPower(memStore.get(username) || getDefaultPlayer(username));
   }
 }
 
@@ -119,4 +145,6 @@ module.exports = {
   loadPlayer,
   listPlayers,
   getLeaderboard,
+  WEAPON_DEFS,
+  ensureMinPower,
 };
