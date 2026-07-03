@@ -248,6 +248,7 @@ export class GameUI {
       goldDisplay: document.getElementById("gold-display"),
       foodDisplay: document.getElementById("food-display"),
       powerDisplay: document.getElementById("power-display"),
+      gemsDisplay: document.getElementById("gems-display"),
       levelLabel: document.getElementById("level-label"),
       levelFill: document.getElementById("level-fill"),
       levelAmount: document.getElementById("level-amount"),
@@ -973,6 +974,9 @@ export class GameUI {
     }
     if (this.els.powerDisplay) {
       this.els.powerDisplay.textContent = formatNumber(eco.power);
+    }
+    if (this.els.gemsDisplay) {
+      this.els.gemsDisplay.textContent = formatNumber(eco.gems || 0);
     }
     if (this.els.levelLabel) {
       this.els.levelLabel.textContent = `Lv.${eco.level}`;

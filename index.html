@@ -114,11 +114,13 @@
           <span class="res-icon">👊</span>
           <span class="res-val" id="power-display">0</span>
         </div>
+        <div class="top-res gems-res" id="top-gems">
+          <span class="res-icon" style="color:#9b59b6">💎</span>
+          <span class="res-val" id="gems-display">0</span>
+        </div>
       </div>
       <!-- الجهة اليسرى: أزرار التحكم بالواجهة -->
       <div class="top-multiplier-section">
-        <button id="fullscreen-btn" class="panel-toggle-btn" type="button" title="ملء الشاشة" style="font-size:1.1rem">⛶</button>
-        <button id="ui-toggle-btn" class="panel-toggle-btn" type="button" title="إخفاء/إظهار الواجهة" style="margin-left:2px">👁️</button>
         <button id="panel-toggle" class="panel-toggle-btn" type="button" title="القائمة">☰</button>
       </div>
     </header>
@@ -178,6 +180,10 @@
         <button class="circular-sub-btn" type="button" id="mute-btn">
           <span class="csb-icon" id="mute-icon">🔊</span>
           <span class="csb-label" id="mute-label">كتم الصوت</span>
+        </button>
+        <button class="circular-sub-btn" type="button" id="fullscreen-btn">
+          <span class="csb-icon">⛶</span>
+          <span class="csb-label">تكبير الشاشة</span>
         </button>
       </div>
       <!-- شريط الترقية السريع -->
@@ -446,30 +452,51 @@
 <script src="config/images.js?v=20260703"></script>
 <script type="module" src="js/main.js?v=20260703"></script>
   <script>
-    // Fullscreen toggle for mobile
-    document.getElementById('fullscreen-btn')?.addEventListener('click', function() {
-      const el = document.documentElement;
-      if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
-        const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-        if (req) { req.call(el); this.textContent = '⛶'; }
-        else if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); }
+    // Fullscreen toggle
+    document.getElementById('fullscreen-btn')?.addEventListener('click', async function() {
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      if (!isFull) {
+        try {
+          const el = document.documentElement;
+          const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+          if (req) await req.call(el);
+        } catch(e) {
+          // iOS doesn't support fullscreen — try scroll-to-top workaround
+          if (!document.fullscreenEnabled) {
+            document.documentElement.style.position = 'fixed';
+            document.documentElement.style.top = '0';
+            document.documentElement.style.left = '0';
+            document.documentElement.style.width = '100%';
+            document.documentElement.style.height = '100%';
+            document.documentElement.style.zIndex = '9999';
+          }
+        }
       } else {
         const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
         if (exit) exit.call(document);
+        document.documentElement.style.position = '';
+        document.documentElement.style.top = '';
+        document.documentElement.style.left = '';
+        document.documentElement.style.width = '';
+        document.documentElement.style.height = '';
+        document.documentElement.style.zIndex = '';
       }
     });
     document.addEventListener('fullscreenchange webkitfullscreenchange', function() {
-      const btn = document.getElementById('fullscreen-btn');
-      if (!btn) return;
+      const icon = document.querySelector('#fullscreen-btn .csb-icon');
+      const label = document.querySelector('#fullscreen-btn .csb-label');
+      if (!icon) return;
       const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      btn.textContent = isFull ? '⛶' : '⛶';
-      btn.style.color = isFull ? 'var(--accent-red)' : '';
+      icon.textContent = isFull ? '⛶' : '⛶';
+      if (label) label.textContent = isFull ? 'تصغير' : 'تكبير الشاشة';
     });
     // Fix iOS viewport height on resize
-    function setVH() { document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px'); }
-    setVH();
-    window.addEventListener('resize', setVH);
-    window.addEventListener('orientationchange', function() { setTimeout(setVH, 100); });
+    (function(){
+      function setVH() { document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px'); }
+      setVH();
+      window.addEventListener('resize', setVH);
+      window.addEventListener('orientationchange', function() { setTimeout(setVH, 100); });
+    })();
   </script>
 </body>
 </html>

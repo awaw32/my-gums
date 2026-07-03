@@ -309,6 +309,7 @@
         <div class="hud-pill hud-pill-click" onclick="addResource('power',50)">👊 <span id="resPower">344</span></div>
         <div class="hud-pill">🚀 <span id="resMultiplier">x1</span></div>
         <div class="hud-pill hud-pill-click" id="lands-mute-btn">🔊</div>
+        <div class="hud-pill hud-pill-click" id="lands-fullscreen-btn" style="font-size:16px">⛶</div>
       </div>
       <button class="hud-toggle" id="hudToggle">▲</button>
     </div>
@@ -737,6 +738,17 @@
       }
       // زر كتم الصوت
       document.getElementById('lands-mute-btn')?.addEventListener('click', toggleLandsMute);
+      // زر تكبير الشاشة
+      document.getElementById('lands-fullscreen-btn')?.addEventListener('click', function() {
+        const el = document.documentElement;
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+          const req = el.requestFullscreen || el.webkitRequestFullscreen;
+          if (req) req.call(el).catch(() => {});
+        } else {
+          const exit = document.exitFullscreen || document.webkitExitFullscreen;
+          if (exit) exit.call(document);
+        }
+      });
       // ضغطة على الأفاتار ← اليوميات والمهام
       document.getElementById('avatar-btn')?.addEventListener('click', showDailyQuests);
       // رسم المباني

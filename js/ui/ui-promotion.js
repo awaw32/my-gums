@@ -28,12 +28,12 @@ GameUI.prototype.buildPromotionScreen = function() {
     <div class="panel-header" style="font-size:1.3rem;margin-bottom:16px">🏪 مركز التطوير</div>
     <div class="promo-hub-grid" id="promo-hub-grid"></div>
     <div id="army-yard-page" class="promo-sub-page hidden">
-      <button class="promo-back-btn" id="back-from-army-yard">→ رجوع</button>
+      <button class="promo-back-btn" id="back-from-army-yard" style="font-size:1.2rem">✕</button>
       <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">💪 ساحة الجيش</div>
       <div class="army-yard-content" id="army-yard-content"></div>
     </div>
     <div id="weapons-page" class="promo-sub-page hidden">
-      <button class="promo-back-btn" id="back-from-weapons">→ رجوع</button>
+      <button class="promo-back-btn" id="back-from-weapons" style="font-size:1.2rem">✕</button>
       <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">🗡️ مخزن الأسلحة</div>
       <div class="weapons-grid" id="weapons-grid"></div>
     </div>
@@ -41,7 +41,7 @@ GameUI.prototype.buildPromotionScreen = function() {
       <div class="wd-card" id="weapon-detail-card"></div>
     </div>
     <div id="knowledge-page" class="promo-sub-page hidden">
-      <button class="promo-back-btn" id="back-from-knowledge">→ رجوع</button>
+      <button class="promo-back-btn" id="back-from-knowledge" style="font-size:1.2rem">✕</button>
       <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">📜 شجرة المعرفة</div>
       <div class="upgrade-grid" id="upgrade-grid"></div>
       <div id="upgrade-detail-modal" class="upgrade-detail-modal hidden">
@@ -84,7 +84,7 @@ GameUI.prototype.buildPromotionScreen = function() {
       </div>
     </div>
     <div id="rewards-page" class="promo-sub-page hidden">
-      <button class="promo-back-btn" id="back-from-rewards">→ رجوع</button>
+      <button class="promo-back-btn" id="back-from-rewards" style="font-size:1.2rem">✕</button>
       <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">🎁 صندوق المكافآت</div>
       <div class="rewards-content" id="rewards-content"></div>
     </div>
@@ -101,6 +101,7 @@ GameUI.prototype.renderPromotion = function() {
   [armyYardPage, weaponsPage, knowledgePage, rewardsPage].forEach(p => {
     if (p) p.classList.add("hidden");
   });
+  if (hubGrid) hubGrid.classList.toggle("hidden", !!this._promoSubPage);
   if (hubGrid && !this._promoSubPage) {
     this._renderPromotionHub();
   }
