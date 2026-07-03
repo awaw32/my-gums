@@ -241,31 +241,6 @@
       
     </div>
 
-    <!-- ====== القائمة السفلية الثابتة — 5 أيقونات فقط ====== -->
-    <nav id="bottom-bar" style="position:relative;z-index:999999;background:#FFFDF5;display:flex">
-      <button class="nav-btn" type="button" data-screen="alliance" data-icon="👑">
-        <span class="nav-icon">👑</span>
-        <span class="nav-label">التحالف</span>
-      </button>
-      <button class="nav-btn" type="button" data-screen="war" data-icon="⚔️">
-        <span class="nav-icon">⚔️</span>
-        <span class="nav-label">حرب</span>
-      </button>
-      <button class="nav-btn nav-btn-center active" type="button" data-screen="territories" data-icon="🗺️">
-        <span class="nav-center-glow"></span>
-        <span class="nav-icon">🗺️</span>
-        <span class="nav-label">أراضي</span>
-      </button>
-      <button class="nav-btn" type="button" data-screen="promotion" data-icon="⭐">
-        <span class="nav-icon">⭐</span>
-        <span class="nav-label">الترقية</span>
-      </button>
-      <button class="nav-btn" type="button" data-screen="ranking" data-icon="🏆">
-        <span class="nav-icon">🏆</span>
-        <span class="nav-label">المرتبة</span>
-      </button>
-    </nav>
-
     <!-- ====== العناصر المخفية / المستخدمة بواسطة JS ====== -->
 
     <!-- Tutorial -->
@@ -443,10 +418,35 @@
       </div>
     </div>
 
-  </div>
+  </div><!-- نهاية app-shell -->
 
-  <script src="config/images.js?v=20260703"></script>
-  <script type="module" src="js/main.js?v=20260703"></script>
+<!-- ====== القائمة السفلية — position:fixed خارج app-shell ====== -->
+<nav id="bottom-bar">
+  <button class="nav-btn" type="button" data-screen="alliance" data-icon="👑">
+    <span class="nav-icon">👑</span>
+    <span class="nav-label">التحالف</span>
+  </button>
+  <button class="nav-btn" type="button" data-screen="war" data-icon="⚔️">
+    <span class="nav-icon">⚔️</span>
+    <span class="nav-label">حرب</span>
+  </button>
+  <button class="nav-btn nav-btn-center active" type="button" data-screen="territories" data-icon="🗺️">
+    <span class="nav-center-glow"></span>
+    <span class="nav-icon">🗺️</span>
+    <span class="nav-label">أراضي</span>
+  </button>
+  <button class="nav-btn" type="button" data-screen="promotion" data-icon="⭐">
+    <span class="nav-icon">⭐</span>
+    <span class="nav-label">الترقية</span>
+  </button>
+  <button class="nav-btn" type="button" data-screen="ranking" data-icon="🏆">
+    <span class="nav-icon">🏆</span>
+    <span class="nav-label">المرتبة</span>
+  </button>
+</nav>
+
+<script src="config/images.js?v=20260703"></script>
+<script type="module" src="js/main.js?v=20260703"></script>
   <script>
     // Fullscreen toggle for mobile
     document.getElementById('fullscreen-btn')?.addEventListener('click', function() {

@@ -459,6 +459,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   -webkit-overflow-scrolling: touch;
   background: transparent;
   position: relative;
+  padding-bottom: calc(var(--bottom-h) + 8px);
 }
 #screen-content::-webkit-scrollbar { width: 2px; }
 #screen-content::-webkit-scrollbar-track { background: transparent; }
