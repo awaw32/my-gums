@@ -1,2 +1,26 @@
+# Dependencies
 node_modules/
+
+# Environment
 .env
+
+# Runtime data
+data/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Planning artifacts (internal)
+.planning/
+
+# Temp
+tmp/
+temp/

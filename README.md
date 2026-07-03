@@ -19,9 +19,19 @@
    - Connect your GitHub repo
    - Add Environment Variable:
      ```
-     MONGO_URI=mongodb://root:YOUR_PASSWORD@72.62.59.227:27017/default?directConnection=true
+     MONGO_URL=mongodb://root:YOUR_PASSWORD@host:27017/default?directConnection=true
      ```
+     (Also accepts `MONGO_URI` as fallback)
    - Deploy
+
+## 🧪 Running Tests
+
+```bash
+npm test          # run once
+npm run test:watch  # watch mode
+```
+
+Tests cover: Save/Load, Inventory, Combat (weapon system), Quests, NetworkSync.
 
 ## 📌 Player ID System
 
@@ -35,4 +45,4 @@ Every important action (level up, building upgrade, resource change) is saved to
 
 ---
 
-**Version**: Full Professional Release - June 2026
+**Version**: Full Professional Release - July 2026

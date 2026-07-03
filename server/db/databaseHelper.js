@@ -3,11 +3,11 @@
 const mongoose = require("mongoose");
 mongoose.set("bufferCommands", false);
 
-const MONGO_URL = process.env.MONGO_URL;
+const MONGO_URL = process.env.MONGO_URL || process.env.MONGO_URI;
 let mongoConnected = false;
 
 if (!MONGO_URL) {
-  console.warn("[MongoDB] MONGO_URL غير مضبوط — اللعبة تشتغل بدون حفظ (in-memory only)");
+  console.warn("[MongoDB] MONGO_URL/MONGO_URI غير مضبوط — اللعبة تشتغل بدون حفظ (in-memory only)");
 } else {
   mongoose.connect(MONGO_URL, { serverSelectionTimeoutMS: 3000 })
     .then(() => { mongoConnected = true; console.log("[MongoDB] Connected ✅"); })
