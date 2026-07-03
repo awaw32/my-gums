@@ -3,21 +3,13 @@ import { WeaponsLibrary } from "../weapons.js";
 
 export function injectPromotionMethods(GameUI) {
 
-GameUI.prototype.bindPromoBackButtons = function() {
-  const backButtons = {
-    'back-from-army-yard': 'army-yard',
-    'back-from-weapons': 'weapons',
-    'back-from-knowledge': 'knowledge',
-    'back-from-rewards': 'rewards'
-  };
-  for (const [btnId, pageId] of Object.entries(backButtons)) {
-    const btn = document.getElementById(btnId);
-    if (btn) {
-      btn.addEventListener('click', () => {
-        this._promoSubPage = null;
-        this.renderPromotion();
-      });
-    }
+GameUI.prototype._bindCloseButtons = function() {
+  const ids = ['back-from-knowledge', 'back-from-rewards'];
+  for (const id of ids) {
+    document.getElementById(id)?.addEventListener('click', () => {
+      this._promoSubPage = null;
+      this.renderPromotion();
+    });
   }
 };
 
@@ -25,18 +17,8 @@ GameUI.prototype.buildPromotionScreen = function() {
   const container = document.createElement("div");
   container.className = "screen-panel upgrade-panel";
   container.innerHTML = `
-    <div class="panel-header" style="font-size:1.3rem;margin-bottom:16px">🏪 مركز التطوير</div>
+    <div class="panel-header" id="promo-header" style="font-size:1.3rem;margin-bottom:16px">🏪 مركز التطوير</div>
     <div class="promo-hub-grid" id="promo-hub-grid"></div>
-    <div id="army-yard-page" class="promo-sub-page hidden">
-      <button class="promo-back-btn" id="back-from-army-yard" style="font-size:1.2rem">✕</button>
-      <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">💪 ساحة الجيش</div>
-      <div class="army-yard-content" id="army-yard-content"></div>
-    </div>
-    <div id="weapons-page" class="promo-sub-page hidden">
-      <button class="promo-back-btn" id="back-from-weapons" style="font-size:1.2rem">✕</button>
-      <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">🗡️ مخزن الأسلحة</div>
-      <div class="weapons-grid" id="weapons-grid"></div>
-    </div>
     <div id="weapon-detail-overlay" class="wd-overlay hidden">
       <div class="wd-card" id="weapon-detail-card"></div>
     </div>
@@ -94,33 +76,31 @@ GameUI.prototype.buildPromotionScreen = function() {
 
 GameUI.prototype.renderPromotion = function() {
   const hubGrid = document.getElementById("promo-hub-grid");
-  const armyYardPage = document.getElementById("army-yard-page");
-  const weaponsPage = document.getElementById("weapons-page");
+  const header = document.getElementById("promo-header");
   const knowledgePage = document.getElementById("knowledge-page");
   const rewardsPage = document.getElementById("rewards-page");
-  [armyYardPage, weaponsPage, knowledgePage, rewardsPage].forEach(p => {
+  [knowledgePage, rewardsPage].forEach(p => {
     if (p) p.classList.add("hidden");
   });
-  if (hubGrid) hubGrid.classList.toggle("hidden", !!this._promoSubPage);
-  if (hubGrid && !this._promoSubPage) {
+  const isSubPage = !!this._promoSubPage;
+  if (hubGrid) hubGrid.classList.toggle("hidden", isSubPage);
+  if (header) header.classList.toggle("hidden", isSubPage);
+  if (hubGrid && !isSubPage) {
     this._renderPromotionHub();
   }
-  if (this._promoSubPage) {
+  if (isSubPage) {
     const pageMap = {
-      'army-yard': armyYardPage,
-      'weapons': weaponsPage,
       'knowledge': knowledgePage,
       'rewards': rewardsPage
     };
     const targetPage = pageMap[this._promoSubPage];
     if (targetPage) {
       targetPage.classList.remove("hidden");
-      if (this._promoSubPage === 'army-yard') this._renderArmyYardPage();
-      if (this._promoSubPage === 'weapons') this._renderWeaponsPage();
       if (this._promoSubPage === 'knowledge') this._renderUpgradeTree();
       if (this._promoSubPage === 'rewards') this._renderFullRewardsPage();
     }
   }
+  this._bindCloseButtons();
 };
 
 GameUI.prototype._promotionShowHub = function() {
@@ -186,9 +166,9 @@ GameUI.prototype._renderPromotionHub = function() {
     `;
     card.addEventListener('click', () => {
       if (c.id === 'weapons') {
-        this._promoSubPage = null;
-        this.renderPromotion();
         this._openWeaponsLibrary();
+      } else if (c.id === 'army-yard') {
+        this._openArmyYard();
       } else {
         this._promoSubPage = c.id;
         this.renderPromotion();
@@ -450,6 +430,39 @@ GameUI.prototype._upgradeWeapon = function(weaponId) {
   } else {
     this.showNotification(`❌ مجوهرات غير كافية أو مستوى بيت الزعيم ${w.requireLevel}`);
   }
+};
+
+GameUI.prototype._openArmyYard = function() {
+  const existing = document.getElementById('army-yard-overlay');
+  if (existing) existing.remove();
+  document.body.style.overflow = 'hidden';
+  const overlay = document.createElement('div');
+  overlay.id = 'army-yard-overlay';
+  overlay.className = 'wl-overlay';
+  overlay.style.alignItems = 'center';
+  const card = document.createElement('div');
+  card.className = 'weapons-library';
+  card.style.cssText = 'max-width:430px;max-height:90vh;border-radius:24px;padding:20px;overflow-y:auto';
+  card.innerHTML = `
+    <div class="wl-header">
+      <div class="wl-title" style="font-size:1.3rem">💪 ساحة الجيش</div>
+      <button class="wl-close-btn" id="ay-close-btn">✕</button>
+    </div>
+    <div class="army-yard-content" id="army-yard-content"></div>
+  `;
+  card.querySelector('#ay-close-btn').addEventListener('click', () => {
+    overlay.remove();
+    document.body.style.overflow = '';
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+      document.body.style.overflow = '';
+    }
+  });
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  this._renderArmyYardPage();
 };
 
 GameUI.prototype._renderArmyYardPage = function() {

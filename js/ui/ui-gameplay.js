@@ -63,7 +63,21 @@ GameUI.prototype.renderRanking = function() {
   if (!list) return;
   // تحديث رقم الإصدار
   const vb = document.getElementById("version-badge");
-  if (vb) vb.textContent = '🛠 v' + (window._buildId || localStorage.getItem('game_build') || '—');
+  if (vb) {
+    const bid = window._buildId || localStorage.getItem('game_build') || '';
+    if (bid) {
+      let vnum = parseInt(localStorage.getItem('version_num') || '0');
+      const stored = localStorage.getItem('version_bid');
+      if (stored !== bid) {
+        vnum++;
+        localStorage.setItem('version_num', '' + vnum);
+        localStorage.setItem('version_bid', bid);
+      }
+      vb.textContent = `الإصدار رقم ${vnum}`;
+    } else {
+      vb.textContent = 'الإصدار رقم —';
+    }
+  }
   list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⏳ جاري التحميل...</div>`;
   fetch("/api/leaderboard")
     .then(r => r.json())

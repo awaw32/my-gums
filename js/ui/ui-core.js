@@ -32,7 +32,6 @@ export class GameUI {
     this.bindSubNav();
     this.bindTogglePanel();
     this.bindUiToggle();
-    this.bindPromoBackButtons();
     this.showScreen("territories");
     this.startTopBarLoop();
     this.initPlayerPanel();
