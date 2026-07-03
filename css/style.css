@@ -3457,5 +3457,52 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .hero-ab-name { font-weight: 600; color: var(--text-primary); font-size: 0.65rem; }
 .hero-ab-desc { font-size: 0.6rem; color: var(--text-muted); }
 
+/* ====== ساحة الجيش (Army Yard) ====== */
+.army-yard-content { padding: 0 8px 16px; display: flex; flex-direction: column; gap: 16px; }
+.ay-section { }
+.ay-section-title { font-size: 0.9rem; font-weight: 700; color: var(--accent-red); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border-light); }
+.ay-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ay-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+.ay-label { color: var(--text-secondary); }
+.ay-value { font-weight: 600; color: var(--text-primary); }
+.ay-track { height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden; }
+.ay-fill { height: 100%; background: var(--accent-red); border-radius: 3px; transition: width 0.3s; }
+.ay-btn { width: 100%; padding: 10px; border-radius: 10px; background: var(--accent-red); color: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; border: none; transition: all 0.2s; }
+.ay-btn.disabled, .ay-btn:disabled { background: rgba(255,255,255,0.06); color: #666; cursor: not-allowed; }
+.ay-btn:not(:disabled):active { transform: scale(0.97); }
+.ay-summary { display: flex; flex-direction: column; gap: 4px; padding: 12px; background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 12px; font-size: 0.8rem; }
+.ay-summary span { display: flex; justify-content: space-between; }
+
+/* ====== صندوق المكافآت الكامل (Full Rewards Page) ====== */
+.rewards-content { padding: 0 8px 16px; display: flex; flex-direction: column; gap: 20px; }
+.rw-section { }
+.rw-section-title { font-size: 0.9rem; font-weight: 700; color: var(--accent-red); margin-bottom: 10px; padding-bottom: 4px; border-bottom: 1px solid var(--border-light); }
+.rw-daily-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.rw-day-card { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-light); font-size: 0.6rem; text-align: center; }
+.rw-day-card.claimed { opacity: 0.5; border-color: var(--green); }
+.rw-day-card.today { border-color: var(--accent-red); box-shadow: 0 0 6px var(--gold-glow); }
+.rw-day-card.locked { opacity: 0.4; }
+.rw-day-num { font-weight: 600; font-size: 0.55rem; color: var(--text-secondary); }
+.rw-day-icon { font-size: 1.2rem; }
+.rw-day-label { color: var(--text-primary); font-size: 0.5rem; }
+.rw-day-check { font-size: 0.8rem; }
+.rw-claim-btn { width: 100%; padding: 10px; border-radius: 10px; background: var(--accent-red); color: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; border: none; margin-top: 8px; }
+.rw-claim-btn:active { transform: scale(0.97); }
+.rw-daily-done { text-align: center; padding: 8px; color: var(--green); font-size: 0.8rem; font-weight: 600; }
+.rw-ach-grid { display: flex; flex-direction: column; gap: 6px; }
+.rw-ach-card { display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 10px; }
+.rw-ach-card.claimed { opacity: 0.5; }
+.rw-ach-icon { font-size: 1.5rem; min-width: 36px; text-align: center; }
+.rw-ach-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rw-ach-title { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
+.rw-ach-desc { font-size: 0.6rem; color: var(--text-secondary); }
+.rw-ach-track { height: 4px; background: var(--border-light); border-radius: 2px; overflow: hidden; }
+.rw-ach-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width 0.3s; }
+.rw-ach-progress { font-size: 0.6rem; color: var(--text-muted); }
+.rw-ach-reward { font-size: 0.6rem; color: var(--gold); }
+.rw-ach-claim-btn { padding: 6px 10px; border-radius: 8px; background: var(--accent-red); color: #fff; font-size: 0.7rem; font-weight: 600; cursor: pointer; border: none; white-space: nowrap; }
+.rw-ach-claim-btn:active { transform: scale(0.95); }
+.rw-ach-done { font-size: 1.2rem; }
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }

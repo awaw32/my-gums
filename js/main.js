@@ -281,10 +281,6 @@ async function init() {
     const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests);
     world.onExit = () => ui.exitWorldMap();
 
-    document.getElementById("wu-weapon-btn")?.addEventListener("click", () => wu.showWeapon());
-    document.getElementById("wu-building-btn")?.addEventListener("click", () => wu.showBuildings());
-    document.getElementById("wu-research-btn")?.addEventListener("click", () => wu.showResearch());
-
     // ربط العالم بأنظمة الترقيات والتحالف
     world._allianceManager = allianceManager;
     world._upgradeTree = upgradeTree;

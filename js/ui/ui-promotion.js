@@ -5,7 +5,7 @@ export function injectPromotionMethods(GameUI) {
 
 GameUI.prototype.bindPromoBackButtons = function() {
   const backButtons = {
-    'back-from-tree': 'tree',
+    'back-from-army-yard': 'army-yard',
     'back-from-weapons': 'weapons',
     'back-from-knowledge': 'knowledge',
     'back-from-rewards': 'rewards'
@@ -27,9 +27,22 @@ GameUI.prototype.buildPromotionScreen = function() {
   container.innerHTML = `
     <div class="panel-header" style="font-size:1.3rem;margin-bottom:16px">🏪 مركز التطوير</div>
     <div class="promo-hub-grid" id="promo-hub-grid"></div>
-    <div id="upgrade-tree-page" class="promo-sub-page hidden">
-      <button class="promo-back-btn" id="back-from-tree">→ رجوع</button>
-      <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">⭐ شجرة الترقيات</div>
+    <div id="army-yard-page" class="promo-sub-page hidden">
+      <button class="promo-back-btn" id="back-from-army-yard">→ رجوع</button>
+      <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">💪 ساحة الجيش</div>
+      <div class="army-yard-content" id="army-yard-content"></div>
+    </div>
+    <div id="weapons-page" class="promo-sub-page hidden">
+      <button class="promo-back-btn" id="back-from-weapons">→ رجوع</button>
+      <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">🗡️ مخزن الأسلحة</div>
+      <div class="weapons-grid" id="weapons-grid"></div>
+    </div>
+    <div id="weapon-detail-overlay" class="wd-overlay hidden">
+      <div class="wd-card" id="weapon-detail-card"></div>
+    </div>
+    <div id="knowledge-page" class="promo-sub-page hidden">
+      <button class="promo-back-btn" id="back-from-knowledge">→ رجوع</button>
+      <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">📜 شجرة المعرفة</div>
       <div class="upgrade-grid" id="upgrade-grid"></div>
       <div id="upgrade-detail-modal" class="upgrade-detail-modal hidden">
         <div class="upgrade-detail-card">
@@ -70,19 +83,6 @@ GameUI.prototype.buildPromotionScreen = function() {
         </div>
       </div>
     </div>
-    <div id="weapons-page" class="promo-sub-page hidden">
-      <button class="promo-back-btn" id="back-from-weapons">→ رجوع</button>
-      <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">🗡️ مخزن الأسلحة</div>
-      <div class="weapons-grid" id="weapons-grid"></div>
-    </div>
-    <div id="weapon-detail-overlay" class="wd-overlay hidden">
-      <div class="wd-card" id="weapon-detail-card"></div>
-    </div>
-    <div id="knowledge-page" class="promo-sub-page hidden">
-      <button class="promo-back-btn" id="back-from-knowledge">→ رجوع</button>
-      <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">📜 شجرة المعرفة</div>
-      <div class="knowledge-upgrades" id="knowledge-upgrades"></div>
-    </div>
     <div id="rewards-page" class="promo-sub-page hidden">
       <button class="promo-back-btn" id="back-from-rewards">→ رجوع</button>
       <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">🎁 صندوق المكافآت</div>
@@ -94,11 +94,11 @@ GameUI.prototype.buildPromotionScreen = function() {
 
 GameUI.prototype.renderPromotion = function() {
   const hubGrid = document.getElementById("promo-hub-grid");
-  const treePage = document.getElementById("upgrade-tree-page");
+  const armyYardPage = document.getElementById("army-yard-page");
   const weaponsPage = document.getElementById("weapons-page");
   const knowledgePage = document.getElementById("knowledge-page");
   const rewardsPage = document.getElementById("rewards-page");
-  [treePage, weaponsPage, knowledgePage, rewardsPage].forEach(p => {
+  [armyYardPage, weaponsPage, knowledgePage, rewardsPage].forEach(p => {
     if (p) p.classList.add("hidden");
   });
   if (hubGrid && !this._promoSubPage) {
@@ -106,7 +106,7 @@ GameUI.prototype.renderPromotion = function() {
   }
   if (this._promoSubPage) {
     const pageMap = {
-      'tree': treePage,
+      'army-yard': armyYardPage,
       'weapons': weaponsPage,
       'knowledge': knowledgePage,
       'rewards': rewardsPage
@@ -114,10 +114,10 @@ GameUI.prototype.renderPromotion = function() {
     const targetPage = pageMap[this._promoSubPage];
     if (targetPage) {
       targetPage.classList.remove("hidden");
-      if (this._promoSubPage === 'tree') this._renderUpgradeTree();
+      if (this._promoSubPage === 'army-yard') this._renderArmyYardPage();
       if (this._promoSubPage === 'weapons') this._renderWeaponsPage();
-      if (this._promoSubPage === 'knowledge') this._renderKnowledgePage();
-      if (this._promoSubPage === 'rewards') this._renderRewardsPage();
+      if (this._promoSubPage === 'knowledge') this._renderUpgradeTree();
+      if (this._promoSubPage === 'rewards') this._renderFullRewardsPage();
     }
   }
 };
@@ -139,29 +139,25 @@ GameUI.prototype._renderPromotionHub = function() {
   const hubGrid = document.getElementById("promo-hub-grid");
   if (!hubGrid) return;
   hubGrid.textContent = "";
-  const treePaths = this.upgradeTree ? this.upgradeTree.getPaths() : [];
-  const totalUpgrades = treePaths.reduce((sum, p) => sum + p.currentLevel, 0);
-  const totalMax = treePaths.reduce((sum, p) => sum + p.maxLevel, 0);
-  const wCount = this.army?.weapons?.length || 6;
-  const wUpgraded = this.army?.weapons?.filter(w => w.upgradeLevel > 0).length || 0;
+  const army = this.army;
+  const unitLvl = army?.unitLevel || 1;
+  const trainLvl = army?.trainingLevel || 1;
   const cards = [
     {
-      id: 'tree', name: 'ساحة الجيش', desc: 'ترقية الجيش، المعرفة، الدفاع، التجارة',
-      badge: `${totalUpgrades}/${totalMax}`,
-      badgeColor: '#ff6b6b',
+      id: 'army-yard', name: 'ساحة الجيش', desc: 'تدريب وتطوير الجنود',
+      badge: `${unitLvl}`, badgeColor: '#ff6b6b',
       img: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 180%22%3E%3Crect fill=%22%232c1a0a%22 width=%22200%22 height=%22180%22/%3E%3Ctext x=%22100%22 y=%22110%22 font-size=%2270%22 text-anchor=%22middle%22%3E%F0%9F%92%AA%3C/text%3E%3C/svg%3E',
       grad: 'linear-gradient(to bottom, rgba(255,68,68,0.25), rgba(44,26,10,0.95))'
     },
     {
-      id: 'weapons', name: 'الأسلحة', desc: 'مخزن الأسلحة الصحراوية',
+      id: 'weapons', name: 'الأسلحة', desc: 'مكتبة الأسلحة الأسطورية',
       badge: '!', badgeColor: '#9b59b6',
-      badgeCount: wUpgraded,
       img: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 180%22%3E%3Crect fill=%22%233a2518%22 width=%22200%22 height=%22180%22/%3E%3Ctext x=%22100%22 y=%22110%22 font-size=%2270%22 text-anchor=%22middle%22%3E%F0%9F%97%A1%EF%B8%8F%3C/text%3E%3C/svg%3E',
       grad: 'linear-gradient(to bottom, rgba(155,89,182,0.25), rgba(44,26,10,0.95))'
     },
     {
-      id: 'knowledge', name: 'المعرفة', desc: 'العلوم الصحراوية والحكمة',
-      timer: '∞',
+      id: 'knowledge', name: 'المعرفة', desc: 'شجرة العلوم والتطوير',
+      badge: `${trainLvl}`, badgeColor: '#2ecc71',
       img: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 150%22%3E%3Crect fill=%22%232c1a0a%22 width=%22200%22 height=%22150%22/%3E%3Ctext x=%22100%22 y=%22100%22 font-size=%2260%22 text-anchor=%22middle%22%3E%F0%9F%93%9C%3C/text%3E%3C/svg%3E',
       grad: 'linear-gradient(to bottom, rgba(46,204,113,0.25), rgba(44,26,10,0.95))'
     },
@@ -180,12 +176,10 @@ GameUI.prototype._renderPromotionHub = function() {
       <div class="promo-card-overlay" style="background:${c.grad}">
         <div class="promo-card-top">
           ${c.badge ? `<span class="promo-badge" style="background:${c.badgeColor}">${c.badge}</span>` : ''}
-          ${c.badgeCount !== undefined ? `<span class="promo-counter">${c.badgeCount}/${wCount}</span>` : ''}
         </div>
         <div class="promo-card-bottom">
           <div class="promo-card-title">${c.name}</div>
           <div class="promo-card-desc">${c.desc}</div>
-          ${c.timer ? `<div class="promo-timer">${c.timer}</div>` : ''}
         </div>
       </div>
     `;
@@ -457,58 +451,171 @@ GameUI.prototype._upgradeWeapon = function(weaponId) {
   }
 };
 
-GameUI.prototype._renderKnowledgePage = function() {
-  const container = document.getElementById("knowledge-upgrades");
+GameUI.prototype._renderArmyYardPage = function() {
+  const container = document.getElementById("army-yard-content");
   if (!container) return;
   container.textContent = "";
-  const upgrades = [
-    { icon: '📖', name: 'القراءة', desc: 'إنتاج ذهب +15%', level: 3, max: 5, color: '#9b59b6' },
-    { icon: '📚', name: 'الكتابة', desc: 'إنتاج ذهب +30%', level: 2, max: 5, color: '#8e44ad' },
-    { icon: '🔮', name: 'السحر', desc: 'إنتاج ذهب +50%', level: 1, max: 5, color: '#9b59b6' },
-    { icon: '💎', name: 'الجواهر', desc: 'إنتاج ذهب +80%', level: 0, max: 5, color: '#8e44ad' },
-    { icon: '👑', name: 'الحكمة', desc: 'إنتاج ذهب +120%', level: 0, max: 5, color: '#9b59b6' },
-  ];
-  for (const u of upgrades) {
-    const pct = (u.level / u.max) * 100;
-    const card = document.createElement("div");
-    card.className = "knowledge-card";
-    card.innerHTML = `
-      <div class="knowledge-icon">${u.icon}</div>
-      <div class="knowledge-info">
-        <div class="knowledge-name">${u.name}</div>
-        <div class="knowledge-desc">${u.desc}</div>
-        <div class="knowledge-track">
-          <div class="knowledge-fill" style="width:${pct}%;background:${u.color}"></div>
-        </div>
-        <div class="knowledge-level">Lv.${u.level}/${u.max}</div>
-      </div>
-    `;
-    container.appendChild(card);
+  const army = this.army;
+  if (!army) {
+    container.innerHTML = `<div class="empty-state">النظام العسكري غير متاح</div>`;
+    return;
   }
+  const unitLvl = army.unitLevel || 1;
+  const maxUnitLvl = army.maxUnitLevel || 100;
+  const unitCost = army.unitUpgradeCost || 0;
+  const trainLvl = army.trainingLevel || 1;
+  const maxTrainLvl = army.maxTrainingLevel || 20;
+  const trainCost = army.trainingUpgradeCost || 0;
+  const canUnit = unitLvl < maxUnitLvl && this.economy.canAfford('cash', unitCost);
+  const canTrain = trainLvl < maxTrainLvl && this.economy.canAfford('gold', trainCost);
+  container.innerHTML = `
+    <div class="ay-section">
+      <div class="ay-section-title">⚔️ ترقية الوحدات</div>
+      <div class="ay-card">
+        <div class="ay-row">
+          <span class="ay-label">مستوى الجنود</span>
+          <span class="ay-value">${unitLvl}/${maxUnitLvl}</span>
+        </div>
+        <div class="ay-track"><div class="ay-fill" style="width:${(unitLvl/maxUnitLvl)*100}%"></div></div>
+        <div class="ay-row">
+          <span class="ay-label">قوة الوحدة</span>
+          <span class="ay-value">👊 ${Math.round(army.unitPower)}</span>
+        </div>
+        <div class="ay-row">
+          <span class="ay-label">التكلفة</span>
+          <span class="ay-value">💵 ${unitCost}</span>
+        </div>
+        <button class="ay-btn ${canUnit ? '' : 'disabled'}" id="ay-unit-btn" ${canUnit ? '' : 'disabled'}>
+          ${unitLvl >= maxUnitLvl ? '⭐ المستوى الأقصى' : (canUnit ? '▲ ترقية الجنود' : '💰 المال غير كاف')}
+        </button>
+      </div>
+    </div>
+    <div class="ay-section">
+      <div class="ay-section-title">🎯 تطوير التدريب</div>
+      <div class="ay-card">
+        <div class="ay-row">
+          <span class="ay-label">مستوى التدريب</span>
+          <span class="ay-value">${trainLvl}/${maxTrainLvl}</span>
+        </div>
+        <div class="ay-track"><div class="ay-fill" style="width:${(trainLvl/maxTrainLvl)*100}%"></div></div>
+        <div class="ay-row">
+          <span class="ay-label">مضاعف القوة</span>
+          <span class="ay-value">×${(1 + trainLvl * 0.05).toFixed(2)}</span>
+        </div>
+        <div class="ay-row">
+          <span class="ay-label">التكلفة</span>
+          <span class="ay-value">🪙 ${trainCost}</span>
+        </div>
+        <button class="ay-btn ${canTrain ? '' : 'disabled'}" id="ay-train-btn" ${canTrain ? '' : 'disabled'}>
+          ${trainLvl >= maxTrainLvl ? '⭐ المستوى الأقصى' : (canTrain ? '▲ تطوير التدريب' : '💰 الذهب غير كاف')}
+        </button>
+      </div>
+    </div>
+    <div class="ay-section">
+      <div class="ay-section-title">📊 إجمالي القوة العسكرية</div>
+      <div class="ay-summary">
+        <span>⚔️ قوة الوحدات: ${Math.round(army.unitPower)}</span>
+        <span>🗡️ قوة الأسلحة: ${Math.round(army.weaponPower)}</span>
+        <span>💪 القوة الإجمالية: ${Math.round(army.totalArmyPower)}</span>
+      </div>
+    </div>
+  `;
+  document.getElementById("ay-unit-btn")?.addEventListener("click", () => {
+    if (army.upgradeUnits()) {
+      this._renderArmyYardPage();
+      this.updateTopBar();
+      this.showNotification(`⬆️ مستوى الجنود → ${army.unitLevel}`);
+    }
+  });
+  document.getElementById("ay-train-btn")?.addEventListener("click", () => {
+    if (army.upgradeTraining()) {
+      this._renderArmyYardPage();
+      this.updateTopBar();
+      this.showNotification(`⬆️ مستوى التدريب → ${army.trainingLevel}`);
+    }
+  });
 };
 
-GameUI.prototype._renderRewardsPage = function() {
+GameUI.prototype._renderFullRewardsPage = function() {
   const container = document.getElementById("rewards-content");
   if (!container) return;
   container.textContent = "";
-  const rewards = [
-    { icon: '📅', title: 'المكافأة اليومية', desc: 'استلم مكافأتك اليومية - اليوم 3/7', canClaim: true },
-    { icon: '🏆', title: 'الإنجازات', desc: 'لديك 3 إنجازات جديدة غير مستلمة', canClaim: true },
-    { icon: '🎁', title: 'صندوق الهدايا', desc: 'صندوق هدايا متاح - افتحه الآن!', canClaim: true },
-  ];
-  for (const r of rewards) {
-    const card = document.createElement("div");
-    card.className = "reward-card";
-    card.innerHTML = `
-      <div class="reward-icon">${r.icon}</div>
-      <div class="reward-title">${r.title}</div>
-      <div class="reward-desc">${r.desc}</div>
-      <button class="reward-claim-btn" ${r.canClaim ? '' : 'disabled'}>
-        ${r.canClaim ? '📦 استلم الآن' : '✅ تم الاستلام'}
-      </button>
-    `;
-    container.appendChild(card);
+  const dl = this.dailyLogin;
+  const ach = this.achievements;
+  const dlState = dl ? dl.getState() : null;
+  const allAchievements = ach ? ach.getAll() : [];
+  const unclaimed = allAchievements.filter(a => a.completed && !a.claimed);
+  const completed = allAchievements.filter(a => a.completed).length;
+  const total = allAchievements.length;
+  let html = `<div class="rw-section"><div class="rw-section-title">📅 المكافأة اليومية</div><div class="rw-daily-grid">`;
+  const rewards = dlState?.rewards || [];
+  const currentDay = dlState?.currentDay || 0;
+  const canClaim = dlState?.canClaim;
+  const today = new Date().toDateString();
+  const lastClaim = dlState?.lastClaimDate || "";
+  const isNewDay = lastClaim !== today;
+  for (let i = 0; i < rewards.length; i++) {
+    const r = rewards[i];
+    const dayNum = i + 1;
+    const isUnlocked = dayNum <= currentDay + 1 || (dayNum === 1 && !lastClaim);
+    const isClaimed = dayNum <= currentDay;
+    const isToday = dayNum === currentDay + 1 && isNewDay;
+    html += `<div class="rw-day-card ${isClaimed ? 'claimed' : (isToday ? 'today' : 'locked')}">
+      <div class="rw-day-num">اليوم ${dayNum}</div>
+      <div class="rw-day-icon">${r.icon}</div>
+      <div class="rw-day-label">${r.label}</div>
+      ${isClaimed ? '<div class="rw-day-check">✅</div>' : ''}
+    </div>`;
   }
+  html += `</div>`;
+  if (canClaim) {
+    html += `<button class="rw-claim-btn" id="rw-daily-claim">📦 استلم المكافأة اليومية</button>`;
+  } else {
+    html += `<div class="rw-daily-done">✅ تم استلام مكافأة اليوم — عد غداً</div>`;
+  }
+  html += `</div>`;
+  html += `<div class="rw-section"><div class="rw-section-title">🏆 الإنجازات (${completed}/${total})</div><div class="rw-ach-grid">`;
+  for (const a of allAchievements) {
+    const isClaimed = a.claimed;
+    const isCompleted = a.completed;
+    const pct = a.target > 0 ? Math.min(100, (a.progress / a.target) * 100) : 0;
+    const rewardsStr = a.reward ? Object.entries(a.reward).map(([k, v]) => {
+      const icons = { gold: '🪙', cash: '💵', gems: '💎' };
+      return `${icons[k] || '📦'}${v}`;
+    }).join(' ') : '';
+    html += `<div class="rw-ach-card ${isClaimed ? 'claimed' : ''}">
+      <div class="rw-ach-icon">${a.icon}</div>
+      <div class="rw-ach-info">
+        <div class="rw-ach-title">${a.title}</div>
+        <div class="rw-ach-desc">${a.desc}</div>
+        <div class="rw-ach-track"><div class="rw-ach-fill" style="width:${pct}%"></div></div>
+        <div class="rw-ach-progress">${Math.min(a.progress, a.target)}/${a.target}</div>
+        <div class="rw-ach-reward">${rewardsStr}</div>
+      </div>
+      ${isCompleted && !isClaimed ? `<button class="rw-ach-claim-btn" data-ach-id="${a.id}">📦 استلم</button>` : (isClaimed ? '<div class="rw-ach-done">✅</div>' : '')}
+    </div>`;
+  }
+  html += `</div></div>`;
+  container.innerHTML = html;
+  document.getElementById("rw-daily-claim")?.addEventListener("click", () => {
+    if (dl && dl.claim()) {
+      this._renderFullRewardsPage();
+      this.updateTopBar();
+      this.showNotification('✅ تم استلام المكافأة اليومية!');
+    } else {
+      this.showNotification('❌ المكافأة مستلمة مسبقاً');
+    }
+  });
+  container.querySelectorAll(".rw-ach-claim-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.achId;
+      if (ach && ach.claim(id)) {
+        this._renderFullRewardsPage();
+        this.updateTopBar();
+        this.showNotification('✅ تم استلام مكافأة الإنجاز!');
+      }
+    });
+  });
 };
 
 }
