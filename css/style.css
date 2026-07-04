@@ -771,14 +771,17 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 
 /* ====== القائمة المنزلقة (Sub-bar + Quick Upgrades) ====== */
 #quick-panel {
-  position: relative;
-  z-index: 90;
+  position: absolute;
+  top: var(--top-h);
+  left: 0;
+  right: 0;
+  z-index: 110;
   overflow: hidden;
   max-height: 0;
   transition: max-height 0.35s ease, opacity 0.3s ease;
   opacity: 0;
-  flex-shrink: 0;
   background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
 }
 #quick-panel.open {
   max-height: calc(var(--sub-h) + var(--qu-h) + 8px);
@@ -964,7 +967,7 @@ body.modal-open { overflow: hidden; }
   width: 100% !important;
   max-width: 480px !important;
   height: 100dvh !important;
-  background-size: cover !important;
+  background-size: 100% 100% !important;
   background-position: center top !important;
   background-repeat: no-repeat !important;
   z-index: 0;
