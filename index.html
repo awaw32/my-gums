@@ -20,7 +20,7 @@
           const old = localStorage.getItem(KEY);
           if (old && d.buildId && d.buildId !== old) {
             localStorage.setItem(KEY, d.buildId);
-            window.location.reload(true);
+            window.location.reload();
           } else if (d.buildId) {
             localStorage.setItem(KEY, d.buildId);
           }
@@ -48,10 +48,9 @@
     }
   </script>
   <link rel="stylesheet" href="css/style.css?v=20260703" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
 </head>
 <body>
-  <!-- ====== تجنب 404 favicon ====== -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
   <!-- ====== شاشة التحميل ====== -->
   <div id="loading-screen">
     <div class="loading-wheel">
@@ -68,17 +67,6 @@
 
   <!-- ====== خلفية الشاشة الكاملة (FIXED - لا تتحرك أبداً) ====== -->
   <div id="fullscreen-bg" class="fullscreen-bg"></div>
-  <script>
-    // تعيين خلفية الشاشة الكاملة من ImageResolver
-    (function() {
-      try {
-        var bg = document.getElementById('fullscreen-bg');
-        if (bg && typeof ImageResolver !== 'undefined') {
-          bg.style.backgroundImage = "url('" + ImageResolver.src('bgFullscreen') + "')";
-        }
-      } catch(e) {}
-    })();
-  </script>
 
   <!-- ====== التطبيق الرئيسي ====== -->
   <div class="app-shell hidden" id="app-shell">
@@ -450,6 +438,15 @@
 </nav>
 
 <script src="config/images.js?v=20260703"></script>
+<script>
+  // تعيين خلفية الشاشة الكاملة من ImageResolver (بعد تحميله)
+  try {
+    var bg = document.getElementById('fullscreen-bg');
+    if (bg && typeof ImageResolver !== 'undefined') {
+      bg.style.backgroundImage = "url('" + ImageResolver.src('bgFullscreen') + "')";
+    }
+  } catch(e) {}
+</script>
 <script type="module" src="js/main.js?v=20260703"></script>
   <script>
     // Fullscreen toggle
@@ -482,14 +479,16 @@
         document.documentElement.style.zIndex = '';
       }
     });
-    document.addEventListener('fullscreenchange webkitfullscreenchange', function() {
+    function onFullscreenChange() {
       const icon = document.querySelector('#fullscreen-btn .csb-icon');
       const label = document.querySelector('#fullscreen-btn .csb-label');
       if (!icon) return;
       const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      icon.textContent = isFull ? '⛶' : '⛶';
+      icon.textContent = '⛶';
       if (label) label.textContent = isFull ? 'تصغير' : 'تكبير الشاشة';
-    });
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
     // Fix iOS viewport height on resize
     (function(){
       function setVH() { document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px'); }

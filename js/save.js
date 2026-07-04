@@ -9,6 +9,7 @@ export function saveGame(economy, village, army) {
     xpToNext: economy.xpToNext,
     currentVillageId: village.currentVillageId,
     unitLevel: army.unitLevel,
+    unitPowerBase: army.unitPowerBase,
     weapons: army.weapons.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })),
     buildings: village.buildings.map(b => ({
       id: b.id, level: b.level, state: b.state,
@@ -35,16 +36,17 @@ export function loadGame(economy, village, army) {
         if (data.resources[k] !== undefined) economy.resources[k] = data.resources[k];
       }
     }
-    if (data.multiplier) economy.multiplier = data.multiplier;
-    if (data.level) economy.level = data.level;
-    if (data.xp) economy.xp = data.xp;
-    if (data.xpToNext) economy.xpToNext = data.xpToNext;
+    if (data.multiplier !== undefined) economy.multiplier = data.multiplier;
+    if (data.level !== undefined) economy.level = data.level;
+    if (data.xp !== undefined) economy.xp = data.xp;
+    if (data.xpToNext !== undefined) economy.xpToNext = data.xpToNext;
 
     if (data.currentVillageId && data.currentVillageId !== village.currentVillageId) {
       village.initVillage(data.currentVillageId);
     }
 
     army.unitLevel = data.unitLevel ?? 1;
+    if (data.unitPowerBase !== undefined) army.unitPowerBase = data.unitPowerBase;
     if (data.weapons) {
       for (const wd of data.weapons) {
         const w = army.weapons.find(ww => ww.id === wd.id);
@@ -61,10 +63,10 @@ export function loadGame(economy, village, army) {
       for (const bd of data.buildings) {
         const b = village.buildings.find(bb => bb.id === bd.id);
         if (b) {
-          b.level = bd.level || 0;
+          b.level = bd.level ?? 0;
           b.state = bd.state || "locked";
-          b.constructTimer = bd.constructTimer || 0;
-          b.productionAccum = bd.productionAccum || 0;
+          b.constructTimer = bd.constructTimer ?? 0;
+          b.productionAccum = bd.productionAccum ?? 0;
         }
       }
     }

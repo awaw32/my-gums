@@ -132,10 +132,13 @@ async function init() {
   const economy = new GameEconomy();
   const village = new GameVillage(economy);
   const army = new GameArmy(economy);
-  
+
+  // تحميل localStorage أولاً كنسخة احتياطية سريعة
+  const { lastSave } = loadGame(economy, village, army);
+
+  // ثم تحميل من قاعدة البيانات (الرسمية) — يلغي بيانات localStorage
   await loadFromDatabase(economy, army, PLAYER_USERNAME);
   
-  // التحقق من أن اللاعب جديد فعلاً (لا توجد بيانات محفوظة)
   const hasSavedData = economy.level > 1 || economy.xp > 0 || economy.cash > 0 || 
                        economy.gold > 0 || economy.gems > 0 || 
                        (economy.buildings && Object.keys(economy.buildings).length > 0);
@@ -162,7 +165,6 @@ async function init() {
   const tutorial = new TutorialManager();
   
   setProgress(80);
-  const { lastSave } = loadGame(economy, village, army);
 
   // استعادة بيانات التحالف والترقيات والواحات من التخزين المؤقت
   if (window._loadedAllianceLevel !== undefined) allianceManager.loadState(window._loadedAllianceLevel);

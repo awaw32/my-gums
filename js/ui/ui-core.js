@@ -1065,6 +1065,9 @@ export class GameUI {
   }
 
   startTopBarLoop() {
+    if (this._topBarInterval) clearInterval(this._topBarInterval);
+    if (this._buildingTimerInterval) clearInterval(this._buildingTimerInterval);
+    if (this._questRefreshTimer) clearInterval(this._questRefreshTimer);
     this._topBarInterval = setInterval(() => this.updateTopBar(), 500);
     this.startBuildingTimerLoop();
     if (this.oasisManager) {

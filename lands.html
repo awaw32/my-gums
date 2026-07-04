@@ -297,7 +297,7 @@
   </style>
 </head>
 <body>
-  <div class="map-bg"></div>
+  <div class="map-bg" id="mapBg"></div>
   <div class="map-vignette"></div>
 
   <div class="game-shell">
@@ -342,7 +342,7 @@
     <!-- Modal الترقية -->
     <div class="modal-overlay hidden" id="modalOverlay" onclick="closeModal(event)">
       <div class="modal-card" id="modalCard">
-        <img class="modal-img" id="modalImg" src="" alt="" onerror="this.classList.add('img-fallback')">
+        <img class="modal-img" id="modalImg" alt="" onerror="this.classList.add('img-fallback')">
         <h3 class="modal-name" id="modalName"></h3>
         <p class="modal-level" id="modalLevel"></p>
         <div class="modal-cost" id="modalCost"></div>
@@ -603,6 +603,42 @@
       overlay.innerHTML = html;
     }
 
+    function showAchievements() {
+      const overlay = document.getElementById('quests-overlay') || (()=>{
+        const d = document.createElement('div'); d.id = 'quests-overlay'; document.body.appendChild(d); return d;
+      })();
+      const landsAch = JSON.parse(localStorage.getItem('lands_achievements') || '[]');
+      const achievementsList = [
+        { id:'build_3', icon:'🏠', title:'البناء', desc:'ابنِ 3 مباني', target:3, type:'builds' },
+        { id:'upgrade_5', icon:'⬆️', title:'المطور', desc:'طوّر 5 مباني', target:5, type:'upgrades' },
+        { id:'power_500', icon:'💪', title:'القوة', desc:'قوتك تصل 500', target:500, type:'power' },
+        { id:'gold_500', icon:'🪙', title:'الذهب', desc:'اجمع 500 ذهب', target:500, type:'gold' },
+      ];
+      let html = `<div class="modal-overlay" onclick="if(event.target===this)window.closeQuests()">
+        <div class="modal-card" style="max-width:360px;max-height:80vh;overflow-y:auto">
+          <div style="font-size:20px;font-weight:900;color:#ffd700;margin-bottom:12px">🏆 الإنجازات</div>`;
+      if (landsAch.length === 0) {
+        html += `<div style="text-align:center;padding:20px 0">
+          <div style="font-size:40px;margin-bottom:10px">🏆</div>
+          <div style="color:#d4a76a;font-size:14px;margin-bottom:6px">ابدأ المغامرة في اللعبة الرئيسية لفتح الإنجازات!</div>
+          <div style="color:#8a7a5a;font-size:12px">الإنجازات تتبع تقدمك تلقائياً</div>
+        </div>`;
+      } else {
+        for (const a of achievementsList) {
+          const done = landsAch.includes(a.id);
+          html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;background:${done ? 'rgba(76,217,100,0.15)' : 'rgba(255,255,255,0.04)'};border-radius:8px;border:1px solid ${done ? 'rgba(76,217,100,0.3)' : 'transparent'}">
+            <span style="font-size:24px;opacity:${done ? '1' : '0.4'}">${a.icon}</span>
+            <div style="flex:1"><div style="font-weight:700;font-size:13px;color:${done ? '#4cd964' : '#c8b88a'}">${a.title}</div>
+            <div style="font-size:11px;color:#8a7a5a">${a.desc}</div></div>
+            <span style="font-size:16px">${done ? '✅' : '🔒'}</span>
+          </div>`;
+        }
+      }
+      html += `<button class="modal-btn-close" onclick="window.closeQuests()" style="margin-top:8px">إغلاق</button>
+        </div></div>`;
+      overlay.innerHTML = html;
+    }
+
     window.claimDailyQuest = function() {
       const today = new Date().toDateString();
       const saved = JSON.parse(localStorage.getItem('lands_daily') || '{}');
@@ -655,7 +691,7 @@
         closeLandsPopup();
       });
       document.getElementById('popup-daily')?.addEventListener('click', () => { showDailyQuests(); closeLandsPopup(); });
-      document.getElementById('popup-achievements')?.addEventListener('click', () => { showDailyQuests(); closeLandsPopup(); });
+      document.getElementById('popup-achievements')?.addEventListener('click', () => { showAchievements(); closeLandsPopup(); });
 
       renderBuildings();
     });

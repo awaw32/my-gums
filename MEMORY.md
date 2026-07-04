@@ -48,11 +48,52 @@
    - أضيف `-webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y`
    - `max-height: 88vh` + `overflow-y: auto`
 
+7. **تدقيق كود شامل + 17 إصلاحاً** ✅ (جلسة 4 يوليو 2026 — الثانية)
+   - راجعنا كل ملفات الـ JS + HTML + CSS ووجدنا 30+ مشكلة
+   - صنّفناها: أخطاء حرجة، متوسطة، بسيطة، وميزات غير مكتملة
+   - أصلحنا 17 مشكلة (انظر أدناه)
+
+### الإصلاحات في هذه الجلسة:
+
+| # | الملف | المشكلة | الإصلاح |
+|---|-------|---------|---------|
+| 1 | `index.html` | سكربت خلفية `#fullscreen-bg` يعمل قبل تحميل `config/images.js` | نُقل السكربت إلى بعد سطر تحميل `config/images.js` |
+| 2 | `index.html` | `window.location.reload(true)` مهمل | `reload()` |
+| 3 | `index.html` | `<link rel="icon">` داخل `<body>` | نُقل إلى `<head>` |
+| 4 | `index.html` | `addEventListener('fullscreenchange webkitfullscreenchange', ...)` — مسافة بين حدثين | فُصل إلى حدثين: `fullscreenchange` و `webkitfullscreenchange` |
+| 5 | `js/world.js:605` | `window.ImageResolver` غير معرّف (`const` لا ينشئ خاصية `window`) | `typeof ImageResolver !== 'undefined'` |
+| 6 | `config/images.js:136` | `applyBg()` لا يستخدم المسار المحلي كبديل عند عدم وجود رابط سحابي | أُضيف `else` branch مع `this._local[key]` |
+| 7 | `js/save.js:38-41` | فحص falsy (`if (data.level)`) يفشل مع القيم الصفرية | `!== undefined` |
+| 8 | `js/save.js:64-67` | فحص falsy لمستويات المباني وأوقات البناء | `??` بدلاً من `||` |
+| 9 | `js/hero.js:133-137` | فحص falsy لـ HP (`data.hp || this.maxHp`) — إذا HP=0 يعيد لأقصى حد | `data.hp !== undefined ? data.hp : this.maxHp` |
+| 10 | `js/upgrade-tree.js:132` | `getEffect()` غير تراكمي في أقصى مستوى (يرجع آخر تأثير فقط) | حلقة `for` تراكمية لكل المستويات |
+| 11 | `js/main.js` | ترتيب تحميل خاطئ: `loadFromDatabase` (API) ثم `loadGame` (localStorage) يلغي بيانات السيرفر | عكس الترتيب: localStorage أولاً للسرعة، ثم API رسمياً |
+| 12 | `lands.html:633` | `document.getElementById('mapBg')` — العنصر ليس له ID | أُضيف `id="mapBg"` إلى `<div class="map-bg">` |
+| 13 | `lands.html:658` | زر الإنجازات يفتح شاشة المهام اليومية | أُنشئت `showAchievements()` جديدة وربطها بالزر |
+| 14 | `lands.html:345` | `<img src="">` فارغ يسبب طلب HTTP غير ضروري | أُزيل `src=""` |
+| 15 | `js/inventory.js:63` | `craft()` لا يرجع المصروفات إذا فشل العنصر التالي | فحص `canAfford` للكل أولاً، ثم `spend` للكل |
+| 16 | `js/quests.js:150` | مكافأة `armyPower` من المهام تضيع بعد إعادة التحميل | حفظ `unitPowerBonus` في `desert_quests` + `saveGame` |
+| 17 | `js/ui/ui-core.js:1067` | تسرب الفواصل الزمنية (`setInterval`) إذا أُعيد استدعاء `startTopBarLoop` | تنظيف الفواصل القديمة قبل إنشاء جديدة |
+
+### الميزات المُكملة:
+- **صفحة الإنجازات في الأراضي**: أُنشئت `showAchievements()` بقائمة إنجازات محلية
+- **ImageResolver**: سكربت الخلفية يعمل الآن بشكل صحيح بعد تحميل `config/images.js`
+- **`applyBg()`**: صار يستخدم المسار المحلي كبديل عند عدم وجود رابط سحابي
+
 ### الملفات المعدلة في هذه الجلسة:
 - `js/ui/ui-promotion.js` — إزالة army-yard-page, إضافة overlay, ربط الأزرار
-- `js/ui/ui-core.js` — إزالة `bindPromoBackButtons()` من init
+- `js/ui/ui-core.js` — إزالة `bindPromoBackButtons()` من init، إضافة تنظيف الفواصل الزمنية
 - `js/ui/ui-gameplay.js` — تغيير صيغة رقم الإصدار
-- `lands.html` — إضافة ☰, قائمة منسدلة, contain للبيوت, CSS
+- `lands.html` — إضافة ☰, قائمة منسدلة, contain للبيوت, CSS, showAchievements, إصلاح mapBg, إصلاح src فارغ
+- `index.html` — إصلاحات متعددة (خلفية، fullscreen، favicon، reload)
+- `config/images.js` — إصلاح `applyBg()` لاستخدام المسار البديل
+- `js/world.js` — إصلاح `window.ImageResolver`
+- `js/save.js` — إصلاح فحوصات falsy، إضافة unitPowerBase
+- `js/hero.js` — إصلاح فحوصات falsy
+- `js/upgrade-tree.js` — إصلاح `getEffect()` التراكمي
+- `js/inventory.js` — إصلاح `craft()` مع `canAfford` أولاً
+- `js/quests.js` — إضافة حفظ/تحميل `unitPowerBonus`
+- `js/main.js` — عكس ترتيب تحميل API/localStorage
 
 ---
 
@@ -108,6 +149,9 @@
 7. **المتجر** — تحت 🔒
 8. **صوت** — `audio.js` موجود بس ما فيه ملفات صوتية فعلية
 9. **التحدي اليومي** — الـ qu والـ challenges قديمين (انشاؤوا بس قبل نظام ruby)
+10. **حفظ اللعبة** — لا يزال هناك تناقض بين localStorage و API (الـ saveToDB() كل 15 ثانية يضغط على السيرفر)
+11. **PvP pursuit** — المسار لا يُعاد حسابه أثناء مطاردة لاعب آخر (خطة لم تكتمل)
+12. **`economy.refreshIncome()`** — دالة غير مستخدمة (قد تحتاج ربط في المستقبل)
 
 ---
 
@@ -118,8 +162,11 @@
 1. ✅ إصلاح ساحة الجيش (شاشة كاملة + سحب)
 2. ✅ إصلاح الأراضي (قائمة منسدلة + تثبيت البيوت)
 3. ✅ ملف MEMORY.md
-4. ⬜ اختبار Playwright على هاتف iPhone
-5. ⬜ تحسين تصميم باقي الواجهات
+4. ✅ تدقيق كود شامل + 17 إصلاحاً تقنياً
+5. ⬜ اختبار Playwright على هاتف iPhone
+6. ⬜ تحسين تصميم باقي الواجهات
+7. ⬜ ملفات صوتية فعلية لـ `audio.js`
+8. ⬜ تحسين `saveToDB()` — تقليل استدعاءات POST (حفظ كل 60 ثانية بدلاً من 15)
 
 ---
 

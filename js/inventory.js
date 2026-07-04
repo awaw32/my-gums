@@ -63,8 +63,13 @@ export class InventoryManager {
   craft(recipeId) {
     const r = RECIPES.find(x => x.id === recipeId);
     if (!r) return false;
+    // التحقق من توفر كل المكونات أولاً
     for (const [res, amt] of Object.entries(r.ingredients)) {
-      if (!this.economy.spend(res, amt)) return false;
+      if (!this.economy.canAfford(res, amt)) return false;
+    }
+    // ثم صرف الجميع
+    for (const [res, amt] of Object.entries(r.ingredients)) {
+      this.economy.spend(res, amt);
     }
     this.items[r.product] = (this.items[r.product] || 0) + 1;
     if (this._onCrafted) this._onCrafted(r);

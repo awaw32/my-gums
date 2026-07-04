@@ -130,11 +130,11 @@ export class GameHero {
 
   loadState(data) {
     if (!data) return;
-    this.level = data.level || 1;
-    this.xp = data.xp || 0;
-    this.xpToNext = data.xpToNext || getHeroXpForLevel(this.level);
-    this.hp = data.hp || this.maxHp;
-    this.maxHp = data.maxHp || 120;
+    this.level = data.level ?? 1;
+    this.xp = data.xp ?? 0;
+    this.xpToNext = data.xpToNext ?? getHeroXpForLevel(this.level);
+    this.hp = data.hp !== undefined ? data.hp : this.maxHp;
+    this.maxHp = data.maxHp ?? 120;
     if (data.abilities) {
       for (const [k, v] of Object.entries(data.abilities)) {
         if (this.abilities[k]) {

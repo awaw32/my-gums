@@ -138,6 +138,11 @@ const ImageResolver = {
     const url = IMG[key];
     if (url) {
       el.style.backgroundImage = `url('${url}')`;
+    } else {
+      const local = this._local[key];
+      if (local) {
+        el.style.backgroundImage = `url('${local}')`;
+      }
     }
   }
 };

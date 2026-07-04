@@ -129,9 +129,9 @@ export class UpgradeTree {
     const p = UPGRADE_PATHS.find(x => x.id === pathId);
     if (!p) return 0;
     const lvl = this.levels[pathId] || 0;
-    if (lvl >= p.levels.length) return p.levels[p.levels.length - 1].effect;
     let total = 0;
-    for (let i = 0; i < lvl; i++) total += p.levels[i].effect;
+    const max = Math.min(lvl, p.levels.length);
+    for (let i = 0; i < max; i++) total += p.levels[i].effect;
     return total;
   }
 

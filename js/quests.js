@@ -104,6 +104,7 @@ export class QuestManager {
       this.storyProgress = data.storyProgress || 0;
       this.dailyQuests = data.dailyQuests || this.dailyQuests;
       this.lastDailyReset = data.lastDailyReset || Date.now();
+      if (data.unitPowerBonus && this.army) this.army.unitPowerBase = data.unitPowerBonus;
     }
   }
 
@@ -111,7 +112,8 @@ export class QuestManager {
     localStorage.setItem('desert_quests', JSON.stringify({
       storyProgress: this.storyProgress,
       dailyQuests: this.dailyQuests,
-      lastDailyReset: this.lastDailyReset
+      lastDailyReset: this.lastDailyReset,
+      unitPowerBonus: this.army.unitPowerBase
     }));
   }
 

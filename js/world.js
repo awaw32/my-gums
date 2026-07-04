@@ -602,7 +602,7 @@ export class WorldMap {
       this.mapImage = img; 
       if (this.netSync) this.netSync.sendLoginNotification();
     };
-    img.src = window.ImageResolver ? ImageResolver.src('mapDesert') : "img/map.jpg";
+    img.src = typeof ImageResolver !== 'undefined' ? ImageResolver.src('mapDesert') : "img/map.jpg";
 
     this.engine.start((dt, ctx, cam) => this.update(dt, ctx, cam));
 
