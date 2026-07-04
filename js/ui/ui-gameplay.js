@@ -192,7 +192,6 @@ GameUI.prototype._renderLandsBuildings = function() {
     btn.className = 'lands-building';
     btn.style.right = b.x + '%';
     btn.style.top = b.y + '%';
-    btn.style.left = (100 - b.x) + '%';
     btn.dataset.id = b.id;
     btn.innerHTML = `
       <div class="lands-building-pad">

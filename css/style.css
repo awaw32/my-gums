@@ -459,6 +459,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   -webkit-overflow-scrolling: touch;
   background: transparent;
   position: relative;
+  z-index: 1;
   padding-bottom: calc(var(--bottom-h) + 8px);
 }
 #screen-content::-webkit-scrollbar { width: 2px; }
@@ -770,14 +771,17 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 
 /* ====== القائمة المنزلقة (Sub-bar + Quick Upgrades) ====== */
 #quick-panel {
+  position: relative;
+  z-index: 90;
   overflow: hidden;
   max-height: 0;
   transition: max-height 0.35s ease, opacity 0.3s ease;
   opacity: 0;
   flex-shrink: 0;
+  background: var(--bg-surface);
 }
 #quick-panel.open {
-  max-height: 220px;
+  max-height: calc(var(--sub-h) + var(--qu-h) + 8px);
   opacity: 1;
 }
 
@@ -952,23 +956,21 @@ body.modal-open { overflow: hidden; }
   overflow: hidden;
 }
 
-/* خلفية الخريطة — FIXED لا تتحرك أبداً */
+/* خلفية الخريطة — FIXED لا تتحرك أبداً (مقيّدة بعرض التطبيق) */
 .lands-bg {
   position: fixed !important;
-  inset: 0 !important;
+  top: 0 !important;
+  left: 50% !important;
+  width: 100% !important;
+  max-width: 480px !important;
+  height: 100dvh !important;
   background-size: cover !important;
   background-position: center top !important;
   background-repeat: no-repeat !important;
-  background-attachment: fixed !important;
   z-index: 0;
-  transform: translateZ(0);
+  transform: translateX(-50%) translateZ(0);
   will-change: transform;
-  /* منع التمدد */
-  flex-shrink: 0;
-  flex-grow: 0;
-  /* ضمان عدم تشوه الصورة */
-  min-width: 100%;
-  min-height: 100%;
+  pointer-events: none;
 }
 
 /* حاوية الخريطة — تحافظ على نسبة العرض للارتفاع */
@@ -984,18 +986,29 @@ body.modal-open { overflow: hidden; }
 /* طبقة vignette خفيفة */
 .lands-vignette {
   position: fixed !important;
-  inset: 0 !important;
+  top: 0 !important;
+  left: 50% !important;
+  width: 100% !important;
+  max-width: 480px !important;
+  height: 100dvh !important;
+  transform: translateX(-50%);
   z-index: 1;
   pointer-events: none;
   background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.4) 100%);
 }
 
-/* ===== المباني — إحداثيات نسبية ثابتة ===== */
+/* ===== المباني — ثابتة على الشاشة (لا تتحرك عند فتح القائمة) ===== */
 .lands-buildings {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  height: 100dvh;
   z-index: 5;
   pointer-events: none;
+  contain: layout style;
 }
 .lands-building {
   position: absolute;

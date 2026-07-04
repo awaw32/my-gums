@@ -1,6 +1,7 @@
 {
     "recommendations": [
         "hostinger-official.hostinger-connector",
-        "saoudrizwan.claude-dev"
+        "saoudrizwan.claude-dev",
+        "sst-dev.opencode"
     ]
 }
