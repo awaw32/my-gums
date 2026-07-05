@@ -20,6 +20,7 @@ import { GameStore } from "./game-store.js";
 import { NetworkSync } from "./network-sync.js";
 import { WorldUpgradesUI } from "./ui/world-upgrades.js";
 import { GameHero } from "./hero.js";
+import { CinematicManager } from "./cinematic.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
@@ -104,6 +105,7 @@ async function loadFromDatabase(economy, army, username) {
       window._loadedInventory = data.inventory || null;
       window._loadedEvents = data.events || null;
       window._loadedTutorial = data.tutorial || null;
+      window._loadedCinematic = data.cinematic || null;
       window._brWins = data.brWins ?? 0;
       window._brKills = data.brKills ?? 0;
       window._loadedHero = data.hero || null;
@@ -163,6 +165,8 @@ async function init() {
   const inventory = new InventoryManager(economy);
   const events = new EventManager();
   const tutorial = new TutorialManager();
+  const cinematic = new CinematicManager();
+  window._cinematicManager = cinematic;
   
   setProgress(80);
 
@@ -176,6 +180,7 @@ async function init() {
   if (window._loadedInventory) inventory.loadState(window._loadedInventory);
   if (window._loadedEvents) events.loadState(window._loadedEvents);
   if (window._loadedTutorial) tutorial.loadState(window._loadedTutorial);
+  if (window._loadedCinematic) cinematic.loadState(window._loadedCinematic);
   if (window._loadedHero) hero.loadState(window._loadedHero);
   delete window._loadedAllianceLevel;
   delete window._loadedUpgrades;
@@ -186,6 +191,7 @@ async function init() {
   delete window._loadedInventory;
   delete window._loadedEvents;
   delete window._loadedTutorial;
+  delete window._loadedCinematic;
   delete window._loadedHero;
   if (window._loadedLandsState) {
     window._pendingLandsState = window._loadedLandsState;
@@ -390,6 +396,7 @@ async function init() {
           inventory: inventory.getSaveData(),
           events: events.getSaveData(),
           tutorial: tutorial.getSaveData(),
+          cinematic: cinematic.getSaveData(),
           brWins: window._brWinsGlobal || 0,
           brKills: window._brKillsGlobal || 0,
           landsState: landsState,
@@ -451,6 +458,8 @@ async function init() {
       ui.updateTopBar();
       achievements.updateProgress('player_level', lvl);
       hero.addXp(30);
+      // فتح المباني المقفلة عند الوصول للمستوى المناسب
+      ui.checkBuildingUnlocks(lvl);
     };
 
     // توصيل الأصوات والإنجازات والمهام بأحداث اللعبة

@@ -166,6 +166,7 @@ GameUI.prototype.renderTerritories = function() {
 GameUI.prototype._initLandsPage = function() {
   if (this._landsInitialized) return;
   this._landsInitialized = true;
+  const playerLevel = this.economy?.level || 1;
   const L = {
     bg: ImageResolver ? ImageResolver.src('landsBg') : 'assets/images/bg-village.jpg',
     buildings: [
@@ -174,40 +175,45 @@ GameUI.prototype._initLandsPage = function() {
         img_empty: ImageResolver ? ImageResolver.src('b1Empty') : '',
         img_building: ImageResolver ? ImageResolver.src('b1Construction') : '',
         img_built: ImageResolver ? ImageResolver.src('b1Built') : '',
-        locked: false, level: 1
+        locked: playerLevel < 3, unlockLevel: 3, level: 1
       },
       {
         id: 'b2', x: 20, y: 55, name: 'سكن الجنود',
         img_empty: ImageResolver ? ImageResolver.src('b2Empty') : '',
         img_building: ImageResolver ? ImageResolver.src('b2Construction') : '',
         img_built: ImageResolver ? ImageResolver.src('b2Built') : '',
-        locked: false, level: 1
+        locked: playerLevel < 5, unlockLevel: 5, level: 1
       },
       {
         id: 'b3', x: 78, y: 70, name: 'مستودع البضائع',
         img_empty: ImageResolver ? ImageResolver.src('b3Empty') : '',
         img_building: ImageResolver ? ImageResolver.src('b3Construction') : '',
         img_built: ImageResolver ? ImageResolver.src('b3Built') : '',
-        locked: false, level: 1
+        locked: playerLevel < 8, unlockLevel: 8, level: 1
       },
       {
         id: 'b4', x: 45, y: 30, name: 'ساحة التدريب',
         img_empty: ImageResolver ? ImageResolver.src('b6Empty') : '',
         img_building: ImageResolver ? ImageResolver.src('b6Construction') : '',
         img_built: ImageResolver ? ImageResolver.src('b6Built') : '',
-        locked: false, level: 1
+        locked: playerLevel < 10, unlockLevel: 10, level: 1
       },
     ]
   };
   this._landsState = {};
   for (const b of L.buildings) {
-    this._landsState[b.id] = { state: 'empty', level: b.level };
+    this._landsState[b.id] = { state: 'empty', level: b.level, unlocked: !b.locked };
   }
   if (window._pendingLandsState) {
     for (const [id, saved] of Object.entries(window._pendingLandsState)) {
       if (this._landsState[id]) {
         this._landsState[id].state = saved.state || 'empty';
         this._landsState[id].level = saved.level || 1;
+        if (saved.unlocked !== undefined) {
+          this._landsState[id].unlocked = saved.unlocked;
+          const bData = L.buildings.find(b => b.id === id);
+          if (bData) bData.locked = !saved.unlocked;
+        }
       }
     }
     delete window._pendingLandsState;
@@ -257,7 +263,11 @@ GameUI.prototype._onLandsBuildingClick = function(id) {
   const b = this._landsData.buildings.find(x => x.id === id);
   if (!b) return;
   const st = this._landsState[id];
-  if (b.locked) { this._landsToast(b.name + ' • مقفل'); return; }
+  if (b.locked) {
+    const req = b.unlockLevel ? ` (يتطلب المستوى ${b.unlockLevel})` : '';
+    this._landsToast(b.name + ' • مقفل' + req);
+    return;
+  }
   if (st.state === 'empty') {
     st.state = 'building';
     this._landsToast('قيد الإنشاء: ' + b.name);
@@ -275,6 +285,23 @@ GameUI.prototype._onLandsBuildingClick = function(id) {
 };
 
 GameUI.prototype._updateLandsProgress = function() {};
+
+GameUI.prototype.checkBuildingUnlocks = function(currentLevel) {
+  if (!this._landsData || !this._landsData.buildings) return;
+  let unlockedAny = false;
+  for (const b of this._landsData.buildings) {
+    const st = this._landsState[b.id];
+    if (b.locked && b.unlockLevel && currentLevel >= b.unlockLevel) {
+      b.locked = false;
+      st.unlocked = true;
+      unlockedAny = true;
+      this.showNotification(`🔓 تم فتح "${b.name}"! (${currentLevel} >= ${b.unlockLevel})`);
+    }
+  }
+  if (unlockedAny) {
+    this._renderLandsBuildings();
+  }
+};
 
 GameUI.prototype._openLandsUpgradeModal = function(id) {
   const b = this._landsData.buildings.find(x => x.id === id);

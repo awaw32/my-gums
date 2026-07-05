@@ -38,6 +38,7 @@ export class GameUI {
     this.initChat();
     this.initTutorial();
     this.initDailyCheck();
+    this.initCinematic();
   }
 
   bindUiToggle() {
@@ -95,6 +96,17 @@ export class GameUI {
   initTutorial() {
     if (!this.tutorial || !this.tutorial.needsTutorial) return;
     setTimeout(() => this.showTutorialStep(), 2000);
+  }
+
+  initCinematic() {
+    const cinematic = window._cinematicManager;
+    if (!cinematic || !cinematic.needsCinematic) return;
+    setTimeout(() => {
+      cinematic.start(() => {
+        // بعد انتهاء القصة، ابدأ التدريب إذا كان مطلوباً
+        this.initTutorial();
+      });
+    }, 1000);
   }
 
   showTutorialStep() {
