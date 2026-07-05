@@ -6,14 +6,23 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js",
-    "prod": "NODE_ENV=production node server.js",
+    "dev": "cross-env NODE_ENV=development node server.js",
+    "prod": "cross-env NODE_ENV=production node server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "node --check server.js && node --check server/db/databaseHelper.js && node --check server/db/buildings.js && node --check server/db/research.js && node --check server/logic/formulas.js && node --check server/logic/rewards.js && node --check server/logic/weaponUpgrade.js && node --check server/logic/combatLoop.js"
+    "lint": "eslint .",
+    "build": "echo \"No build step (static front-end)\" && exit 0",
+    "audit": "npm audit --audit-level=high"
+  },
+  "engines": {
+    "node": ">=18.17 <23"
   },
   "dependencies": {
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "mongoose": "^9.7.3",
     "ws": "^8.21.0"
   },
@@ -21,6 +30,7 @@
     "@playwright/mcp": "^0.0.77",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/cli": "^4.3.2",
+    "cross-env": "^10.1.0",
     "eslint": "^10.6.0",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.2",
