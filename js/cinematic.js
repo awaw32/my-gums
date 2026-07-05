@@ -133,7 +133,7 @@ export class CinematicManager {
           <button class="cinematic-btn-skip" onclick="window._cinematicManager.skip()">تخطي</button>
           <button class="cinematic-btn-next" onclick="window._cinematicManager.next()">${actionText}</button>
         </div>
-        <div class="cinematic-counter">${index + 1} / ${CINEMATIC_SCENES.length}</div>
+        <div class="cinematic-counter" dir="ltr">${index + 1} / ${CINEMATIC_SCENES.length}</div>
       </div>
     `;
 
