@@ -4,13 +4,17 @@ node_modules/
 # Environment
 .env
 
-# Runtime data
-data/
+# Build / output
+dist/
+build/
+coverage/
+logs/
 *.log
 
 # IDE
 .vscode/
 .idea/
+.zed/
 *.swp
 *.swo
 

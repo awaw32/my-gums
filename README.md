@@ -1,48 +1,96 @@
-# 🏜️ Desert Kingdom - Full Updated Version
+# 🏜️ Desert Kingdom - إمبراطورية الصحراء
 
-## ✅ What was improved:
+Multiplayer desert-themed RTS game with WebSocket real-time combat, economy, village building, PvP, and Battle Royale.
 
-- **Complete MongoDB integration** (All player data: resources, village, army, weapons, buildings, progress)
-- **In-Memory Cache** for ultra-fast performance
-- **Async/Await** everywhere (no more file system for player data)
-- **Automatic saving** every 15 seconds + on page close
-- **Smart loading**: Tries MongoDB first, falls back to localStorage
-- **Performance indexes** on MongoDB
-- **Better Dockerfile** with healthcheck
-- **Rate limiting** kept (30 messages/second per player)
-- **Clean separation** between real-time (WebSocket) and progress (HTTP API)
+## Requirements
 
-## 🚀 How to Deploy
+- **Node.js** >= 18.17 < 23 (LTS recommended)
+- **npm** (included with Node)
+- **MongoDB** (optional — runs with in-memory fallback)
 
-1. Upload this folder to GitHub
-2. In Coolify:
-   - Connect your GitHub repo
-   - Add Environment Variable:
-     ```
-     MONGO_URL=mongodb://root:YOUR_PASSWORD@host:27017/default?directConnection=true
-     ```
-     (Also accepts `MONGO_URI` as fallback)
-   - Deploy
-
-## 🧪 Running Tests
+## Quick Start
 
 ```bash
-npm test          # run once
-npm run test:watch  # watch mode
+# Copy environment file
+cp .env.example .env
+
+# Install dependencies
+npm ci
+
+# Start development server
+npm run dev
 ```
 
-Tests cover: Save/Load, Inventory, Combat (weapon system), Quests, NetworkSync.
+Open `http://localhost:3000` in your browser.
 
-## 📌 Player ID System
+## Available Scripts
 
-- You can pass `?playerId=your_unique_id` in the URL
-- The game will automatically save/load from MongoDB using this ID
-- Example: `https://yourdomain.com/?playerId=player123`
+| Script | Description |
+|--------|-------------|
+| `npm start` | Production start |
+| `npm run dev` | Development mode |
+| `npm run lint` | Run ESLint on all files |
+| `npm test` | Run Vitest test suite |
+| `npm run audit` | Security audit (high severity) |
+| `npm run build` | Build placeholder (static front-end) |
 
-## 🛡️ Data Safety
+## Health Check
 
-Every important action (level up, building upgrade, resource change) is saved to MongoDB.
+```bash
+curl http://localhost:3000/health
+# {"status":"ok","mongo":"connected|unavailable","rooms":0,"players":0,"uptime":...,"tickRate":20}
+```
+
+## Docker
+
+```bash
+# Build
+docker build -t my-gums .
+
+# Run
+docker run -p 3000:3000 my-gums
+```
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | HTTP/WS port |
+| `MONGO_URL` / `MONGO_URI` | — | MongoDB connection string |
+| `CORS_ORIGIN` | `*` | Allowed CORS origin |
+| `RATE_LIMIT_MAX` | `120` | Max requests per minute per IP |
+| `HTTPS` | `false` | Enable HTTPS |
+| `CERT_DIR` | `/etc/letsencrypt/live` | SSL certificate directory |
+| `DATA_DIR` | `./data` | Data directory |
+
+## Project Structure
+
+```
+├── .github/workflows/   CI pipeline
+├── assets/              Game assets (images, icons, monsters)
+├── css/                 Stylesheets
+├── docs/                Documentation
+├── js/                  Client-side game logic
+├── logs/                Server logs
+├── server/              Server-side logic (DB, combat, formulas)
+├── tests/               Test suites (Vitest)
+├── Dockerfile           Container image
+├── server.js            Entry point
+└── package.json         Dependencies & scripts
+```
+
+## Player ID System
+
+Pass `?playerId=your_unique_id` in the URL to persist progress via MongoDB:
+
+```
+https://yourdomain.com/?playerId=player123
+```
+
+## Docs
+
+Additional documentation in the [docs/](docs/) directory.
 
 ---
 
-**Version**: Full Professional Release - July 2026
+**Version**: 1.0.0 — July 2026

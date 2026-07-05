@@ -820,11 +820,52 @@ function serveStatic(rawUrl, req, res) {
   return true;
 }
 
+// ── Rate limiter (in-memory, per-IP) ───────────────────────────
+const reqCounts = new Map();
+const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX) || 120;
+function rateLimiter(ip) {
+  const now = Date.now();
+  let entry = reqCounts.get(ip);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW) {
+    entry = { windowStart: now, count: 0 };
+    reqCounts.set(ip, entry);
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT_MAX;
+}
+// دوري — تنظيف الـ IPs القديمة كل 5 دقائق
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, e] of reqCounts) {
+    if (now - e.windowStart > RATE_LIMIT_WINDOW * 2) reqCounts.delete(ip);
+  }
+}, 300_000);
+
 server.on("request", async (req, res) => {
   if (req.headers.upgrade === "websocket") return;
-  res.setHeader("Access-Control-Allow-Origin", "*");
+
+  // ── Rate limiting ────────────────────────────────────────────
+  const ip = req.socket.remoteAddress || "unknown";
+  if (!rateLimiter(ip)) {
+    res.writeHead(429, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Too many requests" }));
+    return;
+  }
+
+  // ── Security headers (helmet-like) ───────────────────────────
+  const corsOrigin = process.env.CORS_ORIGIN || false;
+  if (corsOrigin) {
+    res.setHeader("Access-Control-Allow-Origin", corsOrigin);
+  } else {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "0");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   if (req.method === "OPTIONS") {
     res.writeHead(204); res.end(); return;
   }
