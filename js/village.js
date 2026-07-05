@@ -1,38 +1,31 @@
-export const VILLAGE_DATA = [
-  {
-    id: 1, name: "القرية الأولى",
-    buildings: [
-      { id: "v1b1", name: "البحوث", desc: "تطوير الأبحاث والتقنيات", monsterPower: 10, baseProduction: 1, buildTime: 5, monsterName: "ذئب صحراوي" },
-      { id: "v1b2", name: "مستودع السلاح", desc: "مستودع الأسلحة الخفيفة", monsterPower: 25, baseProduction: 2, buildTime: 10, monsterName: "ثعبان رملي" },
-      { id: "v1b3", name: "ساحة التدريب", desc: "تدريب الجنود", monsterPower: 50, baseProduction: 4, buildTime: 20, monsterName: "عقرب عملاق" },
-      { id: "v1b4", name: "صندوق المكافآت", desc: "مكافآت وإنجازات", monsterPower: 80, baseProduction: 7, buildTime: 30, monsterName: "محارب متوحش" },
-    ],
-  },
-  {
-    id: 2, name: "القرية الثانية",
-    buildings: [
-      { id: "v2b1", name: "سوق التجارة", desc: "تجارة البضائع النادرة", monsterPower: 150, baseProduction: 10, buildTime: 45, monsterName: "فارس ظل" },
-      { id: "v2b2", name: "مسبك الحديد", desc: "تصنيع الأسلحة الثقيلة", monsterPower: 250, baseProduction: 15, buildTime: 60, monsterName: "غول صحراوي" },
-      { id: "v2b3", name: "قاعة الأبطال", desc: "تجنيد الأبطال", monsterPower: 400, baseProduction: 22, buildTime: 90, monsterName: "ساحر الرمال" },
-      { id: "v2b4", name: "حصون الدفاع", desc: "تحصينات متقدمة", monsterPower: 600, baseProduction: 30, buildTime: 120, monsterName: "تنين صغير" },
-    ],
-  },
-];
+"use strict";
 
-class VillageBuilding {
-  constructor(template) {
+/**
+ * نظام القرى والمباني - ملك الصحراء
+ * 5 قرى متسلسلة، كل قرية 4-5 مباني
+ */
+
+import { STORY_VILLAGES } from './story.js';
+
+export class VillageBuilding {
+  constructor(template, villageId) {
     this.id = template.id;
+    this.villageId = villageId;
     this.name = template.name;
-    this.desc = template.desc;
-    this.monsterPower = template.monsterPower;
-    this.baseProduction = template.baseProduction;
-    this.buildTime = template.buildTime;
+    this.description = template.description;
+    this.icon = template.icon;
+    this.cost = template.cost;
+    this.production = template.production;
+    this.upgradeCost = template.upgradeCost;
+    this.maxLevel = template.maxLevel;
+    this.power = template.power;
     this.monsterName = template.monsterName;
+    this.monsterPower = template.monsterPower;
+
     this.level = 0;
-    this.maxLevel = 100;
     this.state = "locked";
     this.constructTimer = 0;
-    this.constructDuration = template.buildTime;
+    this.constructDuration = 10;
     this.fightAnimTimer = 0;
     this.fightResult = null;
     this.productionAccum = 0;
@@ -42,20 +35,43 @@ class VillageBuilding {
   }
 
   get productionRate() {
-    return this.baseProduction * (1 + this.level * 0.1);
+    const rates = {};
+    for (const [resource, base] of Object.entries(this.production)) {
+      rates[resource] = Math.floor(base * (1 + this.level * 0.1));
+    }
+    return rates;
   }
 
   get currentMonsterPower() {
-    return this.monsterPower * (1 + this.level * 0.15);
+    return Math.floor(this.monsterPower * (1 + this.level * 0.15));
   }
 
-  get upgradeCost() {
-    return Math.floor(20 + this.level * 5 * (1 + this.level * 0.05));
+  get currentUpgradeCost() {
+    const costs = {};
+    for (const [resource, base] of Object.entries(this.upgradeCost)) {
+      costs[resource] = Math.floor(base * (1 + this.level * 0.1));
+    }
+    return costs;
   }
 
   get powerContribution() {
     if (this.state !== "ready") return 0;
-    return this.baseProduction * 2 * (1 + this.level * 0.1);
+    return Math.floor(this.power * (1 + this.level * 0.1));
+  }
+
+  canAfford(economy) {
+    for (const [resource, amount] of Object.entries(this.cost)) {
+      if (!economy.canAfford(resource, amount)) return false;
+    }
+    return true;
+  }
+
+  canUpgrade(economy) {
+    if (this.state !== "ready" || this.level >= this.maxLevel) return false;
+    for (const [resource, amount] of Object.entries(this.currentUpgradeCost)) {
+      if (!economy.canAfford(resource, amount)) return false;
+    }
+    return true;
   }
 
   fight(playerPower) {
@@ -91,19 +107,19 @@ class VillageBuilding {
     }
     if (this.state === "ready") {
       this.productionAccum += dt;
-      const interval = this.productionInterval;
-      if (this.productionAccum >= interval) {
-        this.productionAccum -= interval;
+      if (this.productionAccum >= this.productionInterval) {
+        this.productionAccum -= this.productionInterval;
         return this.productionRate;
       }
     }
-    return 0;
+    return null;
   }
 
   upgrade(economy) {
-    if (this.state !== "ready" || this.level >= this.maxLevel) return false;
-    const cost = this.upgradeCost;
-    if (!economy.spend('cash', cost)) return false;
+    if (!this.canUpgrade(economy)) return false;
+    for (const [resource, amount] of Object.entries(this.currentUpgradeCost)) {
+      economy.spend(resource, amount);
+    }
     this.level++;
     if (this._onUpgraded) this._onUpgraded(this);
     return true;
@@ -113,30 +129,73 @@ class VillageBuilding {
 export class GameVillage {
   constructor(economy) {
     this.economy = economy;
-    this.currentVillageId = 1;
-    this.villageData = VILLAGE_DATA;
+    this.currentVillageId = "wadi";
+    this.villages = STORY_VILLAGES;
     this.buildings = [];
+    this.completedVillages = [];
+    this.currentChapter = 1;
     this._savedOnBuilt = null;
     this._savedOnUpgraded = null;
-    this.initVillage(1);
+    this.initVillage("wadi");
   }
 
   initVillage(villageId) {
     this.buildings = [];
     this.currentVillageId = villageId;
-    const data = this.villageData.find(v => v.id === villageId);
-    if (!data) return;
-    for (const b of data.buildings) {
-      this.buildings.push(new VillageBuilding(b));
+    const village = this.villages.find(v => v.id === villageId);
+    if (!village) return;
+    for (const b of village.buildings) {
+      this.buildings.push(new VillageBuilding(b, villageId));
     }
-    // إعادة ربط callbacks بعد init (مهم لـ Prestige)
     if (this._savedOnBuilt || this._savedOnUpgraded) {
       this.setBuildingCallbacks(this._savedOnBuilt, this._savedOnUpgraded);
     }
   }
 
   get currentVillage() {
-    return this.villageData.find(v => v.id === this.currentVillageId);
+    return this.villages.find(v => v.id === this.currentVillageId);
+  }
+
+  get nextVillage() {
+    const idx = this.villages.findIndex(v => v.id === this.currentVillageId);
+    if (idx < this.villages.length - 1) {
+      return this.villages[idx + 1];
+    }
+    return null;
+  }
+
+  isVillageUnlocked(villageId) {
+    const village = this.villages.find(v => v.id === villageId);
+    if (!village) return false;
+    if (villageId === "wadi") return true;
+    return this.completedVillages.includes(village.id) ||
+           (this.economy.level >= village.levelRequired);
+  }
+
+  isVillageComplete() {
+    return this.buildings.every(b => b.state === "ready" && b.level >= 1);
+  }
+
+  completeVillage() {
+    if (!this.isVillageComplete()) return false;
+    if (!this.completedVillages.includes(this.currentVillageId)) {
+      this.completedVillages.push(this.currentVillageId);
+    }
+    return true;
+  }
+
+  canMoveToNext() {
+    const next = this.nextVillage;
+    if (!next) return false;
+    return this.isVillageComplete() && this.economy.level >= next.levelRequired;
+  }
+
+  moveToNext() {
+    if (!this.canMoveToNext()) return false;
+    const next = this.nextVillage;
+    this.completeVillage();
+    this.initVillage(next.id);
+    return true;
   }
 
   getPower() {
@@ -144,10 +203,15 @@ export class GameVillage {
   }
 
   getIncomeRate() {
-    return this.buildings.reduce((sum, b) => {
-      if (b.state === "ready") return sum + b.productionRate;
-      return sum;
-    }, 0);
+    const totalIncome = {};
+    for (const b of this.buildings) {
+      if (b.state === "ready") {
+        for (const [resource, amount] of Object.entries(b.productionRate)) {
+          totalIncome[resource] = (totalIncome[resource] || 0) + amount;
+        }
+      }
+    }
+    return totalIncome;
   }
 
   upgradeBuilding(building) {
@@ -164,20 +228,36 @@ export class GameVillage {
   }
 
   update(dt) {
-    let produced = 0;
+    const produced = {};
     for (const b of this.buildings) {
-      produced += b.update(dt);
+      const result = b.update(dt);
+      if (result) {
+        for (const [resource, amount] of Object.entries(result)) {
+          produced[resource] = (produced[resource] || 0) + amount;
+        }
+      }
     }
-    if (produced > 0) {
-      this.economy.add('cash', produced);
+    for (const [resource, amount] of Object.entries(produced)) {
+      this.economy.add(resource, amount);
     }
+    return produced;
   }
 
   getMonsterDifficulty(power) {
-    if (power < 30) return "ضعيف";
-    if (power < 80) return "متوسط";
-    if (power < 200) return "قوي";
-    if (power < 500) return "خطير";
+    if (power < 100) return "ضعيف";
+    if (power < 500) return "متوسط";
+    if (power < 2000) return "قوي";
+    if (power < 10000) return "خطير";
     return "مخيف";
+  }
+
+  getProgress() {
+    const total = this.buildings.length;
+    const built = this.buildings.filter(b => b.state === "ready").length;
+    return { total, built, percentage: Math.floor((built / total) * 100) };
+  }
+
+  getVillageIndex() {
+    return this.villages.findIndex(v => v.id === this.currentVillageId);
   }
 }

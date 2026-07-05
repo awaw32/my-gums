@@ -16,27 +16,9 @@
  * =============================================================================
  */
 
-export const STORY_CHAPTERS = [
-  {
-    id: 1,
-    title: "بداية الأمير",
-    desc: "أنت أمير صغير في خيمة بسيطة في قلب الصحراء. ابدأ ببناء قوتك.",
-    image: "img/desert-city-luxury.jpg", // سيتم استبدالها بصورة قصة مخصصة
-    reward: { gold: 100, armyPower: 5 },
-    unlockLevel: 1,
-    completed: false
-  },
-  {
-    id: 2,
-    title: "الهجوم الأول",
-    desc: "عصابة من اللصوص هاجمت caravan الخاص بك. دافع عن أرضك!",
-    image: "img/desert-army-luxury.jpg",
-    reward: { gold: 250, gems: 10, armyPower: 15 },
-    unlockLevel: 5,
-    completed: false
-  },
-  // يمكن إضافة المزيد لاحقاً
-];
+import { STORY_CHAPTERS as STORY } from './story.js';
+
+export { STORY as STORY_CHAPTERS };
 
 export const DAILY_QUESTS = [
   {
@@ -155,16 +137,18 @@ export class QuestManager {
   }
 
   getStoryChapter() {
-    return STORY_CHAPTERS[this.storyProgress] || null;
+    return STORY[this.storyProgress] || null;
   }
 
   advanceStory() {
-    if (this.storyProgress < STORY_CHAPTERS.length - 1) {
-      const chapter = STORY_CHAPTERS[this.storyProgress];
+    if (this.storyProgress < STORY.length - 1) {
+      const chapter = STORY[this.storyProgress];
       if (chapter.reward) {
         if (chapter.reward.gold) this.economy.addRaw('gold', chapter.reward.gold);
         if (chapter.reward.gems) this.economy.addRaw('gems', chapter.reward.gems);
-        if (chapter.reward.armyPower) this.army.unitPowerBase += chapter.reward.armyPower;
+        if (chapter.reward.cash) this.economy.addRaw('cash', chapter.reward.cash);
+        if (chapter.reward.food) this.economy.addRaw('food', chapter.reward.food);
+        if (chapter.reward.xp) this.economy.addXp(chapter.reward.xp);
       }
       this.storyProgress++;
       this.save();

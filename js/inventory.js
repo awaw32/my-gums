@@ -11,22 +11,22 @@ const RECIPES = [
   },
   {
     id: "r3", name: "درع صحراوي", icon: "🛡️", product: "desert_shield",
-    ingredients: { gold: 150, hammers: 30, horns: 10 },
+    ingredients: { gold: 150, hammers: 30, gems: 10 },
     description: "درع يقلل الضرر 20%"
   },
   {
     id: "r4", name: "خوذة القوة", icon: "⛑️", product: "power_helmet",
-    ingredients: { gold: 200, kingCoins: 10, scrolls: 25 },
+    ingredients: { gold: 200, gems: 15, scrolls: 25 },
     description: "قوة جيش +50"
   },
   {
     id: "r5", name: "مخطط برج", icon: "📐", product: "tower_blueprint",
-    ingredients: { gold: 300, hammers: 50, scrolls: 30, kingCoins: 5 },
+    ingredients: { gold: 300, hammers: 50, scrolls: 30, gems: 8 },
     description: "يفتح برج دفاع جديد"
   },
   {
     id: "r6", name: "جوهرة القوة", icon: "💎", product: "power_gem",
-    ingredients: { gold: 500, gems: 25, kingCoins: 10, horns: 20 },
+    ingredients: { gold: 500, gems: 50, hammers: 40, scrolls: 20 },
     description: "كل العملات ×2 لمدة 5 دقائق"
   },
   {

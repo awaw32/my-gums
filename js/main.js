@@ -20,7 +20,7 @@ import { GameStore } from "./game-store.js";
 import { NetworkSync } from "./network-sync.js";
 import { WorldUpgradesUI } from "./ui/world-upgrades.js";
 import { GameHero } from "./hero.js";
-import { CinematicManager } from "./cinematic.js";
+import { StoryManager } from "./story-manager.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
@@ -71,10 +71,8 @@ async function loadFromDatabase(economy, army, username) {
       economy.cash = data.cash;
       economy.gems = data.gems || 0;
       economy.gold = data.gold || 0;
-      economy.kingCoins = data.kingCoins || 0;
       economy.hammers = data.hammers || 0;
       economy.scrolls = data.scrolls || 0;
-      economy.horns = data.horns || 0;
       economy.resources.food = data.food ?? 50;
       economy.level = data.level || 1;
       economy.xp = data.xp || 0;
@@ -105,7 +103,7 @@ async function loadFromDatabase(economy, army, username) {
       window._loadedInventory = data.inventory || null;
       window._loadedEvents = data.events || null;
       window._loadedTutorial = data.tutorial || null;
-      window._loadedCinematic = data.cinematic || null;
+      window._loadedStory = data.story || null;
       window._brWins = data.brWins ?? 0;
       window._brKills = data.brKills ?? 0;
       window._loadedHero = data.hero || null;
@@ -165,8 +163,8 @@ async function init() {
   const inventory = new InventoryManager(economy);
   const events = new EventManager();
   const tutorial = new TutorialManager();
-  const cinematic = new CinematicManager();
-  window._cinematicManager = cinematic;
+  const storyManager = new StoryManager(economy, village);
+  window._storyManager = storyManager;
   
   setProgress(80);
 
@@ -180,7 +178,7 @@ async function init() {
   if (window._loadedInventory) inventory.loadState(window._loadedInventory);
   if (window._loadedEvents) events.loadState(window._loadedEvents);
   if (window._loadedTutorial) tutorial.loadState(window._loadedTutorial);
-  if (window._loadedCinematic) cinematic.loadState(window._loadedCinematic);
+  if (window._loadedStory) storyManager.loadState(window._loadedStory);
   if (window._loadedHero) hero.loadState(window._loadedHero);
   delete window._loadedAllianceLevel;
   delete window._loadedUpgrades;
@@ -191,7 +189,7 @@ async function init() {
   delete window._loadedInventory;
   delete window._loadedEvents;
   delete window._loadedTutorial;
-  delete window._loadedCinematic;
+  delete window._loadedStory;
   delete window._loadedHero;
   if (window._loadedLandsState) {
     window._pendingLandsState = window._loadedLandsState;
@@ -203,16 +201,15 @@ async function init() {
     economy.addRaw("cash", 1000);
     economy.addRaw("gems", 1000);
     economy.addRaw("gold", 1000);
-    economy.addRaw("kingCoins", 1000);
     economy.addRaw("hammers", 1000);
     economy.addRaw("scrolls", 1000);
-    economy.addRaw("horns", 1000);
+    economy.addRaw("food", 500);
     console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!");
     // حفظ فوري في قاعدة البيانات عشان ما يضيع البونص
     try {
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cash: economy.cash, gems: economy.gems, gold: economy.gold, kingCoins: economy.kingCoins, hammers: economy.hammers, scrolls: economy.scrolls, horns: economy.horns, food: economy.food, army_power: economy.power, unitLevel: 1, weapons: [], last_active: Date.now() })
+        body: JSON.stringify({ cash: economy.cash, gems: economy.gems, gold: economy.gold, hammers: economy.hammers, scrolls: economy.scrolls, food: economy.food, army_power: economy.power, unitLevel: 1, weapons: [], last_active: Date.now() })
       }).catch(e => console.warn("[Save] welcome bonus save:", e.message));
     } catch (e) { console.warn("[Save] welcome bonus error:", e.message); }
   } else {
@@ -368,10 +365,8 @@ async function init() {
           cash: economy.cash,
           gems: economy.gems,
           gold: economy.gold,
-          kingCoins: economy.kingCoins,
           hammers: economy.hammers,
           scrolls: economy.scrolls,
-          horns: economy.horns,
           food: economy.food,
           army_power: economy.power,
           unitLevel: army.unitLevel,
@@ -396,7 +391,7 @@ async function init() {
           inventory: inventory.getSaveData(),
           events: events.getSaveData(),
           tutorial: tutorial.getSaveData(),
-          cinematic: cinematic.getSaveData(),
+          story: storyManager.getSaveData(),
           brWins: window._brWinsGlobal || 0,
           brKills: window._brKillsGlobal || 0,
           landsState: landsState,
@@ -700,8 +695,7 @@ async function init() {
         brKillsTotal += result.kills || 0;
         if (brVictoryScreen) brVictoryScreen.classList.remove('hidden');
         if (brVictoryStats) brVictoryStats.textContent = `🏆 قضيت على ${result.kills || 0} أعداء`;
-        economy.addRaw('kingCoins', 100 + (result.kills || 0) * 10);
-        economy.addRaw('gems', 50);
+        economy.addRaw('gems', 100 + (result.kills || 0) * 10);
         saveToDB();
         fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
           method: "POST",

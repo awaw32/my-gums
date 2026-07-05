@@ -38,7 +38,7 @@ export class GameUI {
     this.initChat();
     this.initTutorial();
     this.initDailyCheck();
-    this.initCinematic();
+    this.initStory();
   }
 
   bindUiToggle() {
@@ -98,15 +98,64 @@ export class GameUI {
     setTimeout(() => this.showTutorialStep(), 2000);
   }
 
-  initCinematic() {
-    const cinematic = window._cinematicManager;
-    if (!cinematic || !cinematic.needsCinematic) return;
+  initStory() {
+    const storyManager = window._storyManager;
+    if (!storyManager || !storyManager.canShowStory()) return;
     setTimeout(() => {
-      cinematic.start(() => {
+      this.showStoryScene(() => {
         // بعد انتهاء القصة، ابدأ التدريب إذا كان مطلوباً
         this.initTutorial();
       });
     }, 1000);
+  }
+
+  showStoryScene(callback) {
+    const storyManager = window._storyManager;
+    if (!storyManager) return;
+
+    const scene = storyManager.getNextScene();
+    if (!scene) {
+      if (callback) callback();
+      return;
+    }
+
+    const overlay = document.createElement("div");
+    overlay.id = "story-overlay";
+    overlay.className = "story-overlay";
+    overlay.innerHTML = `
+      <div class="story-bg" style="background: ${scene.bg || 'linear-gradient(135deg, #1a0a00 0%, #3d1f00 50%, #5a2d00 100%)'}"></div>
+      <div class="story-content">
+        <div class="story-icon">${scene.icon}</div>
+        <h2 class="story-title">${scene.title}</h2>
+        <p class="story-text">${scene.text}</p>
+        <div class="story-progress">
+          <div class="story-progress-bar" style="width: ${storyManager.getProgress().percentage}%"></div>
+        </div>
+        <div class="story-buttons">
+          <button class="story-btn-skip" onclick="window._storyManager.skip()">تخطي</button>
+          <button class="story-btn-next" onclick="window._storyManager.next()">التالي</button>
+        </div>
+        <div class="story-counter" dir="ltr">${storyManager.currentScene} / ${storyManager.getCurrentScenes().length}</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const nextBtn = overlay.querySelector('.story-btn-next');
+    const skipBtn = overlay.querySelector('.story-btn-skip');
+
+    nextBtn.onclick = () => {
+      overlay.remove();
+      if (storyManager.hasMoreScenes()) {
+        this.showStoryScene(callback);
+      } else {
+        if (callback) callback();
+      }
+    };
+
+    skipBtn.onclick = () => {
+      overlay.remove();
+      if (callback) callback();
+    };
   }
 
   showTutorialStep() {
@@ -823,7 +872,7 @@ export class GameUI {
             <div class="craft-name">${r.name}</div>
             <div class="craft-desc">${r.description}</div>
             <div class="craft-cost">${Object.entries(r.ingredients).map(([res, amt]) => {
-              const icons = {gold:'🪙',cash:'💵',hammers:'🔨',scrolls:'📜',horns:'📯',kingCoins:'👑',food:'🌾',gems:'💎'};
+              const icons = {gold:'🪙',cash:'💵',hammers:'🔨',scrolls:'📜',food:'🌾',gems:'💎'};
               return `${icons[res]||'•'} ${amt}`;
             }).join(' + ')}</div>
           </div>

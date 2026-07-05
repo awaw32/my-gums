@@ -16,6 +16,7 @@ import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.j
 import { drawWeaponGlow, drawWeaponStarIcons } from "./combat/weapon-visuals.js";
 import { spriteFactory, SpriteFactory, DIRECTIONS, DIR_ANGLES } from "./sprite-factory.js";
 import { IsometricSystem, DepthSorter, TILE_W, TILE_H } from "./isometric.js";
+import { getEnemyForLevel } from "./enemies.js";
 
 export class WorldMap {
   constructor(economy, username = "بطل الصحراء", apiBase = "", army = null) {
@@ -308,10 +309,8 @@ export class WorldMap {
           cash: this.economy?.cash || 0,
           gems: this.economy?.gems || 0,
           gold: this.economy?.gold || 0,
-          kingCoins: this.economy?.kingCoins || 0,
           hammers: this.economy?.hammers || 0,
           scrolls: this.economy?.scrolls || 0,
-          horns: this.economy?.horns || 0,
           army_power: newArmyPower,
           unitLevel: this.army?.unitLevel || 1,
           weapons: this.army?.weapons?.map(w => ({ id: w.id, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })) || [],
@@ -681,15 +680,19 @@ export class WorldMap {
   }
 
   createMonster(id, spawnX, spawnY) {
-    const types = [
-      { name: "ذئب صحراوي", color: "#8a5a3a", radius: 14, hp: 35, maxHp: 35, damage: 6, rewardMoney: 8, imageKey: "monster-1" },
-      { name: "محارب ظل", color: "#2a1a1a", radius: 18, hp: 65, maxHp: 65, damage: 13, rewardMoney: 18, imageKey: "monster-2" },
-      { name: "زعيم الرمال", color: "#c0392b", radius: 22, hp: 130, maxHp: 130, damage: 24, rewardMoney: 45, imageKey: "monster-3" },
-    ];
-    const t = types[Math.floor(Math.random() * types.length)];
+    const playerLevel = this.economy?.level || 1;
+    const enemy = getEnemyForLevel(playerLevel);
     return {
       id,
-      ...t,
+      name: enemy.name,
+      color: enemy.color,
+      radius: enemy.radius,
+      hp: enemy.hp,
+      maxHp: enemy.hp,
+      damage: enemy.damage,
+      rewardMoney: enemy.reward.cash || 5,
+      rewardGold: enemy.reward.gold || 1,
+      imageKey: this._getMonsterImageKey(enemy.id),
       x: spawnX,
       y: spawnY,
       spawnX,
@@ -699,6 +702,13 @@ export class WorldMap {
       attackCD: 0,
       respawnTimer: 0,
     };
+  }
+
+  _getMonsterImageKey(enemyId) {
+    if (enemyId.includes("wolf") || enemyId.includes("scorpion") || enemyId.includes("thief")) return "monster-1";
+    if (enemyId.includes("ghost") || enemyId.includes("shadow") || enemyId.includes("sorcerer")) return "monster-2";
+    if (enemyId.includes("dragon") || enemyId.includes("boss") || enemyId.includes("eagle")) return "monster-3";
+    return "monster-1";
   }
 
   respawnMonster(monster) {
@@ -1691,15 +1701,16 @@ export class WorldMap {
       monster.alive = false;
       monster.respawnTimer = 25;
       const reward = monster.rewardMoney || 10;
+      const goldReward = monster.rewardGold || Math.floor(reward * 0.3);
       this.sessionStats.kills++;
       this.sessionStats.coinsEarned += reward;
       if (this.netSync) this.netSync.send({ type: "monster_killed", id: monster.id });
       this.createDrop(monster.x, monster.y, reward);
       if (this.economy) {
         this.economy.addRaw("cash", reward);
-        this.economy.addRaw("gold", Math.floor(reward * 0.3));
+        this.economy.addRaw("gold", goldReward);
         if (this._onCashEarned) this._onCashEarned(reward);
-        this.worldFx.push({ x: monster.x, y: monster.y, text: `+${reward} 💵 +${Math.floor(reward * 0.3)} 🪙`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
+        this.worldFx.push({ x: monster.x, y: monster.y, text: `+${reward} 💵 +${goldReward} 🪙`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
         fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1707,10 +1718,8 @@ export class WorldMap {
             cash: this.economy.cash,
             gems: this.economy.gems,
             gold: this.economy.gold,
-            kingCoins: this.economy.kingCoins,
             hammers: this.economy.hammers,
             scrolls: this.economy.scrolls,
-            horns: this.economy.horns,
             army_power: this.economy.power,
             unitLevel: this.army?.unitLevel || 1,
             weapons: this.army?.weapons?.map(w => ({ id: w.id, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })) || [],

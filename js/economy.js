@@ -1,11 +1,9 @@
 export const RESOURCE_TYPES = {
   cash: { name: 'المال', icon: '💵', color: '#2ecc71', format: 'big' },
-  gold: { name: 'العملة الذهبية', icon: '🪙', color: '#FFD700', format: 'big' },
+  gold: { name: 'الذهب', icon: '🪙', color: '#FFD700', format: 'big' },
   gems: { name: 'الجواهر', icon: '💎', color: '#9b59b6', format: 'fixed' },
-  kingCoins: { name: 'KING Coins', icon: '👑', color: '#e67e22', format: 'fixed' },
   hammers: { name: 'المطارق', icon: '🔨', color: '#e74c3c', format: 'big' },
   scrolls: { name: 'المخطوطات', icon: '📜', color: '#f39c12', format: 'big' },
-  horns: { name: 'الأبواق', icon: '📯', color: '#1abc9c', format: 'big' },
   food: { name: 'الطعام', icon: '🌾', color: '#f1c40f', format: 'big' },
 };
 
@@ -29,10 +27,8 @@ export class GameEconomy {
       cash: 0,
       gold: 150,
       gems: 10,
-      kingCoins: 0,
       hammers: 0,
       scrolls: 0,
-      horns: 0,
       food: 50,
     };
     this.multiplier = 1;
@@ -74,14 +70,10 @@ export class GameEconomy {
   set gold(v) { this.resources.gold = Math.max(0, v); }
   get gems() { return this.resources.gems; }
   set gems(v) { this.resources.gems = Math.max(0, v); }
-  get kingCoins() { return this.resources.kingCoins; }
-  set kingCoins(v) { this.resources.kingCoins = Math.max(0, v); }
   get hammers() { return this.resources.hammers; }
   set hammers(v) { this.resources.hammers = Math.max(0, v); }
   get scrolls() { return this.resources.scrolls; }
   set scrolls(v) { this.resources.scrolls = Math.max(0, v); }
-  get horns() { return this.resources.horns; }
-  set horns(v) { this.resources.horns = Math.max(0, v); }
 
   get food() { return this.resources.food; }
   set food(v) { this.resources.food = Math.max(0, v); }

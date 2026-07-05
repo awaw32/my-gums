@@ -53,7 +53,7 @@ export class WorldUpgradesUI {
 
   _costRow(resources) {
     return Object.entries(resources).map(([k, v]) => {
-      const icons = { cash: "💵", gold: "🪙", gems: "💎", scrolls: "📜", hammers: "🔨", kingCoins: "👑", horns: "📯" };
+      const icons = { cash: "💵", gold: "🪙", gems: "💎", scrolls: "📜", hammers: "🔨" };
       return `<span class="wu-cost"><span class="wu-cost-icon">${icons[k] || "📦"}</span>${v}</span>`;
     }).join(" ");
   }

@@ -3,8 +3,9 @@ import { QuestManager, DAILY_QUESTS, STORY_CHAPTERS, ALLIANCE_MISSIONS } from '.
 
 function makeMockEconomy() {
   return {
-    resources: { gold: 100, gems: 10 },
+    resources: { gold: 100, gems: 10, cash: 0, food: 0 },
     addRaw: function(type, amt) { if (this.resources[type] !== undefined) this.resources[type] += amt; },
+    addXp: function(amt) { this.xp = (this.xp || 0) + amt; },
   };
 }
 
@@ -138,8 +139,10 @@ describe('QuestManager', () => {
 
     it('advanceStory should give rewards from chapter', () => {
       const goldBefore = eco.resources.gold;
+      const xpBefore = eco.xp || 0;
       quests.advanceStory();
-      expect(eco.resources.gold).toBe(goldBefore + 100);
+      expect(eco.resources.gold).toBe(goldBefore + 50);
+      expect(eco.xp).toBe(xpBefore + 200);
     });
 
     it('advanceStory should return false when at last chapter', () => {
@@ -259,7 +262,7 @@ describe('STORY_CHAPTERS data', () => {
     for (const ch of STORY_CHAPTERS) {
       expect(ch.id).toBeGreaterThan(0);
       expect(ch.title).toBeTruthy();
-      expect(ch.desc).toBeTruthy();
+      expect(ch.description).toBeTruthy();
       expect(ch.reward).toBeTruthy();
     }
   });
