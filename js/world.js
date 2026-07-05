@@ -617,8 +617,6 @@ export class WorldMap {
       markObstacle(rock.x, rock.y, rock.r);
     }
 
-    this.spawnMonsters();
-
     const img = new Image();
     img.onload = () => { 
       this.mapImage = img; 
