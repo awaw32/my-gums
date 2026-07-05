@@ -40,11 +40,20 @@ class GameEngine {
       zoom: 1,          // 1=normal, 2=zoomed in, 0.5=zoomed out
       minZoom: 0.35,
       maxZoom: 2,
+      isometric: false,  // 2.5D isometric mode
 
       /** Center camera on world coordinate */
       lookAt: (wx, wy) => {
-        this.camera.x = wx - this.camera.w * 0.5;
-        this.camera.y = wy - this.camera.h * 0.5;
+        if (this.camera.isometric) {
+          // Isometric: convert world to iso screen coords
+          const isoX = (wx - wy) * 0.5;
+          const isoY = (wx + wy) * 0.25;
+          this.camera.x = isoX - this.camera.w * 0.5;
+          this.camera.y = isoY - this.camera.h * 0.5;
+        } else {
+          this.camera.x = wx - this.camera.w * 0.5;
+          this.camera.y = wy - this.camera.h * 0.5;
+        }
       },
 
       /** Clamp camera inside world bounds */
@@ -57,9 +66,18 @@ class GameEngine {
       /** Is (wx, wy) with margin visible on screen? (accounts for zoom) */
       visible: (wx, wy, margin = 0) => {
         const c = this.camera;
-        const cx = c.w / 2, cy = c.h / 2;
-        const sx = cx + (wx - c.x - cx) * c.zoom;
-        const sy = cy + (wy - c.y - cy) * c.zoom;
+        let sx, sy;
+        if (c.isometric) {
+          const isoX = (wx - wy) * 0.5;
+          const isoY = (wx + wy) * 0.25;
+          const cx = c.w / 2, cy = c.h / 2;
+          sx = cx + (isoX - c.x - cx) * c.zoom;
+          sy = cy + (isoY - c.y - cy) * c.zoom;
+        } else {
+          const cx = c.w / 2, cy = c.h / 2;
+          sx = cx + (wx - c.x - cx) * c.zoom;
+          sy = cy + (wy - c.y - cy) * c.zoom;
+        }
         const m = margin * c.zoom;
         return sx > -m && sy > -m &&
                sx < c.w + m && sy < c.h + m;
@@ -69,16 +87,30 @@ class GameEngine {
       screenToWorld: (sx, sy) => {
         const c = this.camera;
         const cx = c.w / 2, cy = c.h / 2;
-        return {
-          x: c.x + cx + (sx - cx) / c.zoom,
-          y: c.y + cy + (sy - cy) / c.zoom,
-        };
+        const wx = c.x + cx + (sx - cx) / c.zoom;
+        const wy = c.y + cy + (sy - cy) / c.zoom;
+        if (c.isometric) {
+          // Inverse isometric transform
+          return {
+            x: wx + wy * 2,
+            y: wy * 2 - wx
+          };
+        }
+        return { x: wx, y: wy };
       },
 
       /** World coords → Screen coords */
       worldToScreen: (wx, wy) => {
         const c = this.camera;
         const cx = c.w / 2, cy = c.h / 2;
+        if (c.isometric) {
+          const isoX = (wx - wy) * 0.5;
+          const isoY = (wx + wy) * 0.25;
+          return {
+            x: cx + (isoX - c.x - cx) * c.zoom,
+            y: cy + (isoY - c.y - cy) * c.zoom,
+          };
+        }
         return {
           x: cx + (wx - c.x - cx) * c.zoom,
           y: cy + (wy - c.y - cy) * c.zoom,

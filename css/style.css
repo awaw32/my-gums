@@ -1646,28 +1646,110 @@ body.modal-open { overflow: hidden; }
 .territory-status { font-size: 0.7rem; color: var(--text-secondary); }
 
 /* ====== شاشة الحرب ====== */
-.war-card {
+.war-modes-row {
+  display: flex;
+  gap: 8px;
+  padding: 0 4px;
+  margin-bottom: 12px;
+}
+.war-mode-btn {
+  flex: 1;
+  background: var(--bg-card);
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  padding: 10px 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+.war-mode-btn:active { transform: scale(0.96); }
+.war-mode-active {
+  border-color: var(--accent-red);
+  background: linear-gradient(180deg, rgba(220,50,50,0.08), var(--bg-card));
+}
+.war-mode-icon { font-size: 1.6rem; margin-bottom: 2px; }
+.war-mode-name { font-size: 0.7rem; font-weight: 700; color: var(--accent-red); }
+.war-mode-desc { font-size: 0.55rem; color: var(--text-secondary); margin-top: 1px; }
+.war-mode-details { padding: 0 4px; }
+.war-detail-card {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 10px;
-  text-align: center;
+  overflow: hidden;
   box-shadow: var(--shadow-card);
 }
-.war-card-icon { font-size: 2.5rem; margin-bottom: 6px; }
-.war-card-title { font-size: 0.95rem; font-weight: 700; color: var(--accent-red); }
-.war-card-desc { font-size: 0.7rem; color: var(--text-secondary); margin: 4px 0 10px; }
-.war-enter-btn {
+.war-detail-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(220,50,50,0.06), transparent);
+  border-bottom: 1px solid var(--border-light);
+}
+.war-detail-icon { font-size: 1.4rem; }
+.war-detail-title { font-size: 0.9rem; font-weight: 700; color: var(--accent-red); }
+.war-detail-body { padding: 12px 14px; }
+.war-detail-body > p { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 10px; }
+.war-detail-stats { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.war-stat {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.7rem;
+}
+.war-stat-icon { font-size: 0.9rem; }
+.war-stat-label { color: var(--text-secondary); flex: 1; }
+.war-stat-value { font-weight: 700; color: var(--text-primary); }
+.war-start-btn {
+  width: 100%;
   background: linear-gradient(180deg, var(--accent-red), var(--accent-red-dim));
   color: #fff;
-  padding: 10px 24px;
+  padding: 10px;
   border-radius: 12px;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
-.war-arena-bg { background: linear-gradient(180deg, #f5f0e8, #ede4d6); }
-.war-adventure-bg { background: linear-gradient(180deg, #faf5ee, #f0e8dc); }
+.war-start-btn:active { opacity: 0.85; }
+
+/* ====== تأثير قدرات البطل ====== */
+@keyframes abilityFlash {
+  0% { box-shadow: 0 0 0 0 rgba(255,215,0,0.7); transform: scale(1); }
+  50% { box-shadow: 0 0 20px 8px rgba(255,215,0,0.4); transform: scale(1.12); }
+  100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); transform: scale(1); }
+}
+.ability-flash {
+  animation: abilityFlash 0.6s ease-out;
+}
+
+/* ====== واجهة المتجر ====== */
+.shop-section-title {
+  font-size: 0.85rem; font-weight: 700; color: var(--text-primary);
+  margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+.shop-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-card); border: 1px solid var(--border-light);
+  border-radius: 12px; padding: 10px; margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+.shop-item-available { border-color: rgba(46,204,113,0.4); }
+.shop-item-locked { opacity: 0.6; }
+.shop-item-icon { font-size: 1.5rem; min-width: 36px; text-align: center; }
+.shop-item-info { flex: 1; }
+.shop-item-name { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); }
+.shop-item-desc { font-size: 0.65rem; color: var(--text-secondary); margin-top: 1px; }
+.shop-item-right { text-align: center; min-width: 70px; }
+.shop-item-cost { font-size: 0.7rem; font-weight: 700; color: var(--gold); margin-bottom: 4px; }
+.shop-buy-btn {
+  padding: 5px 12px; font-size: 0.7rem; font-weight: 700;
+  background: var(--accent-red); color: #fff; border: none; border-radius: 8px;
+  cursor: pointer; font-family: inherit; transition: opacity 0.2s;
+}
+.shop-buy-btn:active { opacity: 0.8; }
+.shop-buy-disabled { background: #666; cursor: default; }
 
 /* ====== تحسينات Responsive و Touch Targets ====== */
 button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom-btn {
@@ -3540,4 +3622,28 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .rw-ach-done { font-size: 1.2rem; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ====== 2.5D Isometric System ====== */
+#gameCanvas {
+  image-rendering: auto;
+  background: #c2a06e;
+}
+.sprite-glow {
+  filter: drop-shadow(0 0 6px rgba(212, 160, 23, 0.5));
+}
+.entity-shadow {
+  pointer-events: none;
+}
+/* Drop item bob animation */
+@keyframes dropBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.drop-glow {
+  animation: dropBob 1.2s ease-in-out infinite;
+}
+/* Tile edge blending */
+.iso-tile-sand { background: #e8d5a3; }
+.iso-tile-rock { background: #8a8070; }
+.iso-tile-oasis { background: #5a9a6a; }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }

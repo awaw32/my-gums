@@ -36,23 +36,69 @@ GameUI.prototype.buildWarScreen = function() {
   div.className = "screen-panel";
   div.innerHTML = `
     <div class="panel-header">⚔️ ساحات الحرب</div>
-    <div class="war-card war-arena-bg">
-      <div class="war-card-icon">🛡️</div>
-      <div class="war-card-title">🏟️ الساحة</div>
-      <div class="war-card-desc">PvP — تصفيات التأهل • 5d 19:44:19</div>
-      <button id="arena-enter-btn" class="war-enter-btn">🚀 الدخول</button>
+    <div class="war-modes-row">
+      <button class="war-mode-btn" id="arena-enter-btn" data-mode="oasis">
+        <div class="war-mode-icon">🌴</div>
+        <div class="war-mode-name">واحة الغنائم</div>
+        <div class="war-mode-desc">PvP — قاتل اللاعبين</div>
+      </button>
+      <button class="war-mode-btn" id="adventure-enter-btn" data-mode="adventure">
+        <div class="war-mode-icon">🐍</div>
+        <div class="war-mode-name">مغامرة</div>
+        <div class="war-mode-desc">PvE — وحوش الصحراء</div>
+      </button>
+      <button class="war-mode-btn" id="campaign-enter-btn" data-mode="campaign">
+        <div class="war-mode-icon">🗺️</div>
+        <div class="war-mode-name">حملة</div>
+        <div class="war-mode-desc">PvE — مراحل القصة</div>
+      </button>
     </div>
-    <div class="war-card war-adventure-bg">
-      <div class="war-card-icon">🐍</div>
-      <div class="war-card-title">🧭 المغامرة</div>
-      <div class="war-card-desc">PvE — واجه الوحوش في الصحراء</div>
-      <button id="adventure-enter-btn" class="war-enter-btn">🚀 الدخول</button>
-    </div>
-    <div class="war-card">
-      <div class="war-card-icon">🗺️</div>
-      <div class="war-card-title">🎯 الحملة</div>
-      <div class="war-card-desc">PvE — 1500+ مستوى • 1257/1261</div>
-      <button id="campaign-enter-btn" class="war-enter-btn">🚀 الدخول</button>
+    <div class="war-mode-details" id="war-mode-details">
+      <div class="war-detail-card" id="war-detail-oasis">
+        <div class="war-detail-header">
+          <span class="war-detail-icon">🌴</span>
+          <span class="war-detail-title">واحة الغنائم</span>
+        </div>
+        <div class="war-detail-body">
+          <p>ادخل عالم الصحراء وقاتل اللاعبين الآخرين في معارك PvP مباشرة. اجمع الغنائم واحترق أعداءك!</p>
+          <div class="war-detail-stats">
+            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvP + PvE</span></div>
+            <div class="war-stat"><span class="war-stat-icon">🏆</span><span class="war-stat-label">المكافآت</span><span class="war-stat-value">ذهب + غنائم</span></div>
+            <div class="war-stat"><span class="war-stat-icon">💀</span><span class="war-stat-label">العقوبة</span><span class="war-stat-value">خسارة جزء من المال</span></div>
+          </div>
+          <button class="war-start-btn" id="war-start-oasis">🚀 ادخل واحة الغنائم</button>
+        </div>
+      </div>
+      <div class="war-detail-card hidden" id="war-detail-adventure">
+        <div class="war-detail-header">
+          <span class="war-detail-icon">🐍</span>
+          <span class="war-detail-title">مغامرة الصحراء</span>
+        </div>
+        <div class="war-detail-body">
+          <p>استكشف أعماق الصحراء واقتل الوحوش البرية. لا PvP هنا — ركز على القتال والجمع!</p>
+          <div class="war-detail-stats">
+            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE فقط</span></div>
+            <div class="war-stat"><span class="war-stat-icon">🏆</span><span class="war-stat-label">المكافآت</span><span class="war-stat-value">ذهب + خبرة + مواد</span></div>
+            <div class="war-stat"><span class="war-stat-icon">🔒</span><span class="war-stat-label"> PvP</span><span class="war-stat-value">معطّل</span></div>
+          </div>
+          <button class="war-start-btn" id="war-start-adventure">🚀 ابدأ المغامرة</button>
+        </div>
+      </div>
+      <div class="war-detail-card hidden" id="war-detail-campaign">
+        <div class="war-detail-header">
+          <span class="war-detail-icon">🗺️</span>
+          <span class="war-detail-title">حملة الأبطال</span>
+        </div>
+        <div class="war-detail-body">
+          <p>اتبع القصة الرئيسية وتقدم عبر المراحل. قاتل الزعماء واكتمل الفصول!</p>
+          <div class="war-detail-stats">
+            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE + مراحل</span></div>
+            <div class="war-stat"><span class="war-stat-icon">🏆</span><span class="war-stat-label">المكافآت</span><span class="war-stat-value">ذهب + مكافآت خاصة</span></div>
+            <div class="war-stat"><span class="war-stat-icon">📖</span><span class="war-stat-label">المراحل</span><span class="war-stat-value" id="war-campaign-progress">0/∞</span></div>
+          </div>
+          <button class="war-start-btn" id="war-start-campaign">🚀 ابدأ الحملة</button>
+        </div>
+      </div>
     </div>
   `;
   return div;
@@ -79,8 +125,9 @@ GameUI.prototype.renderRanking = function() {
     }
   }
   list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⏳ جاري التحميل...</div>`;
-  fetch("/api/leaderboard")
-    .then(r => r.json())
+  const apiBase = this.world?.apiBase || "";
+  fetch(apiBase + "/api/leaderboard")
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
     .then(players => {
       list.innerHTML = "";
       if (!players || players.length === 0) {
@@ -249,6 +296,7 @@ GameUI.prototype._openLandsUpgradeModal = function(id) {
   const upgradeBtn = document.getElementById('lands-modal-upgrade');
   const closeBtn = document.getElementById('lands-modal-close');
   if (upgradeBtn) {
+    upgradeBtn.onclick = null;
     upgradeBtn.onclick = () => {
       if (this.economy && this.economy.gold >= cost) {
         this.economy.gold -= cost;
@@ -263,7 +311,10 @@ GameUI.prototype._openLandsUpgradeModal = function(id) {
       }
     };
   }
-  if (closeBtn) closeBtn.onclick = () => overlay.classList.add('hidden');
+  if (closeBtn) {
+    closeBtn.onclick = null;
+    closeBtn.onclick = () => overlay.classList.add('hidden');
+  }
   overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.add('hidden'); };
 };
 
@@ -277,18 +328,30 @@ GameUI.prototype._landsToast = function(msg) {
 };
 
 GameUI.prototype.renderWar = function() {
-  const arenaBtn = document.getElementById("arena-enter-btn");
-  if (arenaBtn) {
-    arenaBtn.onclick = () => this.enterArena();
+  const modes = ['oasis', 'adventure', 'campaign'];
+  let selectedMode = 'oasis';
+  const selectMode = (mode) => {
+    selectedMode = mode;
+    for (const m of modes) {
+      const btn = document.querySelector(`.war-mode-btn[data-mode="${m}"]`);
+      const detail = document.getElementById(`war-detail-${m}`);
+      if (btn) btn.classList.toggle('war-mode-active', m === mode);
+      if (detail) detail.classList.toggle('hidden', m !== mode);
+    }
+  };
+  for (const m of modes) {
+    const btn = document.querySelector(`.war-mode-btn[data-mode="${m}"]`);
+    if (btn) {
+      btn.addEventListener('click', () => selectMode(m));
+    }
   }
-  const adventureBtn = document.getElementById("adventure-enter-btn");
-  if (adventureBtn) {
-    adventureBtn.onclick = () => this.enterAdventure();
-  }
-  const campaignBtn = document.getElementById("campaign-enter-btn");
-  if (campaignBtn) {
-    campaignBtn.onclick = () => this.enterCampaign();
-  }
+  selectMode('oasis');
+  const oasisBtn = document.getElementById("war-start-oasis");
+  const adventureBtn = document.getElementById("war-start-adventure");
+  const campaignBtn = document.getElementById("war-start-campaign");
+  if (oasisBtn) oasisBtn.addEventListener('click', () => this.enterArena());
+  if (adventureBtn) adventureBtn.addEventListener('click', () => this.enterAdventure());
+  if (campaignBtn) campaignBtn.addEventListener('click', () => this.enterCampaign());
 };
 
 GameUI.prototype.enterArena = function() {
@@ -306,15 +369,49 @@ GameUI.prototype.enterArena = function() {
   if (content) content.style.display = "none";
   if (worldButtons) worldButtons.classList.remove("hidden");
   this.showPlayerPanel();
+  if (this.world) this.world._pvpDisabled = false;
   this.world.enterWorldMap();
+  this.showNotification("🌴 واحة الغنائم — قاتل اللاعبين واجمع الغنائم!");
 };
 
 GameUI.prototype.enterAdventure = function() {
-  this.enterArena();
+  document.getElementById("gameCanvas")?.classList.remove("hidden");
+  const topBar = document.getElementById("top-bar");
+  const bottomBar = document.getElementById("bottom-bar");
+  const subBar = document.getElementById("sub-bar");
+  const content = document.getElementById("screen-content");
+  const worldButtons = document.getElementById("world-buttons");
+  const quickPanel = document.getElementById("quick-panel");
+  if (topBar) topBar.style.display = "none";
+  if (subBar) subBar.style.display = "none";
+  if (quickPanel) quickPanel.style.display = "none";
+  if (bottomBar) bottomBar.style.display = "none";
+  if (content) content.style.display = "none";
+  if (worldButtons) worldButtons.classList.remove("hidden");
+  this.showPlayerPanel();
+  if (this.world) this.world._pvpDisabled = true;
+  this.world.enterWorldMap();
+  this.showNotification("🐍 مغامرة الصحراء — قاتل الوحوش واجمع الغنائم! (PvP معطّل)");
 };
 
 GameUI.prototype.enterCampaign = function() {
-  this.enterArena();
+  document.getElementById("gameCanvas")?.classList.remove("hidden");
+  const topBar = document.getElementById("top-bar");
+  const bottomBar = document.getElementById("bottom-bar");
+  const subBar = document.getElementById("sub-bar");
+  const content = document.getElementById("screen-content");
+  const worldButtons = document.getElementById("world-buttons");
+  const quickPanel = document.getElementById("quick-panel");
+  if (topBar) topBar.style.display = "none";
+  if (subBar) subBar.style.display = "none";
+  if (quickPanel) quickPanel.style.display = "none";
+  if (bottomBar) bottomBar.style.display = "none";
+  if (content) content.style.display = "none";
+  if (worldButtons) worldButtons.classList.remove("hidden");
+  this.showPlayerPanel();
+  if (this.world) this.world._pvpDisabled = false;
+  this.world.enterWorldMap();
+  this.showNotification("🗺️ حملة الأبطال — تقدم عبر القصة والمرحل!");
 };
 
 GameUI.prototype.getBuildingIcon = function(b) {

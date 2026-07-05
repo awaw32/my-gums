@@ -1103,24 +1103,27 @@ export class GameUI {
         this.renderQuests();
       }
     }, 3000);
-    const chatOverlay = document.getElementById("chat-overlay");
-    if (chatOverlay) {
-      chatOverlay.addEventListener("click", () => {
-        const chatPanel = document.getElementById("chat-panel");
-        if (chatPanel) {
-          chatPanel.classList.toggle("hidden");
-        }
-      });
-    }
-    const minimizeBtn = document.getElementById("chat-minimize-btn");
-    if (minimizeBtn) {
-      minimizeBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const chatPanel = document.getElementById("chat-panel");
-        if (chatPanel) {
-          chatPanel.classList.add("hidden");
-        }
-      });
+    if (!this._chatBound) {
+      this._chatBound = true;
+      const chatOverlay = document.getElementById("chat-overlay");
+      if (chatOverlay) {
+        chatOverlay.addEventListener("click", () => {
+          const chatPanel = document.getElementById("chat-panel");
+          if (chatPanel) {
+            chatPanel.classList.toggle("hidden");
+          }
+        });
+      }
+      const minimizeBtn = document.getElementById("chat-minimize-btn");
+      if (minimizeBtn) {
+        minimizeBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const chatPanel = document.getElementById("chat-panel");
+          if (chatPanel) {
+            chatPanel.classList.add("hidden");
+          }
+        });
+      }
     }
   }
 

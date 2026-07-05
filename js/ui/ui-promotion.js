@@ -148,6 +148,12 @@ GameUI.prototype._renderPromotionHub = function() {
       img: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 150%22%3E%3Crect fill=%22%233a2518%22 width=%22200%22 height=%22150%22/%3E%3Ctext x=%22100%22 y=%22100%22 font-size=%2260%22 text-anchor=%22middle%22%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E',
       grad: 'linear-gradient(to bottom, rgba(243,156,18,0.25), rgba(44,26,10,0.95))'
     },
+    {
+      id: 'shop', name: 'المتجر', desc: 'شراء بنود وموارد',
+      badge: '🛒',
+      img: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 150%22%3E%3Crect fill=%22%232c1a0a%22 width=%22200%22 height=%22150%22/%3E%3Ctext x=%22100%22 y=%22100%22 font-size=%2260%22 text-anchor=%22middle%22%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E',
+      grad: 'linear-gradient(to bottom, rgba(52,152,219,0.25), rgba(44,26,10,0.95))'
+    },
   ];
   for (const c of cards) {
     const card = document.createElement("div");
@@ -169,6 +175,8 @@ GameUI.prototype._renderPromotionHub = function() {
         this._openWeaponsLibrary();
       } else if (c.id === 'army-yard') {
         this._openArmyYard();
+      } else if (c.id === 'shop') {
+        this._openShop();
       } else {
         this._promoSubPage = c.id;
         this.renderPromotion();
@@ -464,6 +472,129 @@ GameUI.prototype._openArmyYard = function() {
   overlay.appendChild(card);
   document.body.appendChild(overlay);
   this._renderArmyYardPage();
+};
+
+GameUI.prototype._openShop = function() {
+  const existing = document.getElementById('shop-overlay');
+  if (existing) existing.remove();
+  document.body.style.overflow = 'hidden';
+  const overlay = document.createElement('div');
+  overlay.id = 'shop-overlay';
+  overlay.className = 'wl-overlay';
+  overlay.style.alignItems = 'center';
+  overlay.style.touchAction = 'pan-y';
+  const card = document.createElement('div');
+  card.className = 'weapons-library';
+  card.style.cssText = 'max-width:430px;max-height:88vh;border-radius:24px;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y';
+  card.innerHTML = `
+    <div class="wl-header">
+      <div class="wl-title" style="font-size:1.3rem">🛒 المتجر</div>
+      <button class="wl-close-btn" id="shop-close-btn">✕</button>
+    </div>
+    <div class="shop-content" id="shop-content"></div>
+  `;
+  card.querySelector('#shop-close-btn').addEventListener('click', () => {
+    overlay.remove();
+    document.body.style.overflow = '';
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+      document.body.style.overflow = '';
+    }
+  });
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  this._renderShopPage();
+};
+
+GameUI.prototype._renderShopPage = function() {
+  const container = document.getElementById('shop-content');
+  if (!container) return;
+  const eco = this.economy;
+  const army = this.army;
+  const items = [
+    {
+      id: 'unit_upgrade', name: 'ترقية الجنود', desc: `مستوى الجنود ${army?.unitLevel || 1}/${army?.maxUnitLevel || 100}`,
+      icon: '⚔️', cost: army?.unitUpgradeCost || 0, currency: 'cash', currencyIcon: '💵',
+      canBuy: army && army.unitLevel < army.maxUnitLevel && eco.canAfford('cash', army.unitUpgradeCost),
+      action: () => {
+        if (window.shopBuy) window.shopBuy('unit');
+      }
+    },
+    {
+      id: 'heal', name: 'علاج القائد', desc: 'يعيد 30 HP للقائد',
+      icon: '💚', cost: 20, currency: 'cash', currencyIcon: '💵',
+      canBuy: eco.canAfford('cash', 20) && this.world?.leader,
+      action: () => {
+        if (window.shopBuy) window.shopBuy('heal');
+      }
+    },
+  ];
+  let html = '<div class="shop-section-title">⚔️ ترقيات الجيش</div>';
+  for (const item of items) {
+    html += `
+      <div class="shop-item${item.canBuy ? ' shop-item-available' : ' shop-item-locked'}">
+        <div class="shop-item-icon">${item.icon}</div>
+        <div class="shop-item-info">
+          <div class="shop-item-name">${item.name}</div>
+          <div class="shop-item-desc">${item.desc}</div>
+        </div>
+        <div class="shop-item-right">
+          <div class="shop-item-cost">${item.cost} ${item.currencyIcon}</div>
+          <button class="shop-buy-btn${item.canBuy ? '' : ' shop-buy-disabled'}" data-shop="${item.id}" ${item.canBuy ? '' : 'disabled'}>
+            ${item.canBuy ? 'شراء' : 'غير كافٍ'}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  html += '<div class="shop-section-title" style="margin-top:16px">🗡️ ترقيات الأسلحة</div>';
+  const weapons = army?.weapons || [];
+  const houseLevel = this._landsState?.['b1']?.level || 1;
+  for (const w of weapons) {
+    const isLocked = houseLevel < w.requireLevel;
+    const canUpg = !isLocked && w.level < w.maxLevel && w.canUpgrade(eco, houseLevel);
+    const starStr = '⭐'.repeat(w.level) + '☆'.repeat(Math.max(0, w.maxLevel - w.level));
+    html += `
+      <div class="shop-item${canUpg ? ' shop-item-available' : ' shop-item-locked'}">
+        <div class="shop-item-icon">${w.name.includes('قوس') ? '🏹' : w.name.includes('فأس') ? '⚒️' : '🗡️'}</div>
+        <div class="shop-item-info">
+          <div class="shop-item-name">${isLocked ? '🔒 ' : ''}${w.name}</div>
+          <div class="shop-item-desc">${starStr} — ${w.power.toFixed(0)} 👊</div>
+        </div>
+        <div class="shop-item-right">
+          <div class="shop-item-cost">${w.level < w.maxLevel ? w.upgradeCost + ' 💎' : '⭐'}</div>
+          <button class="shop-buy-btn shop-weapon-buy${canUpg ? '' : ' shop-buy-disabled'}" data-wid="${w.id}" ${canUpg ? '' : 'disabled'}>
+            ${isLocked ? '🔒' : (w.level >= w.maxLevel ? 'تم' : 'ترقية')}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+  container.querySelectorAll('.shop-buy-btn[data-shop]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.shop;
+      const item = items.find(i => i.id === id);
+      if (item && item.canBuy) {
+        item.action();
+        this._renderShopPage();
+        this.updateTopBar();
+      }
+    });
+  });
+  container.querySelectorAll('.shop-weapon-buy').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.wid;
+      const weapon = weapons.find(w => w.id === wid);
+      if (weapon && weapon.canUpgrade(eco, houseLevel)) {
+        if (window.shopBuy) window.shopBuy(wid);
+        this._renderShopPage();
+        this.updateTopBar();
+      }
+    });
+  });
 };
 
 GameUI.prototype._renderArmyYardPage = function() {

@@ -207,16 +207,16 @@ async function init() {
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cash: economy.cash, gems: economy.gems, gold: economy.gold, kingCoins: economy.kingCoins, hammers: economy.hammers, scrolls: economy.scrolls, horns: economy.horns, food: economy.food, army_power: economy.power, unitLevel: 1, weapons: [], last_active: Date.now() })
-      }).catch(() => {});
-    } catch {}
+      }).catch(e => console.warn("[Save] welcome bonus save:", e.message));
+    } catch (e) { console.warn("[Save] welcome bonus error:", e.message); }
   } else {
     // حفظ حالة الدخول
     try {
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ last_active: Date.now() })
-      }).catch(() => {});
-    } catch {}
+      }).catch(e => console.warn("[Save] login ping save:", e.message));
+    } catch (e) { console.warn("[Save] login ping error:", e.message); }
   }
 
   // حساب المكافآت غير المتصلة (Offline Rewards)
@@ -336,6 +336,7 @@ async function init() {
       else if (pathId === 'defense') achievements.updateProgress('upgrade_defense', level);
       else if (pathId === 'trade') achievements.updateProgress('upgrade_capacity', level);
       else if (pathId === 'knowledge') achievements.updateProgress('upgrade_speed', level);
+      if (world.sessionStats) world.sessionStats.upgradesToday++;
     };
 
     // ربط cash_earned (من قتل الوحوش + دخل المباني)
@@ -395,7 +396,7 @@ async function init() {
           hero: hero.getSaveData(),
           last_active: Date.now()
         })
-      }).catch(() => {});
+      }).catch(e => console.warn("[Save] saveToDB:", e.message));
     };
 
     ui._onSave = saveToDB;
@@ -574,7 +575,23 @@ async function init() {
         btn.onclick = () => {
           if (hero.useAbility(abilityKey)) {
             audio.playSound('ability');
-            ui.showNotification(`⚡ تم استخدام: ${abilityKey}`);
+            const abilityNames = {
+              heal: '💚 علاج البطل',
+              powerStrike: '⚡ ضربة قوية',
+              shield: '🛡️ درع الحماية',
+              rally: '📯 نداء الحرب'
+            };
+            const abilityDescs = {
+              heal: `+${Math.floor(hero.maxHp * 0.4)} HP`,
+              powerStrike: `ضرر ×1.8 لمدة 20 ث`,
+              shield: `دفاع +15 لمدة 8 ث`,
+              rally: `قوة الجيش +30% لمدة 10 ث`
+            };
+            ui.showNotification(`${abilityNames[abilityKey] || '⚡ قدرة'} — ${abilityDescs[abilityKey] || ''}`);
+            if (btn) {
+              btn.classList.add('ability-flash');
+              setTimeout(() => btn.classList.remove('ability-flash'), 600);
+            }
           } else {
             audio.playSound('error');
           }
@@ -582,8 +599,11 @@ async function init() {
       }
     }
 
+    // تخزين مؤقت لتنظيف الفواصل لاحقاً
+    const _gameIntervals = [];
+
     // تحديث واجهة البطل كل ثانية
-    setInterval(() => {
+    const heroInterval = setInterval(() => {
       const levelLabel = document.getElementById('hero-level-label');
       const xpFill = document.getElementById('hero-xp-fill');
       const xpText = document.getElementById('hero-xp-text');
@@ -617,6 +637,7 @@ async function init() {
         }
       }
     }, 1000);
+    _gameIntervals.push(heroInterval);
 
     // ====== Battle Royale ======
     const brBtn = document.getElementById('br-enter-btn');
@@ -677,7 +698,7 @@ async function init() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ brWins, brKills: brKillsTotal, last_active: Date.now() })
-        }).catch(() => {});
+        }).catch(e => console.warn("[Save] BR match save:", e.message));
         ui.updateTopBar();
       } else {
         if (brDefeatScreen) brDefeatScreen.classList.remove('hidden');
@@ -747,7 +768,7 @@ async function init() {
     // تشغيل الأحداث الدورية
     let eventTimer = 0;
     let lastPowerCheck = economy.power; // نبدأ من القوة الحالية عشان ما نضاعفش التتبع
-    setInterval(() => {
+    const eventsInterval = setInterval(() => {
       eventTimer += 15;
       events.update(15);
       // تتبع إنجازات القوة (فقط القمم الجديدة)
@@ -769,6 +790,7 @@ async function init() {
         }
       }
     }, 15000);
+    _gameIntervals.push(eventsInterval);
 
     // تشغيل حدث Gold Rush كبداية
     setTimeout(() => {
@@ -776,20 +798,38 @@ async function init() {
       ui.showNotification('🎊 🏆 انهيار الذهب! الذهب من الوحوش ×2!');
     }, 60000);
 
-    setInterval(() => {
+    const economyInterval = setInterval(() => {
       economy.tick();
       village.update(15);
+      economy.refreshIncome(village);
       oasisManager.tick(15); // 15 ثانية انقضت
       hero.tick(15);
+      // إعادة تعيين عدادات التحديات اليومية عند تغيير اليوم
+      if (world.sessionStats && world._lastChallengeDate !== new Date().toDateString()) {
+        world.sessionStats.upgradesToday = 0;
+        world.sessionStats.pvpWins = 0;
+        world.sessionStats.kills = 0;
+        world.sessionStats.coinsEarned = 0;
+        world._lastChallengeDate = new Date().toDateString();
+      }
       // مزامنة مستوى مباني الأراضي مع أنظمة اللعبة
       if (ui._landsState) {
         const b1 = ui._landsState['b1']; // بيت الزعيم
         const b2 = ui._landsState['b2']; // سكن الجنود
+        const b3 = ui._landsState['b3']; // مستودع البضائع
+        const b4 = ui._landsState['b4']; // ساحة التدريب
         if (b2) {
           army.barracksLevel = b2.level || 1;
           army.unitsCount = army.getMaxUnits(b2.level || 1);
         }
-        // يمكن استخدام b1.level لقيد الأسلحة
+        // مستودع البضائع: كل لفل يزيد إنتاج الذهب بـ 10%
+        if (b3 && b3.state === 'built' && b3.level > 0) {
+          economy.b3GoldBonus = 1 + (b3.level - 1) * 0.10;
+        }
+        // ساحة التدريب: كل لفل يزيد قوة الجنود بـ 5%
+        if (b4 && b4.state === 'built' && b4.level > 0) {
+          army.b4TrainingBonus = 1 + (b4.level - 1) * 0.05;
+        }
       }
       // استهلاك الطعام للجيش
       if (world.leader && world.running) {
@@ -808,6 +848,13 @@ async function init() {
       }
       saveToDB();
     }, 15000);
+    _gameIntervals.push(economyInterval);
+
+    // إتاحة تنظيف الفواصل من خارج الدالة
+    window._cleanupGameIntervals = () => {
+      for (const id of _gameIntervals) { clearInterval(id); }
+      _gameIntervals.length = 0;
+    };
 
     // تحقق من حالة قاعدة البيانات
     fetch(`${API_BASE}/health`).then(r => r.json()).then(h => {

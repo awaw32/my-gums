@@ -45,6 +45,7 @@ export class GameEconomy {
     this.powerSources = [];
     this.kills = 0;
     this.totalEarned = 0;
+    this.b3GoldBonus = 1;
     this._onLevelUp = null;
     this._onGoldEarned = null;
     this._onCashEarned = null;
@@ -110,10 +111,14 @@ export class GameEconomy {
   addRaw(type, amt) {
     if (this.resources[type] !== undefined) {
       let finalAmt = amt;
+      // بونص مستودع البضائع على الذهب
+      if (type === "gold" && amt > 0 && this.b3GoldBonus > 1) {
+        finalAmt = Math.floor(amt * this.b3GoldBonus);
+      }
       // مضاعفات الأحداث للذهب
       if (type === "gold" && amt > 0 && this._events) {
         const mult = this._events.getMult("mult_gold");
-        if (mult > 1) finalAmt = Math.floor(amt * mult);
+        if (mult > 1) finalAmt = Math.floor(finalAmt * mult);
       }
       this.resources[type] += finalAmt;
       if (type === "gold" && amt > 0 && this._onGoldEarned) {

@@ -59,6 +59,7 @@ export class GameArmy {
     this.trainingLevel = 1;
     this.maxTrainingLevel = 20;
     this.barracksLevel = 1;
+    this.b4TrainingBonus = 1;
   }
 
   getMaxUnits(barracksLevel) {
@@ -66,7 +67,9 @@ export class GameArmy {
   }
 
   get unitPower() {
-    return this.unitPowerBase * this.unitLevel * (1 + this.getMaxUnits(this.barracksLevel) * 0.1) * (1 + this.trainingLevel * 0.05);
+    let base = this.unitPowerBase * this.unitLevel * (1 + this.getMaxUnits(this.barracksLevel) * 0.1) * (1 + this.trainingLevel * 0.05);
+    if (this.b4TrainingBonus > 1) base = Math.floor(base * this.b4TrainingBonus);
+    return base;
   }
 
   get weaponPower() {

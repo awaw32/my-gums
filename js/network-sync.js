@@ -122,7 +122,7 @@ export class NetworkSync {
           last_active: Date.now()
         })
       });
-    } catch {}
+    } catch (e) { console.warn("[NetSync] sendPositionUpdate:", e.message); }
   }
 
   async sendLoginNotification() {
@@ -140,7 +140,7 @@ export class NetworkSync {
           last_active: Date.now()
         })
       });
-    } catch {}
+    } catch (e) { console.warn("[NetSync] sendLoginNotification:", e.message); }
   }
 
   syncMonsters(serverMonsters) {
