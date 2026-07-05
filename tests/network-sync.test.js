@@ -14,7 +14,7 @@ function makeMockWorld() {
   return {
     W: 2400, H: 2400,
     leader: { x: 1200, y: 1200, hp: 120, maxHp: 120 },
-    economy: { level: 1, power: 5000, cash: 1000, gems: 50, gold: 200, kingCoins: 0, hammers: 0, scrolls: 0, horns: 0, armyYardLevel: 1, knowledgeLevel: 1, knowledgeType: 'economic', buildings: {}, research: {} },
+    economy: { level: 1, power: 5000, cash: 1000, gems: 50, gold: 200, hammers: 0, scrolls: 0, armyYardLevel: 1, knowledgeLevel: 1, knowledgeType: 'economic', buildings: {}, research: {} },
     army: { unitLevel: 1, weapons: [] },
     mode: 'world',
     monsters,

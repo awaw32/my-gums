@@ -598,19 +598,28 @@ export class GameUI {
       if (container) container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--beige-dark)">⚠️ المهام غير متاحة</div>';
       return;
     }
+    const storyManager = window._storyManager;
+    const storyChapter = storyManager ? storyManager.currentChapterData : null;
+    const canCompleteStory = storyManager ? storyManager.canCompleteChapter() : false;
     const dailyQuests = this.quests.getDailyQuests();
-    const storyChapter = this.quests.getStoryChapter();
     
     let html = '';
     
     // القصة الرئيسية
     if (storyChapter) {
+      const rewardText = Object.entries(storyChapter.reward || {})
+        .filter(([k]) => k !== 'title')
+        .map(([k, v]) => {
+          const icons = { gold: '🪙', cash: '💵', gems: '💎', xp: '⭐', food: '🌾' };
+          return `${icons[k] || '•'} ${v}`;
+        }).join(' + ');
+      const completeBtnText = canCompleteStory ? 'أكمل الفصل ✓' : 'ابنِ جميع المباني أولاً';
       html += `
         <div class="quest-story-card">
           <div class="quest-story-header">📖 الفصل ${storyChapter.id}: ${storyChapter.title}</div>
-          <div class="quest-story-desc">${storyChapter.desc}</div>
-          <div class="quest-story-reward">المكافأة: 🪙 ${storyChapter.reward.gold || 0} + ⚔️ قوة +${storyChapter.reward.armyPower || 0}</div>
-          <button class="action-btn quest-advance-btn" id="quest-advance-btn">تقدم في القصة →</button>
+          <div class="quest-story-desc">${storyChapter.description}</div>
+          <div class="quest-story-reward">المكافأة: ${rewardText}</div>
+          <button class="action-btn quest-advance-btn" id="quest-advance-btn" ${canCompleteStory ? '' : 'disabled'}>${completeBtnText}</button>
         </div>
       `;
     } else {
@@ -643,16 +652,17 @@ export class GameUI {
     
     this._updateQuestBadge();
     
-    // زر تقدم القصة
+    // زر إكمال الفصل
     const advanceBtn = document.getElementById('quest-advance-btn');
     if (advanceBtn) {
       advanceBtn.addEventListener('click', () => {
-        if (this.quests.advanceStory()) {
-          this.showNotification('📖 تقدمت في القصة!');
+        const sm = window._storyManager;
+        if (sm && sm.canCompleteChapter() && sm.completeChapter()) {
+          this.showNotification('📖 أكملت الفصل وحصلت على المكافآت!');
           this.renderQuests();
           this.updateTopBar();
         } else {
-          this.showNotification('❌ لم تكمل الفصل الحالي بعد');
+          this.showNotification('❌ أكمل جميع مباني القرية أولاً');
         }
       });
     }

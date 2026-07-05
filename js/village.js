@@ -11,9 +11,17 @@ export class VillageBuilding {
   constructor(template, villageId) {
     this.id = template.id;
     this.villageId = villageId;
+    this.slot = template.slot;
     this.name = template.name;
     this.description = template.description;
     this.icon = template.icon;
+    this.x = template.x ?? 50;
+    this.y = template.y ?? 50;
+    this.img = template.img || {
+      empty: 'assets/images/building-ruins.png',
+      building: 'assets/images/building-construction.png',
+      built: 'assets/images/building-complete.png'
+    };
     this.cost = template.cost;
     this.production = template.production;
     this.upgradeCost = template.upgradeCost;

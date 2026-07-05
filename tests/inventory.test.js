@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { InventoryManager } from '../js/inventory.js';
 
 function makeMockEconomy() {
-  const resources = { gold: 500, gems: 50, food: 100, hammers: 60, scrolls: 40, horns: 30, kingCoins: 20, cash: 200 };
+  const resources = { gold: 500, gems: 50, food: 100, hammers: 60, scrolls: 40, cash: 200 };
   return {
     resources,
     canAfford: function(type, cost) { return (this.resources[type] || 0) >= cost; },

@@ -12,7 +12,7 @@ global.localStorage = {
 
 function makeMockEconomy() {
   return {
-    resources: { cash: 500, gold: 300, gems: 50, kingCoins: 5, hammers: 20, scrolls: 10, horns: 8, food: 200 },
+    resources: { cash: 500, gold: 300, gems: 50, hammers: 20, scrolls: 10, food: 200 },
     multiplier: 2,
     level: 5,
     xp: 240,

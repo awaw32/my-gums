@@ -63,7 +63,7 @@ function getOrPromptUsername() {
   });
 }
 
-async function loadFromDatabase(economy, army, username) {
+async function loadFromDatabase(economy, army, village, username) {
   try {
     const response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`);
     const data = await response.json();
@@ -77,6 +77,9 @@ async function loadFromDatabase(economy, army, username) {
       economy.level = data.level || 1;
       economy.xp = data.xp || 0;
       economy.xpToNext = getXpForLevel(economy.level);
+      if (data.currentVillageId && data.currentVillageId !== village.currentVillageId) {
+        village.initVillage(data.currentVillageId);
+      }
       army.unitLevel = data.unitLevel || 1;
       army.trainingLevel = data.trainingLevel || 1;
       economy.buildings = data.buildings || {};
@@ -137,7 +140,7 @@ async function init() {
   const { lastSave } = loadGame(economy, village, army);
 
   // ثم تحميل من قاعدة البيانات (الرسمية) — يلغي بيانات localStorage
-  await loadFromDatabase(economy, army, PLAYER_USERNAME);
+  await loadFromDatabase(economy, army, village, PLAYER_USERNAME);
   
   const hasSavedData = economy.level > 1 || economy.xp > 0 || economy.cash > 0 || 
                        economy.gold > 0 || economy.gems > 0 || 

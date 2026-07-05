@@ -17,6 +17,8 @@ GameUI.prototype.buildTerritoriesScreen = function() {
     <div class="lands-vignette"></div>
     <div id="lands-buildings" class="lands-buildings"></div>
     <div id="lands-toast" class="lands-toast hidden"></div>
+    <div id="lands-village-info" class="lands-village-info"></div>
+    <button id="lands-next-village-btn" class="lands-next-village-btn hidden">الانتقال للقرية التالية ➡️</button>
     <div id="lands-modal" class="lands-modal-overlay hidden">
       <div class="lands-modal-card" id="lands-modal-card">
         <img id="lands-modal-img" src="" width="72" height="72" style="border-radius:14px">
@@ -166,91 +168,99 @@ GameUI.prototype.renderTerritories = function() {
 GameUI.prototype._initLandsPage = function() {
   if (this._landsInitialized) return;
   this._landsInitialized = true;
-  const playerLevel = this.economy?.level || 1;
-  const L = {
-    bg: ImageResolver ? ImageResolver.src('landsBg') : 'assets/images/bg-village.jpg',
-    buildings: [
-      {
-        id: 'b1', x: 72, y: 35, name: 'بيت الزعيم',
-        img_empty: ImageResolver ? ImageResolver.src('b1Empty') : '',
-        img_building: ImageResolver ? ImageResolver.src('b1Construction') : '',
-        img_built: ImageResolver ? ImageResolver.src('b1Built') : '',
-        locked: playerLevel < 3, unlockLevel: 3, level: 1
-      },
-      {
-        id: 'b2', x: 20, y: 55, name: 'سكن الجنود',
-        img_empty: ImageResolver ? ImageResolver.src('b2Empty') : '',
-        img_building: ImageResolver ? ImageResolver.src('b2Construction') : '',
-        img_built: ImageResolver ? ImageResolver.src('b2Built') : '',
-        locked: playerLevel < 5, unlockLevel: 5, level: 1
-      },
-      {
-        id: 'b3', x: 78, y: 70, name: 'مستودع البضائع',
-        img_empty: ImageResolver ? ImageResolver.src('b3Empty') : '',
-        img_building: ImageResolver ? ImageResolver.src('b3Construction') : '',
-        img_built: ImageResolver ? ImageResolver.src('b3Built') : '',
-        locked: playerLevel < 8, unlockLevel: 8, level: 1
-      },
-      {
-        id: 'b4', x: 45, y: 30, name: 'ساحة التدريب',
-        img_empty: ImageResolver ? ImageResolver.src('b6Empty') : '',
-        img_building: ImageResolver ? ImageResolver.src('b6Construction') : '',
-        img_built: ImageResolver ? ImageResolver.src('b6Built') : '',
-        locked: playerLevel < 10, unlockLevel: 10, level: 1
-      },
-    ]
-  };
+  if (!this.village) return;
+  const villageData = this.village.currentVillage;
+  if (!villageData) return;
+
+  const bg = villageData.bg || (ImageResolver ? ImageResolver.src('landsBg') : 'assets/images/bg-village.jpg');
+  const bgEl = document.getElementById('lands-bg');
+  if (bgEl) bgEl.style.backgroundImage = `url('${bg}')`;
+
   this._landsState = {};
-  for (const b of L.buildings) {
-    this._landsState[b.id] = { state: 'empty', level: b.level, unlocked: !b.locked };
+  for (const b of this.village.buildings) {
+    const landsState = this._toLandsState(b.state);
+    this._landsState[b.id] = { state: landsState, level: b.level || 1, unlocked: b.state !== 'locked' };
   }
+
   if (window._pendingLandsState) {
     for (const [id, saved] of Object.entries(window._pendingLandsState)) {
-      if (this._landsState[id]) {
-        this._landsState[id].state = saved.state || 'empty';
-        this._landsState[id].level = saved.level || 1;
-        if (saved.unlocked !== undefined) {
-          this._landsState[id].unlocked = saved.unlocked;
-          const bData = L.buildings.find(b => b.id === id);
-          if (bData) bData.locked = !saved.unlocked;
-        }
+      const vb = this.village.buildings.find(b => b.id === id);
+      if (vb) {
+        if (saved.state === 'built') { vb.state = 'ready'; vb.level = saved.level || 1; }
+        else if (saved.state === 'building') { vb.state = 'building'; }
+        else { vb.state = 'locked'; }
+        this._landsState[id] = { state: saved.state || 'empty', level: saved.level || 1, unlocked: saved.unlocked ?? (vb.state !== 'locked') };
       }
     }
     delete window._pendingLandsState;
   }
-  this._landsData = L;
-  this._landsProgress = 0;
-  this._landsMax = L.buildings.length;
-  const bgEl = document.getElementById('lands-bg');
-  if (bgEl) bgEl.style.backgroundImage = `url('${L.bg}')`;
+
+  this._landsProgress = this.village.buildings.filter(b => b.state === 'ready').length;
+  this._landsMax = this.village.buildings.length;
   this._renderLandsBuildings();
+};
+
+GameUI.prototype._toLandsState = function(villageState) {
+  if (villageState === 'ready') return 'built';
+  if (villageState === 'building') return 'building';
+  return 'empty';
+};
+
+GameUI.prototype._toVillageState = function(landsState) {
+  if (landsState === 'built') return 'ready';
+  if (landsState === 'building') return 'building';
+  return 'locked';
 };
 
 GameUI.prototype._renderLandsBuildings = function() {
   const container = document.getElementById('lands-buildings');
-  if (!container) return;
+  if (!container || !this.village) return;
   container.innerHTML = '';
-  for (const b of this._landsData.buildings) {
+  const villageData = this.village.currentVillage;
+  const infoEl = document.getElementById('lands-village-info');
+  if (infoEl && villageData) {
+    const progress = this.village.getProgress();
+    infoEl.innerHTML = `<div class="lands-village-name">${villageData.name}</div><div class="lands-village-progress">${progress.built}/${progress.total} مبنى</div>`;
+  }
+  const nextBtn = document.getElementById('lands-next-village-btn');
+  if (nextBtn) {
+    const canMove = this.village.canMoveToNext();
+    nextBtn.classList.toggle('hidden', !canMove);
+    nextBtn.onclick = () => {
+      const storyManager = window._storyManager;
+      if (storyManager && storyManager.canCompleteChapter()) {
+        storyManager.completeChapter();
+      }
+      if (this.village.moveToNext()) {
+        this._landsInitialized = false;
+        this._initLandsPage();
+        this.showNotification(`🎉 تم الانتقال إلى ${this.village.currentVillage.name}!`);
+      }
+    };
+  }
+  for (const b of this.village.buildings) {
     const st = this._landsState[b.id];
-    const imgSrc = st.state === 'built' ? b.img_built
-      : st.state === 'building' ? b.img_building
-      : b.img_empty;
+    const imgSet = b.img || { empty: '', building: '', built: '' };
+    const imgSrc = st.state === 'built' ? imgSet.built
+      : st.state === 'building' ? imgSet.building
+      : imgSet.empty;
     const badgeText = st.state === 'built' ? 'تم'
       : st.state === 'building' ? 'يبني'
       : 'فارغ';
     const badgeClass = st.state === 'built' ? 'lands-badge-done'
       : st.state === 'building' ? 'lands-badge-progress'
       : 'lands-badge-empty';
+    const isLocked = b.state === 'locked';
     const btn = document.createElement('button');
-    btn.className = 'lands-building';
-    btn.style.right = b.x + '%';
-    btn.style.top = b.y + '%';
+    btn.className = 'lands-building' + (isLocked ? ' lands-building-locked' : '');
+    btn.style.right = (b.x ?? 50) + '%';
+    btn.style.top = (b.y ?? 50) + '%';
     btn.dataset.id = b.id;
     btn.innerHTML = `
       <div class="lands-building-pad">
         <img src="${imgSrc}" width="56" height="56" onerror="this.style.display='none'" loading="lazy">
         <span class="lands-state-badge ${badgeClass}">${badgeText}</span>
-        ${b.locked ? '<span class="lands-lock-badge">🔒</span>' : ''}
+        ${isLocked ? '<span class="lands-lock-badge">🔒</span>' : ''}
       </div>
       <div class="lands-building-name">${b.name}</div>
     `;
@@ -260,20 +270,25 @@ GameUI.prototype._renderLandsBuildings = function() {
 };
 
 GameUI.prototype._onLandsBuildingClick = function(id) {
-  const b = this._landsData.buildings.find(x => x.id === id);
+  if (!this.village) return;
+  const b = this.village.buildings.find(x => x.id === id);
   if (!b) return;
   const st = this._landsState[id];
-  if (b.locked) {
-    const req = b.unlockLevel ? ` (يتطلب المستوى ${b.unlockLevel})` : '';
+  if (b.state === 'locked') {
+    const req = this.village.currentVillage?.levelRequired ? ` (يتطلب المستوى ${this.village.currentVillage.levelRequired})` : '';
     this._landsToast(b.name + ' • مقفل' + req);
     return;
   }
   if (st.state === 'empty') {
     st.state = 'building';
+    b.state = 'building';
+    b.constructTimer = b.constructDuration;
     this._landsToast('قيد الإنشاء: ' + b.name);
     this._renderLandsBuildings();
   } else if (st.state === 'building') {
     st.state = 'built';
+    b.state = 'ready';
+    b.level = Math.max(1, b.level);
     this._landsProgress++;
     this._landsToast('تم البناء: ' + b.name);
     this._updateLandsProgress();
@@ -287,24 +302,17 @@ GameUI.prototype._onLandsBuildingClick = function(id) {
 GameUI.prototype._updateLandsProgress = function() {};
 
 GameUI.prototype.checkBuildingUnlocks = function(currentLevel) {
-  if (!this._landsData || !this._landsData.buildings) return;
-  let unlockedAny = false;
-  for (const b of this._landsData.buildings) {
-    const st = this._landsState[b.id];
-    if (b.locked && b.unlockLevel && currentLevel >= b.unlockLevel) {
-      b.locked = false;
-      st.unlocked = true;
-      unlockedAny = true;
-      this.showNotification(`🔓 تم فتح "${b.name}"! (${currentLevel} >= ${b.unlockLevel})`);
-    }
-  }
-  if (unlockedAny) {
-    this._renderLandsBuildings();
+  if (!this.village) return;
+  // في النظام الجديد، المباني تُبنى تدريجياً ضمن القرية الحالية
+  // نتحقق فقط من إمكانية الانتقال للقرية التالية
+  if (this.village.isVillageComplete() && this.village.canMoveToNext()) {
+    this.showNotification(`🎉 اكتملت قرية ${this.village.currentVillage.name}! يمكنك الانتقال للقرية التالية.`);
   }
 };
 
 GameUI.prototype._openLandsUpgradeModal = function(id) {
-  const b = this._landsData.buildings.find(x => x.id === id);
+  if (!this.village) return;
+  const b = this.village.buildings.find(x => x.id === id);
   if (!b) return;
   const st = this._landsState[id];
   if (st.state !== 'built') return;
@@ -314,27 +322,36 @@ GameUI.prototype._openLandsUpgradeModal = function(id) {
   const levelEl = document.getElementById('lands-modal-level');
   const costEl = document.getElementById('lands-modal-cost');
   if (!overlay) return;
-  if (imgEl) imgEl.src = b.img_built;
+  const imgSet = b.img || { built: '' };
+  if (imgEl) imgEl.src = imgSet.built;
   if (nameEl) nameEl.textContent = b.name;
   if (levelEl) levelEl.textContent = 'المستوى ' + st.level;
-  const cost = 50 + (st.level - 1) * 25;
-  if (costEl) costEl.textContent = 'تكلفة الترقية: 🪙 ' + cost;
+  const cost = b.currentUpgradeCost;
+  const costText = Object.entries(cost).map(([res, amt]) => {
+    const icons = { gold: '🪙', cash: '💵', gems: '💎', hammers: '🔨', scrolls: '📜', food: '🌾' };
+    return `${icons[res] || '•'} ${amt}`;
+  }).join(' + ');
+  if (costEl) costEl.textContent = 'تكلفة الترقية: ' + costText;
   overlay.classList.remove('hidden');
   const upgradeBtn = document.getElementById('lands-modal-upgrade');
   const closeBtn = document.getElementById('lands-modal-close');
   if (upgradeBtn) {
     upgradeBtn.onclick = null;
     upgradeBtn.onclick = () => {
-      if (this.economy && this.economy.gold >= cost) {
-        this.economy.gold -= cost;
-        st.level++;
-        this._landsToast('تمت الترقية إلى المستوى ' + st.level);
-        if (levelEl) levelEl.textContent = 'المستوى ' + st.level;
-        const newCost = 50 + (st.level - 1) * 25;
-        if (costEl) costEl.textContent = 'تكلفة الترقية: 🪙 ' + newCost;
+      if (b.canUpgrade(this.economy)) {
+        b.upgrade(this.economy);
+        st.level = b.level;
+        this._landsToast('تمت الترقية إلى المستوى ' + b.level);
+        if (levelEl) levelEl.textContent = 'المستوى ' + b.level;
+        const newCost = b.currentUpgradeCost;
+        const newCostText = Object.entries(newCost).map(([res, amt]) => {
+          const icons = { gold: '🪙', cash: '💵', gems: '💎', hammers: '🔨', scrolls: '📜', food: '🌾' };
+          return `${icons[res] || '•'} ${amt}`;
+        }).join(' + ');
+        if (costEl) costEl.textContent = 'تكلفة الترقية: ' + newCostText;
         this.updateTopBar();
       } else {
-        this._landsToast('ذهب غير كافي');
+        this._landsToast('موارد غير كافية');
       }
     };
   }
