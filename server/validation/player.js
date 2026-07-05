@@ -46,6 +46,9 @@ const PlayerSaveSchema = z.object({
   brKills: z.number().int().min(0).optional(),
   landsState: z.record(z.any()).optional(),
   hero: z.record(z.any()).optional(),
+  // ✅ الحقول الجديدة المضافة:
+  kills: z.number().int().min(0).optional(),
+  coinsEarned: z.number().int().min(0).optional(),
 }).strict();
 
 function sanitizePlayerData(data) {
