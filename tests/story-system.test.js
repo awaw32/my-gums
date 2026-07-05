@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { StoryManager } from '../js/story-manager.js';
-import { GameVillage } from '../js/village.js';
+import { GameVillage, VillageBuilding } from '../js/village.js';
 import { GameEconomy } from '../js/economy.js';
+import { GameArmy } from '../js/army.js';
+import { PrestigeManager } from '../js/prestige.js';
 import { ENEMY_TYPES, getEnemyForLevel, getBossForVillage, getEnemiesForVillage } from '../js/enemies.js';
 import { STORY_CHAPTERS, STORY_VILLAGES } from '../js/story.js';
 
@@ -66,6 +68,16 @@ describe('Story System', () => {
     expect(newStory.currentChapter).toBe(2);
     expect(newStory.completedChapters).toContain(1);
   });
+
+  it('should reset story progress', () => {
+    story.currentChapter = 3;
+    story.completedChapters = [1, 2];
+    story.unlockedVillages = ['wadi', 'palace_ruins', 'mountain'];
+    story.reset();
+    expect(story.currentChapter).toBe(1);
+    expect(story.completedChapters).toHaveLength(0);
+    expect(story.unlockedVillages).toEqual(['wadi']);
+  });
 });
 
 describe('Village System', () => {
@@ -125,12 +137,27 @@ describe('Village System', () => {
     expect(village.currentVillageId).toBe('palace_ruins');
   });
 
-  it('should calculate production rate', () => {
+  it('should deduct cost when fighting to build', () => {
     const building = village.buildings[0];
-    building.state = 'ready';
-    building.level = 1;
-    const rate = building.productionRate;
-    expect(Object.values(rate)[0]).toBeGreaterThan(0);
+    const cost = building.cost;
+    economy.resources.cash = 10000;
+    economy.resources.gold = 10000;
+    const initialCash = economy.resources.cash;
+    const initialGold = economy.resources.gold;
+    const result = building.fight(999999, economy);
+    expect(result).toBe(true);
+    expect(building.state).toBe('building');
+    expect(economy.resources.cash).toBe(initialCash - (cost.cash || 0));
+    expect(economy.resources.gold).toBe(initialGold - (cost.gold || 0));
+  });
+
+  it('should not fight if player cannot afford building cost', () => {
+    const building = village.buildings[0];
+    economy.resources.cash = 0;
+    economy.resources.gold = 0;
+    const result = building.fight(999999, economy);
+    expect(result).toBe(false);
+    expect(building.state).toBe('locked');
   });
 });
 
@@ -194,3 +221,32 @@ function calculateEnemyPower(enemy, playerLevel) {
     }
   };
 }
+
+describe('Prestige System', () => {
+  let economy, village, army, story, prestige;
+
+  beforeEach(() => {
+    economy = new GameEconomy();
+    village = new GameVillage(economy);
+    army = new GameArmy(economy);
+    story = new StoryManager(economy, village);
+    prestige = new PrestigeManager(economy, village, army, story);
+  });
+
+  it('should reset story manager on prestige', () => {
+    economy.maxLevel = 10;
+    economy.level = economy.maxLevel;
+    story.currentChapter = 3;
+    story.completedChapters = [1, 2];
+    story.unlockedVillages = ['wadi', 'palace_ruins', 'mountain'];
+    village.completedVillages = ['wadi', 'palace_ruins'];
+
+    prestige.prestige();
+
+    expect(story.currentChapter).toBe(1);
+    expect(story.completedChapters).toHaveLength(0);
+    expect(story.unlockedVillages).toEqual(['wadi']);
+    expect(village.currentVillageId).toBe('wadi');
+    expect(village.completedVillages).toHaveLength(0);
+  });
+});

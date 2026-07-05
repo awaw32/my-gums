@@ -7,10 +7,11 @@ const PRESTIGE_BONUSES = [
 ];
 
 export class PrestigeManager {
-  constructor(economy, village, army) {
+  constructor(economy, village, army, storyManager) {
     this.economy = economy;
     this.village = village;
     this.army = army;
+    this.storyManager = storyManager;
     this.level = 0;
     this._onPrestige = null;
   }
@@ -44,6 +45,7 @@ export class PrestigeManager {
     this.village.initVillage("wadi");
     this.village.completedVillages = [];
     this.village.currentChapter = 1;
+    if (this.storyManager) this.storyManager.reset();
     if (this._onPrestige) this._onPrestige(this.level);
     return true;
   }

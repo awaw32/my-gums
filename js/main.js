@@ -162,12 +162,12 @@ async function init() {
   const hero = new GameHero();
   const achievements = new AchievementManager(economy);
   const dailyLogin = new DailyLoginManager(economy);
-  const prestige = new PrestigeManager(economy, village, army);
+  const storyManager = new StoryManager(economy, village);
+  window._storyManager = storyManager;
+  const prestige = new PrestigeManager(economy, village, army, storyManager);
   const inventory = new InventoryManager(economy);
   const events = new EventManager();
   const tutorial = new TutorialManager();
-  const storyManager = new StoryManager(economy, village);
-  window._storyManager = storyManager;
   
   setProgress(80);
 

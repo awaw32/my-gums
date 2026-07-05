@@ -485,6 +485,15 @@ GameUI.prototype.showBuildingModal = function(b, cardEl) {
   const diff = this.village.getMonsterDifficulty(b.currentMonsterPower);
   const playerPower = this.economy.power || 0;
   const canFight = playerPower >= b.currentMonsterPower;
+  const canAffordCost = b.canAfford(this.economy);
+  const costText = Object.entries(b.cost).map(([res, amt]) => {
+    const icons = { gold: '🪙', cash: '💵', gems: '💎', hammers: '🔨', scrolls: '📜', food: '🌾' };
+    return `${icons[res] || '•'} ${amt}`;
+  }).join(' + ');
+  const productionText = Object.entries(b.productionRate).map(([res, amt]) => {
+    const icons = { gold: '🪙', cash: '💵', gems: '💎', hammers: '🔨', scrolls: '📜', food: '🌾' };
+    return `${icons[res] || '•'} ${amt}/ث`;
+  }).join(' + ');
   card.innerHTML = `
     <div class="flex items-center justify-between mb-3">
       <h3 class="font-bold text-base" style="color:var(--accent-red);font-family:'Cairo',sans-serif">${b.name}</h3>
@@ -494,7 +503,7 @@ GameUI.prototype.showBuildingModal = function(b, cardEl) {
       <div class="w-20 h-20 rounded-xl flex items-center justify-center text-4xl" style="background:var(--bg-input);border:1px solid var(--border-light)">
         👹
       </div>
-      <p style="color:var(--text-secondary);font-size:0.85rem;text-align:center">${b.desc}</p>
+      <p style="color:var(--text-secondary);font-size:0.85rem;text-align:center">${b.description}</p>
       <div class="w-full rounded-lg p-3 space-y-2" style="background:var(--bg-card);border:1px solid var(--border-light)">
         <div class="flex justify-between text-sm">
           <span style="color:var(--text-secondary)">👹 ${b.monsterName}</span>
@@ -506,19 +515,23 @@ GameUI.prototype.showBuildingModal = function(b, cardEl) {
         </div>
         <div class="flex justify-between text-sm">
           <span style="color:var(--text-secondary)">⏱️ وقت البناء</span>
-          <span style="color:var(--accent-red);font-weight:bold">${b.buildTime}ث</span>
+          <span style="color:var(--accent-red);font-weight:bold">${b.constructDuration}ث</span>
         </div>
         <div class="flex justify-between text-sm">
           <span style="color:var(--text-secondary)">🪙 الإنتاج</span>
-          <span style="color:#2ecc71;font-weight:bold">${b.baseProduction}/ث</span>
+          <span style="color:#2ecc71;font-weight:bold">${productionText}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span style="color:var(--text-secondary)">💰 تكلفة البناء</span>
+          <span style="color:${canAffordCost ? '#2ecc71' : 'var(--accent-red)'};font-weight:bold">${costText}</span>
         </div>
         <div class="flex justify-between text-sm">
           <span style="color:var(--text-secondary)">👊 قوتك</span>
           <span class="font-bold" style="color:${canFight ? '#2ecc71' : 'var(--accent-red)'}">${playerPower.toFixed(0)}</span>
         </div>
       </div>
-      <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:var(--accent-red);color:#fff;border:none;cursor:pointer;font-family:inherit">
-        ${canFight ? `⚔️ مقاتلة ${b.monsterName}` : `💥 قوة غير كافية (تحتاج ${b.currentMonsterPower.toFixed(0)})`}
+      <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:${canFight && canAffordCost ? 'var(--accent-red)' : 'var(--text-muted)'};color:#fff;border:none;cursor:pointer;font-family:inherit">
+        ${!canAffordCost ? `💰 تحتاج ${costText}` : canFight ? `⚔️ مقاتلة ${b.monsterName}` : `💥 قوة غير كافية (تحتاج ${b.currentMonsterPower.toFixed(0)})`}
       </button>
     </div>
   `;
@@ -529,7 +542,7 @@ GameUI.prototype.showBuildingModal = function(b, cardEl) {
     document.body.classList.remove("modal-open");
   };
   const actionBtn = document.getElementById("modal-action-btn");
-  if (actionBtn && canFight) {
+  if (actionBtn && canFight && canAffordCost) {
     actionBtn.onclick = () => {
       overlay.classList.add("hidden");
       document.body.classList.remove("modal-open");
@@ -773,7 +786,11 @@ GameUI.prototype.startBuildingTimerLoop = function() {
 
 GameUI.prototype.doFight = function(b, card) {
   const playerPower = this.economy.power;
-  const won = b.fight(playerPower);
+  if (!b.canAfford(this.economy)) {
+    this.showFloatingText(card, "💰 موارد غير كافية!", "#ff9500");
+    return;
+  }
+  const won = b.fight(playerPower, this.economy);
   if (!won) {
     this.showFloatingText(card, "💥 غير كافٍ! قوّ جيشك", "#ff4444");
     return;

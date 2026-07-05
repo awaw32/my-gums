@@ -177,4 +177,13 @@ export class StoryManager {
     this.unlockedVillages = data.unlockedVillages || ["wadi"];
     this._playerTitle = data.title || "المستوطن الجديد";
   }
+
+  reset() {
+    this.currentChapter = 1;
+    this.completedChapters = [];
+    this.currentScene = 0;
+    this.scenesWatched = {};
+    this.unlockedVillages = ["wadi"];
+    this._playerTitle = "المستوطن الجديد";
+  }
 }

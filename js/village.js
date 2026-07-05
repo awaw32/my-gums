@@ -82,13 +82,19 @@ export class VillageBuilding {
     return true;
   }
 
-  fight(playerPower) {
+  fight(playerPower, economy) {
     if (this.state !== "locked") return false;
+    if (economy && !this.canAfford(economy)) return false;
     this.fightAnimTimer = 0.8;
     if (playerPower >= this.currentMonsterPower) {
       this.fightResult = "win";
       this.state = "building";
       this.constructTimer = this.constructDuration;
+      if (economy) {
+        for (const [resource, amount] of Object.entries(this.cost)) {
+          economy.spend(resource, amount);
+        }
+      }
       return true;
     } else {
       this.fightResult = "lose";
