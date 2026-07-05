@@ -1,6 +1,6 @@
 "use strict";
 
-const CINEMATIC_SCENES = [
+export const CINEMATIC_SCENES = [
   {
     id: "intro",
     icon: "🌪️",
@@ -58,7 +58,7 @@ const CINEMATIC_SCENES = [
 
 const STORAGE_KEY = "cinematic_completed";
 
-class CinematicManager {
+export class CinematicManager {
   constructor() {
     this.completed = this._loadState();
     this.currentScene = 0;

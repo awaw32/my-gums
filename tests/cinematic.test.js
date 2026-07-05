@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
+import { CinematicManager, CINEMATIC_SCENES } from '../js/cinematic.js';
 
 // Mock localStorage (same pattern as save.test.js)
 const storage = {};
@@ -17,8 +18,6 @@ global.document = {
   }),
   body: { appendChild: vi.fn() }
 };
-
-const { CinematicManager, CINEMATIC_SCENES } = require('../js/cinematic.js');
 
 describe("CinematicManager", () => {
   beforeEach(() => {
