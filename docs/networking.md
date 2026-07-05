@@ -3,6 +3,7 @@
 ## Transport
 
 - **WebSocket** (`ws://host/ws/world`) — real-time multiplayer (position updates, PvP, chat, monsters, BR)
+- **WebSocket** (`ws://host/ws/online`) — room-based online core (lobbies, player sync, combat, progression)
 - **HTTP REST** (`/api/*`) — persistence, leaderboard, upgrades, equipment
 
 ---
@@ -50,6 +51,30 @@
 | `br_bandit_spawn` | BR bandit spawned | `bandit{}` |
 | `br_player_eliminated` | Player eliminated | `playerId`, `by` |
 | `br_match_end` | BR match ended | `winner`, `kills` |
+
+---
+
+## Online Core Protocol (`/ws/online`)
+
+### Client → Server
+
+| Type | Description | Key Fields |
+|------|-------------|------------|
+| `join` | Join a game room | `playerId`, `roomId`, `loadout` (`weapon`, `runes[]`) |
+| `input` | Movement + action input | `seq`, `axes` (`x`, `y`), `actions` (`dash?`, `attack?`, `mount?`), `ts` |
+| `attack` | Attack a specific player | `targetId` |
+| `leave` | Leave the current room | — |
+
+### Server → Client
+
+| Type | Description | Key Fields |
+|------|-------------|------------|
+| `state` | Full room state snapshot (20Hz) | `tick`, `players[]` (`id`, `x`, `y`, `dir`, `anim?`) |
+| `player_joined` | New player entered room | `id` |
+| `player_left` | Player left room | `id` |
+| `hit` | Attack resolved | `attackerId`, `targetId`, `damage`, `crit?`, `targetHp` |
+| `eliminated` | Player eliminated | `playerId`, `killedBy` |
+| `error` | Error message | `code`, `msg` |
 
 ---
 
