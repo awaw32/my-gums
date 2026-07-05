@@ -361,6 +361,8 @@ async function init() {
 
     const saveToDB = () => {
       const landsState = ui._landsState || {};
+      // نسخة احتياطية محلية دائماً
+      saveGame(economy, village, army);
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
