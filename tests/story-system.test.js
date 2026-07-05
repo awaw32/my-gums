@@ -132,9 +132,38 @@ describe('Village System', () => {
       b.level = 1;
     });
     economy.level = 15;
+    economy.resources.gold = 1000;
+    economy.resources.gems = 10;
     expect(village.canMoveToNext()).toBe(true);
     expect(village.moveToNext()).toBe(true);
     expect(village.currentVillageId).toBe('palace_ruins');
+  });
+
+  it('should deduct move cost when moving to next village', () => {
+    village.buildings.forEach(b => {
+      b.state = 'ready';
+      b.level = 1;
+    });
+    economy.level = 15;
+    economy.resources.gold = 1000;
+    economy.resources.gems = 10;
+    const initialGold = economy.resources.gold;
+    const initialGems = economy.resources.gems;
+    village.moveToNext();
+    expect(economy.resources.gold).toBe(initialGold - 500);
+    expect(economy.resources.gems).toBe(initialGems - 5);
+  });
+
+  it('should not move without enough resources', () => {
+    village.buildings.forEach(b => {
+      b.state = 'ready';
+      b.level = 1;
+    });
+    economy.level = 15;
+    economy.resources.gold = 0;
+    economy.resources.gems = 0;
+    expect(village.canMoveToNext()).toBe(false);
+    expect(village.moveToNext()).toBe(false);
   });
 
   it('should deduct cost when fighting to build', () => {

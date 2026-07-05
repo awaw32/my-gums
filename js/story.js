@@ -222,6 +222,7 @@ export const STORY_VILLAGES = [
     icon: "🏝️",
     levelRequired: 1,
     chapterId: 1,
+    moveCost: {},
     bg: VILLAGE_BACKGROUNDS.wadi,
     position: { x: 10, y: 50 },
     buildings: [
@@ -298,6 +299,7 @@ export const STORY_VILLAGES = [
     icon: "🏛️",
     levelRequired: 15,
     chapterId: 2,
+    moveCost: { gold: 500, gems: 5 },
     bg: VILLAGE_BACKGROUNDS.palace_ruins,
     position: { x: 30, y: 30 },
     buildings: [
@@ -371,9 +373,10 @@ export const STORY_VILLAGES = [
     id: "mountain",
     name: "قلعة الجبل",
     description: "قلعة محصنة على قمة الجبل",
-    icon: "🏰",
+    icon: "⛰️",
     levelRequired: 30,
     chapterId: 3,
+    moveCost: { gold: 2000, gems: 15 },
     bg: VILLAGE_BACKGROUNDS.mountain,
     position: { x: 50, y: 20 },
     buildings: [
@@ -446,10 +449,11 @@ export const STORY_VILLAGES = [
   {
     id: "plains",
     name: "سهول الريف",
-    description: "سهول خصبة للزراعة والتجارة",
+    description: "سهول خصبة تغذي الإمبراطورية",
     icon: "🌾",
     levelRequired: 50,
     chapterId: 4,
+    moveCost: { gold: 5000, gems: 30 },
     bg: VILLAGE_BACKGROUNDS.plains,
     position: { x: 70, y: 60 },
     buildings: [
@@ -522,10 +526,11 @@ export const STORY_VILLAGES = [
   {
     id: "throne",
     name: "قصر الملك",
-    description: "القلعة الملكية - الهدف النهائي",
+    description: "قصر العرش الملكي - الهدف النهائي",
     icon: "👑",
     levelRequired: 75,
     chapterId: 5,
+    moveCost: { gold: 10000, gems: 50 },
     bg: VILLAGE_BACKGROUNDS.throne,
     position: { x: 90, y: 40 },
     buildings: [
@@ -606,10 +611,10 @@ export const STORY_REWARDS = {
     5: { title: "ملك الصحراء", badge: "desert_king" }
   },
   village_complete: {
-    wadi: { cash: 1000, gold: 100, xp: 500 },
-    palace_ruins: { cash: 5000, gold: 500, gems: 25, xp: 2000 },
-    mountain: { cash: 25000, gold: 2500, gems: 100, xp: 10000 },
-    plains: { cash: 100000, gold: 10000, gems: 300, xp: 50000 },
-    throne: { cash: 1000000, gold: 100000, gems: 1000, xp: 200000 }
+    wadi: { cash: 500, gold: 50, xp: 200 },
+    palace_ruins: { cash: 1500, gold: 150, gems: 10, xp: 800 },
+    mountain: { cash: 5000, gold: 500, gems: 25, xp: 2500 },
+    plains: { cash: 15000, gold: 1500, gems: 75, xp: 8000 },
+    throne: { cash: 50000, gold: 5000, gems: 200, xp: 25000 }
   }
 };

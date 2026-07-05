@@ -201,12 +201,21 @@ export class GameVillage {
   canMoveToNext() {
     const next = this.nextVillage;
     if (!next) return false;
-    return this.isVillageComplete() && this.economy.level >= next.levelRequired;
+    if (!this.isVillageComplete() || this.economy.level < next.levelRequired) return false;
+    const cost = next.moveCost || {};
+    for (const [resource, amount] of Object.entries(cost)) {
+      if (!this.economy.canAfford(resource, amount)) return false;
+    }
+    return true;
   }
 
   moveToNext() {
     if (!this.canMoveToNext()) return false;
     const next = this.nextVillage;
+    const cost = next.moveCost || {};
+    for (const [resource, amount] of Object.entries(cost)) {
+      this.economy.spend(resource, amount);
+    }
     this.completeVillage();
     this.initVillage(next.id);
     return true;
