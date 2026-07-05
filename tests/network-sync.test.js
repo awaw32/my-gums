@@ -1,4 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+
+if (typeof WebSocket === 'undefined') {
+  globalThis.WebSocket = { OPEN: 1, CONNECTING: 0, CLOSED: 3 };
+}
+
 import { NetworkSync } from '../js/network-sync.js';
 
 function makeMockWorld() {
