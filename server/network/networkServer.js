@@ -5,7 +5,8 @@ const { makeRateLimiter } = require("./rateLimiter");
 const { ClientMessage, ServerState, MsgError } = require("./protocol");
 const { stepRoom } = require("../systems/movement");
 const { resolveAttack } = require("./combat");
-const { gainXp, computeStats } = require("../systems/progression");
+const { gainXp, computeStats, initNewPlayer } = require("../systems/progression");
+const { spawnPlayer } = require("../systems/spawn");
 
 const TICK_RATE = 50;
 
@@ -39,11 +40,8 @@ class NetworkServer {
         currentRoom = room;
         player = new Player({ id: playerId, loadout });
         player._ws = ws;
-        player.level = 1;
-        const stats = computeStats(player);
-        player.maxHp = stats.maxHp;
-        player.attackPower = stats.attackPower;
-        player.defense = stats.defense;
+        initNewPlayer(player);
+        spawnPlayer(player);
         addPlayer(room, clientId, player);
 
         // Send current state snapshot
@@ -100,6 +98,13 @@ class NetworkServer {
         if (!result.alive) {
           this._broadcast(currentRoom, { t: "eliminated", playerId: targetId, killedBy: player.id });
           gainXp(player, 25);
+          setTimeout(() => {
+            const respawned = currentRoom.players.get(targetId);
+            if (respawned) {
+              spawnPlayer(respawned);
+              this._broadcast(currentRoom, { t: "respawned", id: targetId, x: respawned.x, y: respawned.y });
+            }
+          }, 3000);
         }
       } else if (t === "leave" && currentRoom) {
         this._handleLeave(ws, currentRoom, clientId);
