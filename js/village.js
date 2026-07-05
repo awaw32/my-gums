@@ -5,7 +5,7 @@
  * 5 قرى متسلسلة، كل قرية 4-5 مباني
  */
 
-import { STORY_VILLAGES } from './story.js';
+import { STORY_VILLAGES, getBuildingImages } from './story.js';
 
 export class VillageBuilding {
   constructor(template, villageId) {
@@ -17,7 +17,7 @@ export class VillageBuilding {
     this.icon = template.icon;
     this.x = template.x ?? 50;
     this.y = template.y ?? 50;
-    this.img = template.img || {
+    this.img = template.img || getBuildingImages(villageId, template.id) || {
       empty: 'assets/images/building-ruins.png',
       building: 'assets/images/building-construction.png',
       built: 'assets/images/building-complete.png'

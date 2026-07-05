@@ -5,21 +5,30 @@
  * كل قرية لها 4 مباني مرئية (b1-b4) + Boss نهائي
  */
 
-// خلفيات القرى (يمكن استبدالها برابط سحابي)
+// خلفيات القرى
 export const VILLAGE_BACKGROUNDS = {
-  wadi: 'assets/images/bg-village.jpg',
-  palace_ruins: 'assets/images/bg-village.jpg',
-  mountain: 'assets/images/bg-village.jpg',
-  plains: 'assets/images/bg-village.jpg',
-  throne: 'assets/images/bg-village.jpg'
+  wadi: 'assets/images/bg/bg-wadi.svg',
+  palace_ruins: 'assets/images/bg/bg-palace_ruins.svg',
+  mountain: 'assets/images/bg/bg-mountain.svg',
+  plains: 'assets/images/bg/bg-plains.svg',
+  throne: 'assets/images/bg/bg-throne.svg'
 };
 
-// صور المباني الافتراضية حسب الحالة
+// صور المباني حسب القرية والحالة
+export function getBuildingImages(villageId, buildingId) {
+  return {
+    empty: `assets/images/buildings/${villageId}/${buildingId}-empty.svg`,
+    building: `assets/images/buildings/${villageId}/${buildingId}-building.svg`,
+    built: `assets/images/buildings/${villageId}/${buildingId}-built.svg`
+  };
+}
+
+// صور المباني الافتراضية (للتوافق مع الأكواد القديمة)
 export const BUILDING_IMAGES = {
-  b1: { empty: 'assets/images/building-ruins.png', building: 'assets/images/building-construction.png', built: 'assets/images/building-complete.png' },
-  b2: { empty: 'assets/images/building-ruins.png', building: 'assets/images/building-construction.png', built: 'assets/images/building-complete.png' },
-  b3: { empty: 'assets/images/building-ruins.png', building: 'assets/images/building-construction.png', built: 'assets/images/building-complete.png' },
-  b4: { empty: 'assets/images/building-ruins.png', building: 'assets/images/building-construction.png', built: 'assets/images/building-complete.png' }
+  b1: getBuildingImages('wadi', 'b1'),
+  b2: getBuildingImages('wadi', 'b2'),
+  b3: getBuildingImages('wadi', 'b3'),
+  b4: getBuildingImages('wadi', 'b4')
 };
 
 export const STORY_CHAPTERS = [

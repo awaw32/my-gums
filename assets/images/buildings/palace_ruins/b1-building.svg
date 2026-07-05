@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+    <defs>
+      <linearGradient id="grad-palace_ruins-b1" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#7f8c8d"/>
+        <stop offset="100%" stop-color="#95a5a6"/>
+      </linearGradient>
+    </defs>
+    <rect width="128" height="128" fill="#f5e6cc" opacity="0.3"/>
+    
+      <rect x="30" y="55" width="68" height="55" fill="#7f8c8d" rx="2"/>
+      <path d="M25 55 L64 20 L103 55 Z" fill="#95a5a6"/>
+      <rect x="52" y="75" width="24" height="35" fill="#3e2723"/>
+      <circle cx="64" cy="95" r="4" fill="#f39c12"/>
+      <line x1="20" y1="30" x2="108" y2="100" stroke="#e74c3c" stroke-width="2"/><line x1="108" y1="30" x2="20" y2="100" stroke="#e74c3c" stroke-width="2"/>
+    
+    
+  </svg>

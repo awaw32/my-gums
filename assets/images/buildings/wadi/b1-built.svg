@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+    <defs>
+      <linearGradient id="grad-wadi-b1" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#2e86c1"/>
+        <stop offset="100%" stop-color="#27ae60"/>
+      </linearGradient>
+    </defs>
+    <rect width="128" height="128" fill="#d4f1f9" opacity="0.3"/>
+    
+      <rect x="30" y="55" width="68" height="55" fill="#2e86c1" rx="2"/>
+      <path d="M25 55 L64 20 L103 55 Z" fill="#27ae60"/>
+      <rect x="52" y="75" width="24" height="35" fill="#3e2723"/>
+      <circle cx="64" cy="95" r="4" fill="#f1c40f"/>
+      
+    
+    
+  </svg>
