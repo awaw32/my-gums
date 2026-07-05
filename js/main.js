@@ -156,8 +156,8 @@ async function init() {
   world.netSync = netSync;
   netSync.world = world;
   world.store = store;
-  const wu = new WorldUpgradesUI(world);
-  const assets = new AssetManager();
+  new WorldUpgradesUI(world);
+  new AssetManager();
   const audio = new AudioManager();
   const hero = new GameHero();
   const achievements = new AchievementManager(economy);
@@ -303,8 +303,8 @@ async function init() {
 
     // ربط إنجازات المباني
     village.setBuildingCallbacks(
-      (b) => { achievements.updateProgress('builds', 1); audio.playSound('build'); hero.addXp(10); },
-      (b) => { achievements.updateProgress('upgrades', 1); audio.playSound('upgrade'); hero.addXp(8); }
+      () => { achievements.updateProgress('builds', 1); audio.playSound('build'); hero.addXp(10); },
+      () => { achievements.updateProgress('upgrades', 1); audio.playSound('upgrade'); hero.addXp(8); }
     );
 
     // ربط إنجازات الواحات
@@ -509,7 +509,7 @@ async function init() {
       hero.hp = hero.maxHp;
     };
 
-    hero._onAbilityUnlock = (key, ab) => {
+    hero._onAbilityUnlock = (key) => {
       ui.showNotification(`🔓 قدرة جديدة: ${key} متاحة!`);
       audio.playSound('ability');
     };
@@ -653,15 +653,11 @@ async function init() {
     const brVictoryBtn = document.getElementById('br-victory-btn');
     const brDefeatBtn = document.getElementById('br-defeat-btn');
     const brZoneWarningEl = document.getElementById('br-zone-warning');
-    const brTimerEl = document.getElementById('br-timer');
-    const brPlayersEl = document.getElementById('br-players');
-    const brKillsEl = document.getElementById('br-kills');
     const brKillFeedEl = document.getElementById('br-kill-feed');
     const brVictoryScreen = document.getElementById('br-victory-screen');
     const brDefeatScreen = document.getElementById('br-defeat-screen');
     const brAliveCount = document.getElementById('br-alive-count');
     const brTotalCount = document.getElementById('br-total-count');
-    const brKillCount = document.getElementById('br-kill-count');
     const brVictoryStats = document.getElementById('br-victory-stats');
     const brDefeatStats = document.getElementById('br-defeat-stats');
 
@@ -716,7 +712,7 @@ async function init() {
     world._onBRMatchEnd = onBRMatchEnd;
     netSync.onBRMatchEnd = onBRMatchEnd;
     // ربط شاشة الخسارة
-    world._onWipe = (lost, killed) => {
+    world._onWipe = () => {
       audio.playSound('hit');
     };
 
@@ -822,7 +818,6 @@ async function init() {
       }
       // مزامنة مستوى مباني الأراضي مع أنظمة اللعبة
       if (ui._landsState) {
-        const b1 = ui._landsState['b1']; // بيت الزعيم
         const b2 = ui._landsState['b2']; // سكن الجنود
         const b3 = ui._landsState['b3']; // مستودع البضائع
         const b4 = ui._landsState['b4']; // ساحة التدريب
@@ -875,5 +870,5 @@ async function init() {
     }).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
 init();

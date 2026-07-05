@@ -3,19 +3,16 @@ import {
   aStar,
   initCollisionGrid,
   markObstacle,
-  isWalkable,
-  findNearestWalkable,
-  simplifyPath,
-  worldPos
+  simplifyPath
 } from "./pathfinding.js";
 import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles } from "./combat/combat-effects.js";
 import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/context-menu.js";
-import { computeWeaponDamage, getWeaponDef } from "./combat/weapon-system.js";
+import { computeWeaponDamage } from "./combat/weapon-system.js";
 import { computeKnowledgeBonuses } from "./combat/knowledge-system.js";
 import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.js";
 import { drawWeaponGlow, drawWeaponStarIcons } from "./combat/weapon-visuals.js";
-import { spriteFactory, SpriteFactory, DIRECTIONS, DIR_ANGLES } from "./sprite-factory.js";
-import { IsometricSystem, DepthSorter, TILE_W, TILE_H } from "./isometric.js";
+import { spriteFactory, SpriteFactory } from "./sprite-factory.js";
+import { IsometricSystem, DepthSorter } from "./isometric.js";
 import { getEnemyForLevel, getEnemiesForVillage, getBossForVillage, calculateEnemyPower } from "./enemies.js";
 
 export class WorldMap {
@@ -226,9 +223,7 @@ export class WorldMap {
     const theirCurHp = Math.max(0, tgt._hp ?? theirMaxHp);
 
     const myEffective = Math.floor(myPower * Math.max(0, myCurHp / myMaxHp));
-    const theirEffective = Math.floor(theirPower * Math.max(0, theirCurHp / theirMaxHp));
 
-    const myStats = this.computePvPStats();
     const enemyStats = this.estimateEnemyStats(tgt);
     const lootBase = Math.max(10, Math.floor(theirPower * 0.08));
     const lootAmount = Math.min(this.sessionStats.coinsEarned || 0, lootBase);
@@ -763,7 +758,15 @@ export class WorldMap {
     const drop = this.drops[index];
     if (!drop || drop.collected) return;
     drop.collected = true;
-    this.worldFx.push({ x: drop.x, y: drop.y, text: `+${drop.money} 💵`, color: "#FFD700", life: 0.8, maxLife: 0.8 });
+    const money = drop.money || 0;
+    const gold = drop.gold || 0;
+    if (this.economy) {
+      if (money > 0) this.economy.addRaw("cash", money);
+      if (gold > 0) this.economy.addRaw("gold", gold);
+      if (money > 0 && this._onCashEarned) this._onCashEarned(money);
+    }
+    this.sessionStats.coinsEarned += money;
+    this.worldFx.push({ x: drop.x, y: drop.y, text: `+${money} 💵${gold > 0 ? ` +${gold} 🪙` : ''}`, color: "#FFD700", life: 0.8, maxLife: 0.8 });
     this.drops.splice(index, 1);
     if (this._onDropCollected) this._onDropCollected();
   }
@@ -1027,14 +1030,14 @@ export class WorldMap {
     this._drawEntitiesSorted(ctx);
 
     this.drawPvPParticles(ctx);
-    this.drawWorldFx(ctx, cam);
+    this.drawWorldFx(ctx);
     this.drawMiniMap(ctx, cam);
 
     ctx.restore();
 
     this.drawArmyHUD(dt, ctx);
     this.drawPvPMenu(ctx, cam);
-    this.drawBRUI(ctx, cam);
+    this.drawBRUI(ctx);
   }
 
   /**
@@ -1729,32 +1732,9 @@ export class WorldMap {
       const reward = monster.rewardMoney || 10;
       const goldReward = monster.rewardGold || Math.floor(reward * 0.3);
       this.sessionStats.kills++;
-      this.sessionStats.coinsEarned += reward;
       if (this.netSync) this.netSync.send({ type: "monster_killed", id: monster.id });
-      this.createDrop(monster.x, monster.y, reward);
-      if (this.economy) {
-        this.economy.addRaw("cash", reward);
-        this.economy.addRaw("gold", goldReward);
-        if (this._onCashEarned) this._onCashEarned(reward);
-        this.worldFx.push({ x: monster.x, y: monster.y, text: `+${reward} 💵 +${goldReward} 🪙`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
-        fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cash: this.economy.cash,
-            gems: this.economy.gems,
-            gold: this.economy.gold,
-            hammers: this.economy.hammers,
-            scrolls: this.economy.scrolls,
-            army_power: this.economy.power,
-            unitLevel: this.army?.unitLevel || 1,
-            weapons: this.army?.weapons?.map(w => ({ id: w.id, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })) || [],
-            buildings: this.economy?.buildings || {},
-            research: this.economy?.research || {},
-            last_active: Date.now()
-          })
-        }).catch(() => {});
-      }
+      this.createDrop(monster.x, monster.y, reward, goldReward);
+      this.worldFx.push({ x: monster.x, y: monster.y, text: `⚔️ قتلت ${monster.name}`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
     }
   }
 
@@ -1762,8 +1742,8 @@ export class WorldMap {
     this.leader.hp = Math.max(0, this.leader.hp - dmg);
   }
 
-  createDrop(x, y, money) {
-    this.drops.push({ x, y, money, life: 25 });
+  createDrop(x, y, money, gold = 0) {
+    this.drops.push({ x, y, money, gold, life: 25 });
   }
 
   updateProjectiles(dt) {
@@ -1923,7 +1903,7 @@ export class WorldMap {
     }
   }
 
-  drawWorldFx(ctx, cam) {
+  drawWorldFx(ctx) {
     for (const fx of this.worldFx) {
       const alpha = fx.life / fx.maxLife;
       ctx.globalAlpha = alpha;
@@ -2272,7 +2252,7 @@ export class WorldMap {
     }
   }
 
-  drawBRUI(ctx, cam) {
+  drawBRUI(ctx) {
     if (this.mode !== "battle_royale") return;
     ctx.save();
     ctx.translate(0, 0);

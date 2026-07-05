@@ -304,7 +304,7 @@ GameUI.prototype._landsBuildingCard = function(id) {
 
 GameUI.prototype._updateLandsProgress = function() {};
 
-GameUI.prototype.checkBuildingUnlocks = function(currentLevel) {
+GameUI.prototype.checkBuildingUnlocks = function() {
   if (!this.village) return;
   // في النظام الجديد، المباني تُبنى تدريجياً ضمن القرية الحالية
   // نتحقق فقط من إمكانية الانتقال للقرية التالية
@@ -376,9 +376,7 @@ GameUI.prototype._landsToast = function(msg) {
 
 GameUI.prototype.renderWar = function() {
   const modes = ['oasis', 'adventure', 'campaign'];
-  let selectedMode = 'oasis';
   const selectMode = (mode) => {
-    selectedMode = mode;
     for (const m of modes) {
       const btn = document.querySelector(`.war-mode-btn[data-mode="${m}"]`);
       const detail = document.getElementById(`war-detail-${m}`);

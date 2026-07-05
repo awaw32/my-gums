@@ -2,10 +2,10 @@
 const { WorldState, Player, ensureRoom } = require("./state");
 const { addPlayer, removePlayer } = require("./rooms");
 const { makeRateLimiter } = require("./rateLimiter");
-const { ClientMessage, ServerState, MsgError } = require("./protocol");
+const { ClientMessage } = require("./protocol");
 const { stepRoom } = require("../systems/movement");
 const { resolveAttack } = require("./combat");
-const { gainXp, computeStats, initNewPlayer } = require("../systems/progression");
+const { gainXp, initNewPlayer } = require("../systems/progression");
 const { spawnPlayer } = require("../systems/spawn");
 
 const TICK_RATE = 50;

@@ -1,7 +1,7 @@
 "use strict";
 
 const { WEAPON_DEFS } = require("../db/databaseHelper");
-const { getBuildingEffects, getAllBuildingEffects } = require("../db/buildings");
+const { getAllBuildingEffects } = require("../db/buildings");
 const { getResearchEffects } = require("../db/research");
 const { computeWeaponDamageWithUpgrades } = require("./weaponUpgrade");
 

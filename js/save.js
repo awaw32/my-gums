@@ -20,7 +20,7 @@ export function saveGame(economy, village, army) {
   };
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-  } catch (e) {
+  } catch {
     console.warn("[Save] localStorage full or unavailable");
   }
 }

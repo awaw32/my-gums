@@ -1,6 +1,5 @@
 "use strict";
 
-const { BUILDING_DEFS } = require("../db/buildings");
 const { WEAPON_DEFS } = require("../db/databaseHelper");
 
 const MAX_STAR = 5;

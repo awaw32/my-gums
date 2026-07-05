@@ -1,10 +1,10 @@
 "use strict";
 
-const { computePlayerStats, computeEffectivePower } = require("./formulas");
-const { ENEMY_TYPES, getEnemyForLevel, calculateEnemyPower } = require("../data/enemies");
+const { computePlayerStats } = require("./formulas");
+const { getEnemyForLevel, calculateEnemyPower } = require("../data/enemies");
 
 function createCombatLoop(deps) {
-  const { rooms, broadcast, WORLD_W, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2 } = deps;
+  const { rooms, broadcast, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2 } = deps;
 
   const PVP_ENGAGEMENT_RADIUS = 80;
   const PVP_TICK_MS = 300;
@@ -44,7 +44,7 @@ function createCombatLoop(deps) {
   function gameTick() {
     rooms.forEach((room, roomCode) => {
       if (!room.matchStarted) return;
-      for (const [id, player] of room.players) {
+      for (const [, player] of room.players) {
         if (!player.alive) continue;
         if (player.moveTarget && player.moveTarget.length > 0) {
           const target = player.moveTarget[0];
@@ -115,14 +115,12 @@ function createCombatLoop(deps) {
   const pvpCombatInterval = setInterval(pvpTick, PVP_TICK_MS);
 
   const monsterInterval = setInterval(() => {
-    let changed = false;
     for (const m of worldMonsters) {
       if (!m.alive) {
         m.respawnTimer -= 1;
         if (m.respawnTimer <= 0) {
           m.alive = true; m.hp = m.maxHp;
           m.x = m.spawnX; m.y = m.spawnY;
-          changed = true;
         }
       } else {
         if (!m._patrolTarget || Math.hypot(m.x - m._patrolTarget.x, m.y - m._patrolTarget.y) < 15) {
@@ -137,7 +135,6 @@ function createCombatLoop(deps) {
         if (dist > 3) {
           m.x += (dx / dist) * 18;
           m.y += (dy / dist) * 18;
-          changed = true;
         }
       }
     }

@@ -102,7 +102,6 @@ function applyBuildingUpgrade(playerData, buildingId) {
     playerData[res] = (playerData[res] || 0) - val;
   }
   const newLevel = buildings[buildingId];
-  const def = BUILDING_DEFS[buildingId];
   return {
     ok: true,
     buildingId,

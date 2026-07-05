@@ -47,34 +47,27 @@ const {
   memStore,
   Player,
   getDefaultPlayer,
-  savePlayer,
-  loadPlayer,
-  listPlayers,
-  getLeaderboard,
 } = require("./server/db/databaseHelper");
 
 // ═══════════════════════════════════════════════════════════════════
 //  Combat Formulas
 // ═══════════════════════════════════════════════════════════════════
 const {
-  computePlayerStats,
   computeArmyYardUpgradeCost,
   computeArmyYardStats,
   computeKnowledgeUpgradeCost,
   computeKnowledgeBonuses,
-  getWeaponDef,
 } = require("./server/logic/formulas");
 
 // ═══════════════════════════════════════════════════════════════════
 //  Rewards Box Engine
 // ═══════════════════════════════════════════════════════════════════
-const { claimReward, canClaimReward } = require("./server/logic/rewards");
+const { claimReward } = require("./server/logic/rewards");
 
 // ═══════════════════════════════════════════════════════════════════
 //  Weapon Upgrade — 5 Stars × 8 Gems
 // ═══════════════════════════════════════════════════════════════════
 const {
-  canUpgradeGem, canUpgradeStar,
   applyGemUpgrade, applyStarUpgrade,
   computeWeaponDamageWithUpgrades,
 } = require("./server/logic/weaponUpgrade");
@@ -83,16 +76,15 @@ const {
 //  Buildings — Interconnected Building System
 // ═══════════════════════════════════════════════════════════════════
 const {
-  canUpgradeBuilding, applyBuildingUpgrade,
-  BUILDING_DEFS, getBuildingEffects,
+  applyBuildingUpgrade,
+  BUILDING_DEFS,
 } = require("./server/db/buildings");
 
 // ═══════════════════════════════════════════════════════════════════
 //  Research — Research Tree
 // ═══════════════════════════════════════════════════════════════════
 const {
-  canUpgradeResearch, applyResearchUpgrade,
-  getResearchEffects,
+  applyResearchUpgrade,
 } = require("./server/db/research");
 
 const WORLD_W = 3200;
@@ -531,7 +523,6 @@ wss.on("connection", (ws, req) => {
 
     ws.on("close", () => {
       if (username) {
-        const c = worldClients.get(username);
         worldClients.delete(username);
         broadcastWorld();
         // إشعار بخروج اللاعب لكل الباقين

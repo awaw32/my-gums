@@ -1,7 +1,7 @@
 import globals from "globals";
 
 export default [
-  { ignores: ['node_modules/', 'assets/', 'tests/'] },
+  { ignores: ['node_modules/', 'assets/', 'tests/', 'my-gums/'] },
   {
     files: ['js/**/*.js'],
     languageOptions: {
