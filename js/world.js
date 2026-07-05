@@ -16,7 +16,7 @@ import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.j
 import { drawWeaponGlow, drawWeaponStarIcons } from "./combat/weapon-visuals.js";
 import { spriteFactory, SpriteFactory, DIRECTIONS, DIR_ANGLES } from "./sprite-factory.js";
 import { IsometricSystem, DepthSorter, TILE_W, TILE_H } from "./isometric.js";
-import { getEnemyForLevel } from "./enemies.js";
+import { getEnemyForLevel, getEnemiesForVillage, getBossForVillage, calculateEnemyPower } from "./enemies.js";
 
 export class WorldMap {
   constructor(economy, username = "بطل الصحراء", apiBase = "", army = null) {
@@ -666,8 +666,8 @@ export class WorldMap {
 
   // ==================== الوحوش ====================
   spawnMonsters() {
-    // إذا وصلت وحوش السيرفر لا نعيد التوليد
-    if (this._monstersSynced) return;
+    // لا نعيد توليد الوحوش في وضع الحملة أو إذا وصلت وحوش السيرفر
+    if (this._campaignMode || this._monstersSynced) return;
     this.monsters = [];
     for (let i = 0; i < 12; i++) {
       let x, y;
@@ -679,19 +679,47 @@ export class WorldMap {
     }
   }
 
-  createMonster(id, spawnX, spawnY) {
+  spawnCampaignMonsters(villageId, includeBoss = false) {
+    this.monsters = [];
+    const enemies = getEnemiesForVillage(villageId);
+    const count = 6 + Math.floor(Math.random() * 4); // 6-9 enemies
+    for (let i = 0; i < count; i++) {
+      let x, y;
+      do {
+        x = 200 + Math.random() * (this.W - 400);
+        y = 200 + Math.random() * (this.H - 400);
+      } while (this.isInSafeZone(x, y));
+      const enemy = enemies[Math.floor(Math.random() * enemies.length)];
+      this.monsters.push(this.createMonster(i, x, y, enemy));
+    }
+    if (includeBoss) {
+      const boss = getBossForVillage(villageId);
+      if (boss) {
+        let x, y;
+        do {
+          x = this.W / 2 + (Math.random() - 0.5) * 400;
+          y = this.H / 2 + (Math.random() - 0.5) * 400;
+        } while (this.isInSafeZone(x, y));
+        this.monsters.push(this.createMonster('boss', x, y, boss));
+      }
+    }
+  }
+
+  createMonster(id, spawnX, spawnY, enemyOverride = null) {
     const playerLevel = this.economy?.level || 1;
-    const enemy = getEnemyForLevel(playerLevel);
+    const enemy = enemyOverride || getEnemyForLevel(playerLevel);
+    const scaled = calculateEnemyPower(enemy, playerLevel);
     return {
       id,
+      enemyId: enemy.id,
       name: enemy.name,
       color: enemy.color,
       radius: enemy.radius,
-      hp: enemy.hp,
-      maxHp: enemy.hp,
-      damage: enemy.damage,
-      rewardMoney: enemy.reward.cash || 5,
-      rewardGold: enemy.reward.gold || 1,
+      hp: scaled.hp,
+      maxHp: scaled.hp,
+      damage: scaled.damage,
+      rewardMoney: scaled.reward.cash || 5,
+      rewardGold: scaled.reward.gold || 1,
       imageKey: this._getMonsterImageKey(enemy.id),
       x: spawnX,
       y: spawnY,

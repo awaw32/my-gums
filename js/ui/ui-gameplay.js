@@ -433,8 +433,11 @@ GameUI.prototype.enterAdventure = function() {
   if (content) content.style.display = "none";
   if (worldButtons) worldButtons.classList.remove("hidden");
   this.showPlayerPanel();
-  if (this.world) this.world._pvpDisabled = true;
-  this.world.enterWorldMap();
+  if (this.world) {
+    this.world._pvpDisabled = true;
+    this.world._campaignMode = false;
+    this.world.enterWorldMap();
+  }
   this.showNotification("🐍 مغامرة الصحراء — قاتل الوحوش واجمع الغنائم! (PvP معطّل)");
 };
 
@@ -453,9 +456,18 @@ GameUI.prototype.enterCampaign = function() {
   if (content) content.style.display = "none";
   if (worldButtons) worldButtons.classList.remove("hidden");
   this.showPlayerPanel();
-  if (this.world) this.world._pvpDisabled = false;
-  this.world.enterWorldMap();
-  this.showNotification("🗺️ حملة الأبطال — تقدم عبر القصة والمرحل!");
+  if (this.world) {
+    this.world._pvpDisabled = true;
+    this.world._campaignMode = true;
+    const storyManager = window._storyManager;
+    const villageId = this.village?.currentVillageId || "wadi";
+    const chapter = storyManager?.currentChapterData;
+    const includeBoss = storyManager?.canCompleteChapter() || false;
+    this.world.spawnCampaignMonsters(villageId, includeBoss);
+    this.world.enterWorldMap();
+    const objective = chapter ? chapter.title : "حملة الأبطال";
+    this.showNotification(`🗺️ ${objective} — اقضِ على وحوش ${this.village?.currentVillage?.name || "القرية"}!`);
+  }
 };
 
 GameUI.prototype.getBuildingIcon = function(b) {
