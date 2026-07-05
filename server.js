@@ -202,6 +202,8 @@ function broadcastWorld(excludeWs = null) {
   });
 }
 
+const { sanitizePlayerData } = require("./server/validation/player");
+
 const NetworkServer = require("./server/network/networkServer");
 const onlineCore = new NetworkServer();
 
@@ -947,15 +949,17 @@ server.on("request", async (req, res) => {
       });
       req.on("end", async () => {
         try {
-          const data = JSON.parse(body);
+          const rawData = JSON.parse(body);
+          const data = sanitizePlayerData(rawData);
+          const lastActive = data.last_active || Date.now();
           // حفظ في الذاكرة أولاً (دائماً)
           const existing = memStore.get(username) || getDefaultPlayer(username);
-          memStore.set(username, { ...existing, ...data, last_active: data.last_active || Date.now() });
+          memStore.set(username, { ...existing, ...data, last_active: lastActive });
           // وحاول في MongoDB إذا متاح
           if (mongoConnected) {
             await Player.updateOne(
               { username },
-              { $set: { ...data, last_active: data.last_active || Date.now() } },
+              { $set: { ...data, last_active: lastActive } },
               { upsert: true }
             );
           }
@@ -963,7 +967,7 @@ server.on("request", async (req, res) => {
           res.end(JSON.stringify({ ok: true }));
         } catch (e) {
           res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "invalid json" }));
+          res.end(JSON.stringify({ error: e.message || "invalid json" }));
         }
       });
       return;
