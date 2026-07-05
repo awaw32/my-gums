@@ -55,8 +55,10 @@ describe('Story System', () => {
       b.state = 'ready';
       b.level = 1;
     });
+    const initialXp = economy.xp;
     expect(story.canCompleteChapter()).toBe(true);
     expect(story.completeChapter()).toBe(true);
+    expect(economy.xp).toBeGreaterThan(initialXp);
   });
 
   it('should save and load state', () => {

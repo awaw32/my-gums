@@ -59,6 +59,8 @@ export class StoryManager {
       if (resource === 'title') {
         // حفظ اللقب
         this._playerTitle = amount;
+      } else if (resource === 'xp') {
+        this.economy.addXp(amount);
       } else if (this.economy.resources[resource] !== undefined) {
         this.economy.add(resource, amount);
       }
@@ -68,7 +70,9 @@ export class StoryManager {
     const villageReward = STORY_REWARDS.village_complete[chapter.village];
     if (villageReward) {
       for (const [resource, amount] of Object.entries(villageReward)) {
-        if (this.economy.resources[resource] !== undefined) {
+        if (resource === 'xp') {
+          this.economy.addXp(amount);
+        } else if (this.economy.resources[resource] !== undefined) {
           this.economy.add(resource, amount);
         }
       }

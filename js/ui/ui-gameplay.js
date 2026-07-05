@@ -280,12 +280,9 @@ GameUI.prototype._onLandsBuildingClick = function(id) {
     return;
   }
   if (st.state === 'empty') {
-    st.state = 'building';
-    b.state = 'building';
-    b.constructTimer = b.constructDuration;
-    this._landsToast('قيد الإنشاء: ' + b.name);
-    this._renderLandsBuildings();
+    this.doFight(b, this._landsBuildingCard(id));
   } else if (st.state === 'building') {
+    // إنهاء البناء الفوري (لأغراض العرض التوضيحي) — يمكن إزالته لاحقاً
     st.state = 'built';
     b.state = 'ready';
     b.level = Math.max(1, b.level);
@@ -297,6 +294,12 @@ GameUI.prototype._onLandsBuildingClick = function(id) {
   } else if (st.state === 'built') {
     this._openLandsUpgradeModal(id);
   }
+};
+
+GameUI.prototype._landsBuildingCard = function(id) {
+  const container = document.getElementById('lands-buildings');
+  if (!container) return null;
+  return Array.from(container.children).find(el => el.dataset.id === id) || null;
 };
 
 GameUI.prototype._updateLandsProgress = function() {};
@@ -807,10 +810,15 @@ GameUI.prototype.doFight = function(b, card) {
     this.showFloatingText(card, "💥 غير كافٍ! قوّ جيشك", "#ff4444");
     return;
   }
+  // تحديث حالة الأراضي الداخلية لتطابق حالة المبنى
+  if (this._landsState && this._landsState[b.id]) {
+    this._landsState[b.id].state = 'building';
+  }
   this.showFloatingText(card, "⚔️ انتصرت! 🎉", "#4cd964");
   this.economy.addXp(50);
   this.renderPromotion();
   this.updateTopBar();
+  this._renderLandsBuildings();
 };
 
 GameUI.prototype.showFloatingText = function(parent, text, color) {
