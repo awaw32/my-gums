@@ -280,7 +280,7 @@ GameUI.prototype._onLandsBuildingClick = function(id) {
     return;
   }
   if (st.state === 'empty') {
-    this.doFight(b, this._landsBuildingCard(id));
+    this.showBuildingModal(b, this._landsBuildingCard(id));
   } else if (st.state === 'building') {
     // إنهاء البناء الفوري (لأغراض العرض التوضيحي) — يمكن إزالته لاحقاً
     st.state = 'built';
