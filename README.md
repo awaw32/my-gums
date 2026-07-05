@@ -73,6 +73,8 @@ docker run -p 3000:3000 my-gums
 ├── js/                  Client-side game logic
 ├── logs/                Server logs
 ├── server/              Server-side logic (DB, combat, formulas)
+│   ├── network/         Online core (protocol, state, rooms, rate limiter, combat, network server)
+│   ├── systems/         Game systems (movement, progression)
 ├── tests/               Test suites (Vitest)
 ├── Dockerfile           Container image
 ├── server.js            Entry point

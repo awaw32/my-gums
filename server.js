@@ -207,6 +207,9 @@ function broadcastWorld(excludeWs = null) {
   });
 }
 
+const NetworkServer = require("./server/network/networkServer");
+const onlineCore = new NetworkServer();
+
 wss.on("connection", (ws, req) => {
   const url = req.url || "/";
   const ip = req.socket.remoteAddress;
@@ -570,6 +573,12 @@ wss.on("connection", (ws, req) => {
       });
     });
     ws.send(JSON.stringify({ type: "world_players", list }));
+    return;
+  }
+
+  // ── Online Core — WebSocket للعب الجماعي بالغرف ─────────────────
+  if (url === "/ws/online") {
+    onlineCore.handleConnection(ws, req);
     return;
   }
 
