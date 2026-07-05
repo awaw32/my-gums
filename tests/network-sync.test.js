@@ -28,6 +28,7 @@ function makeMockWorld() {
     _monstersSynced: false,
     store: { set: () => {} },
     _onSelfStatsChanged: null,
+    _getMonsterImageKey: () => 'monster-1',
   };
 }
 

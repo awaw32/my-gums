@@ -1,12 +1,45 @@
 "use strict";
 
 const { computePlayerStats, computeEffectivePower } = require("./formulas");
+const { ENEMY_TYPES, getEnemyForLevel, calculateEnemyPower } = require("../data/enemies");
 
 function createCombatLoop(deps) {
-  const { rooms, broadcast, WORLD_W, TICK_MS, worldMonsters, worldClients, MONSTER_TYPES, SAFE_ZONE, WORLD_W2, WORLD_H2 } = deps;
+  const { rooms, broadcast, WORLD_W, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2 } = deps;
 
   const PVP_ENGAGEMENT_RADIUS = 80;
   const PVP_TICK_MS = 300;
+
+  function getAveragePlayerLevel() {
+    const clients = Array.from(worldClients.values());
+    if (clients.length === 0) return 1;
+    const total = clients.reduce((sum, c) => sum + (c.level || 1), 0);
+    return Math.floor(total / clients.length);
+  }
+
+  function spawnMonster(id) {
+    let x, y;
+    do {
+      x = 150 + Math.random() * (WORLD_W2 - 300);
+      y = 150 + Math.random() * (WORLD_H2 - 300);
+    } while (x >= SAFE_ZONE.x && x <= SAFE_ZONE.x + SAFE_ZONE.w && y >= SAFE_ZONE.y && y <= SAFE_ZONE.y + SAFE_ZONE.h);
+    const playerLevel = getAveragePlayerLevel();
+    const enemy = getEnemyForLevel(playerLevel);
+    const scaled = calculateEnemyPower(enemy, playerLevel);
+    return {
+      id,
+      enemyId: enemy.id,
+      name: enemy.name,
+      color: enemy.color,
+      radius: enemy.radius,
+      hp: scaled.hp,
+      maxHp: scaled.hp,
+      damage: scaled.damage,
+      rewardMoney: scaled.reward.cash || 5,
+      rewardGold: scaled.reward.gold || 1,
+      x, y, spawnX: x, spawnY: y,
+      alive: true, respawnTimer: 0
+    };
+  }
 
   function gameTick() {
     rooms.forEach((room, roomCode) => {
@@ -74,17 +107,7 @@ function createCombatLoop(deps) {
   function initWorldMonsters() {
     if (worldMonsters.length > 0) return;
     for (let i = 0; i < 12; i++) {
-      let x, y;
-      do {
-        x = 150 + Math.random() * (WORLD_W2 - 300);
-        y = 150 + Math.random() * (WORLD_H2 - 300);
-      } while (x >= SAFE_ZONE.x && x <= SAFE_ZONE.x + SAFE_ZONE.w && y >= SAFE_ZONE.y && y <= SAFE_ZONE.y + SAFE_ZONE.h);
-      const t = MONSTER_TYPES[Math.floor(Math.random() * MONSTER_TYPES.length)];
-      worldMonsters.push({
-        id: i, ...t,
-        x, y, spawnX: x, spawnY: y,
-        alive: true, hp: t.maxHp, respawnTimer: 0
-      });
+      worldMonsters.push(spawnMonster(i));
     }
   }
 

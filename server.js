@@ -102,11 +102,6 @@ const TICK_MS = 50;
 // ═══════════════════════════════════════════════════════════════════
 //  Combat Loop — arena ticks + world monster patrol
 // ═══════════════════════════════════════════════════════════════════
-const MONSTER_TYPES = [
-  { name: "ذئب صحراوي", color: "#8a5a3a", radius: 14, hp: 35, maxHp: 35, damage: 6, rewardMoney: 8 },
-  { name: "محارب ظل", color: "#2a1a1a", radius: 18, hp: 65, maxHp: 65, damage: 13, rewardMoney: 18 },
-  { name: "زعيم الرمال", color: "#c0392b", radius: 22, hp: 130, maxHp: 130, damage: 24, rewardMoney: 45 },
-];
 const worldMonsters = [];
 const WORLD_W2 = 2400, WORLD_H2 = 2400;
 const SAFE_ZONE = { x: WORLD_W2/2 - 120, y: WORLD_H2/2 - 120, w: 240, h: 240 };
@@ -160,7 +155,7 @@ const { createCombatLoop } = require("./server/logic/combatLoop");
 const combatSystem = createCombatLoop({
   rooms, broadcast, WORLD_W, TICK_MS,
   worldMonsters, worldClients,
-  MONSTER_TYPES, SAFE_ZONE, WORLD_W2, WORLD_H2,
+  SAFE_ZONE, WORLD_W2, WORLD_H2,
 });
 
 // ═══════════════════════════════════════════════════════════════════

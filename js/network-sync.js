@@ -164,8 +164,10 @@ export class NetworkSync {
           local.respawnTimer = 0;
         }
       } else {
+        const imageKey = w._getMonsterImageKey(sm.enemyId || sm.name || "");
         w.monsters.push({
           ...sm,
+          imageKey,
           facing: 1, attackCD: 0,
           _targetX: sm.x, _targetY: sm.y,
           respawnTimer: sm.alive ? 0 : (sm.respawnTimer || 25)

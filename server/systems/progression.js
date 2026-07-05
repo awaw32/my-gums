@@ -2,9 +2,9 @@
 const BASE_XP = 100;
 
 const StarterQuests = [
-  { id: "build_camp_1", title: "\u0625\u062d\u064a\u0627\u0621 \u0627\u0644\u0645\u062e\u064a\u0645", req: { building: "town", toLevel: 1 }, reward: { gold: 100, wood: 30, date: 50 } },
-  { id: "first_weapon", title: "\u0633\u0644\u0627\u062d\u0643 \u0627\u0644\u0623\u0648\u0644", req: { weapon: true }, reward: { rune: "zokm" } },
-  { id: "scorpion_den", title: "\u0648\u0643\u0631 \u0627\u0644\u0639\u0642\u0627\u0631\u0628", req: { killFamily: "scorpion", count: 5 }, reward: { plan: "town_lv2" } },
+  { id: "build_camp_1", title: "إحياء المخيم", req: { building: "town", toLevel: 1 }, reward: { cash: 200, gold: 50, food: 30 } },
+  { id: "first_weapon", title: "سلاحك الأول", req: { weapon: true }, reward: { cash: 100, gold: 25 } },
+  { id: "scorpion_den", title: "وكر العقارب", req: { killFamily: "scorpion", count: 5 }, reward: { gold: 100, gems: 5 } },
 ];
 
 function xpForLevel(level) {
@@ -35,7 +35,7 @@ function computeStats(player) {
 function initNewPlayer(player) {
   player.level = 1;
   player.xp = 0;
-  player.resources = { gold: 0, date: 0, wood: 0, hide: 0, stone: 0 };
+  player.resources = { cash: 0, gold: 0, gems: 0, hammers: 0, scrolls: 0, food: 0 };
   player.buildings = { town: 0, smith: 0, stable: 0, store: 0, tower: 0, sages: 0 };
   player.quests = [StarterQuests[0].id];
   const stats = computeStats(player);
@@ -46,13 +46,12 @@ function initNewPlayer(player) {
 }
 
 function grantReward(player, reward) {
-  if (!reward) return;
-  if (player.resources) {
-    if (reward.gold) player.resources.gold = (player.resources.gold || 0) + reward.gold;
-    if (reward.date) player.resources.date = (player.resources.date || 0) + reward.date;
-    if (reward.wood) player.resources.wood = (player.resources.wood || 0) + reward.wood;
-    if (reward.hide) player.resources.hide = (player.resources.hide || 0) + reward.hide;
-    if (reward.stone) player.resources.stone = (player.resources.stone || 0) + reward.stone;
+  if (!reward || !player.resources) return;
+  const resourceKeys = ["cash", "gold", "gems", "hammers", "scrolls", "food"];
+  for (const key of resourceKeys) {
+    if (reward[key]) {
+      player.resources[key] = (player.resources[key] || 0) + reward[key];
+    }
   }
 }
 
