@@ -278,9 +278,11 @@ GameUI.prototype._onLandsBuildingClick = function(id) {
   if (!b) return;
   const st = this._landsState[id];
   if (b.state === 'locked') {
-    const req = this.village.currentVillage?.levelRequired ? ` (يتطلب المستوى ${this.village.currentVillage.levelRequired})` : '';
-    this._landsToast(b.name + ' • مقفل' + req);
-    return;
+    const village = this.village.currentVillage;
+    if (village && this.economy.level < village.levelRequired) {
+      this._landsToast(b.name + ' • مقفل' + ` (يتطلب المستوى ${village.levelRequired})`);
+      return;
+    }
   }
   if (st.state === 'empty') {
     this.showBuildingModal(b, this._landsBuildingCard(id));
