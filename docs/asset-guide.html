@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><title>دليل الأصول - Desert Kingdom</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:#1a1a2e;color:#e4e4e4;padding:20px;line-height:1.7}
+.container{max-width:1100px;margin:0 auto}
+h1{color:#ffd700;text-align:center;padding:30px;font-size:2em;background:linear-gradient(135deg,#1a1a2e,#2a2a4e);border-radius:12px;margin-bottom:25px;border:2px solid #ffd70044}
+h2{color:#ffd700;border-bottom:2px solid #2c3e50;padding-bottom:8px;margin:25px 0 15px}
+h3{color:#3498db;margin:15px 0 10px}
+.table{width:100%;border-collapse:collapse;margin:15px 0;font-size:0.9em}
+.table th{background:#2c3e50;color:#ffd700;padding:10px 8px;text-align:right}
+.table td{padding:10px 8px;border-bottom:1px solid #2c3e50}
+.table tr:hover{background:#253547}
+.code{background:#0d1117;color:#7ee784;padding:2px 8px;border-radius:4px;font-family:Consolas,monospace;font-size:0.85em}
+.path{color:#8b949e;font-size:0.8em}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.75em;margin:2px}
+.badge-svg{background:#27ae6044;color:#2ecc71}
+.badge-png{background:#3498db44;color:#3498db}
+.badge-jpg{background:#e67e2244;color:#e67e22}
+.card{background:#1e2a3a;border:1px solid #2c3e50;border-radius:8px;padding:20px;margin:15px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}
+</style></head>
+<body><div class="container">
+
+<h1>🎨 دليل الأصول الكامل — Desert Kingdom<br><small style="font-size:0.5em;color:#8b949e">مقاسات · صيغ · مسارات · 100% متوافقة</small></h1>
+
+<h2>📐 القاعدة الذهبية</h2>
+<div class="card" style="background:#253547;border-right:4px solid #ffd700">
+  <p><strong>الصيغ:</strong> <span class="badge badge-png">PNG</span> للـ sprites · <span class="badge badge-svg">SVG</span> للمباني والخلفيات · <span class="badge badge-jpg">JPG</span> للخرائط الكبيرة</p>
+  <p><strong>المقاس الأساسي:</strong> canvas اللعبة = <span class="code">3200×3200</span> px (world) · الشاشة = <span class="code">480×800</span> px (mobile)</p>
+  <p><strong>نظام pixel ratio:</strong> اللعبة تضرب المقاسات × <span class="code">devicePixelRatio</span> تلقائياً</p>
+</div>
+
+<h2>1️⃣ المباني (Buildings) — SVG</h2>
+<div class="card">
+  <p>كل مبنى يحتاج 3 صور (3 حالات):</p>
+  <table class="table">
+    <tr><th>المسار</th><th>النوع</th><th>المقاس</th><th>ملاحظة</th></tr>
+    <tr><td class="path">.../{village}/{b}-empty.svg</td><td><span class="badge badge-svg">SVG</span></td><td><span class="code">200×200</span> viewBox</td><td>أرض فارغة</td></tr>
+    <tr><td class="path">.../{village}/{b}-building.svg</td><td><span class="badge badge-svg">SVG</span></td><td><span class="code">200×200</span> viewBox</td><td>تحت الإنشاء</td></tr>
+    <tr><td class="path">.../{village}/{b}-built.svg</td><td><span class="badge badge-svg">SVG</span></td><td><span class="code">200×200</span> viewBox</td><td>مكتمل</td></tr>
+  </table>
+</div>
+
+<p><strong>عدد المباني:</strong> 5 قرى × 4 مباني × 3 حالات = <strong>60 ملف SVG</strong></p>
+<table class="table">
+  <tr><th>القرية</th><th>b1</th><th>b2</th><th>b3</th><th>b4</th></tr>
+  <tr><td>قرية الواحة (wadi)</td><td>خيمة القائد 🏕️</td><td>مخيم الجنود ⚔️</td><td>مخزن الموارد 📦</td><td>ساحة التدريب 🏋️</td></tr>
+  <tr><td>أطلال القصر (palace_ruins)</td><td>مكتبة المخطوطات 📜</td><td>ورشة السلاح 🔨</td><td>معبد الأجداد 🏛️</td><td>خزنة الكنوز 💰</td></tr>
+  <tr><td>قلعة الجبل (mountain)</td><td>السور الخارجي 🧱</td><td>ورشة الحصار ⚔️</td><td>قاعة الجنود ⚔️</td><td>مستودع الذخيرة 📦</td></tr>
+  <tr><td>سهول الريف (plains)</td><td>سوق المزارعين 🏪</td><td>ميناء التجارة ⚓</td><td>حصن الحدود 🏰</td><td>أكاديمية الفرسان 🐎</td></tr>
+  <tr><td>قصر الملك (throne)</td><td>العرش الملكي 👑</td><td>مجلس الحكم 🏛️</td><td>حرس الملك ⚔️</td><td>خزنة المملكة 💰</td></tr>
+</table>
+
+<h2>2️⃣ خلفيات القرى (Backgrounds) — SVG</h2>
+<table class="table">
+  <tr><th>المسار</th><th>القرية</th><th>المقاس</th><th>الوصف</th></tr>
+  <tr><td class="path">assets/images/bg/bg-wadi.svg</td><td>الواحة</td><td><span class="code">1920×1200</span> viewBox</td><td>سماء صحراوية + نخيل + ماء</td></tr>
+  <tr><td class="path">assets/images/bg/bg-palace_ruins.svg</td><td>أطلال القصر</td><td><span class="code">1920×1200</span></td><td>أنقاض قديمة + ظلال</td></tr>
+  <tr><td class="path">assets/images/bg/bg-mountain.svg</td><td>قلعة الجبل</td><td><span class="code">1920×1200</span></td><td>سماء عالية + جبال</td></tr>
+  <tr><td class="path">assets/images/bg/bg-plains.svg</td><td>سهول الريف</td><td><span class="code">1920×1200</span></td><td>مزارع خضراء + نهر</td></tr>
+  <tr><td class="path">assets/images/bg/bg-throne.svg</td><td>قصر الملك</td><td><span class="code">1920×1200</span></td><td>قاعة عرش + أعمدة ذهبية</td></tr>
+</table>
+
+<h2>3️⃣ الجيش والوحوش (Sprites) — PNG</h2>
+<div class="card">
+  <p>المقاس الأساسي للـ canvas: <span class="code">96×96</span> px لكل sprite</p>
+  <p>كل sprite يحتاج 8 اتجاهات × 4 إطارات = <strong>32 إطار</strong> في Sprite Sheet <span class="code">768×384</span></p>
+</div>
+
+<h3>🗡️ الجيش</h3>
+<table class="table">
+  <tr><th>المسار</th><th>الاسم</th><th>canvas</th><th>الوصف</th></tr>
+  <tr><td class="path">assets/images/army/leader-player.png</td><td>قائد اللاعب</td><td><span class="code">96×96</span></td><td>رجل بعباءة + سيف</td></tr>
+  <tr><td class="path">assets/images/army/soldier-player.png</td><td>جندي اللاعب</td><td><span class="code">96×96</span></td><td>جندي + رمح</td></tr>
+  <tr><td class="path">assets/images/army/avatar-player.png</td><td>أفاتار</td><td><span class="code">64×64</span></td><td>صورة دائرية للاعب</td></tr>
+  <tr><td class="path">assets/images/army/leader-enemy.png</td><td>قائد العدو</td><td><span class="code">96×96</span></td><td>عدو + درع</td></tr>
+  <tr><td class="path">assets/images/army/soldier-enemy.png</td><td>جندي العدو</td><td><span class="code">96×96</span></td><td>عدو + فأس</td></tr>
+  <tr><td class="path">assets/images/army/bandit-br.png</td><td>قطاع طرق BR</td><td><span class="code">96×96</span></td><td>لص + خنجر</td></tr>
+</table>
+
+<h3>🐺 الوحوش</h3>
+<table class="table">
+  <tr><th>المسار</th><th>الاسم</th><th>canvas</th><th>radius</th></tr>
+  <tr><td class="path">assets/images/monsters/monster-1-wolf.png</td><td>ذئب صحراوي 🐺</td><td><span class="code">96×96</span></td><td><span class="code">14px</span></td></tr>
+  <tr><td class="path">assets/images/monsters/monster-2-shadow.png</td><td>محارب ظل 👻</td><td><span class="code">96×96</span></td><td><span class="code">18px</span></td></tr>
+  <tr><td class="path">assets/images/monsters/monster-3-chief.png</td><td>زعيم الرمال 🌪️</td><td><span class="code">96×96</span></td><td><span class="code">22px</span></td></tr>
+</table>
+
+<h2>4️⃣ الواجهة والأيقونات (UI) — PNG</h2>
+<div class="grid2">
+<div class="card">
+  <h3>🔝 الشريط العلوي</h3>
+  <table class="table">
+    <tr><th>الأيقونة</th><th>المقاس</th></tr>
+    <tr><td>avatar الـ player</td><td><span class="code">36×36</span> px</td></tr>
+    <tr><td>أيقونات الموارد</td><td><span class="code">20×20</span> px</td></tr>
+  </table>
+</div>
+<div class="card">
+  <h3>📱 أيقونات PWA</h3>
+  <table class="table">
+    <tr><th>المقاس</th><th>الاستخدام</th></tr>
+    <tr><td><span class="code">192×192</span></td><td>أيقونة التطبيق</td></tr>
+    <tr><td><span class="code">512×512</span></td><td>Splash screen</td></tr>
+  </table>
+</div>
+</div>
+
+<h2>5️⃣ أدوات المخزون — PNG</h2>
+<table class="table">
+  <tr><th>الأداة</th><th>المسار</th><th>المقاس</th></tr>
+  <tr><td>🩹 باندج</td><td class="path">assets/images/items/bandage.png</td><td><span class="code">48×48</span></td></tr>
+  <tr><td>🧪 جرعة علاج</td><td class="path">assets/images/items/heal_potion.png</td><td><span class="code">48×48</span></td></tr>
+  <tr><td>🗡️ سيف ناري</td><td class="path">assets/images/items/fire_sword.png</td><td><span class="code">48×48</span></td></tr>
+  <tr><td>🛡️ درع صحراوي</td><td class="path">assets/images/items/desert_shield.png</td><td><span class="code">48×48</span></td></tr>
+  <tr><td>⛑️ خوذة القوة</td><td class="path">assets/images/items/power_helmet.png</td><td><span class="code">48×48</span></td></tr>
+  <tr><td>📜 لفافة خبرة</td><td class="path">assets/images/items/xp_scroll.png</td><td><span class="code">48×48</span></td></tr>
+  <tr><td>💎 جوهرة القوة</td><td class="path">assets/images/items/power_gem.png</td><td><span class="code">48×48</span></td></tr>
+  <tr><td>🎫 تذكرة ساحة</td><td class="path">assets/images/items/arena_ticket.png</td><td><span class="code">48×48</span></td></tr>
+  <tr><td>📐 مخطط برج</td><td class="path">assets/images/items/tower_blueprint.png</td><td><span class="code">48×48</span></td></tr>
+</table>
+
+<h2>6️⃣ الترقيات (Upgrades) — PNG</h2>
+<table class="table">
+  <tr><th>الترقية</th><th>المسار</th><th>المقاس</th></tr>
+  <tr><td>⚔️ الجيش</td><td class="path">assets/images/upgrades/army.png</td><td><span class="code">120×120</span></td></tr>
+  <tr><td>📚 المعرفة</td><td class="path">assets/images/upgrades/knowledge.png</td><td><span class="code">120×120</span></td></tr>
+  <tr><td>🛡️ الدفاع</td><td class="path">assets/images/upgrades/defense.png</td><td><span class="code">120×120</span></td></tr>
+  <tr><td>🚢 التجارة</td><td class="path">assets/images/upgrades/trade.png</td><td><span class="code">120×120</span></td></tr>
+</table>
+
+<h2>7️⃣ الخريطة (Map) — JPG</h2>
+<table class="table">
+  <tr><th>المسار</th><th>المقاس</th><th>الوصف</th></tr>
+  <tr><td class="path">img/map.jpg</td><td><span class="code">2400×2400</span></td><td>خريطة صحراء كاملة (top-down)</td></tr>
+  <tr><td class="path">img/desert-army-luxury.jpg</td><td><span class="code">1920×1080</span></td><td>جيش صحراوي</td></tr>
+  <tr><td class="path">img/desert-city-luxury.jpg</td><td><span class="code">1920×1080</span></td><td>مدينة صحراوية</td></tr>
+  <tr><td class="path">img/hero-professional.jpg</td><td><span class="code">800×1000</span></td><td>البطل</td></tr>
+  <tr><td class="path">img/hero-sprite.jpg</td><td><span class="code">400×600</span></td><td>Sprite البطل</td></tr>
+  <tr><td class="path">img/rock-obstacle.jpg</td><td><span class="code">200×200</span></td><td>صخرة</td></tr>
+  <tr><td class="path">img/ui-desert-luxury.jpg</td><td><span class="code">1920×1080</span></td><td>واجهة</td></tr>
+  <tr><td class="path">img/ui-luxury-frame.jpg</td><td><span class="code">400×300</span></td><td>إطار</td></tr>
+</table>
+
+<h2>8️⃣ موارد اللعبة (أيقونات) — PNG</h2>
+<table class="table">
+  <tr><th>المورد</th><th>المقاس</th><th>الصيغة</th><th>اللون الأساسي</th></tr>
+  <tr><td>🪙 ذهب</td><td><span class="code">32×32</span></td><td>PNG</td><td>#ffd700</td></tr>
+  <tr><td>💵 مال</td><td><span class="code">32×32</span></td><td>PNG</td><td>#27ae60</td></tr>
+  <tr><td>🌾 طعام</td><td><span class="code">32×32</span></td><td>PNG</td><td>#e67e22</td></tr>
+  <tr><td>👊 قوة</td><td><span class="code">32×32</span></td><td>PNG</td><td>#e74c3c</td></tr>
+  <tr><td>💎 جواهر</td><td><span class="code">32×32</span></td><td>PNG</td><td>#9b59b6</td></tr>
+  <tr><td>🔨 مطارق</td><td><span class="code">32×32</span></td><td>PNG</td><td>#7f8c8d</td></tr>
+  <tr><td>📜 مخطوطات</td><td><span class="code">32×32</span></td><td>PNG</td><td>#f39c12</td></tr>
+</table>
+
+<h2>📊 ملخص سريع</h2>
+<div class="card" style="background:#1a2a1a;border:1px solid #27ae6044">
+  <table class="table">
+    <tr><th>الفئة</th><th>العدد</th><th>الصيغة</th><th>المقاس</th></tr>
+    <tr><td>مباني</td><td>60</td><td><span class="badge badge-svg">SVG</span></td><td>200×200 viewBox</td></tr>
+    <tr><td>خلفيات</td><td>5</td><td><span class="badge badge-svg">SVG</span></td><td>1920×1200 viewBox</td></tr>
+    <tr><td>جيش + وحوش</td><td>9</td><td><span class="badge badge-png">PNG</span></td><td>96×96 px</td></tr>
+    <tr><td>أدوات مخزون</td><td>9</td><td><span class="badge badge-png">PNG</span></td><td>48×48 px</td></tr>
+    <tr><td>موارد</td><td>7</td><td><span class="badge badge-png">PNG</span></td><td>32×32 px</td></tr>
+    <tr><td>ترقيات</td><td>4</td><td><span class="badge badge-png">PNG</span></td><td>120×120 px</td></tr>
+    <tr><td>خريطة + UI</td><td>8</td><td><span class="badge badge-jpg">JPG</span></td><td>متفاوت</td></tr>
+    <tr style="background:#2c3e50;font-weight:bold"><td>المجموع</td><td>~102</td><td colspan="2">ملف — متوافقة 100%</td></tr>
+  </table>
+</div>
+
+<h2>🔧 كيف تدمج أي صورة جديدة</h2>
+<div class="card">
+  <h3>الطريقة 1: ملف محلي (سهل)</h3>
+  <p>ضع الصورة في المسار الصحيح (مثلاً <span class="code">assets/images/items/sword.png</span>)</p>
+  <p>اللعبة تجلبها تلقائياً من <span class="code">ImageResolver.src('sword')</span></p>
+  <br>
+  <h3>الطريقة 2: رابط سحابي (أسرع)</h3>
+  <p>في <span class="code">config/images.js</span>:</p>
+  <pre style="background:#0d1117;padding:15px;border-radius:6px"><code>const IMG = {
+  sword: "https://your-cdn.com/sword.png",  <span style="color:#8b949e">← رابطك هنا</span>
+};</code></pre>
+</div>
+
+</div></body></html>

@@ -1,0 +1,206 @@
+# 🎨 أوصاف جميع أصول Desert Kingdom — جاهزة لمولّد الصور
+
+انسخ أي prompt وأرسله لـ Midjourney / DALL-E / Meta AI / Stable Diffusion.
+
+---
+
+## 1️⃣ المباني (SVG — viewBox 200×200)
+
+### قرية الواحة (wadi)
+
+| الملف | الاسم | Prompt |
+|-------|------|--------|
+| b1-empty | أرض خيمة القائد | isometric empty sandy ground with tent pegs, desert camp site, top-down game asset, flat color vector |
+| b1-building | خيمة القائد (تحت الإنشاء) | isometric Bedouin tent half-built, wooden poles and beige fabric being raised, construction site, game asset vector |
+| b1-built | خيمة القائد (مكتملة) | isometric large Bedouin leader tent, golden finial on top, beige striped fabric, palm trees nearby, oasis camp, game building vector |
+| b2-empty | أرض مخيم الجنود | isometric empty training ground, sandy arena, desert military camp foundation, game asset vector |
+| b2-building | مخيم الجنود (تحت الإنشاء) | isometric military camp under construction, training dummies being set up, wooden palisade half-built, desert game asset vector |
+| b2-built | مخيم الجنود (مكتملة) | isometric desert barracks with training yard, sword racks, archery targets, soldiers training, beige tents, game building vector |
+| b3-empty | أرض مخزن الموارد | isometric empty storage area, sandy ground with storage pit outlines, desert game asset vector |
+| b3-building | مخزن الموارد (تحت الإنشاء) | isometric storage depot half-built, clay jars and wooden crates being stacked, desert warehouse construction, game asset vector |
+| b3-built | مخزن الموارد (مكتمل) | isometric desert resource warehouse, stacks of grain sacks, water jars, gold piles, wooden shelves full, game building vector |
+| b4-empty | أرض ساحة التدريب | isometric empty training arena, flat desert ground, marked circle for combat, game asset vector |
+| b4-building | ساحة التدريب (تحت الإنشاء) | isometric training ground under construction, obstacle course being built, training rings half-complete, desert game asset vector |
+| b4-built | ساحة التدريب (مكتملة) | isometric desert training camp, wooden dummies, sword fighting circle, archery range, obstacle course, soldiers drilling, game building vector |
+
+### أطلال القصر (palace_ruins)
+
+| الملف | الاسم | Prompt |
+|-------|------|--------|
+| b1-empty | أرض مكتبة المخطوطات | isometric ancient library ruins foundation, broken stone floor, old scroll fragments on ground, game asset vector |
+| b1-building | مكتبة المخطوطات (تحت الإنشاء) | isometric ancient library being restored, stone shelves half-built, scrolls being catalogued, dusty ruins, game asset vector |
+| b1-built | مكتبة المخطوطات (مكتملة) | isometric ancient desert library fully restored, towering scroll shelves, glowing manuscripts, magical aura, sandstone architecture, game building vector |
+| b2-empty | أرض ورشة السلاح | isometric ruined forge foundation, broken anvil, old tool remnants, palace ruins, game asset vector |
+| b2-building | ورشة السلاح (تحت الإنشاء) | isometric weapon forge being rebuilt, new anvil being placed, furnace under construction, sparks flying, desert game asset vector |
+| b2-built | ورشة السلاح (مكتملة) | isometric desert weapon smithy, roaring furnace, glowing swords on racks, shields on wall, hammer and anvil, steam rising, game building vector |
+| b3-empty | أرض معبد الأجداد | isometric ancient temple ruins, broken columns, fallen statues, desert sand covering, game asset vector |
+| b3-building | معبد الأجداد (تحت الإنشاء) | isometric temple being reconstructed, stone columns being raised, workers carving new statues, desert shrine, game asset vector |
+| b3-built | معبد الأجداد (مكتمل) | isometric grand ancestor temple, golden statues of desert kings, incense burning, hieroglyphic walls, sacred altar, game building vector |
+| b4-empty | أرض خزنة الكنوز | isometric empty treasure vault foundation, cracked stone floor, broken chest remnants, palace dungeon, game asset vector |
+| b4-building | خزنة الكنوز (تحت الإنشاء) | isometric treasure vault under construction, iron bars being installed, gold being sorted into piles, guarded room, game asset vector |
+| b4-built | خزنة الكنوز (مكتملة) | isometric royal treasure vault, mountains of gold coins, jewel chests, crown on pedestal, heavy iron door, torch-lit, game building vector |
+
+### قلعة الجبل (mountain)
+
+| الملف | الاسم | Prompt |
+|-------|------|--------|
+| b1-empty | أرض السور الخارجي | isometric mountain fortress outer wall foundation, rocky cliff edge, wall line marked with stones, game asset vector |
+| b1-building | السور الخارجي (تحت الإنشاء) | isometric castle wall being built on mountain cliff, stone blocks being stacked, wooden scaffolding, cranes lifting rocks, game asset vector |
+| b1-built | السور الخارجي (مكتمل) | isometric massive mountain fortress outer wall, tall crenellations, watchtowers, flags flying, dark stone, cliff face, game building vector |
+| b2-empty | أرض ورشة الحصار | isometric empty siege workshop foundation, mountain cave entrance, weapon rack outlines, game asset vector |
+| b2-building | ورشة الحصار (تحت الإنشاء) | isometric siege workshop under construction, catapult being assembled, ballista parts scattered, mountain cave forge, game asset vector |
+| b2-built | ورشة الحصار (مكتملة) | isometric mountain siege workshop, trebuchet ready, catapults lined up, barrels of oil, battering ram, siege ladders, game building vector |
+| b3-empty | أرض قاعة الجنود | isometric empty soldier hall foundation, mountain plateau, training circle outline, game asset vector |
+| b3-building | قاعة الجنود (تحت الإنشاء) | isometric soldier barracks being built, bunks being assembled, weapon racks half-full, mountain garrison, game asset vector |
+| b3-built | قاعة الجنود (مكتملة) | isometric mountain soldier hall, rows of bunk beds, armor stands, shield wall, war table with map, torches, game building vector |
+| b4-empty | أرض مستودع الذخيرة | isometric empty ammunition depot foundation, mountain cave interior, storage shelf outlines, game asset vector |
+| b4-building | مستودع الذخيرة (تحت الإنشاء) | isometric mountain armory being stocked, arrow racks being filled, powder barrels arriving, cave depot, game asset vector |
+| b4-built | مستودع الذخيرة (مكتمل) | isometric mountain ammunition warehouse, rows of arrows, stacked shields, spare swords, gunpowder barrels, crates of supplies, game building vector |
+
+### سهول الريف (plains)
+
+| الملف | الاسم | Prompt |
+|-------|------|--------|
+| b1-empty | أرض سوق المزارعين | isometric empty market square, grass field with stall outlines, farmland nearby, game asset vector |
+| b1-building | سوق المزارعين (تحت الإنشاء) | isometric farmer market being set up, wooden stalls being built, awnings being raised, carts arriving, game asset vector |
+| b1-built | سوق المزارعين (مكتمل) | isometric bustling desert farmer market, colorful awnings, fruit and vegetable stalls, spice sacks, wheat bales, traders, game building vector |
+| b2-empty | أرض ميناء التجارة | isometric empty river dock, wooden pier foundation, trade ship outline, riverbank, game asset vector |
+| b2-building | ميناء التجارة (تحت الإنشاء) | isometric trade port under construction, docks being extended, crane being built, cargo ships arriving, river trade, game asset vector |
+| b2-built | ميناء التجارة (مكتمل) | isometric busy desert trade port, merchant ships docked, cargo being unloaded, warehouses, cranes, bazaar stalls, river, game building vector |
+| b3-empty | أرض حصن الحدود | isometric empty border outpost foundation, grassy plain, flagpole base, trench outline, game asset vector |
+| b3-building | حصن الحدود (تحت الإنشاء) | isometric border fort being built, wooden palisade going up, watchtower half-complete, soldiers patrolling, game asset vector |
+| b3-built | حصن الحدود (مكتمل) | isometric strong border fortress, high wooden walls, watchtowers with archers, gate with portcullis, flags, moat, game building vector |
+| b4-empty | أرض أكاديمية الفرسان | isometric empty knight academy grounds, riding arena foundation, stable outlines, plains, game asset vector |
+| b4-building | أكاديمية الفرسان (تحت الإنشاء) | isometric knight academy under construction, stables being built, training dummies placed, horses arriving, game asset vector |
+| b4-built | أكاديمية الفرسان (مكتملة) | isometric grand knight academy, horses in stables, knights jousting in arena, armor hall, banners flying, training grounds, game building vector |
+
+### قصر الملك (throne)
+
+| الملف | الاسم | Prompt |
+|-------|------|--------|
+| b1-empty | أرض العرش الملكي | isometric empty throne room foundation, marble floor pattern, pillar bases, grand palace interior, game asset vector |
+| b1-building | العرش الملكي (تحت الإنشاء) | isometric throne being constructed, golden chair partially built, red carpet being rolled out, workers polishing, palace interior, game asset vector |
+| b1-built | العرش الملكي (مكتمل) | isometric magnificent golden throne, jewel-encrusted, red velvet, lion armrests, crown above, marble pillars, royal guards, palace interior, game building vector |
+| b2-empty | أرض مجلس الحكم | isometric empty council chamber, round table foundation, noble chair outlines, palace war room, game asset vector |
+| b2-building | مجلس الحكم (تحت الإنشاء) | isometric council room being set up, round table being assembled, maps being hung, advisors arriving, palace, game asset vector |
+| b2-built | مجلس الحكم (مكتمل) | isometric grand royal council chamber, round table with map of desert kingdom, noble chairs, chandeliers, banners, war plans, palace, game building vector |
+| b3-empty | أرض حرس الملك | isometric empty royal guard barracks foundation, elite soldier quarters, weapon rack outlines, palace, game asset vector |
+| b3-building | حرس الملك (تحت الإنشاء) | isometric royal guard barracks being set up, elite armor being polished, guard posts being built, palace, game asset vector |
+| b3-built | حرس الملك (مكتمل) | isometric elite royal guard barracks, golden armor stands, elite swords, guard dogs, training ring, royal banners, palace interior, game building vector |
+| b4-empty | أرض خزنة المملكة | isometric empty kingdom treasury foundation, vault door outline, marble floor, palace basement, game asset vector |
+| b4-building | خزنة المملكة (تحت الإنشاء) | isometric royal treasury being filled, gold bars being stacked, jewel chests arriving, vault door being installed, palace, game asset vector |
+| b4-built | خزنة المملكة (مكتملة) | isometric massive royal treasury vault, mountains of gold bars, jewel-encrusted crowns, golden statues, armored vault door, castle basement, game building vector |
+
+---
+
+## 2️⃣ الخلفيات (SVG — 1920×1200 viewBox)
+
+| الملف | القرية | Prompt |
+|-------|--------|--------|
+| bg-wadi | الواحة | wide desert oasis landscape, palm trees surrounding blue water pool, sand dunes in background, bright sky with sun, peaceful caravan camp nearby, 2D game background vector, warm colors |
+| bg-palace_ruins | أطلال القصر | wide ancient desert palace ruins landscape, broken columns and sandstone walls half-buried in sand, mysterious dark sky with purple haze, ghostly aura, 2D game background vector |
+| bg-mountain | قلعة الجبل | wide mountain fortress landscape, snow-capped peaks, dark stone castle perched on cliff, eagles circling, stormy sky with lightning, 2D game background vector, dark colors |
+| bg-plains | سهول الريف | wide fertile plains landscape, green wheat fields, river winding through, trade ships on water, windmills, bright day sky, 2D game background vector, green-gold colors |
+| bg-throne | قصر الملك | wide grand palace throne room interior, golden pillars, red carpet leading to throne, chandeliers, stained glass windows, royal guards, luxurious, 2D game background vector, gold-red colors |
+
+---
+
+## 3️⃣ الجيش والوحوش (PNG — 96×96 px)
+
+| الملف | الاسم | Prompt |
+|-------|------|--------|
+| leader-player | قائد اللاعب | game sprite, desert warrior leader, brown cloak, curved scimitar, turban, confident pose, 96x96 pixel art, transparent background, 8 direction spritesheet ready |
+| soldier-player | جندي اللاعب | game sprite, desert spearman soldier, light beige tunic, wooden spear, leather sandals, marching pose, 96x96 pixel art, transparent background |
+| avatar-player | أفاتار اللاعب | game avatar icon, desert warrior face portrait, turban, scar across cheek, stern expression, circular frame, 64x64 pixel art, transparent background |
+| leader-enemy | قائد العدو | game sprite, enemy desert warlord, black cloak, skull mask, spiked mace, intimidating stance, 96x96 pixel art, transparent background |
+| soldier-enemy | جندي العدو | game sprite, enemy soldier, dark red tunic, battle axe, metal helmet, aggressive pose, 96x96 pixel art, transparent background |
+| bandit-br | قطاع طرق | game sprite, desert bandit, torn clothing, dual daggers, face wrap, sneaking pose, 96x96 pixel art, transparent background |
+| monster-1-wolf | ذئب صحراوي | game sprite, desert wolf monster, sandy fur with dark stripes, glowing red eyes, sharp fangs, four-legged prowling stance, 96x96 pixel art, transparent background |
+| monster-2-shadow | محارب ظل | game sprite, shadow warrior ghost, semi-transparent dark figure, floating above ground, wispy form, glowing purple eyes, spectral sword, 96x96 pixel art, transparent background |
+| monster-3-chief | زعيم الرمال | game sprite, sandstorm elemental boss, swirling sand tornado body, two glowing yellow eyes in center, debris flying around, massive scale, 96x96 pixel art, transparent background |
+
+---
+
+## 4️⃣ أدوات المخزون (PNG — 48×48 px)
+
+| الملف | Prompt |
+|-------|--------|
+| bandage | game item icon, rolled white bandage with red cross symbol, medical supply, 48x48 pixel art, transparent background |
+| heal_potion | game item icon, glass potion bottle with red healing liquid inside, cork stopper, heart symbol on glass, glowing, 48x48 pixel art |
+| fire_sword | game item icon, flaming scimitar sword, orange-red fire aura around blade, golden hilt, 48x48 pixel art, transparent background |
+| desert_shield | game item icon, round wooden shield with metal rim, Bedouin geometric patterns painted on front, desert colors, 48x48 pixel art |
+| power_helmet | game item icon, spiked war helmet, iron with golden horns, glowing red gem in center, 48x48 pixel art, transparent background |
+| xp_scroll | game item icon, ancient rolled parchment scroll, golden seal, blue magical glow, star symbols floating, 48x48 pixel art |
+| power_gem | game item icon, large purple diamond gemstone, glowing with inner light, sparkle effects, floating, 48x48 pixel art, transparent background |
+| arena_ticket | game item icon, golden ticket with sword and shield symbols, arena entrance pass, 48x48 pixel art, transparent background |
+| tower_blueprint | game item icon, rolled architectural blueprint, compass and ruler crossed, tower design visible, parchment color, 48x48 pixel art |
+
+---
+
+## 5️⃣ أيقونات الموارد (PNG — 32×32 px)
+
+| الملف | Prompt |
+|-------|--------|
+| gold_coin | game resource icon, stack of 3 gold coins, shiny metallic, #ffd700 color, isometric view, 32x32 pixel art, transparent background |
+| cash_money | game resource icon, stack of green banknotes, dollar symbols, emerald green, 32x32 pixel art, transparent background |
+| food_wheat | game resource icon, wheat bundle tied with rope, golden brown, harvest symbol, 32x32 pixel art, transparent background |
+| power_fist | game resource icon, clenched fist radiating power aura, red glow, strength symbol, 32x32 pixel art, transparent background |
+| gems_icon | game resource icon, cluster of 3 purple gemstones, sparkling, amethyst color, 32x32 pixel art, transparent background |
+| hammers_icon | game resource icon, crossed hammers, construction tool, iron gray with wooden handles, 32x32 pixel art, transparent background |
+| scrolls_icon | game resource icon, rolled parchment with ancient seal, knowledge symbol, tan color, 32x32 pixel art, transparent background |
+
+---
+
+## 6️⃣ أيقونات الترقيات (PNG — 120×120 px)
+
+| الملف | Prompt |
+|-------|--------|
+| upgrades/army | game upgrade icon, crossed swords and shield, military advancement symbol, gold and red colors, circular badge frame, 120x120 pixel art |
+| upgrades/knowledge | game upgrade icon, open book with glowing pages and star above, wisdom and research symbol, blue and gold, circular badge, 120x120 pixel art |
+| upgrades/defense | game upgrade icon, stone castle wall with towers, fortification symbol, gray and green colors, circular badge frame, 120x120 pixel art |
+| upgrades/trade | game upgrade icon, merchant ship on waves with gold coins above, commerce and trade symbol, blue and yellow, circular badge, 120x120 pixel art |
+
+---
+
+## 7️⃣ الخريطة والصور الكبيرة (JPG)
+
+| الملف | المقاس | Prompt |
+|-------|--------|--------|
+| map | 2400×2400 | top-down desert world map, sandy terrain with oasis spots, mountain ranges, rivers, ancient ruins markers, trade routes, 5 village locations marked, beige-gold color palette, game minimap |
+| desert-army-luxury | 1920×1080 | cinematic wide shot of desert army marching towards camera, hundreds of soldiers with spears, dust clouds, golden sunset, epic scale, photorealistic |
+| desert-city-luxury | 1920×1080 | cinematic wide shot of ancient desert city, sandstone buildings with domes, palm trees, market stalls, camels, golden hour lighting, photorealistic |
+| hero-professional | 800×1000 | desert warrior king portrait, standing tall with flowing cape, golden crown, curved sword raised, sandstorm behind, heroic pose, dramatic lighting, photorealistic |
+| hero-sprite | 400×600 | desert warrior character sheet, standing pose, front view, brown cloak, turban, scimitar, pixel art style, transparent background preferred |
+| rock-obstacle | 200×200 | large desert rock boulder, sandstone texture, cracked surface, weathered by sand, game obstacle, top-down view, photorealistic |
+| ui-desert-luxury | 1920×1080 | luxurious game UI background, golden ornate frame border, desert sand texture, palm leaf patterns, rich warm colors, elegant Arabic-inspired design |
+| ui-luxury-frame | 400×300 | golden ornate decorative frame, Arabic geometric patterns, desert royalty style, empty center for content, rich metallic gold finish |
+
+---
+
+## 📊 الإحصائية النهائية
+
+| الفئة | العدد | الصيغة | المقاس |
+|-------|-------|--------|--------|
+| مباني | 60 | SVG | 200×200 |
+| خلفيات | 5 | SVG | 1920×1200 |
+| جيش + وحوش | 9 | PNG | 96×96 |
+| أدوات مخزون | 9 | PNG | 48×48 |
+| موارد | 7 | PNG | 32×32 |
+| ترقيات | 4 | PNG | 120×120 |
+| صور كبيرة | 8 | JPG | متفاوت |
+| **المجموع** | **102** | | |
+
+---
+
+## 🎯 أولويات التصميم (ابدأ من هنا)
+
+إذا عندك مصمم واحد، ابدأ بهذا الترتيب:
+
+1. **الخلفيات 5** — تظهر للاعب أول شيء
+2. **الجيش 6** — اللاعب والعدو أساس اللعبة
+3. **المباني 12 (wadi فقط)** — أول قرية يبنيها اللاعب
+4. **أدوات المخزون 9** — تظهر في واجهة اللعبة دائماً
+5. **الموارد 7** — أيقونات صغيرة سهلة
+6. **الوحوش 3** — تظهر في الماب
+7. **باقي المباني 48** — القرى 2-5
+8. **الصور الكبيرة 8** — تحسينات لاحقة
