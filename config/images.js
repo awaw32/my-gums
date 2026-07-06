@@ -59,6 +59,26 @@ const IMG = {
   b6Empty:        null,
   b6Construction: null,
   b6Built:        null,
+
+  // ==================== موارد (Resources) ====================
+  goldIcon:    null, // أيقونة الذهب     — assets/images/resources/gold_32.png
+  moneyIcon:   null, // أيقونة المال    — assets/images/resources/money_32.png
+  foodIcon:    null, // أيقونة الطعام   — assets/images/resources/food_32.png
+  powerIcon:   null, // أيقونة القوة    — assets/images/resources/power_32.png
+  gemsIcon:    null, // أيقونة الجواهر  — assets/images/resources/gems_32.png
+  hammersIcon: null, // أيقونة المطارق  — assets/images/resources/hammers_32.png
+  scrollsIcon: null, // أيقونة المخطوطات — assets/images/resources/scrolls_32.png
+
+  // ==================== أدوات المخزون ====================
+  itemBandage:        null, //assets/images/items/bandage.png
+  itemHealPotion:     null, //assets/images/items/heal_potion.png
+  itemFireSword:      null, //assets/images/items/fire_sword.png
+  itemDesertShield:   null, //assets/images/items/desert_shield.png
+  itemPowerHelmet:    null, //assets/images/items/power_helmet.png
+  itemXpScroll:       null, //assets/images/items/xp_scroll.png
+  itemPowerGem:       null, //assets/images/items/power_gem.png
+  itemArenaTicket:    null, //assets/images/items/arena_ticket.png
+  itemTowerBlueprint: null, //assets/images/items/tower_blueprint.png
 };
 
 // =============================================================================
@@ -108,6 +128,24 @@ const ImageResolver = {
     b6Empty: 'assets/images/building-ruins.png',
     b6Construction: 'assets/images/building-construction.png',
     b6Built: 'assets/images/building-complete.png',
+    // موارد
+    goldIcon:    'assets/images/resources/gold_32.png',
+    moneyIcon:   'assets/images/resources/money_32.png',
+    foodIcon:    'assets/images/resources/food_32.png',
+    powerIcon:   'assets/images/resources/power_32.png',
+    gemsIcon:    'assets/images/resources/gems_32.png',
+    hammersIcon: 'assets/images/resources/hammers_32.png',
+    scrollsIcon: 'assets/images/resources/scrolls_32.png',
+    // أدوات المخزون
+    itemBandage:        'assets/images/items/bandage.png',
+    itemHealPotion:     'assets/images/items/heal_potion.png',
+    itemFireSword:      'assets/images/items/fire_sword.png',
+    itemDesertShield:   'assets/images/items/desert_shield.png',
+    itemPowerHelmet:    'assets/images/items/power_helmet.png',
+    itemXpScroll:       'assets/images/items/xp_scroll.png',
+    itemPowerGem:       'assets/images/items/power_gem.png',
+    itemArenaTicket:    'assets/images/items/arena_ticket.png',
+    itemTowerBlueprint: 'assets/images/items/tower_blueprint.png',
   },
 
   /** جلب رابط الصورة النهائي: الأولوية للرابط السحابي */

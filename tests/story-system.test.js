@@ -98,8 +98,8 @@ describe('Village System', () => {
     expect(village.currentVillageId).toBe('wadi');
   });
 
-  it('should have 4 buildings in wadi', () => {
-    expect(village.buildings).toHaveLength(4);
+  it('should have 5 buildings in wadi', () => {
+    expect(village.buildings).toHaveLength(5);
   });
 
   it('should have 4 buildings in palace_ruins', () => {
@@ -107,9 +107,9 @@ describe('Village System', () => {
     expect(village.buildings).toHaveLength(4);
   });
 
-  it('should have 4 buildings in mountain', () => {
+  it('should have 6 buildings in mountain', () => {
     village.initVillage('mountain');
-    expect(village.buildings).toHaveLength(4);
+    expect(village.buildings).toHaveLength(6);
   });
 
   it('should require resources for building cost', () => {

@@ -228,8 +228,8 @@ describe('🔒 المباني تبدأ مقفلة', () => {
     }
   });
 
-  it('يجب أن تحتوي قرية الواحة على 4 مباني', () => {
-    expect(village.buildings).toHaveLength(4);
+  it('يجب أن تحتوي قرية الواحة على 5 مباني', () => {
+    expect(village.buildings).toHaveLength(5);
   });
 
   it('يجب أن تكون تكلفة كل مبنى محددة', () => {
@@ -511,9 +511,9 @@ describe('📊 هيكل القصة كامل', () => {
     }
   });
 
-  it('يجب أن يكون لكل قرية 4 مباني', () => {
+  it('يجب أن يكون لكل قرية 4 مباني على الأقل', () => {
     for (const village of STORY_VILLAGES) {
-      expect(village.buildings).toHaveLength(4);
+      expect(village.buildings.length).toBeGreaterThanOrEqual(4);
     }
   });
 

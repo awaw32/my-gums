@@ -483,6 +483,22 @@ export const STORY_VILLAGES = [
         power: 25,
         monsterName: "زاوية الرمال",
         monsterPower: 200
+      },
+      {
+        id: "b5",
+        slot: "economic",
+        name: "مضخة الماء",
+        description: "استخراج المياه الجوفية",
+        icon: "💧",
+        x: 50, y: 60,
+        img: getBuildingImages('wadi', 'b5'),
+        cost: { cash: 600, gold: 150 },
+        production: { food: 10, cash: 8 },
+        upgradeCost: { cash: 300, gold: 75 },
+        maxLevel: 10,
+        power: 15,
+        monsterName: "عقرب سام",
+        monsterPower: 350
       }
     ]
   },
@@ -637,6 +653,38 @@ export const STORY_VILLAGES = [
         power: 60,
         monsterName: "تنين الجبل",
         monsterPower: 3000
+      },
+      {
+        id: "b5",
+        slot: "economic",
+        name: "منجم الذهب",
+        description: "استخراج الذهب من باطن الجبل",
+        icon: "⛏️",
+        x: 55, y: 55,
+        img: getBuildingImages('mountain', 'b5'),
+        cost: { cash: 22000, gold: 4500, hammers: 60 },
+        production: { gold: 40, cash: 25 },
+        upgradeCost: { cash: 11000, gold: 2250, hammers: 30 },
+        maxLevel: 20,
+        power: 85,
+        monsterName: "غول الجبل",
+        monsterPower: 2500
+      },
+      {
+        id: "b6",
+        slot: "military",
+        name: "الثكنة العسكرية",
+        description: "تجنيد وتدريب الجنود بكفاءة",
+        icon: "⚔️",
+        x: 35, y: 45,
+        img: getBuildingImages('mountain', 'b6'),
+        cost: { cash: 28000, gold: 5500, hammers: 90 },
+        production: { hammers: 12, cash: 35 },
+        upgradeCost: { cash: 14000, gold: 2750, hammers: 45 },
+        maxLevel: 20,
+        power: 100,
+        monsterName: "قائد الغزاة",
+        monsterPower: 3500
       }
     ]
   },
