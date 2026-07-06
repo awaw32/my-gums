@@ -4,7 +4,7 @@ import { injectGameplayMethods } from "./ui-gameplay.js";
 import { ALLIANCE_RAIDS } from "../alliance-manager.js";
 
 export class GameUI {
-  constructor(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests) {
+  constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests) {
     this.village = village;
     this.army = army;
     this.economy = economy;
@@ -13,6 +13,7 @@ export class GameUI {
     this.quests = quests;
     this.oasisManager = oasisManager;
     this.upgradeTree = upgradeTree;
+    this.researchTree = researchTree;
     this.allianceManager = allianceManager;
     this.achievements = achievements;
     this.dailyLogin = dailyLogin;

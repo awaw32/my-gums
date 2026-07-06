@@ -18,7 +18,7 @@ import { EventManager } from "./events.js";
 import { TutorialManager } from "./tutorial.js";
 import { GameStore } from "./game-store.js";
 import { NetworkSync } from "./network-sync.js";
-import { WorldUpgradesUI } from "./ui/world-upgrades.js";
+import { ResearchTree } from "./research-tree.js";
 import { GameHero } from "./hero.js";
 import { StoryManager } from "./story-manager.js";
 
@@ -105,9 +105,10 @@ async function loadFromDatabase(economy, army, village, username) {
       window._loadedLandsState = data.landsState || null;
       // تخزين مؤقت لبيانات التحالف والترقيات والواحات لاستخدامها لاحقاً
       window._loadedAllianceLevel = data.allianceLevel ?? 0;
-      window._loadedUpgrades = data.upgrades || {};
-      window._loadedOases = data.oases || [];
-      window._loadedAchievements = data.achievements || null;
+  window._loadedUpgrades = data.upgrades || {};
+  window._loadedResearch = data.researchTree || null;
+  window._loadedOases = data.oases || [];
+  window._loadedAchievements = data.achievements || null;
       window._loadedDailyLogin = data.dailyLogin || null;
       window._loadedPrestige = data.prestigeLevel ?? 0;
       window._loadedInventory = data.inventory || null;
@@ -156,6 +157,7 @@ async function init() {
   const oasisManager = new OasisManager(economy);
   const upgradeTree = new UpgradeTree(economy);
   upgradeTree.setArmyRef(army);
+  const researchTree = new ResearchTree(economy);
   const allianceManager = new AllianceManager(economy);
   const quests = new QuestManager(economy, army, village); 
   const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE, army);
@@ -164,7 +166,6 @@ async function init() {
   world.netSync = netSync;
   netSync.world = world;
   world.store = store;
-  new WorldUpgradesUI(world);
   new AssetManager();
   const audio = new AudioManager();
   const hero = new GameHero();
@@ -185,6 +186,7 @@ async function init() {
   // استعادة بيانات التحالف والترقيات والواحات من التخزين المؤقت
   if (window._loadedAllianceLevel !== undefined) allianceManager.loadState(window._loadedAllianceLevel);
   if (window._loadedUpgrades) upgradeTree.loadState(window._loadedUpgrades);
+  if (window._loadedResearch) researchTree.loadState(window._loadedResearch);
   if (window._loadedOases) oasisManager.loadState(window._loadedOases);
   if (window._loadedAchievements) achievements.loadState(window._loadedAchievements);
   if (window._loadedDailyLogin) dailyLogin.loadState(window._loadedDailyLogin);
@@ -196,6 +198,7 @@ async function init() {
   if (window._loadedHero) hero.loadState(window._loadedHero);
   delete window._loadedAllianceLevel;
   delete window._loadedUpgrades;
+  delete window._loadedResearch;
   delete window._loadedOases;
   delete window._loadedAchievements;
   delete window._loadedDailyLogin;
@@ -306,7 +309,7 @@ async function init() {
 
   let ui;
   try {
-    ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests);
+    ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests);
   } catch (err) {
     console.error("❌ [FATAL] GameUI constructor threw:", err);
     throw err;
@@ -422,6 +425,7 @@ async function init() {
           level: economy.level,
           allianceLevel: allianceManager.level,
           upgrades: upgradeTree.levels,
+          researchTree: researchTree ? researchTree.getSaveData() : {},
           oases: oasisManager.getState().map(o => ({ id: o.id, captured: o.captured })),
           prestigeLevel: prestige.level,
           achievements: achievements.getSaveData(),
@@ -991,9 +995,13 @@ async function init() {
       
       // مزامنة مستوى مباني الأراضي مع أنظمة اللعبة
       if (ui._landsState) {
+        const b1 = ui._landsState['b1'];
         const b2 = ui._landsState['b2'];
         const b3 = ui._landsState['b3'];
         const b4 = ui._landsState['b4'];
+        if (b1 && b1.state === 'built') {
+          if (researchTree) researchTree.palaceLevel = b1.level || 1;
+        }
         if (b2) {
           army.barracksLevel = b2.level || 1;
           army.unitsCount = army.getMaxUnits(b2.level || 1);
@@ -1003,7 +1011,19 @@ async function init() {
         }
         if (b4 && b4.state === 'built' && b4.level > 0) {
           army.b4TrainingBonus = 1 + (b4.level - 1) * 0.05;
+          if (researchTree) researchTree.academyLevel = b4.level || 0;
         }
+      }
+      // تطبيق تأثيرات البحوث على الاقتصاد
+      if (researchTree) {
+        const effects = researchTree.getEffects();
+        economy.researchGoldBonus = 1 + (effects.goldProduction / 100);
+        economy.researchDefenseBonus = effects.defensePercent;
+      }
+      // تطبيق تأثيرات شجرة الترقيات (المعرفة)
+      if (upgradeTree) {
+        economy.knowledgeGoldBonus = 1 + (upgradeTree.getEffect('knowledge') / 100);
+        economy.tradeIncomeBonus = 1 + (upgradeTree.getEffect('trade') / 100);
       }
       
       // استهلاك الطعام للجيش

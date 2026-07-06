@@ -49,19 +49,12 @@ const PlayerSaveSchema = z.object({
 }).passthrough();
 
 function sanitizePlayerData(data) {
-  try {
-    const result = PlayerSaveSchema.safeParse(data);
-    if (!result.success) {
-      const issues = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
-      console.warn("[Validation] Zod rejected, using fallback:", issues);
-      // لا نرمي خطأ — نرجع البيانات الأصلية كـ fallback عشان الحفظ ما يفشل
-      return { ...data };
-    }
-    return result.data;
-  } catch (e) {
-    console.warn("[Validation] Error during sanitization, using fallback:", e.message);
-    return { ...data };
+  const result = PlayerSaveSchema.safeParse(data);
+  if (!result.success) {
+    const issues = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
+    throw new Error(`Validation failed: ${issues}`);
   }
+  return result.data;
 }
 
 module.exports = { sanitizePlayerData, PlayerSaveSchema };

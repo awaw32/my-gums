@@ -203,6 +203,7 @@ GameUI.prototype._initLandsPage = function() {
 GameUI.prototype._toLandsState = function(villageState) {
   if (villageState === 'ready') return 'built';
   if (villageState === 'building') return 'building';
+  if (villageState === 'locked') return 'locked';
   return 'empty';
 };
 
@@ -241,29 +242,35 @@ GameUI.prototype._renderLandsBuildings = function() {
   for (const b of this.village.buildings) {
     const st = this._landsState[b.id];
     const imgSet = b.img || { empty: '', building: '', built: '' };
+    const isLocked = st.state === 'locked';
     const imgSrc = st.state === 'built' ? imgSet.built
       : st.state === 'building' ? imgSet.building
-      : imgSet.empty;
+      : isLocked ? '' : imgSet.empty;
     const badgeText = st.state === 'built' ? 'تم'
       : st.state === 'building' ? 'يبني'
+      : isLocked ? 'مقفل'
       : 'فارغ';
     const badgeClass = st.state === 'built' ? 'lands-badge-done'
       : st.state === 'building' ? 'lands-badge-progress'
+      : isLocked ? 'lands-badge-locked'
       : 'lands-badge-empty';
-    const isLocked = b.state === 'locked';
     const btn = document.createElement('button');
     btn.className = 'lands-building' + (isLocked ? ' lands-building-locked' : '');
     btn.style.right = (b.x ?? 50) + '%';
     btn.style.top = (b.y ?? 50) + '%';
     btn.dataset.id = b.id;
+    const iconDisplay = isLocked ? '🔒' : (b.icon || '🏗️');
+    const bgColor = st.state === 'built' ? '#2e7d32'
+      : st.state === 'building' ? '#f57f17'
+      : isLocked ? '#1a1a2e'
+      : '#2a2a4e';
     btn.innerHTML = `
       <div class="lands-building-pad">
-        <div class="lands-building-icon-wrap" style="background:${st.state === 'built' ? '#2e7d32' : st.state === 'building' ? '#f57f17' : '#2a2a4e'}">
-          <span class="lands-building-icon-fallback">${b.icon || '🏗️'}</span>
-          <img src="${imgSrc}" alt="${b.name}" width="56" height="56" loading="lazy" onerror="this.style.display='none'">
+        <div class="lands-building-icon-wrap" style="background:${bgColor}">
+          <span class="lands-building-icon-fallback">${iconDisplay}</span>
+          ${isLocked ? '' : `<img src="${imgSrc}" alt="${b.name}" width="56" height="56" loading="lazy" onerror="this.style.display='none'">`}
         </div>
         <span class="lands-state-badge ${badgeClass}">${badgeText}</span>
-        ${isLocked ? '<span class="lands-lock-badge">🔒</span>' : ''}
       </div>
       <div class="lands-building-name">${b.name}</div>
     `;
@@ -277,12 +284,15 @@ GameUI.prototype._onLandsBuildingClick = function(id) {
   const b = this.village.buildings.find(x => x.id === id);
   if (!b) return;
   const st = this._landsState[id];
-  if (b.state === 'locked') {
+  if (st.state === 'locked') {
     const village = this.village.currentVillage;
     if (village && this.economy.level < village.levelRequired) {
       this._landsToast(b.name + ' • مقفل' + ` (يتطلب المستوى ${village.levelRequired})`);
       return;
     }
+    // فتح المبنى: يتطلب محاربة الوحش وتكلفة البناء
+    this.showBuildingModal(b, this._landsBuildingCard(id));
+    return;
   }
   if (st.state === 'empty') {
     this.showBuildingModal(b, this._landsBuildingCard(id));
@@ -721,7 +731,26 @@ GameUI.prototype.showUpgradeModal = function(b) {
   const card = document.getElementById("modal-card");
   if (!overlay || !card) return;
   const isMax = b.level >= b.maxLevel;
-  const canAfford = this.economy ? this.economy.canAfford('cash', b.upgradeCost) : false;
+  const currentRate = b.productionRate;
+  const nextRate = {};
+  for (const [res, base] of Object.entries(b.production)) {
+    nextRate[res] = Math.floor(base * (1 + (b.level + 1) * 0.1));
+  }
+  const upgradeCost = b.currentUpgradeCost;
+  const costEntries = Object.entries(upgradeCost);
+  const canAfford = this.economy ? costEntries.every(([res, amt]) => this.economy.canAfford(res, amt)) : false;
+  const costStr = costEntries.map(([res, amt]) => {
+    const icons = { gold: '🪙', cash: '💵', gems: '💎', hammers: '🔨', scrolls: '📜', food: '🌾' };
+    return `${icons[res] || '•'} ${amt}`;
+  }).join(' + ');
+  const rateStr = Object.entries(currentRate).map(([res, amt]) => {
+    const icons = { gold: '🪙', cash: '💵', gems: '💎', hammers: '🔨', scrolls: '📜', food: '🌾' };
+    return `${icons[res] || '•'} ${amt}`;
+  }).join(' + ');
+  const nextRateStr = Object.entries(nextRate).map(([res, amt]) => {
+    const icons = { gold: '🪙', cash: '💵', gems: '💎', hammers: '🔨', scrolls: '📜', food: '🌾' };
+    return `${icons[res] || '•'} ${amt}`;
+  }).join(' + ');
   card.innerHTML = `
     <div class="flex items-center justify-between mb-3">
       <h3 class="font-bold text-base" style="color:var(--accent-red);font-family:'Cairo',sans-serif">${b.name}</h3>
@@ -737,21 +766,21 @@ GameUI.prototype.showUpgradeModal = function(b) {
       <div class="w-full rounded-lg p-3 space-y-2" style="background:var(--bg-card);border:1px solid var(--border-light)">
         <div class="flex justify-between text-sm">
           <span style="color:var(--text-secondary)">🪙 الإنتاج الحالي</span>
-          <span style="color:#2ecc71;font-weight:bold">${b.productionRate.toFixed(1)}/ث</span>
+          <span style="color:#2ecc71;font-weight:bold">${rateStr}/ث</span>
         </div>
         ${!isMax ? `
         <div class="flex justify-between text-sm">
           <span style="color:var(--text-secondary)">⬆️ بعد الترقية</span>
-          <span style="color:var(--accent-red);font-weight:bold">${(b.productionRate + b.baseProduction * 0.1).toFixed(1)}/ث</span>
+          <span style="color:var(--accent-red);font-weight:bold">${nextRateStr}/ث</span>
         </div>
         <div class="flex justify-between text-sm">
           <span style="color:var(--text-secondary)">💵 التكلفة</span>
-          <span class="font-bold" style="color:${canAfford ? '#2ecc71' : 'var(--accent-red)'}">${b.upgradeCost}</span>
+          <span class="font-bold" style="color:${canAfford ? '#2ecc71' : 'var(--accent-red)'}">${costStr}</span>
         </div>` : ''}
       </div>
       ${!isMax ? `
-      <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:var(--accent-red);color:#fff;border:none;cursor:pointer;font-family:inherit">
-        ▲ ترقية (${b.upgradeCost} 💵)
+      <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:${canAfford ? 'var(--accent-red)' : 'var(--text-muted)'};color:#fff;border:none;cursor:${canAfford ? 'pointer' : 'default'};font-family:inherit" ${canAfford ? '' : 'disabled'}>
+        ▲ ترقية (${costStr})
       </button>` : `
       <div style="color:var(--accent-red);font-weight:bold;font-size:0.85rem;padding:8px 0">⭐⭐⭐ المستوى الأقصى</div>`}
     </div>
@@ -763,13 +792,15 @@ GameUI.prototype.showUpgradeModal = function(b) {
     document.body.classList.remove("modal-open");
   };
   const actionBtn = document.getElementById("modal-action-btn");
-  if (actionBtn) {
+  if (actionBtn && canAfford) {
     actionBtn.onclick = () => {
       if (this.village.upgradeBuilding(b)) {
         this.renderPromotion();
         this.updateTopBar();
+        if (this._onSave) this._onSave();
         overlay.classList.add("hidden");
         document.body.classList.remove("modal-open");
+        this._landsToast('تمت الترقية: ' + b.name);
       }
     };
   }

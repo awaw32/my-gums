@@ -23,8 +23,13 @@ GameUI.prototype.buildPromotionScreen = function() {
     </div>
     <div id="knowledge-page" class="promo-sub-page hidden">
       <button class="promo-back-btn" id="back-from-knowledge" style="font-size:1.2rem">✕</button>
-      <div class="panel-header" style="font-size:1.1rem;margin-bottom:14px">📜 شجرة المعرفة</div>
+      <div class="panel-header" style="font-size:1.1rem;margin-bottom:10px">📜 شجرة المعرفة</div>
+      <div class="knowledge-tabs" style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="knowledge-tab active" data-tab="upgrades">🌳 شجرة الترقيات</button>
+        <button class="knowledge-tab" data-tab="research">🔬 شجرة البحوث</button>
+      </div>
       <div class="upgrade-grid" id="upgrade-grid"></div>
+      <div id="research-tree" class="research-tree hidden"></div>
       <div id="upgrade-detail-modal" class="upgrade-detail-modal hidden">
         <div class="upgrade-detail-card">
           <button id="detail-modal-close" class="detail-close-btn">✕</button>
@@ -95,11 +100,12 @@ GameUI.prototype.renderPromotion = function() {
     const targetPage = pageMap[this._promoSubPage];
     if (targetPage) {
       targetPage.classList.remove("hidden");
-      if (this._promoSubPage === 'knowledge') this._renderUpgradeTree();
+      if (this._promoSubPage === 'knowledge') this._renderKnowledgePage();
       if (this._promoSubPage === 'rewards') this._renderFullRewardsPage();
     }
   }
   this._bindCloseButtons();
+  this._bindKnowledgeTabs();
 };
 
 GameUI.prototype._promotionShowHub = function() {
@@ -426,6 +432,95 @@ GameUI.prototype._renderUpgradeTree = function() {
     }
     grid.appendChild(card);
   }
+};
+
+GameUI.prototype._renderKnowledgePage = function() {
+  const tab = this._knowledgeTab || 'upgrades';
+  const upgradeGrid = document.getElementById("upgrade-grid");
+  const researchTree = document.getElementById("research-tree");
+  if (upgradeGrid) upgradeGrid.classList.toggle("hidden", tab !== 'upgrades');
+  if (researchTree) researchTree.classList.toggle("hidden", tab !== 'research');
+  document.querySelectorAll('.knowledge-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  if (tab === 'upgrades') this._renderUpgradeTree();
+  else this._renderResearchTree();
+};
+
+GameUI.prototype._bindKnowledgeTabs = function() {
+  document.querySelectorAll('.knowledge-tab').forEach(btn => {
+    btn.onclick = () => {
+      this._knowledgeTab = btn.dataset.tab;
+      this._renderKnowledgePage();
+    };
+  });
+};
+
+GameUI.prototype._renderResearchTree = function() {
+  const container = document.getElementById("research-tree");
+  if (!container || !this.researchTree) return;
+  container.textContent = "";
+  const categories = this.researchTree.getCategories();
+  const effects = this.researchTree.getEffects();
+
+  let html = `<div class="research-effects-bar" style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:14px;padding:10px;margin-bottom:12px;text-align:center;font-size:0.75rem">
+    <div style="font-weight:800;color:var(--gold);margin-bottom:4px">✨ تأثيرات البحوث النشطة</div>
+    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;color:var(--text-secondary)">
+      ${effects.goldProduction ? `<span>🪙 إنتاج الذهب +${effects.goldProduction}%</span>` : ''}
+      ${effects.defensePercent ? `<span>🛡️ دفاع +${effects.defensePercent}%</span>` : ''}
+      ${effects.moveSpeedPercent ? `<span>⚡ سرعة +${effects.moveSpeedPercent}%</span>` : ''}
+      ${effects.crystalProduction ? `<span>💠 بلورات +${effects.crystalProduction}%</span>` : ''}
+    </div>
+  </div>`;
+
+  for (const cat of categories) {
+    html += `<div class="research-category" style="margin-bottom:14px">
+      <div class="research-cat-header" style="font-size:0.95rem;font-weight:800;color:var(--text-primary);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        <span>${cat.icon}</span><span>${cat.name}</span>
+      </div>
+      <div class="research-skills-grid" style="display:flex;flex-direction:column;gap:8px">`;
+    for (const sk of Object.values(cat.skills)) {
+      const level = this.researchTree.getLevel(cat.id, sk.id);
+      const isMax = level >= sk.maxLevel;
+      const check = this.researchTree.canUpgrade(cat.id, sk.id);
+      const canAfford = check.allowed;
+      const cost = this.researchTree.computeCost(cat.id, sk.id);
+      const costStr = cost ? Object.entries(cost).map(([res, amt]) => {
+        const icons = { cash: '💵', gold: '🪙', gems: '💎', scrolls: '📜', hammers: '🔨', artifacts: '🏺', desertGem: '💠' };
+        return `${icons[res] || '•'} ${amt}`;
+      }).join(' ') : '';
+      html += `
+        <div class="research-skill-card" style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:14px;padding:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-weight:700;font-size:0.8rem;color:var(--text-primary)">${sk.name}</span>
+            <span style="font-size:0.7rem;color:var(--gold)">Lv.${level}/${sk.maxLevel}</span>
+          </div>
+          <div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:6px">${sk.effectDesc}</div>
+          <div style="height:5px;background:rgba(0,0,0,0.1);border-radius:3px;overflow:hidden;margin-bottom:8px">
+            <div style="height:100%;width:${(level / sk.maxLevel) * 100}%;background:linear-gradient(90deg,var(--gold),#e67e22);border-radius:3px"></div>
+          </div>
+          ${!isMax ? `<div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:6px">${costStr}</div>` : ''}
+          <button class="research-upgrade-btn" data-cat="${cat.id}" data-skill="${sk.id}" ${canAfford ? '' : 'disabled'}
+            style="width:100%;padding:8px;border:none;border-radius:10px;font-size:0.7rem;font-weight:800;font-family:inherit;cursor:${canAfford ? 'pointer' : 'default'};background:${canAfford ? 'linear-gradient(180deg,var(--gold),#e67e22)' : 'rgba(255,255,255,0.06)'};color:${canAfford ? '#2a1810' : '#666'}">
+            ${isMax ? '⭐ الأقصى' : (canAfford ? '▲ بحث' : (check.reason || '🔒 مقفل'))}
+          </button>
+        </div>`;
+    }
+    html += `</div></div>`;
+  }
+  container.innerHTML = html;
+  container.querySelectorAll('.research-upgrade-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const catId = btn.dataset.cat;
+      const skillId = btn.dataset.skill;
+      if (this.researchTree.upgrade(catId, skillId)) {
+        this._renderResearchTree();
+        this.updateTopBar();
+        this.showNotification(`🔬 تم ترقية البحث!`);
+        if (this._onSave) this._onSave();
+      }
+    });
+  });
 };
 
 GameUI.prototype._openUpgradeDetail = function(pathId) {

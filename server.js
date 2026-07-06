@@ -807,9 +807,10 @@ function computeETag(filePath) {
 
 function serveStatic(rawUrl, req, res) {
   const url = rawUrl.split("?")[0];
-  const ext = path.extname(url).toLowerCase();
+  const isRoot = url === "/";
+  const ext = isRoot ? ".html" : path.extname(url).toLowerCase();
   if (!STATIC_EXTS[ext]) return false;
-  const cleanPath = url === "/" ? "index.html" : url.replace(/^\//, "");
+  const cleanPath = isRoot ? "index.html" : url.replace(/^\//, "");
   const safePath = path.resolve(__dirname, cleanPath);
   if (!safePath.startsWith(__dirname)) {
     res.writeHead(403); res.end("Forbidden"); return true;

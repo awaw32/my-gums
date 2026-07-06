@@ -140,6 +140,18 @@ export class GameEconomy {
       if (type === "gold" && amt > 0 && this.b3GoldBonus > 1) {
         finalAmt = Math.floor(amt * this.b3GoldBonus);
       }
+      // بونص البحوث على الذهب
+      if (type === "gold" && amt > 0 && this.researchGoldBonus > 1) {
+        finalAmt = Math.floor(finalAmt * this.researchGoldBonus);
+      }
+      // بونص شجرة الترقيات (المعرفة) على الذهب
+      if (type === "gold" && amt > 0 && this.knowledgeGoldBonus > 1) {
+        finalAmt = Math.floor(finalAmt * this.knowledgeGoldBonus);
+      }
+      // بونص شجرة الترقيات (التجارة) على المال
+      if (type === "cash" && amt > 0 && this.tradeIncomeBonus > 1) {
+        finalAmt = Math.floor(amt * this.tradeIncomeBonus);
+      }
       // مضاعفات الأحداث للذهب
       if (type === "gold" && amt > 0 && this._events) {
         const mult = this._events.getMult("mult_gold");

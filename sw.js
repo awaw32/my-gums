@@ -49,7 +49,6 @@ const STATIC_ASSETS = [
   '/js/isometric.js',
   '/js/pathfinding.js',
   '/js/enemies.js',
-  '/js/br-mode.js',
   '/js/combat/combat-effects.js',
   '/js/combat/troop-visuals.js',
   '/js/combat/weapon-system.js',

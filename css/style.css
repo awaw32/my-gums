@@ -930,6 +930,28 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   50% { border-color: rgba(255,215,0,0.4); }
 }
 
+/* ====== المودال العام ====== */
+#modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999999;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+#modal-overlay.hidden { display: none !important; }
+#modal-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-card);
+  border-radius: 18px;
+  border: 1px solid var(--border-light);
+  padding: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+
 /* ====== تجاوب المودال ====== */
 @media (max-width: 360px) {
   #modal-card { padding: 16px !important; }
@@ -1101,6 +1123,15 @@ body.modal-open { overflow: hidden; }
 .lands-badge-empty { background: rgba(100,100,100,0.7); color: #ddd; }
 .lands-badge-progress { background: rgba(255,193,7,0.8); color: #1a0e06; }
 .lands-badge-done { background: rgba(76,217,100,0.8); color: #fff; }
+.lands-badge-locked { background: rgba(231,76,60,0.85); color: #fff; }
+
+.lands-building-locked .lands-building-pad {
+  opacity: 0.85;
+}
+
+.lands-building-locked .lands-building-icon-fallback {
+  font-size: 32px;
+}
 
 .lands-lock-badge {
   position: absolute;
@@ -4101,4 +4132,86 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   .story-choice-btn { font-size: 0.75rem; padding: 10px 12px; }
   .story-boss-title { font-size: 1.2rem; }
   .story-btn-fight { font-size: 0.8rem; padding: 10px 24px; }
+}
+
+/* ===== تبويبات شجرة المعرفة ===== */
+.knowledge-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.knowledge-tab {
+  flex: 1;
+  padding: 10px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: inherit;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.knowledge-tab.active {
+  background: linear-gradient(180deg, var(--gold), #e67e22);
+  color: #2a1810;
+  border-color: var(--gold);
+  box-shadow: 0 2px 10px var(--gold-glow);
+}
+
+/* ===== شجرة البحوث ===== */
+.research-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+.research-effects-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 10px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 0.75rem;
+}
+.research-category {
+  margin-bottom: 14px;
+}
+.research-cat-header {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.research-skills-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.research-skill-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 10px;
+}
+.research-upgrade-btn {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-family: inherit;
+}
+.research-upgrade-btn:disabled {
+  background: rgba(255,255,255,0.06);
+  color: #666;
+  cursor: default;
 }
