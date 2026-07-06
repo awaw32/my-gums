@@ -8,7 +8,18 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="/manifest.json">
-  <title>ملك الصحراء</title>
+  <title>ملك الصحراء - Desert Kingdom | لعبة استراتيجية صحراوية</title>
+  <meta name="description" content="ابدأ كفلاح صحراوي وابنِ إمبراطوريتك حتى تصبح ملك الصحراء. لعبة استراتيجية متعددة اللاعبين مع قتال فوري، بناء قرى، PvP، ومعركة باتل رويال.">
+  <meta name="keywords" content="ملك الصحراء, لعبة صحراوية, استراتيجية, multiplayer, RTS, بناء قرى, PvP, Battle Royale, لعبة عربية, لعبة أونلاين">
+  <meta name="author" content="Desert Kingdom Studio">
+  <meta property="og:title" content="ملك الصحراء - Desert Kingdom">
+  <meta property="og:description" content="ابدأ كفلاح صحراوي وابنِ إمبراطوريتك حتى تصبح ملك الصحراء. لعبة استراتيجية متعددة اللاعبين.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ar_SA">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ملك الصحراء - Desert Kingdom">
+  <meta name="twitter:description" content="ابدأ كفلاح صحراوي وابنِ إمبراطوريتك حتى تصبح ملك الصحراء.">
+  <meta name="robots" content="index, follow">
 
   <!-- ===== Auto-Update ===== -->
   <script>
@@ -27,7 +38,7 @@
           } else if (d.buildId) {
             localStorage.setItem(KEY, d.buildId);
           }
-        } catch(e) {}
+        } catch(e) { console.warn('[AutoUpdate] Version check failed:', e.message); }
       }
       check();
       setInterval(check, 15000);

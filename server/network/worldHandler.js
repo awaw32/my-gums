@@ -1,0 +1,412 @@
+"use strict";
+
+const { PLAYER_COLORS } = require("../config");
+
+function playerColor(username) {
+  let h = 0;
+  for (let i = 0; i < username.length; i++) h = username.charCodeAt(i) + ((h << 5) - h);
+  return PLAYER_COLORS[Math.abs(h) % PLAYER_COLORS.length];
+}
+
+function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade }) {
+
+  function broadcastWorld(excludeWs = null) {
+    const list = [];
+    worldClients.forEach((c) => {
+      list.push({
+        username: c.username, x_position: c.x, y_position: c.y,
+        army_power: c.army_power,
+        kills: c.kills || 0,
+        coinsEarned: c.coinsEarned || 0,
+        unitLevel: c.unitLevel || 1,
+        armyAlive: c.armyAlive ?? 8,
+        color: c.color,
+        hp: c.hp ?? c.br_hp ?? 120,
+        maxHp: c.maxHp ?? 120,
+        br_hp: c.br_hp ?? 120,
+        br_alive: c.br_alive ?? true,
+        armyYardLevel: c.armyYardLevel || 1,
+        knowledgeLevel: c.knowledgeLevel || 1,
+        knowledgeType: c.knowledgeType || "economic",
+        equippedWeapon: c.equippedWeapon || "",
+        weaponStarLevel: c.weaponStarLevel || 1,
+        weaponGemLevel: c.weaponGemLevel || 1,
+        last_active: Date.now()
+      });
+    });
+    const msg = JSON.stringify({ type: "world_players", list });
+    worldClients.forEach((c) => {
+      if (c.ws !== excludeWs && c.ws.readyState === 1) c.ws.send(msg);
+    });
+  }
+
+  return function handleWorldConnection(ws, req) {
+    const ip = req.socket.remoteAddress;
+    let username = null;
+    let worldMsgCount = 0;
+    let worldLastReset = Date.now();
+    const _pvpCooldowns = new Map();
+    const _pvpCleanupInterval = setInterval(() => {
+      const cutoff = Date.now() - 300000;
+      for (const [key, time] of _pvpCooldowns) {
+        if (time < cutoff) _pvpCooldowns.delete(key);
+      }
+    }, 300000);
+    ws.on("close", () => clearInterval(_pvpCleanupInterval));
+    console.log(`[WorldWS] Connection from ${ip}`);
+
+    ws.on("message", (raw) => {
+      const now = Date.now();
+      if (now - worldLastReset > 1000) { worldMsgCount = 0; worldLastReset = now; }
+      if (++worldMsgCount > 60) { ws.close(1008, "Rate limit"); return; }
+
+      let msg;
+      try { msg = JSON.parse(raw); } catch { return; }
+
+      if (msg.type === "join") {
+        username = msg.username;
+        if (!username || typeof username !== "string") return;
+        username = String(username).slice(0, 30);
+        combatSystem.initWorldMonsters();
+        const color = playerColor(username);
+        const initHP = msg.hp ?? 120;
+        const initMaxHP = msg.maxHp ?? 120;
+        worldClients.set(username, {
+          ws, username, color,
+          x: msg.x_position || 1200,
+          y: msg.y_position || 1200,
+          army_power: msg.army_power || 5000,
+          kills: msg.kills || 0,
+          coinsEarned: msg.coinsEarned || 0,
+          unitLevel: msg.unitLevel || 1,
+          armyAlive: msg.armyAlive ?? 8,
+          hp: initHP,
+          maxHp: initMaxHP,
+          level: msg.level || 1,
+          trainingLevel: msg.trainingLevel || 1,
+          prestigeLevel: msg.prestigeLevel || 0,
+          armyYardLevel: msg.armyYardLevel || 1,
+          knowledgeLevel: msg.knowledgeLevel || 1,
+          knowledgeType: msg.knowledgeType || "economic",
+          equippedWeapon: msg.equippedWeapon || "",
+          weapons: msg.weapons || [],
+          weaponStarLevel: msg.weaponStarLevel || 1,
+          weaponGemLevel: msg.weaponGemLevel || 1,
+          br_hp: msg.br_hp ?? 120,
+          br_alive: msg.br_alive ?? true,
+          buildings: msg.buildings || {},
+          research: msg.research || {},
+        });
+        ws.send(JSON.stringify({ type: "world_monsters", list: worldMonsters }));
+        broadcastWorld();
+        const joinMsg = JSON.stringify({ type: "player_joined", username });
+        worldClients.forEach((c) => {
+          if (c.ws !== ws && c.ws.readyState === 1) c.ws.send(joinMsg);
+        });
+        console.log(`[WorldWS] ${username} joined (color: ${color})`);
+      } else if (msg.type === "update" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          c.x = msg.x_position ?? c.x;
+          c.y = msg.y_position ?? c.y;
+          c.army_power = msg.army_power ?? c.army_power;
+          c.kills = msg.kills ?? c.kills;
+          c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
+          c.unitLevel = msg.unitLevel ?? c.unitLevel;
+          c.armyAlive = msg.armyAlive ?? c.armyAlive;
+          if (msg.hp !== undefined) c.hp = msg.hp;
+          if (msg.maxHp !== undefined) c.maxHp = msg.maxHp;
+          if (msg.level !== undefined) c.level = msg.level;
+          if (msg.br_hp !== undefined) c.br_hp = msg.br_hp;
+          if (msg.br_alive !== undefined) c.br_alive = msg.br_alive;
+          if (msg.armyYardLevel !== undefined) c.armyYardLevel = msg.armyYardLevel;
+          if (msg.knowledgeLevel !== undefined) c.knowledgeLevel = msg.knowledgeLevel;
+          if (msg.knowledgeType !== undefined) c.knowledgeType = msg.knowledgeType;
+          if (msg.equippedWeapon !== undefined) c.equippedWeapon = msg.equippedWeapon;
+          broadcastWorld(ws);
+        }
+      } else if (msg.type === "monster_killed" && username) {
+        const mon = worldMonsters.find(m => m.id === msg.id);
+        if (mon && mon.alive) {
+          mon.alive = false;
+          mon.hp = 0;
+          mon.respawnTimer = 25;
+          const killMsg = JSON.stringify({ type: "monster_killed", id: msg.id, killedBy: username });
+          worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(killMsg); });
+        }
+      } else if (msg.type === "pvp_attack" && username) {
+        const target = msg.target;
+        const attacker = username;
+        const tc = worldClients.get(target);
+        if (tc && tc.ws.readyState === 1) {
+          tc.ws.send(JSON.stringify({ type: "pvp_notify", attacker, power: msg.myPower || 0 }));
+        }
+      } else if (msg.type === "pvp_result" && username) {
+        const targetName = msg.target;
+        const won = msg.won;
+        const loot = msg.loot || 0;
+        const reward = msg.winnerReward || 0;
+
+        const now = Date.now();
+        const lastPvP = _pvpCooldowns.get(username) || 0;
+        if (now - lastPvP < 5000) {
+          if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "انتظر قليلاً قبل PvP" }));
+          return;
+        }
+        _pvpCooldowns.set(username, now);
+
+        const tc = worldClients.get(targetName);
+        if (!tc) return;
+
+        const attackerPower = (worldClients.get(username)?.army_power || 5000);
+        const targetPower = (tc.army_power || 5000);
+        const maxReasonableLoot = Math.min(50000, Math.floor(Math.max(attackerPower, targetPower) * 0.15));
+        const maxReasonableReward = Math.min(25000, Math.floor(Math.max(attackerPower, targetPower) * 0.08));
+        const validatedLoot = Math.max(0, Math.min(loot, maxReasonableLoot));
+        const validatedReward = Math.max(0, Math.min(reward, maxReasonableReward));
+
+        if (tc.ws.readyState === 1) {
+          tc.ws.send(JSON.stringify({
+            type: "pvp_result",
+            attacker: username,
+            won: !won,
+            loot: won ? 0 : validatedLoot,
+            reward: won ? 0 : validatedReward,
+            myPower: msg.myPower || 0,
+          }));
+        }
+        if (!won && validatedLoot > 0 && tc) {
+          tc.sessionCoins = Math.max(0, (tc.sessionCoins || 0) - validatedLoot);
+        }
+        if (won) {
+          const despawnMsg = JSON.stringify({ type: "player_despawn", username: targetName });
+          worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(despawnMsg); });
+        }
+        const pvpMsg = JSON.stringify({
+          type: "broadcast_chat",
+          username: "⚔️ النظام",
+          message: won
+            ? `${username} انتصر على ${targetName}!`
+            : `${targetName} هزم ${username}!`,
+        });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(pvpMsg); });
+      } else if (msg.type === "chat" && username) {
+        const chatMsg = JSON.stringify({ type: "broadcast_chat", username, message: String(msg.message || "").slice(0, 200) });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });
+      } else if (msg.type === "br_match_start" && username) {
+        const brMsg = JSON.stringify({ type: "br_match_start", mapSize: msg.mapSize, matchDuration: msg.matchDuration });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(brMsg); });
+      } else if (msg.type === "br_zone_shrink" && username) {
+        const zMsg = JSON.stringify({ type: "br_zone_shrink", radius: msg.radius, centerX: msg.centerX, centerY: msg.centerY });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(zMsg); });
+      } else if (msg.type === "br_bandit_spawn" && username) {
+        const bMsg = JSON.stringify({ type: "br_bandit_spawn", bandit: msg.bandit });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(bMsg); });
+      } else if (msg.type === "br_player_eliminated" && username) {
+        const eMsg = JSON.stringify({ type: "br_player_eliminated", playerId: msg.playerId, by: msg.by });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(eMsg); });
+      } else if (msg.type === "br_match_end" && username) {
+        const endMsg = JSON.stringify({ type: "br_match_end", winner: msg.winner, kills: msg.kills });
+        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(endMsg); });
+      } else if (msg.type === "equip_weapon" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const weaponId = msg.weaponId || "";
+          c.equippedWeapon = weaponId;
+          const reply = JSON.stringify({ type: "equip_weapon_ack", weaponId });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+          broadcastWorld(ws);
+        }
+      } else if (msg.type === "upgrade_army_yard" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const pData = memStore.get(username) || getDefaultPlayer(username);
+          const currentLevel = c.armyYardLevel || 1;
+          const cost = computeArmyYardUpgradeCost(currentLevel);
+          for (const [res, val] of Object.entries(cost)) {
+            const have = (pData[res] || 0);
+            if (have < val) {
+              if (c.ws.readyState === 1) c.ws.send(JSON.stringify({
+                type: "upgrade_army_yard_ack", ok: false,
+                reason: `غير كافٍ ${res}: تحتاج ${val}، لديك ${have}`
+              }));
+              return;
+            }
+          }
+          for (const [res, val] of Object.entries(cost)) {
+            pData[res] = (pData[res] || 0) - val;
+          }
+          memStore.set(username, pData);
+          markDirty(username);
+          c.armyYardLevel = currentLevel + 1;
+          const stats = computeArmyYardStats(c.armyYardLevel);
+          const reply = JSON.stringify({
+            type: "upgrade_army_yard_ack", ok: true,
+            armyYardLevel: c.armyYardLevel,
+            maxTroops: stats.maxTroops,
+            hpBonus: stats.hpBonus,
+          });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+          broadcastWorld(ws);
+        }
+      } else if (msg.type === "upgrade_knowledge" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const pData = memStore.get(username) || getDefaultPlayer(username);
+          const currentLevel = c.knowledgeLevel || 1;
+          const cost = computeKnowledgeUpgradeCost(currentLevel);
+          for (const [res, val] of Object.entries(cost)) {
+            const have = (pData[res] || 0);
+            if (have < val) {
+              if (c.ws.readyState === 1) c.ws.send(JSON.stringify({
+                type: "upgrade_knowledge_ack", ok: false,
+                reason: `غير كافٍ ${res}: تحتاج ${val}، لديك ${have}`
+              }));
+              return;
+            }
+          }
+          for (const [res, val] of Object.entries(cost)) {
+            pData[res] = (pData[res] || 0) - val;
+          }
+          memStore.set(username, pData);
+          markDirty(username);
+          c.knowledgeLevel = currentLevel + 1;
+          if (msg.knowledgeType) c.knowledgeType = msg.knowledgeType;
+          const bonuses = computeKnowledgeBonuses({ knowledgeLevel: c.knowledgeLevel, knowledgeType: c.knowledgeType });
+          const reply = JSON.stringify({
+            type: "upgrade_knowledge_ack", ok: true,
+            knowledgeLevel: c.knowledgeLevel,
+            knowledgeType: c.knowledgeType,
+            ...bonuses,
+          });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+          broadcastWorld(ws);
+        }
+      } else if (msg.type === "claim_gift" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const pData = memStore.get(username) || getDefaultPlayer(username);
+          const result = claimReward(pData);
+          memStore.set(username, pData);
+          markDirty(username);
+          if (result.claimed) {
+            c.gems = (c.gems || 0) + result.reward.gems;
+            c.gold = (c.gold || 0) + result.reward.gold;
+            c.hammers = (c.hammers || 0) + result.reward.hammers;
+            c.scrolls = (c.scrolls || 0) + result.reward.scrolls;
+          }
+          const reply = JSON.stringify({ type: "claim_gift_ack", ...result });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+        }
+      } else if (msg.type === "weapon_upgrade" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const weaponId = msg.weaponId || c.equippedWeapon || "";
+          if (!weaponId) {
+            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "weapon_upgrade_ack", ok: false, reason: "اختر سلاحاً أولاً" }));
+            return;
+          }
+          const pData = memStore.get(username) || getDefaultPlayer(username);
+          const result = applyWeaponUpgrade(pData, weaponId);
+          memStore.set(username, pData);
+          markDirty(username);
+          if (result.ok) {
+            c.weaponStarLevel = result.starLevel;
+            c.weaponGemLevel = result.gemLevel;
+            const glowMsg = JSON.stringify({
+              type: "weapon_glow",
+              username,
+              weaponId,
+              starLevel: result.starLevel,
+              color: "#FFD700"
+            });
+            worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(glowMsg); });
+          }
+          const stats = computeWeaponDamageWithUpgrades(pData);
+          const reply = JSON.stringify({ type: "weapon_upgrade_ack", ...result, ...stats });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+        }
+      } else if (msg.type === "upgrade_building" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const buildingId = msg.buildingId;
+          if (!buildingId || !BUILDING_DEFS[buildingId]) {
+            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "upgrade_building_ack", ok: false, reason: "مبنى غير معروف" }));
+            return;
+          }
+          const pData = memStore.get(username) || getDefaultPlayer(username);
+          const result = applyBuildingUpgrade(pData, buildingId);
+          memStore.set(username, pData);
+          markDirty(username);
+          if (result.ok && c) {
+            if (!c.buildings) c.buildings = {};
+            c.buildings[buildingId] = result.newLevel;
+          }
+          const reply = JSON.stringify({ type: "upgrade_building_ack", ...result });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+        }
+      } else if (msg.type === "upgrade_research" && username) {
+        const c = worldClients.get(username);
+        if (c) {
+          const categoryId = msg.categoryId;
+          const skillId = msg.skillId;
+          if (!categoryId || !skillId) {
+            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "upgrade_research_ack", ok: false, reason: "بيانات البحث ناقصة" }));
+            return;
+          }
+          const pData = memStore.get(username) || getDefaultPlayer(username);
+          const result = applyResearchUpgrade(pData, categoryId, skillId);
+          memStore.set(username, pData);
+          markDirty(username);
+          if (result.ok && c) {
+            if (!c.research) c.research = {};
+            c.research[`${categoryId}.${skillId}`] = result.newLevel;
+          }
+          const reply = JSON.stringify({ type: "upgrade_research_ack", ...result });
+          if (c.ws.readyState === 1) c.ws.send(reply);
+        }
+      }
+    });
+
+    ws.on("close", () => {
+      if (username) {
+        worldClients.delete(username);
+        broadcastWorld();
+        const leaveMsg = JSON.stringify({ type: "player_left", username });
+        worldClients.forEach((cl) => {
+          if (cl.ws.readyState === 1) cl.ws.send(leaveMsg);
+        });
+        console.log(`[WorldWS] ${username} left`);
+      }
+    });
+
+    ws.on("error", (err) => { console.warn(`[WorldWS] Connection error:`, err.message); });
+
+    const list = [];
+    worldClients.forEach((c) => {
+      if (c.ws !== ws) list.push({
+        username: c.username, x_position: c.x, y_position: c.y,
+        army_power: c.army_power,
+        kills: c.kills || 0,
+        coinsEarned: c.coinsEarned || 0,
+        unitLevel: c.unitLevel || 1,
+        armyAlive: c.armyAlive ?? 8,
+        color: c.color,
+        hp: c.hp ?? c.br_hp ?? 120,
+        maxHp: c.maxHp ?? 120,
+        br_hp: c.br_hp ?? 120,
+        br_alive: c.br_alive ?? true,
+        armyYardLevel: c.armyYardLevel || 1,
+        knowledgeLevel: c.knowledgeLevel || 1,
+        knowledgeType: c.knowledgeType || "economic",
+        equippedWeapon: c.equippedWeapon || "",
+        weaponStarLevel: c.weaponStarLevel || 1,
+        weaponGemLevel: c.weaponGemLevel || 1,
+        last_active: Date.now()
+      });
+    });
+    ws.send(JSON.stringify({ type: "world_players", list }));
+  };
+}
+
+module.exports = { createWorldHandler, playerColor };
