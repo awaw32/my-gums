@@ -472,17 +472,20 @@ async function init() {
       audio.playSound('kill');
       achievements.updateProgress('kills', 1);
       hero.addXp(15);
+      economy.addXp(10);
       quests.updateProgress('kill', 1);
       // cash_earned يُتبع في damageMonster عبر _onCashEarned(reward)
     };
     world._onDropCollected = () => {
       audio.playSound('collect');
+      economy.addXp(3);
       // drop value يُتبع في collectDrop عبر _onCashEarned
     };
     world._onPvPWin = () => {
       audio.playSound('levelup');
       achievements.updateProgress('pvp_wins', 1);
       hero.addXp(50);
+      economy.addXp(25);
     };
     world._onPvPLose = () => audio.playSound('hit');
     world._onPvPReturn = async () => {
