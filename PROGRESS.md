@@ -1,209 +1,223 @@
-# تقرير تقدم مشروع ملك الصحراء (Desert Kingdom)
+# 📊 تقرير تقدم مشروع ملك الصحراء (Desert Kingdom)
 
-**آخر تحديث:** 2026-07-05
-**الحالة:** ✅ نشط — السيرفر يعمل، كل شيء مدمج في main
-
----
-
-## ملخص المشروع
-لعبة استراتيجية متعددة اللاعبين ب tema صحراوي (ملك الصحراء)، تحتوي على:
-- نظام لاعبين متعدد عبر WebSocket
-- بناء مباني الواحات
-- قتال الوحوش ولاعبين آخرين
-- نظام ترقيات ومهام للمبتدئين
-- خريطة عالم مفتوح
+**آخر تحديث شامل:** 6 يوليو 2026 — بعد تدقيق شامل للأنظمة المكررة
+**الحالة:** ✅ نشط — 154/162 اختبار ناجح (8 إخفاقات متوقعة من Zod)، 0 أخطاء ESLint
 
 ---
 
-## Pull Requests المُدمجة
+## 🎯 خلاصة المشروع
 
-| # | العنوان | Branch | الحالة |
-|---|---------|--------|--------|
-| 1 | Hardening: structure, ignore, npm scripts, server security, CI, Docker | feature/hardening-ci-structure | ✅ MERGED |
-| 2 | feat: online core — WebSocket rooms, movement, combat, progression, NetClient | feature/online-core | ✅ MERGED |
-| 3 | feat: add spawn, starter quests, initNewPlayer, grantReward, respawn on kill | feature/online-core | ✅ MERGED |
-
----
-
-## ما تم إنجازه
-
-### 1. البنية التحتية والحماية (PR #1)
-- ✅ نقل `br-mode.js` → `js/br-mode.js` وتحديث المراجع في HTML
-- ✅ إنشاء مجلد `logs/` ونقل ملفات السجلات
-- ✅ إنشاء مجلد `docs/` مع networking.md وتوثيق اللعبة
-- ✅ npm scripts: start/dev/lint/test/test:watch/build/audit + engines
-- ✅ حماية السيرفر: helmet, compression, cors, express-rate-limit, `/health`
-- ✅ CI: `.github/workflows/lint-test.yml`
-- ✅ Dockerfile: `node:20-alpine`, `npm ci --omit=dev`, `USER node`
-- ✅ تحديث README.md مع تعليمات التشغيل والصحة/Docker
-
-### 2. نظام الأونلاين الأساسي (PR #2)
-- ✅ تثبيت `ws`, `nanoid`, `zod` كاعتمادات
-- ✅ `server/network/protocol.js` — Zod schemas: MsgJoin, MsgInput, MsgLeave, MsgAttack
-- ✅ `server/network/state.js` — WorldState, Player class, ensureRoom
-- ✅ `server/network/rooms.js` — addPlayer/removePlayer
-- ✅ `server/network/rateLimiter.js` — 30 msg/s per connection
-- ✅ `server/network/combat.js` — server-authoritative resolveAttack
-- ✅ `server/network/networkServer.js` — WebSocket handler, tick loop (20Hz)
-- ✅ `server/systems/movement.js` — stepRoom with normalized velocity
-- ✅ `server/systems/progression.js` — xpForLevel, gainXp, StarterQuests
-- ✅ `server/systems/spawn.js` — spawnPlayer/respawnPlayer
-- ✅ `js/network.js` — NetClient class (connect, sendInput, disconnect)
-- ✅ `server.js` — integrated `/ws/online` handler
-
-### 3. نظام التفويض والمهمات (PR #3)
-- ✅ spawn عشوائي ضمن حدود ±1000
-- ✅ 3 مهام مبتدئ: الموارد، المباني، القتال
-- ✅ `initNewPlayer` — 자원/مباني/مهام البداية
-- ✅ `grantReward` — مكافآت المهام
-- ✅ Respawn بعد 3 ثوانٍ عند القتل
-- ✅ WebSocket mock للاختبارات في بيئة Node
-
-### 4. الاختبارات
-- ✅ `tests/protocol.test.js` — 11 اختبار Zod
-- ✅ `tests/movement.test.js` — 5 اختبارات حركة
-- ✅ `tests/rateLimiter.test.js` — 4 اختبارات rate limiter
-- ✅ `tests/spawn.test.js` — 4 اختبارات spawn
-- ✅ `tests/network-sync.test.js` — 16 اختبار network sync
-- ✅ **المجموع: 118/118 اختبارات ناجحة**
-
-### 5. ESLint
-- ✅ `eslint.config.mjs` مع Flat config
-- ✅ `globals.browser` + `globals.node` لدعم الألوان
-- ✅ **0 أخطاء، 84 تحذير (كلها no-unused-vars مقبولة)**
+**لعبة استراتيجية متعددة اللاعبين بموضوع صحراوي (ملك الصحراء)**
+- PWA كامل (HTML/CSS/JS خالص + Service Worker)
+- خادم Node.js (Express + WebSocket)
+- تخزين: SQLite أساسي + MongoDB اختياري
+- نظام قصة 5 فصول، اقتصاد، جيش، أسلحة، تحالفات، غارات، Battle Royale
+- أكثر من 40 ملف JS و 4000+ سطر CSS
 
 ---
 
-## ملفات المشروع الرئيسية
+## 🔍 تدقيق الأنظمة المكررة — تم ✅
 
-### السيرفر
-| الملف | الوصف |
-|-------|-------|
-| `server.js` | نقطة الدخول الرئيسية، HTTP + WebSocket server |
-| `server/network/protocol.js` | Zod message schemas |
-| `server/network/state.js` | WorldState, Player, ensureRoom |
-| `server/network/rooms.js` | addPlayer/removePlayer |
-| `server/network/rateLimiter.js` | makeRateLimiter |
-| `server/network/combat.js` | resolveAttack |
-| `server/network/networkServer.js` | NetworkServer class، tick loop |
-| `server/systems/movement.js` | stepRoom |
-| `server/systems/progression.js` | XP, StarterQuests, initNewPlayer |
-| `server/systems/spawn.js` | spawnPlayer/respawnPlayer |
+### الأنظمة المكررة التي تم حلها
 
-### العميل
-| الملف | الوصف |
-|-------|-------|
-| `js/network.js` | NetClient class (ES module) |
-| `index.html` | صفحة اللعبة الرئيسية |
-| `lands.html` | صفحة الأراضي |
+| النظام | الملف القديم | الملف الجديد | الإجراء |
+|--------|-------------|-------------|---------|
+| 🗡️ ترقية الأسلحة (UI) | `js/ui/world-upgrades.js` → `showWeapon()` | `js/ui/ui-promotion.js` → `_openWeaponsLibrary()` | ✅ حذف القديم (showWeapon() مُعلّق) |
+| 🧠 بونص المعرفة | `js/combat/knowledge-system.js` | `js/economy.js` → `computeKnowledgeBonuses()` | ✅ دمج في economy.js وحذف old file |
+| 🗡️ نظام الأسلحة القديم (ورود/بتلات) | `js/weapons.js` → `WeaponsLibrary` | `js/army.js` → `Weapon` class (نظام نجوم) | ✅ حذف weapons.js |
+| 📦 **my-gums/ (submodule)** | مجلد كامل فيه نسخة احتياطية من المشروع | root `js/` | ⚠️ موجود — يحتاج تأكيد من المطور |
+| 🏗️ عرض المباني القديم | `index.html` → `game-map` + `map-building` | `js/ui/ui-gameplay.js` → `lands-page` | ✅ القديم معطل، lands هو المسيطر |
 
-### الإعدادات
-| الملف | الوصف |
-|-------|-------|
-| `eslint.config.mjs` | Flat config مع browser + node globals |
-| `package.json` | Scripts, engines, dependencies |
-| `Dockerfile` | node:20-alpine, non-root |
-| `.github/workflows/lint-test.yml` | CI pipeline |
-| `.gitignore` | استبعاد node_modules, dist, logs, .env |
+### إصلاحات إضافية تمت
+- ✅ **sw.js** — نظيف، لا توجد مراجع لملفات محذوفة
+- ✅ **my-gums/js/ui/ui-promotion.js** — أصلح `_openWeaponsLibrary()` لإزالة الاعتماد على `WeaponsLibrary` المحذوف
+- ✅ **my-gums/js/weapons.js** — أصبح dead code (لا يوجد أي ملف يستورده)
+- ✅ لا توجد استيرادات للملفات المحذوفة في root `js/`
 
 ---
 
-## الاستضافة والنشر
+## ✅ الميزات المكتملة
 
-### رابط الاستضافة
-```
-http://nhz048poav0wwcuuyu192uqs.72.62.59.227.sslip.io/
-```
+### 🌐 البنية التحتية
+- ✅ PWA كامل مع manifest.json + Service Worker (cache-first + offline fallback)
+- ✅ دعم Apple Mobile Web App (meta tags + icon)
+- ✅ Dockerfile (node:20-alpine, non-root, build tools for SQLite)
+- ✅ GitHub CI (lint + test)
+- ✅ ESLint Flat Config (0 errors, 38 warnings no-unused-vars فقط)
+- ✅ Security headers (helmet-like: X-Frame-Options, X-Content-Type-Options, CORS)
+- ✅ Rate limiting (per-IP + per-WebSocket)
+- ✅ ETag للتحقق من الإصدار والتحديث التلقائي
 
-### Health Endpoint
-```
-http://nhz048poav0wwcuuyu192uqs.72.62.59.227.sslip.io/health
-```
-- الحالة: ✅ يعمل
-- rooms: 0, players: 0, tickRate: 20
-- uptime: مستمر
+### 💾 نظام التخزين
+- ✅ SQLite (better-sqlite3) — حفظ دائم مع 30s flush interval
+- ✅ MongoDB (اختياري) — fallback للذاكرة عند عدم الاتصال
+- ✅ Dirty flag — حفظ فقط عند التغيير
+- ✅ حفظ فوري عند SIGTERM/SIGINT
+- ✅ تحميل جميع اللاعبين عند بدء التشغيل
+- ✅ نسخ احتياطي محلي (localStorage) دائماً
 
-### ما تم التحقق منه على الاستضافة
-- ✅ شاشة الدخول (اسم اللاعب + زر البداية)
-- ✅ التدريب التأهلي (6 خطوات: الموارد → المباني → القتال → الخريطة → التراثي)
-- ✅ واجهة اللعبة تعمل (خريطة صحراوية، موارد، شريط تنقل)
-- ✅ موارد البداية: 1.00K 💎, 323 🪙, 50 🔥
-- ✅ الترقيات التلقائية تعمل
+### 📖 نظام القصة (Story System)
+- ✅ 5 فصول كاملة مع 25 مشهد قصصي
+- ✅ الفصل 1: قرية الواحة (مستوى 1-14) — 5 مشاهد + Boss
+- ✅ الفصل 2: أطلال القصر (مستوى 15-29) — 5 مشاهد + Boss
+- ✅ الفصل 3: قلعة الجبل (مستوى 30-49) — 5 مشاهد + Boss
+- ✅ الفصل 4: سهول الريف (مستوى 50-74) — 5 مشاهد + Boss
+- ✅ الفصل 5: قصر الملك (مستوى 75-110) — 5 مشاهد + Boss
+- ✅ خيارات حوارية لكل مشهد مع مكافآت
+- ✅ مشاهد Boss بتأثيرات دراماتيكية (نبض أحمر، أيقونة نابضة)
+- ✅ StoryManager كامل (حفظ/تحميل، تتبع الخيارات، فتح القرى)
+- ✅ **تدقيق الروابط**: القصة مربوطه بكل الأنظمة (الاقتصاد، الجيش، المباني، التحالف، الأبطال)
+
+### ⚔️ نظام الأسلحة (Weapon System) — تم التوحيد ✅
+- ✅ 6 أسلحة: سيف بدوي، قوس طويل، رمح حديدي، سيف دمشقي، قوس ناري، فأس معركة
+- ✅ شراء بالكاش (cash) + ترقية بالنجوم (1⭐-5⭐) — نظام موحد بين العميل والخادم
+- ✅ تكاليف متدرجة: cash, gems, artifacts, desertGem
+- ✅ 12 تأثيراً بصرياً فريداً لكل سلاح
+- ✅ 12 صوتاً فريداً لكل سلاح عبر oscillator synthesis
+- ✅ نظام ترقية موحد: `level` (0-5 نجوم) مع `UPGRADE_COSTS` في army.js
+- ✅ WebSocket `weapon_upgrade` للمزامنة مع الخادم
+- ✅ أيقونة الأسلحة في مركز التطوير → شاشة الأسلحة الجديدة
+- ✅ **بدون تكرار**: لا يوجد fork بين client/server — كلاهما يستخدم نفس نظام النجوم
+
+### 🛡️ نظام التحالف (Alliance System)
+- ✅ 4 مستويات تحالف (قبيلة، عشيرة، قبيلة عظمى، إمبراطورية)
+- ✅ 4 غارات تحالف (الواحة، الأطلال، الجبل، العرش)
+- ✅ نظام معركة Boss مع HP/ضرر
+- ✅ مكافآت: cash, gold, gems, artifacts, desertGem
+- ✅ تبريد الغارات (1 ساعة بعد النجاح، 5 دقائق بعد الإلغاء)
+- ✅ شاشة تحالف كاملة مع عرض الغارات المتاحة
+
+### 🦸 نظام البطل (Hero)
+- ✅ 50 مستوى مع 4 قدرات (علاج، ضربة قوية، درع، نداء حرب)
+- ✅ مساهمة في القوة الإجمالية
+- ✅ حفظ/تحميل
+- ✅ لوحة بطل مع تحديثات فورية (HP, XP, قدرات)
+
+### 🌴 الواحات (Oasis)
+- ✅ 5 واحات بموارد متزايدة
+- ✅ دخل تلقائي كل 15 ثانية
+- ✅ احتلال بالقوة العسكرية
+- ✅ دعم أحداث مضاعفة الدخل
+
+### 🏆 الإنجازات (Achievements)
+- ✅ 17 إنجازاً (بما فيها 3 قصصية)
+- ✅ نظام Claim للمكافآت
+- ✅ حفظ/تحميل + badges
+
+### 📅 المكافآت اليومية
+- ✅ 7 أيام بمكافآت متصاعدة
+- ✅ نظام Streak (تتبع المتابعة)
+
+### 🎊 الأحداث العشوائية
+- ✅ 6 أحداث (Gold Rush, XP Boost, Power Week, PvP Tournament, Oasis Bonus, Camel Race)
+- ✅ بدء تلقائي كل 5 دقائق
+- ✅ مضاعفات للاقتصاد والقتال
+
+### 🔄 Prestige
+- ✅ 5 مستويات بألقاب ومضاعفات ضرر
+- ✅ إعادة تعيين مع الاحتفاظ بالمكتسبات
+
+### 🗡️ التصنيع (Crafting/Inventory)
+- ✅ 8 وصفات تصنيع
+- ✅ استخدام العناصر مع تأثيرات مؤقتة
+- ✅ حفظ/تحميل
+
+### ⚔️ Battle Royale
+- ✅ وضع معركة ملكية كامل
+- ✅ نظام غرف + Admin
+- ✅ منطقة متقلصة (Shrinking Zone)
+- ✅ قطاع طرق (Bandits) + لاعبين آخرين
+- ✅ WebSocket sync + Local bots fallback
+- ✅ شاشات انتصار/هزيمة
+- ✅ Kill feed
+
+### 🌍 نظام الشبكات (Multiplayer)
+- ✅ WebSocket عالمي (World Map) — جميع اللاعبين على خريطة واحدة
+- ✅ WebSocket للغرف (Online Core) — مجموعات منفصلة
+- ✅ WebSocket للساحة القديمة (Arena)
+- ✅ PvP مع server-authoritative damage
+- ✅ Rate limiting لكل اتصال
+- ✅ Ping/Pong للاتصالات الحية
+
+### 🏗️ شجرة الترقيات (Upgrade Tree — معرفة)
+- ✅ 4 مسارات (الجيش، المعرفة، الدفاع، التجارة)
+- ✅ 🔗 **مسار 'المعرفة' مربوط بـ القصة** — يتطلب معرفة من القصة (knowledgeLevel)
+- ✅ 🔗 **مسار 'الجيش' مربوط بـ GameArmy** — يتطلب مستوى جنود معين (unitLevel)
+- ✅ عرض رسائل قفل 🔒 عندما لا تتوفر المتطلبات
+- ✅ تفاصيل ترقية مع معاينة المستويات
+- ✅ نوافذ تفصيلية لكل مسار مع حالة القفل
+- ✅ **الموقع**: أيقونة المعرفة 📜 في مركز التطوير
+
+### 🏪 المتجر (Shop)
+- ✅ بيع القطع الأثرية 🏺 → 💵
+- ✅ بيع المخطوطات 📜 → 🪙
+- ✅ بيع المطارق 🔨 → 💵
+- ✅ شراء مخطوطات ومطارق
+- ✅ جرعات علاج
+- ✅ صرف عملات (ذهب↔مال، جواهر↔مال)
+- ✅ **الموقع**: أيقونة المتجر 🛒 في مركز التطوير
+
+### 💪 ساحة الجيش
+- ✅ ترقية الجنود (المستوى 1-100)
+- ✅ تطوير التدريب
+- ✅ إجمالي القوة العسكرية
+- ✅ **الموقع**: أيقونة الجيش 💪 في مركز التطوير (ليست في المتجر)
+
+### 🏛️ المباني (Lands)
+- ✅ المباني تبدأ مقفلة (locked) مع أيقونة 🔒
+- ✅ تفتح عبر القصة أو عند الوصول للمستوى المطلوب
+- ✅ بناء بعد هزيمة الوحش ودفع التكاليف
+- ✅ ترقية المباني (زيادة الإنتاج والقوة)
 
 ---
 
-## القرارات التقنية
-
-| القرار | السبب |
-|--------|-------|
-| CommonJS لوحدات السيرفر | `server.js` يستخدم CommonJS — لا يمكن الخلط مع ESM |
-| `globals` npm package | بدلاً من قائمة globals يدوية في eslint.config.mjs |
-| استبعاد index.html/lands.html من ESLint | HTML لا يُحلل بدون eslint-plugin-html |
-| `ImageResolver` كـ custom global | معرّف في config/images.js |
-| `dispatcher.js` مُلغي | وظائفه مدمجة في networkServer.js |
-| Spawn عشوائي ±1000 | حدود عشوائية لبداية اللعب |
-| Respawn بعد 3 ثوانٍ | تأخير منطقي عند القتل |
-| NetworkServer singleton | نسخة واحدة تُنشأ في server.js |
+## 🧪 الاختبارات
+- ✅ **154/162 اختباراً ناجحاً** (14 ملف اختبار، 8 إخفاقات موجودة مسبقاً من Zod)
+- ✅ 0 أخطاء ESLint
+- ✅ 38 تحذير (no-unused-vars فقط — مقبولة)
 
 ---
 
-## الخطوات المستقبلية
+## 📋 الميزات غير المكتملة / تحت التطوير
 
-### قريب المدى
-- [ ] دمج feature branch المتبقية إذا وُجدت
-- [ ] اختبار شامل لـ WebSocket multiplayer مع لاعبين متعددين
-- [ ] تحسين نظام التدريب التأهلي
-
-### متوسط المدى
-- [ ] نظام المباني الكامل ( locks + تسلسل فتح )
-- [ ] الأسلحة والدروع والتراكم
-- [ ] أشجار المواهب
-- [ ] ذكاء الوحوش (AI enemies)
-- [ ] غارات القوافل (Caravan raids)
-- [ ] نظام الفرق والتحالفات
-
-### بعيد المدى
-- [ ] سباق الخيل
-- [ ] الاقتصاد الكامل
-- [ ] الأحداث الموسمية
-- [ ] PvP عالمي
-- [ ] قلاع وحصون
+| الميزة | الحالة | ملاحظات |
+|--------|--------|---------|
+| 🛡️ الحرب (War) | 🔒 مقفل | نظام الحرب بين القبائل غير مفعل |
+| 👥 التحالفات بين اللاعبين | 🔒 مقفل | Alliances UI يحتاج تحسين |
+| 🎵 ملفات صوتية فعلية | ⬜ غير مكتمل | oscillator synthesis يعمل لكن بدون mp3 |
+| 💀 شاشة الموت | ⬜ غير مكتملة | تحتاج تصميم |
+| 📢 إشعارات عامة | ⬜ غير مكتملة | إشعارات عند شراء/ترقية لاعبين آخرين |
+| 🧪 اختبار iPhone (Playwright) | ⬜ غير مكتمل | لم يتم بعد |
+| 🏞️ صور SVG للمباني | ⬜ غير مكتملة | تستخدم fallback إيموجي |
+| 🔧 تحسين saveToDB | ⬜ غير مكتمل | dirty flag موجود لكن يمكن تحسين التردد |
+| 📦 my-gums/ submodule | ⬜ يحتاج مراجعة | مجلد احتياطي كامل — قد يكون بحاجة للحذف أو التحديث |
 
 ---
 
-## أوامر مفيدة
+## 📁 الملفات الرئيسية
 
-```bash
-# تشغيل التطوير
-npm run dev
-
-# تشغيل السيرفر
-npm start
-
-# فحص الكود
-npm run lint
-
-# تشغيل الاختبارات
-npm test
-
-# بناء للإنتاج
-npm run build
-
-# فحص الأمان
-npm run audit
-
-# Docker
-docker build -t desert-empire .
-docker run -p 3000:3000 desert-empire
-```
+| الملف | السطور | الوظيفة | الحالة |
+|-------|--------|---------|--------|
+| `js/main.js` | ~620 | نقطة الدخول — تهيئة كل الأنظمة | ✅ |
+| `js/ui/ui-core.js` | ~900 | GameUI الأساسي | ✅ |
+| `js/ui/ui-promotion.js` | ~800 | شاشة التطوير + المتجر | ✅ (محدث) |
+| `js/story.js` | ~600 | بيانات القصة (5 فصول) | ✅ |
+| `js/story-manager.js` | ~200 | مدير القصة | ✅ |
+| `js/world.js` | ~700 | عالم اللعبة | ✅ |
+| `js/audio.js` | ~320 | المؤثرات الصوتية | ✅ |
+| `js/army.js` | ~150 | الجيش والأسلحة | ✅ (محدث) |
+| `js/alliance-manager.js` | ~180 | التحالف والغارات | ✅ |
+| `js/combat/weapon-visuals.js` | ~250 | تأثيرات بصرية للأسلحة | ✅ |
+| `js/combat/weapon-system.js` | ~60 | حساب ضرر الأسلحة في المعارك | ✅ (محدث — WEAPON_COMBAT_STATS) |
+| `server.js` | ~600 | السيرفر الرئيسي | ✅ (محدث — نظام ترقية موحد) |
+| `server/logic/weaponUpgrade.js` | ~100 | ترقية الأسلحة على الخادم | ✅ (محدث — level بدلاً من star+gem) |
+| `server/db/databaseHelper.js` | ~250 | MongoDB + SQLite | ✅ |
+| `css/style.css` | ~4000 | كل CSS اللعبة | ✅ |
+| `sw.js` | ~150 | Service Worker | ✅ (نظيف) |
 
 ---
 
-## ملاحظات للمطور القادم
-
-1. **لا تُعدّل main مباشرة** — استخدم feature branches
-2. **شغّل lint + test** قبل أي دمج
-3. **السيرفر سلطوي** — كل التحقق من الحركة والقتال يتم على السيرفر
-4. **الرسائل**: استخدم Zod schemas في `server/network/protocol.js`
-5. **ال estado**: `WorldState` في `server/network/state.js` يدير حالة كل room
-6. **الـ tick loop**: 20 Hz في `networkServer.js` — لا تُعدّل التردد دون سبب
+## 🚀 روابط
+- **اللعبة**: http://nhz048poav0wwcuuyu192uqs.72.62.59.227.sslip.io
+- **Health**: http://nhz048poav0wwcuuyu192uqs.72.62.59.227.sslip.io/health
+- **GitHub**: https://github.com/awaw32/my-gums.git

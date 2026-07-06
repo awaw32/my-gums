@@ -16,9 +16,33 @@ export function formatNumber(n) {
   if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
   if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
   return Math.floor(n).toLocaleString();
+}// ==================== 🧠 بونص المعرفة (مدمج من knowledge-system.js) ====================
+
+export const KNOWLEDGE_BUFFS = {
+  resourceSpeed: [1.0, 1.08, 1.16, 1.25, 1.35, 1.50],
+  moveSpeedPercent: [0, 3, 5, 8, 10, 12],
+  defensePercent: [0, 4, 7, 10, 14, 18],
+};
+
+export function computeKnowledgeBonuses(data) {
+  const knowledgeLevel = data.knowledgeLevel || 1;
+  const knowledgeType = data.knowledgeType || "economic";
+  const idx = Math.min(knowledgeLevel, KNOWLEDGE_BUFFS.resourceSpeed.length - 1);
+  if (knowledgeType === "economic") {
+    return {
+      resourceSpeed: KNOWLEDGE_BUFFS.resourceSpeed[idx],
+      moveSpeedPercent: 0,
+      defensePercent: 0,
+    };
+  }
+  return {
+    resourceSpeed: 1,
+    moveSpeedPercent: KNOWLEDGE_BUFFS.moveSpeedPercent[idx],
+    defensePercent: KNOWLEDGE_BUFFS.defensePercent[idx],
+  };
 }
 
-export function   getXpForLevel(level) {
+export function getXpForLevel(level) {
   if (level <= 0) return 100;
   return Math.floor(100 * Math.pow(1.15, level - 1));
 }
@@ -80,6 +104,9 @@ export class GameEconomy {
   set hammers(v) { this.resources.hammers = Math.max(0, v); }
   get scrolls() { return this.resources.scrolls; }
   set scrolls(v) { this.resources.scrolls = Math.max(0, v); }
+  get artifacts() { return this.resources.artifacts || 0; }
+  get artifact() { return this.resources.artifacts || 0; } // alias للمطابقة مع UPGRADE_COSTS
+  get desertGem() { return this.resources.desertGem || 0; }
 
   get food() { return this.resources.food; }
   set food(v) { this.resources.food = Math.max(0, v); }

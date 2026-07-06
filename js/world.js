@@ -8,7 +8,7 @@ import {
 import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles } from "./combat/combat-effects.js";
 import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/context-menu.js";
 import { computeWeaponDamage } from "./combat/weapon-system.js";
-import { computeKnowledgeBonuses } from "./combat/knowledge-system.js";
+import { computeKnowledgeBonuses } from "./economy.js";
 import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.js";
 import { drawWeaponGlow, drawWeaponStarIcons, drawWeaponOnHero } from "./combat/weapon-visuals.js";
 import { spriteFactory, SpriteFactory } from "./sprite-factory.js";

@@ -1,203 +1,147 @@
 "use strict";
 
-const { WEAPON_DEFS } = require("../db/databaseHelper");
+/**
+ * 🗡️ نظام ترقية الأسلحة الموحد (الخادم)
+ * متوافق مع client-side army.js — level (0-5 نجوم) مع UPGRADE_COSTS
+ */
 
-const MAX_STAR = 5;
-const MAX_GEM = 8;
+const MAX_LEVEL = 5;
 
-function getCombinedLevel(starLevel, gemLevel) {
-  return ((starLevel - 1) * MAX_GEM) + gemLevel;
-}
+// تكاليف الترقية لكل مستوى نجمي (0→1, 1→2, 2→3, 3→4, 4→5) — مطابق لـ UPGRADE_COSTS في army.js
+const UPGRADE_COSTS = [
+  { cash: 500,  gems: 10,  artifact: 0,  desertGem: 0, label: "1⭐" },
+  { cash: 2000, gems: 30,  artifact: 1,  desertGem: 0, label: "2⭐" },
+  { cash: 8000, gems: 80,  artifact: 2,  desertGem: 0, label: "3⭐" },
+  { cash: 25000, gems: 200, artifact: 4, desertGem: 1, label: "4⭐" },
+  { cash: 80000, gems: 500, artifact: 8, desertGem: 3, label: "5⭐" },
+];
 
-function computeWeaponUpgradeCost(starLevel, gemLevel, upgradeGem) {
-  const combined = getCombinedLevel(starLevel, gemLevel);
-  const base = {
-    cash: 50 + combined * 15,
-    gold: 2 + combined * 2,
-  };
-  if (upgradeGem) {
-    base.gems = 1 + Math.floor(combined / 4);
+/**
+ * التحقق من إمكانية ترقية سلاح
+ */
+function canUpgradeWeapon(playerData, weaponId, houseLevel) {
+  const weapons = playerData.weapons || [];
+  const w = weapons.find(x => x.id === weaponId);
+  if (!w) return { allowed: false, reason: "سلاح غير مملوك" };
+  const currentLevel = w.level || 0;
+  if (currentLevel >= MAX_LEVEL) return { allowed: false, reason: "السلاح في أقصى مستوياته (5⭐)" };
+  
+  // houseLevel يُحدد من بيت الزعيم في اللعبة — الخادم يأخذه من buildings.chiefPalace
+  const effectiveHouseLevel = Math.max(1, (playerData.buildings?.chiefPalace) || 1);
+  
+  // نأخذ requireLevel من وزن السلاح (افتراضياً 1-6)
+  const requireLevel = weaponId === 'w1' ? 1
+    : weaponId === 'w2' ? 2
+    : weaponId === 'w3' ? 3
+    : weaponId === 'w4' ? 4
+    : weaponId === 'w5' ? 5
+    : weaponId === 'w6' ? 6
+    : 1;
+    
+  if (effectiveHouseLevel < requireLevel) {
+    return { allowed: false, reason: `يحتاج بيت الزعيم المستوى ${requireLevel}` };
   }
-  const scale = 1 + (combined * 0.1);
-  for (const k of Object.keys(base)) {
-    base[k] = Math.floor(base[k] * scale);
-  }
-  return base;
-}
-
-function computeStarBreakthroughCost(starLevel) {
-  return {
-    cash: 500 + starLevel * 300,
-    gold: 20 + starLevel * 10,
-    scrolls: 2 + starLevel * 2,
-    hammers: 3 + starLevel,
-  };
-}
-
-function getWeaponData(weapons, weaponId) {
-  const existing = (weapons || []).find(w => w.id === weaponId);
-  if (existing) {
-    return {
-      starLevel: existing.starLevel || 1,
-      gemLevel: existing.gemLevel || 1,
-    };
-  }
-  return { starLevel: 1, gemLevel: 1 };
-}
-
-function computeWeaponBonus(starLevel, gemLevel) {
-  const gemBonus = gemLevel * 0.05;
-  const starBonus = (starLevel - 1) * 0.25;
-  return gemBonus + starBonus;
-}
-
-function canUpgradeGem(playerData, weaponId) {
-  const wData = getWeaponData(playerData.weapons, weaponId);
-  const { starLevel, gemLevel } = wData;
-  if (gemLevel >= MAX_GEM) {
-    return { allowed: false, reason: "الجواهر ممتلئة — قم بترقية النجمة أولاً" };
-  }
-  const vaultLevel = (playerData.buildings || {}).armoryVault || 0;
-  if (starLevel > vaultLevel) {
-    return { allowed: false, reason: `مستوى مكتبة القطع (${vaultLevel}) لا يسمح بهذا المستوى من النجوم (${starLevel})` };
-  }
-  const nextGem = gemLevel + 1;
-  const cost = computeWeaponUpgradeCost(starLevel, gemLevel, true);
-  const def = WEAPON_DEFS.find(w => w.id === weaponId);
-  if (!def) return { allowed: false, reason: "سلاح غير معروف" };
-  for (const [res, val] of Object.entries(cost)) {
+  
+  const cost = UPGRADE_COSTS[currentLevel];
+  if (!cost) return { allowed: false, reason: "خطأ في تكاليف الترقية" };
+  
+  // التحقق من الموارد
+  const checks = [
+    { res: 'cash', need: cost.cash },
+    { res: 'gems', need: cost.gems },
+  ];
+  if (cost.artifact > 0) checks.push({ res: 'artifacts', need: cost.artifact });
+  if (cost.desertGem > 0) checks.push({ res: 'desertGem', need: cost.desertGem });
+  
+  for (const { res, need } of checks) {
     const have = playerData[res] || 0;
-    if (have < val) {
-      return { allowed: false, reason: `غير كافٍ ${res}: تحتاج ${val}، لديك ${have}` };
+    if (have < need) {
+      const names = { cash: '💵', gems: '💎', artifacts: '🏺', desertGem: '💠' };
+      return { allowed: false, reason: `غير كافٍ ${names[res] || res}: تحتاج ${need}، لديك ${have}` };
     }
   }
-  return { allowed: true, cost, starLevel, gemLevel, nextGem, nextStar: starLevel };
+  
+  return { allowed: true, cost, currentLevel, nextLevel: currentLevel + 1 };
 }
 
-function canUpgradeStar(playerData, weaponId) {
-  const wData = getWeaponData(playerData.weapons, weaponId);
-  const { starLevel, gemLevel } = wData;
-  if (gemLevel < MAX_GEM) {
-    return { allowed: false, reason: `أكمل الجواهر الـ ${MAX_GEM} أولاً (حالياً ${gemLevel})` };
-  }
-  if (starLevel >= MAX_STAR) {
-    return { allowed: false, reason: "السلاح في أقصى نجومه (5 نجوم)" };
-  }
-  const vaultLevel = (playerData.buildings || {}).armoryVault || 0;
-  if (starLevel + 1 > vaultLevel) {
-    return { allowed: false, reason: `مستوى مكتبة القطع (${vaultLevel}) لا يسمح بترقية النجمة` };
-  }
-  const cost = computeStarBreakthroughCost(starLevel);
-  const def = WEAPON_DEFS.find(w => w.id === weaponId);
-  if (!def) return { allowed: false, reason: "سلاح غير معروف" };
-  for (const [res, val] of Object.entries(cost)) {
-    const have = playerData[res] || 0;
-    if (have < val) {
-      return { allowed: false, reason: `غير كافٍ ${res}: تحتاج ${val}، لديك ${have}` };
-    }
-  }
-  return { allowed: true, cost, starLevel, gemLevel, nextStar: starLevel + 1, nextGem: 1 };
-}
-
-function applyGemUpgrade(playerData, weaponId) {
-  const check = canUpgradeGem(playerData, weaponId);
+/**
+ * تطبيق ترقية السلاح على بيانات اللاعب
+ */
+function applyWeaponUpgrade(playerData, weaponId) {
+  const check = canUpgradeWeapon(playerData, weaponId);
   if (!check.allowed) return { ok: false, reason: check.reason };
+  
   const weapons = [...(playerData.weapons || [])];
   let w = weapons.find(x => x.id === weaponId);
   if (!w) {
-    w = { id: weaponId, starLevel: 1, gemLevel: 1 };
-    weapons.push(w);
-    playerData.weapons = weapons;
-    const bonus = computeWeaponBonus(w.starLevel, w.gemLevel);
-    return {
-      ok: true, weaponId,
-      starLevel: 1, gemLevel: 1,
-      combinedLevel: 1,
-      damageMult: 1 + bonus,
-      breakthrough: false,
-    };
-  }
-  w.gemLevel = (w.gemLevel || 1) + 1;
-  if (!w.starLevel) w.starLevel = 1;
-  playerData.weapons = weapons;
-  for (const [res, val] of Object.entries(check.cost)) {
-    playerData[res] = (playerData[res] || 0) - val;
-  }
-  const bonus = computeWeaponBonus(w.starLevel, w.gemLevel);
-  return {
-    ok: true,
-    weaponId,
-    starLevel: w.starLevel,
-    gemLevel: w.gemLevel,
-    combinedLevel: getCombinedLevel(w.starLevel, w.gemLevel),
-    damageMult: 1 + bonus,
-    breakthrough: false,
-  };
-}
-
-function applyStarUpgrade(playerData, weaponId) {
-  const check = canUpgradeStar(playerData, weaponId);
-  if (!check.allowed) return { ok: false, reason: check.reason };
-  const weapons = [...(playerData.weapons || [])];
-  let w = weapons.find(x => x.id === weaponId);
-  if (!w) {
-    w = { id: weaponId, starLevel: 1, gemLevel: 1 };
+    w = { id: weaponId, level: 0, starLevel: 1, gemLevel: 1 };
     weapons.push(w);
   }
-  w.starLevel = (w.starLevel || 1) + 1;
+  
+  // صرف الموارد
+  const cost = check.cost;
+  playerData.cash = (playerData.cash || 0) - cost.cash;
+  playerData.gems = (playerData.gems || 0) - cost.gems;
+  if (cost.artifact > 0) playerData.artifacts = (playerData.artifacts || 0) - cost.artifact;
+  if (cost.desertGem > 0) playerData.desertGem = (playerData.desertGem || 0) - cost.desertGem;
+  
+  // تطبيق الترقية
+  w.level = check.nextLevel;
+  w.starLevel = Math.max(1, w.level);
   w.gemLevel = 1;
   playerData.weapons = weapons;
-  for (const [res, val] of Object.entries(check.cost)) {
-    playerData[res] = (playerData[res] || 0) - val;
-  }
-  const bonus = computeWeaponBonus(w.starLevel, w.gemLevel);
+  
   return {
     ok: true,
     weaponId,
+    level: w.level,
     starLevel: w.starLevel,
-    gemLevel: w.gemLevel,
-    combinedLevel: getCombinedLevel(w.starLevel, w.gemLevel),
-    damageMult: 1 + bonus,
-    breakthrough: true,
+    gemLevel: 1,
+    cost,
   };
 }
 
+/**
+ * حساب ضرر السلاح (للخادم — معارك PvP)
+ */
 function computeWeaponDamageWithUpgrades(data) {
   const weaponId = data.equippedWeapon || "";
   const weapons = data.weapons || [];
   if (!weaponId) return { weaponDamage: 0, critChance: 0, critMultiplier: 1, range: "melee", damageMult: 1 };
-  const def = WEAPON_DEFS.find(w => w.id === weaponId);
+  
+  // إحصائيات الأسلحة (متزامنة مع WEAPON_DATA في army.js)
+  const WEAPON_STATS = {
+    w1: { baseDamage: 4, damagePerLevel: 3, range: "melee", critChance: 0.05, critMultiplier: 1.5 },
+    w2: { baseDamage: 6, damagePerLevel: 4, range: "ranged", critChance: 0.08, critMultiplier: 1.8 },
+    w3: { baseDamage: 9, damagePerLevel: 6, range: "melee", critChance: 0.10, critMultiplier: 2.0 },
+    w4: { baseDamage: 13, damagePerLevel: 8, range: "melee", critChance: 0.12, critMultiplier: 2.2 },
+    w5: { baseDamage: 18, damagePerLevel: 10, range: "ranged", critChance: 0.15, critMultiplier: 2.5 },
+    w6: { baseDamage: 24, damagePerLevel: 14, range: "melee", critChance: 0.18, critMultiplier: 3.0 },
+  };
+  
+  const def = WEAPON_STATS[weaponId];
   if (!def) return { weaponDamage: 0, critChance: 0, critMultiplier: 1, range: "melee", damageMult: 1 };
+  
   const wp = weapons.find(w => w.id === weaponId);
-  const baseStar = (wp && wp.starLevel) || 1;
-  const baseGem = (wp && wp.gemLevel) || 1;
-  const combined = getCombinedLevel(baseStar, baseGem);
-  const flatDamage = def.baseDamage + Math.floor(def.damagePerLevel * (combined - 1) / 4);
-  const bonus = computeWeaponBonus(baseStar, baseGem);
-  const weaponDamage = Math.floor(flatDamage * (1 + bonus));
+  const level = (wp && typeof wp.level === 'number') ? wp.level : 0;
+  const baseDamage = def.baseDamage + Math.floor(def.damagePerLevel * level / 2);
+  const bonus = level * 0.3; // كل نجمة +30%
+  const weaponDamage = Math.floor(baseDamage * (1 + bonus));
+  
   return {
     weaponDamage,
-    critChance: def.critChance + (baseStar - 1) * 0.02,
-    critMultiplier: def.critMultiplier + (baseGem - 1) * 0.05,
+    critChance: def.critChance + level * 0.02,
+    critMultiplier: def.critMultiplier + level * 0.1,
     range: def.range,
-    starLevel: baseStar,
-    gemLevel: baseGem,
-    combinedLevel: combined,
+    level,
     damageMult: 1 + bonus,
   };
 }
 
 module.exports = {
-  MAX_STAR,
-  MAX_GEM,
-  getCombinedLevel,
-  computeWeaponUpgradeCost,
-  computeStarBreakthroughCost,
-  getWeaponData,
-  computeWeaponBonus,
-  canUpgradeGem,
-  canUpgradeStar,
-  applyGemUpgrade,
-  applyStarUpgrade,
+  MAX_LEVEL,
+  UPGRADE_COSTS,
+  canUpgradeWeapon,
+  applyWeaponUpgrade,
   computeWeaponDamageWithUpgrades,
 };

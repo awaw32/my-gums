@@ -155,6 +155,7 @@ async function init() {
   
   const oasisManager = new OasisManager(economy);
   const upgradeTree = new UpgradeTree(economy);
+  upgradeTree.setArmyRef(army);
   const allianceManager = new AllianceManager(economy);
   const quests = new QuestManager(economy, army, village); 
   const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE, army);
@@ -537,6 +538,10 @@ async function init() {
             if (weapon.upgrade(economy, houseLevel)) {
               achievements.updateProgress('weapon_max', weapon.level);
               audio.playSound('upgrade');
+              // إرسال الترقية عبر WebSocket للمزامنة مع الخادم
+              if (world.netSync && world.netSync.isConnected) {
+                world.netSync.send({ type: "weapon_upgrade", weaponId: weapon.id });
+              }
               saveToDB();
               ui.updateTopBar();
               ui.showNotification(`⬆️ ${weapon.name} → المستوى ${weapon.level}/5 ⭐`);

@@ -53,7 +53,7 @@ export class WorldUpgradesUI {
 
   _costRow(resources) {
     return Object.entries(resources).map(([k, v]) => {
-      const icons = { cash: "💵", gold: "🪙", gems: "💎", scrolls: "📜", hammers: "🔨" };
+      const icons = { cash: "💵", gold: "🪙", gems: "💎", scrolls: "📜", hammers: "🔨", artifact: "🏺", desertGem: "💠" };
       return `<span class="wu-cost"><span class="wu-cost-icon">${icons[k] || "📦"}</span>${v}</span>`;
     }).join(" ");
   }
@@ -67,96 +67,10 @@ export class WorldUpgradesUI {
     return true;
   }
 
-  async showWeapon() {
-    this._showLoading();
-    try {
-      const defs = await this._fetchDefs("weapons/defs");
-      const w = this.world;
-      const weaponId = w._equippedWeapon || "";
-      const starLevel = w._weaponStarLevel || 1;
-      const gemLevel = w._weaponGemLevel || 1;
-      const combined = ((starLevel - 1) * 8) + gemLevel;
-      const bonus = gemLevel * 0.05 + (starLevel - 1) * 0.25;
-      const def = defs.find(d => d.id === weaponId);
-      const flatDmg = def ? (def.baseDamage + Math.floor(def.damagePerLevel * (combined - 1) / 4)) : 0;
-      const totalDmg = Math.floor(flatDmg * (1 + bonus));
-      const critChance = def ? (def.critChance + (starLevel - 1) * 0.02) : 0;
-      const critMult = def ? (def.critMultiplier + (gemLevel - 1) * 0.05) : 1;
-      const canGem = gemLevel < 8;
-      const canStar = gemLevel >= 8 && starLevel < 5;
-      this._body.innerHTML = `
-        <div class="wu-header">
-          <span class="wu-title">🪄 ترقية السلاح</span>
-          <button class="wu-btn-close" data-action="close">✕</button>
-        </div>
-        <div class="wu-section">
-          <div class="wu-weapon-name">${def ? def.name : "—"}</div>
-          <div class="wu-stars">${"★".repeat(starLevel)}${"☆".repeat(5 - starLevel)}</div>
-          <div class="wu-levels">💎 ${gemLevel}/8 · ⭐ ${starLevel}/5</div>
-          <div class="wu-stats">
-            <span>⚔️ الضرر: ${totalDmg}</span>
-            <span>💥 فرصة: ${(critChance * 100).toFixed(0)}%</span>
-            <span>🔥 مضاعف: ×${critMult.toFixed(1)}</span>
-            <span>📈 إجمالي: ×${(1 + bonus).toFixed(2)}</span>
-          </div>
-        </div>
-        <div class="wu-section">
-          <div class="wu-subtitle">ترقية الجوهرة ${gemLevel >= 8 ? "✅" : ""}</div>
-          ${canGem ? this._gemUpgradeHTML(weaponId, starLevel, gemLevel) : '<div class="wu-dim">الجواهر ممتلئة — ارتقِ النجمة</div>'}
-        </div>
-        <div class="wu-section">
-          <div class="wu-subtitle">اختراق النجمة ${starLevel >= 5 ? "✅" : ""}</div>
-          ${canStar ? this._starUpgradeHTML(weaponId, starLevel) : (starLevel >= 5 ? '<div class="wu-dim">السلاح في أقصى نجومه</div>' : '<div class="wu-dim">أكمل الجواهر الثمانية أولاً</div>')}
-        </div>
-        <button class="wu-btn-close wu-btn-bottom" data-action="close">إغلاق</button>`;
-      this._overlay.classList.remove("hidden");
-      this._bindWeaponActions(weaponId);
-    } catch (e) {
-      this._showError("فشل تحميل بيانات السلاح");
-    }
-  }
-
-  _gemUpgradeHTML(weaponId, starLevel, gemLevel) {
-    const nextGem = gemLevel + 1;
-    const combined = ((starLevel - 1) * 8) + gemLevel;
-    const cost = { cash: 50 + combined * 15, gold: 2 + combined * 2, gems: 1 + Math.floor(combined / 4) };
-    const scale = 1 + (combined * 0.1);
-    for (const k of Object.keys(cost)) cost[k] = Math.floor(cost[k] * scale);
-    const canAfford = this._hasResources(cost);
-    return `<div class="wu-cost-row">${this._costRow(cost)}</div>
-      <button class="wu-btn-upgrade ${canAfford ? "" : "wu-btn-disabled"}" data-action="gem" data-weapon="${weaponId}" ${canAfford ? "" : "disabled"}>
-        💎 ${gemLevel} → ${nextGem}
-      </button>`;
-  }
-
-  _starUpgradeHTML(weaponId, starLevel) {
-    const cost = { cash: 500 + starLevel * 300, gold: 20 + starLevel * 10, scrolls: 2 + starLevel * 2, hammers: 3 + starLevel };
-    const canAfford = this._hasResources(cost);
-    return `<div class="wu-cost-row">${this._costRow(cost)}</div>
-      <button class="wu-btn-upgrade ${canAfford ? "" : "wu-btn-disabled"}" data-action="star" data-weapon="${weaponId}" ${canAfford ? "" : "disabled"}>
-        🌟 ${starLevel} ★ → ${starLevel + 1} ★
-      </button>`;
-  }
-
-  _bindWeaponActions(weaponId) {
-    this._body.querySelectorAll("[data-action]").forEach(el => {
-      el.addEventListener("click", () => {
-        const a = el.dataset.action;
-        if (a === "close") { this.hide(); return; }
-        if (a === "gem") {
-          this._sendWS({ type: "upgrade_weapon_gem", weaponId });
-          this._notify("جاري ترقية الجوهرة...");
-          this.hide();
-        }
-        if (a === "star") {
-          this._sendWS({ type: "upgrade_weapon_star", weaponId });
-          this._notify("جاري اختراق النجمة...");
-          this.hide();
-        }
-      });
-    });
-  }
-
+  // ===== ❌ showWeapon() محذوف =====
+  // تم نقل نظام ترقية الأسلحة إلى ui-promotion.js (_openWeaponsLibrary)
+  // الذي يستخدم army.js (Weapon class) بدلاً من WebSocket القديم
+  // see: js/ui/ui-promotion.js → _openWeaponsLibrary(), _renderWeaponsLibraryPage()
   async showBuildings() {
     this._showLoading();
     try {
@@ -181,6 +95,9 @@ export class WorldUpgradesUI {
       this._showError("فشل تحميل بيانات المباني");
     }
   }
+
+  // ===== ❌ _bindWeaponActions() محذوف =====
+  // (محذوف مع showWeapon())
 
   _buildingCardHTML(bd, playerBuildings, palaceLvl) {
     const current = playerBuildings[bd.id] || 0;

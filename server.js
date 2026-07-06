@@ -67,10 +67,10 @@ const {
 const { claimReward } = require("./server/logic/rewards");
 
 // ═══════════════════════════════════════════════════════════════════
-//  Weapon Upgrade — 5 Stars × 8 Gems
+//  Weapon Upgrade — نظام موحد (level 0-5 stars)
 // ═══════════════════════════════════════════════════════════════════
 const {
-  applyGemUpgrade, applyStarUpgrade,
+  applyWeaponUpgrade,
   computeWeaponDamageWithUpgrades,
 } = require("./server/logic/weaponUpgrade");
 
@@ -478,41 +478,22 @@ wss.on("connection", (ws, req) => {
           const reply = JSON.stringify({ type: "claim_gift_ack", ...result });
           if (c.ws.readyState === 1) c.ws.send(reply);
         }
-      } else if (msg.type === "upgrade_weapon_gem" && username) {
+      } else if (msg.type === "weapon_upgrade" && username) {
         const c = worldClients.get(username);
         if (c) {
-          const playerData = memStore.get(username) || getDefaultPlayer(username);
           const weaponId = msg.weaponId || c.equippedWeapon || "";
           if (!weaponId) {
-            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "upgrade_weapon_ack", ok: false, reason: "اختر سلاحاً أولاً" }));
+            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "weapon_upgrade_ack", ok: false, reason: "اختر سلاحاً أولاً" }));
             return;
           }
-          const result = applyGemUpgrade(playerData, weaponId);
+          const playerData = memStore.get(username) || getDefaultPlayer(username);
+          const result = applyWeaponUpgrade(playerData, weaponId);
           memStore.set(username, playerData);
           markDirty(username);
           if (result.ok) {
             c.weaponStarLevel = result.starLevel;
             c.weaponGemLevel = result.gemLevel;
-          }
-          const stats = computeWeaponDamageWithUpgrades(playerData);
-          const reply = JSON.stringify({ type: "upgrade_weapon_ack", ...result, ...stats });
-          if (c.ws.readyState === 1) c.ws.send(reply);
-        }
-      } else if (msg.type === "upgrade_weapon_star" && username) {
-        const c = worldClients.get(username);
-        if (c) {
-          const playerData = memStore.get(username) || getDefaultPlayer(username);
-          const weaponId = msg.weaponId || c.equippedWeapon || "";
-          if (!weaponId) {
-            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "upgrade_weapon_ack", ok: false, reason: "اختر سلاحاً أولاً" }));
-            return;
-          }
-          const result = applyStarUpgrade(playerData, weaponId);
-          memStore.set(username, playerData);
-          markDirty(username);
-          if (result.ok) {
-            c.weaponStarLevel = result.starLevel;
-            c.weaponGemLevel = result.gemLevel;
+            // إرسال glow للاعبين الآخرين
             const glowMsg = JSON.stringify({
               type: "weapon_glow",
               username,
@@ -523,7 +504,7 @@ wss.on("connection", (ws, req) => {
             worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(glowMsg); });
           }
           const stats = computeWeaponDamageWithUpgrades(playerData);
-          const reply = JSON.stringify({ type: "upgrade_weapon_ack", ...result, ...stats });
+          const reply = JSON.stringify({ type: "weapon_upgrade_ack", ...result, ...stats });
           if (c.ws.readyState === 1) c.ws.send(reply);
         }
       } else if (msg.type === "upgrade_building" && username) {
@@ -867,7 +848,7 @@ function serveStatic(rawUrl, req, res) {
 // ── Rate limiter (in-memory, per-IP) ───────────────────────────
 const reqCounts = new Map();
 const RATE_LIMIT_WINDOW = 60_000; // 1 minute
-const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX) || 120;
+const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX) || 600;
 function rateLimiter(ip) {
   const now = Date.now();
   let entry = reqCounts.get(ip);

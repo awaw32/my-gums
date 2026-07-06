@@ -1,5 +1,4 @@
 import { formatNumber } from "../economy.js";
-import { WeaponsLibrary } from "../weapons.js";
 
 export function injectPromotionMethods(GameUI) {
 
@@ -112,8 +111,156 @@ GameUI.prototype._openWeaponsLibrary = function() {
   const existing = document.getElementById('weapons-library-overlay');
   if (existing) existing.remove();
   document.body.style.overflow = 'hidden';
-  const lib = new WeaponsLibrary(this.army.weapons, this.economy, this);
-  document.body.appendChild(lib.render());
+  const overlay = document.createElement('div');
+  overlay.id = 'weapons-library-overlay';
+  overlay.className = 'wl-overlay';
+  overlay.style.alignItems = 'center';
+  overlay.style.touchAction = 'pan-y';
+  const card = document.createElement('div');
+  card.className = 'weapons-library';
+  card.style.cssText = 'max-width:430px;max-height:88vh;border-radius:24px;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y';
+  card.innerHTML = `
+    <div class="wl-header">
+      <div class="wl-title" style="font-size:1.3rem">🗡️ الأسلحة الأسطورية</div>
+      <button class="wl-close-btn" id="wl-close-btn">✕</button>
+    </div>
+    <div class="weapon-shop-grid" id="weapon-grid" style="display:flex;flex-direction:column;gap:10px"></div>
+  `;
+  card.querySelector('#wl-close-btn').addEventListener('click', () => {
+    overlay.remove();
+    document.body.style.overflow = '';
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+      document.body.style.overflow = '';
+    }
+  });
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  this._renderWeaponsLibraryPage();
+};
+
+GameUI.prototype._renderWeaponsLibraryPage = function() {
+  const container = document.getElementById('weapon-grid');
+  if (!container) return;
+  const eco = this.economy;
+  const weapons = this.army?.weapons || [];
+  const houseLevel = this._landsState?.['b1']?.level || 1;
+  const equippedId = this.world?._equippedWeapon || '';
+  const ownedCount = weapons.filter(w => w.owned).length;
+  const totalPower = weapons.reduce((sum, w) => sum + (w.owned ? w.power : 0), 0);
+  const weaponIcons = { w1: '🗡️', w2: '🏹', w3: '🔱', w4: '⚔️', w5: '🔥', w6: '⚒️' };
+  const weaponColors = { w1: '#b8956a', w2: '#d4a76a', w3: '#8b6914', w4: '#ffd700', w5: '#ff6b6b', w6: '#9b59b6' };
+  const weaponRanges = { w1: 'قريب', w2: 'بعيد', w3: 'قريب', w4: 'قريب', w5: 'بعيد', w6: 'قريب' };
+
+  let html = `
+    <div class="shop-summary" style="background:var(--bg-card);border-radius:14px;padding:10px;margin-bottom:12px;border:1px solid var(--border-light);text-align:center;box-shadow:var(--shadow-card)">
+      <div style="display:flex;justify-content:space-around;gap:8px">
+        <div><span style="font-size:0.65rem;color:var(--text-secondary)">🗡️ المملوكة</span><br><span style="font-size:1rem;font-weight:900;color:var(--accent-red)">${ownedCount}/${weapons.length}</span></div>
+        <div><span style="font-size:0.65rem;color:var(--text-secondary)">👊 القوة</span><br><span style="font-size:1rem;font-weight:900;color:var(--gold)">+${Math.round(totalPower)}</span></div>
+        <div><span style="font-size:0.65rem;color:var(--text-secondary)">💵 الرصيد</span><br><span style="font-size:1rem;font-weight:900;color:var(--green)">${eco.cashFormatted}</span></div>
+      </div>
+    </div>
+  `;
+
+  for (const w of weapons) {
+    const isOwned = w.owned;
+    const isEquipped = equippedId === w.id;
+    const isMaxed = w.level >= w.maxLevel;
+    const isLockedByLevel = houseLevel < w.requireLevel;
+    const canBuy = !isOwned && !isLockedByLevel && eco.canAfford('cash', w.cashPrice);
+    const canUpg = isOwned && !isMaxed && w.canUpgrade(eco, houseLevel);
+    const color = weaponColors[w.id] || '#b8956a';
+    const icon = weaponIcons[w.id] || '🗡️';
+    const starStr = '⭐'.repeat(w.level) + '☆'.repeat(Math.max(0, w.maxLevel - w.level));
+    const powerVal = isOwned ? Math.round(w.power) : Math.round(w.basePower * 1.5);
+    const costs = w.getUpgradeCosts ? w.getUpgradeCosts() : null;
+    const upgradeCostStr = costs ? `💵${costs.cash} 💎${costs.gems}${costs.artifact > 0 ? ` 🏺${costs.artifact}` : ''}${costs.desertGem > 0 ? ` 💠${costs.desertGem}` : ''}` : '';
+
+    html += `
+      <div class="shop-weapon-card" style="background:var(--bg-card);border:2px solid ${isEquipped ? color : 'var(--border-light)'};border-radius:16px;padding:12px;box-shadow:${isEquipped ? '0 0 20px '+color+'33' : 'var(--shadow-card)'};transition:all 0.2s">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div style="font-size:2rem;width:44px;text-align:center">${icon}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:0.85rem;font-weight:800;color:var(--text-primary)">${w.name}</div>
+            <div style="font-size:0.6rem;color:var(--text-secondary)">${w.desc || ''} — مدى: ${weaponRanges[w.id] || 'قريب'}</div>
+          </div>
+          ${isEquipped ? '<div style="background:'+color+';color:#fff;padding:2px 8px;border-radius:8px;font-size:0.6rem;font-weight:800">✔ مجهز</div>' : ''}
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <div style="flex:1;background:var(--bg-input);border-radius:10px;padding:6px;text-align:center;border:1px solid var(--border-light)">
+            <span style="font-size:0.55rem;color:var(--text-secondary);display:block">👊 القوة</span>
+            <span style="font-size:0.9rem;font-weight:800;color:var(--text-primary)">${powerVal}</span>
+          </div>
+          <div style="flex:1;background:var(--bg-input);border-radius:10px;padding:6px;text-align:center;border:1px solid var(--border-light)">
+            <span style="font-size:0.55rem;color:var(--text-secondary);display:block">🏠 يحتاج</span>
+            <span style="font-size:0.9rem;font-weight:800;color:var(--text-primary)">Lv.${w.requireLevel}</span>
+          </div>
+          ${isOwned ? `<div style="flex:1;background:var(--bg-input);border-radius:10px;padding:6px;text-align:center;border:1px solid var(--border-light)"><span style="font-size:0.55rem;color:var(--text-secondary);display:block">⭐ الترقية</span><span style="font-size:0.9rem;font-weight:800;color:${color}">${w.level}/${w.maxLevel}</span></div>` : ''}
+        </div>
+        ${isOwned ? `<div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:6px;text-align:center">${starStr}</div>` : ''}
+        ${!isOwned && isLockedByLevel ? `<div style="text-align:center;font-size:0.65rem;color:var(--red);margin-bottom:6px">🔒 يحتاج بيت الزعيم Lv.${w.requireLevel}</div>` : ''}
+        <div style="display:flex;gap:6px">
+          ${!isOwned ? `
+            <button class="shop-buy-weapon-btn" data-wid="${w.id}" ${canBuy ? '' : 'disabled'}
+              style="flex:1;padding:10px;border:none;border-radius:10px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;transition:transform 0.15s;${canBuy ? `background:linear-gradient(135deg,${color},#5a3d2b);color:#fff` : 'background:#4a4a4a;color:#888;cursor:default'}">
+              ${canBuy ? `🔓 شراء (${w.cashPrice.toLocaleString()} 💵)` : (isLockedByLevel ? '🔒 مقفل' : '💰 غير كافٍ')}
+            </button>
+          ` : `
+            ${!isEquipped ? `
+            <button class="shop-equip-weapon-btn" data-wid="${w.id}"
+              style="flex:1;padding:10px;border:2px solid ${color};border-radius:10px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;background:transparent;color:${color};transition:transform 0.15s">
+              🏹 تجهيز
+            </button>` : `
+            <button class="shop-unequip-weapon-btn" data-wid="${w.id}"
+              style="flex:1;padding:10px;border:2px solid var(--border-light);border-radius:10px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;background:var(--bg-input);color:var(--text-secondary);transition:transform 0.15s">
+              ✕ إلغاء التجهيز
+            </button>`}
+            ${!isMaxed && !isLockedByLevel ? `
+            <button class="shop-upgrade-weapon-btn" data-wid="${w.id}" ${canUpg ? '' : 'disabled'}
+              style="flex:1;padding:10px;border:none;border-radius:10px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;transition:transform 0.15s;${canUpg ? `background:linear-gradient(135deg,${color},#5a3d2b);color:#fff` : 'background:#4a4a4a;color:#888;cursor:default'}">
+              ${canUpg ? `▲ ${upgradeCostStr}` : (isLockedByLevel ? '🔒' : isMaxed ? '⭐ MAX' : '💰')}
+            </button>` : `
+            <div style="flex:1;padding:10px;border-radius:10px;font-size:0.75rem;font-weight:800;text-align:center;background:linear-gradient(135deg,#ffd700,#e69500);color:#2a1810">⭐ المستوى الأقصى</div>`}
+          `}
+        </div>
+      </div>`;
+  }
+
+  container.innerHTML = html;
+
+  container.querySelectorAll('.shop-buy-weapon-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.wid;
+      if (window.shopBuy) window.shopBuy('buy_' + wid);
+      this._renderWeaponsLibraryPage();
+      this.updateTopBar();
+    });
+  });
+  container.querySelectorAll('.shop-equip-weapon-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.wid;
+      if (window.shopBuy) window.shopBuy('equip_' + wid);
+      this._renderWeaponsLibraryPage();
+      this.updateTopBar();
+    });
+  });
+  container.querySelectorAll('.shop-unequip-weapon-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (window.shopBuy) window.shopBuy('unequip');
+      this._renderWeaponsLibraryPage();
+      this.updateTopBar();
+    });
+  });
+  container.querySelectorAll('.shop-upgrade-weapon-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.wid;
+      if (window.shopBuy) window.shopBuy(wid);
+      this._renderWeaponsLibraryPage();
+      this.updateTopBar();
+    });
+  });
 };
 
 GameUI.prototype._renderPromotionHub = function() {
@@ -219,6 +366,16 @@ GameUI.prototype._renderUpgradeTree = function() {
     const effect = this.upgradeTree.getEffect(p.id);
     const isMax = lvl >= maxLvl;
     const pct = maxLvl > 0 ? (lvl / maxLvl) * 100 : 0;
+    const lockReason = this.upgradeTree.getLockReason(p.id);
+    // تحديد سبب القفل
+    let lockMsg = null;
+    if (lockReason) {
+      if (lockReason.reason === 'knowledge') {
+        lockMsg = `🔒 تحتاج المعرفة من القصة المستوى ${lockReason.required} (حالياً ${lockReason.current})`;
+      } else if (lockReason.reason === 'unit') {
+        lockMsg = `🔒 تحتاج مستوى جنود ${lockReason.required} (حالياً ${lockReason.current})`;
+      }
+    }
     const card = document.createElement("div");
     card.className = "upgrade-card-large";
     card.style.background = p.bgGrad;
@@ -244,11 +401,12 @@ GameUI.prototype._renderUpgradeTree = function() {
           <div class="ug-fill" style="width:${pct}%;background:${p.color}"></div>
         </div>
       </div>
+      ${lockMsg ? `<div style="font-size:0.6rem;color:var(--red);text-align:center;padding:2px 0;margin-bottom:4px">${lockMsg}</div>` : ''}
       <div class="ug-card-footer">
         <span class="ug-cost">${isMax ? '—' : `🪙 ${this.upgradeTree.getCurrentCost(p.id)}`}</span>
         <button class="ug-btn" data-ugid="${p.id}" ${canAfford && !isMax ? '' : 'disabled'}
           style="${canAfford && !isMax ? `background:linear-gradient(180deg,${p.color},${p.color}88);color:#fff` : 'background:rgba(255,255,255,0.06);color:#666'}">
-          ${isMax ? '⭐ الأقصى' : (canAfford ? '▲ ترقية' : '💰 تحتاج ذهب')}
+          ${isMax ? '⭐ الأقصى' : lockMsg ? '🔒 مقفل' : (canAfford ? '▲ ترقية' : '💰 تحتاج ذهب')}
         </button>
       </div>
     `;
@@ -297,17 +455,32 @@ GameUI.prototype._openUpgradeDetail = function(pathId) {
     upgradeBtn.style.opacity = "0.5";
   } else {
     const canBuy = this.upgradeTree.canUpgrade(pathId);
-    upgradeBtn.textContent = `▲ ترقية إلى المستوى ${lvl + 1} (🪙 ${cost})`;
-    upgradeBtn.disabled = !canBuy;
-    upgradeBtn.style.opacity = canBuy ? "1" : "0.5";
-    upgradeBtn.onclick = () => {
-      if (this.upgradeTree.upgrade(pathId)) {
-        this._openUpgradeDetail(pathId);
-        this.renderPromotion();
-        this.updateTopBar();
-        this.showNotification(`⬆️ ${p.name} → المستوى ${this.upgradeTree.getLevel(pathId)}`);
+    const lockReason = p.lockReason || this.upgradeTree.getLockReason(pathId);
+    let lockMsg = null;
+    if (lockReason) {
+      if (lockReason.reason === 'knowledge') {
+        lockMsg = `🔒 تحتاج المعرفة من القصة المستوى ${lockReason.required}`;
+      } else if (lockReason.reason === 'unit') {
+        lockMsg = `🔒 تحتاج مستوى جنود ${lockReason.required}`;
       }
-    };
+    }
+    if (lockMsg) {
+      upgradeBtn.textContent = lockMsg;
+      upgradeBtn.disabled = true;
+      upgradeBtn.style.opacity = "0.4";
+    } else {
+      upgradeBtn.textContent = `▲ ترقية إلى المستوى ${lvl + 1} (🪙 ${cost})`;
+      upgradeBtn.disabled = !canBuy;
+      upgradeBtn.style.opacity = canBuy ? "1" : "0.5";
+      upgradeBtn.onclick = () => {
+        if (this.upgradeTree.upgrade(pathId)) {
+          this._openUpgradeDetail(pathId);
+          this.renderPromotion();
+          this.updateTopBar();
+          this.showNotification(`⬆️ ${p.name} → المستوى ${this.upgradeTree.getLevel(pathId)}`);
+        }
+      };
+    }
   }
   preview.innerHTML = p.levels.map((lv, i) => {
     const unlocked = i < lvl;
@@ -330,54 +503,6 @@ GameUI.prototype._openUpgradeDetail = function(pathId) {
   modal.onclick = (e) => { if (e.target === modal) modal.classList.add("hidden"); };
 };
 
-GameUI.prototype._renderWeaponsPage = function() {
-  const grid = document.getElementById("weapons-grid");
-  if (!grid) return;
-  grid.textContent = "";
-  const weapons = this.army?.weapons || [];
-  const icons = { w1: '🗡️', w2: '🏹', w3: '🔱', w4: '⚔️', w5: '🔥', w6: '⚒️' };
-  const colors = { w1: '#b8956a', w2: '#d4a76a', w3: '#8b6914', w4: '#ffd700', w5: '#ff6b6b', w6: '#9b59b6' };
-  for (const w of weapons) {
-    const isMax = w.level >= w.maxLevel;
-    const pct = w.maxLevel > 0 ? (w.level / w.maxLevel) * 100 : 0;
-    const starsHtml = '⭐'.repeat(w.level) + '☆'.repeat(Math.max(0, w.maxLevel - w.level));
-    const costs = w.getUpgradeCosts ? w.getUpgradeCosts() : null;
-    const cost = costs ? `💵${costs.cash} 💎${costs.gems}${costs.artifact > 0 ? ` 🏺${costs.artifact}` : ''}${costs.desertGem > 0 ? ` 💠${costs.desertGem}` : ''}` : '—';
-    const card = document.createElement("div");
-    card.className = "weapon-card-new";
-    card.style.setProperty('--w-color', colors[w.id] || '#b8956a');
-    card.innerHTML = `
-      <div class="wc-header">
-        <div class="wc-icon">${icons[w.id] || '⚔️'}</div>
-        <div class="wc-info">
-          <div class="wc-name">${w.name}</div>
-          <div class="wc-desc">${w.desc || ''}</div>
-        </div>
-        <div class="wc-rarity">${isMax ? 'S+' : w.level >= 3 ? 'A' : w.level >= 1 ? 'B' : 'C'}</div>
-      </div>
-      <div class="wc-body">
-        <div class="wc-stars">${starsHtml}</div>
-        <div class="wc-stats">
-          <span class="wc-stat">👊 ${Math.round(w.power)}</span>
-          <span class="wc-stat">${costs ? costs.gems : '—'} 💎</span>
-        </div>
-        <div class="wc-track"><div class="wc-fill" style="width:${pct}%"></div></div>
-        <div class="wc-level">Lv.${w.level}/${w.maxLevel}</div>
-      </div>
-      <button class="wc-btn" data-wid="${w.id}" ${isMax ? 'disabled' : ''}>
-        ${isMax ? '⭐ مكتمل' : '▲ ترقية'}
-      </button>
-    `;
-    card.querySelector('.wc-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      this._upgradeWeapon(w.id);
-    });
-    card.addEventListener('click', () => {
-      this._openWeaponDetail(w.id);
-    });
-    grid.appendChild(card);
-  }
-};
 
 GameUI.prototype._openWeaponDetail = function(weaponId) {
   const w = this.army?.weapons?.find(x => x.id === weaponId);
@@ -514,180 +639,173 @@ GameUI.prototype._renderShopPage = function() {
   const container = document.getElementById('shop-content');
   if (!container) return;
   const eco = this.economy;
-  const army = this.army;
-  const weapons = army?.weapons || [];
-  const houseLevel = this._landsState?.['b1']?.level || 1;
-
-  // إحصائيات سريعة
-  const ownedCount = weapons.filter(w => w.owned).length;
-  const equippedId = this.world?._equippedWeapon || '';
-  const totalPower = weapons.reduce((sum, w) => sum + (w.owned ? w.power : 0), 0);
+  const artifacts = eco.resources.artifacts || 0;
+  const scrolls = eco.resources.scrolls || 0;
+  const hammers = eco.resources.hammers || 0;
+  const desertGem = eco.resources.desertGem || 0;
 
   let html = `
-    <div class="shop-summary" style="background:var(--bg-card);border-radius:14px;padding:12px;margin-bottom:12px;border:1px solid var(--border-light);text-align:center;box-shadow:var(--shadow-card)">
+    <div class="shop-summary" style="background:var(--bg-card);border-radius:14px;padding:10px;margin-bottom:12px;border:1px solid var(--border-light);text-align:center;box-shadow:var(--shadow-card)">
       <div style="display:flex;justify-content:space-around;gap:8px">
-        <div><span style="font-size:0.7rem;color:var(--text-secondary)">🗡️ الأسلحة</span><br><span style="font-size:1.1rem;font-weight:900;color:var(--accent-red)">${ownedCount}/${weapons.length}</span></div>
-        <div><span style="font-size:0.7rem;color:var(--text-secondary)">👊 القوة</span><br><span style="font-size:1.1rem;font-weight:900;color:var(--gold)">+${Math.round(totalPower)}</span></div>
-        <div><span style="font-size:0.7rem;color:var(--text-secondary)">💵 الرصيد</span><br><span style="font-size:1.1rem;font-weight:900;color:var(--green)">${eco.cashFormatted}</span></div>
+        <div><span style="font-size:0.65rem;color:var(--text-secondary)">🏺 قطع أثرية</span><br><span style="font-size:1rem;font-weight:900;color:#8e44ad">${artifacts}</span></div>
+        <div><span style="font-size:0.65rem;color:var(--text-secondary)">📜 مخطوطات</span><br><span style="font-size:1rem;font-weight:900;color:#f39c12">${scrolls}</span></div>
+        <div><span style="font-size:0.65rem;color:var(--text-secondary)">🔨 مطارق</span><br><span style="font-size:1rem;font-weight:900;color:#e74c3c">${hammers}</span></div>
+        <div><span style="font-size:0.65rem;color:var(--text-secondary)">💠 جوهرة</span><br><span style="font-size:1rem;font-weight:900;color:#00ffff">${desertGem}</span></div>
       </div>
     </div>
-    <div class="shop-section-title">⚔️ ترقيات الجيش</div>
+
+    <div class="shop-section-title">🏺 تجارة القطع الأثرية</div>
+    <div style="margin-bottom:10px;font-size:0.65rem;color:var(--text-secondary);text-align:center">بيع قطعك الأثرية ومخطوطاتك للحصول على المال والذهب</div>
   `;
 
-  // عناصر الجيش (ترقية الجنود + علاج)
-  const unitCost = army?.unitUpgradeCost || 0;
-  const canUnit = army && army.unitLevel < army.maxUnitLevel && eco.canAfford('cash', unitCost);
-  const canHeal = eco.canAfford('cash', 20) && this.world?.leader;
+  // 🏺 بيع القطع الأثرية
+  const sellItems = [
+    { id: 'sell_artifact', icon: '🏺', name: 'بيع قطعة أثرية', desc: '1 🏺 → 500 💵', price: 500, resource: 'artifacts', cost: 1 },
+    { id: 'sell_scroll', icon: '📜', name: 'بيع مخطوطة', desc: '1 📜 → 100 🪙', price: 100, resource: 'scrolls', cost: 1, currency: 'gold' },
+    { id: 'sell_hammer', icon: '🔨', name: 'بيع مطرقة', desc: '1 🔨 → 200 💵', price: 200, resource: 'hammers', cost: 1 },
+    { id: 'buy_scroll', icon: '📜', name: 'شراء مخطوطة', desc: '500 💵 → 1 📜', price: 500, resource: 'scrolls', cost: 0, isBuy: true },
+    { id: 'buy_hammer', icon: '🔨', name: 'شراء مطرقة', desc: '800 💵 → 1 🔨', price: 800, resource: 'hammers', cost: 0, isBuy: true },
+    { id: 'heal_potion', icon: '🧪', name: 'جرعة علاج', desc: '50 💵 → +30 HP', price: 50, resource: 'heal', cost: 0, isBuy: true, isHeal: true },
+  ];
 
-  html += `
-    <div class="shop-item${canUnit ? ' shop-item-available' : ' shop-item-locked'}" style="display:flex;align-items:center;gap:8px;">
-      <div style="font-size:1.5rem;min-width:36px;text-align:center">⚔️</div>
-      <div style="flex:1">
-        <div style="font-size:0.8rem;font-weight:700;color:var(--text-primary)">ترقية الجنود</div>
-        <div style="font-size:0.65rem;color:var(--text-secondary)">المستوى ${army?.unitLevel || 1}/${army?.maxUnitLevel || 100}</div>
-      </div>
-      <div style="text-align:center;min-width:70px">
-        <div style="font-size:0.7rem;font-weight:700;color:var(--gold);margin-bottom:4px">${unitCost} 💵</div>
-        <button class="shop-buy-btn${canUnit ? '' : ' shop-buy-disabled'}" data-shop="unit" ${canUnit ? '' : 'disabled'} style="padding:5px 12px;font-size:0.7rem;font-weight:700;background:var(--accent-red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">${canUnit ? 'ترقية' : 'غير كافٍ'}</button>
-      </div>
-    </div>
-    <div class="shop-item${canHeal ? ' shop-item-available' : ' shop-item-locked'}" style="display:flex;align-items:center;gap:8px;">
-      <div style="font-size:1.5rem;min-width:36px;text-align:center">💚</div>
-      <div style="flex:1">
-        <div style="font-size:0.8rem;font-weight:700;color:var(--text-primary)">علاج القائد</div>
-        <div style="font-size:0.65rem;color:var(--text-secondary)">يعيد 30 HP للقائد</div>
-      </div>
-      <div style="text-align:center;min-width:70px">
-        <div style="font-size:0.7rem;font-weight:700;color:var(--gold);margin-bottom:4px">20 💵</div>
-        <button class="shop-buy-btn${canHeal ? '' : ' shop-buy-disabled'}" data-shop="heal" ${canHeal ? '' : 'disabled'} style="padding:5px 12px;font-size:0.7rem;font-weight:700;background:var(--accent-red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">${canHeal ? 'شراء' : 'غير كافٍ'}</button>
-      </div>
-    </div>
-    <div class="shop-section-title" style="margin-top:16px">🗡️ متجر الأسلحة الأسطورية</div>
-    <div class="weapon-shop-grid" style="display:flex;flex-direction:column;gap:10px">
-  `;
-
-  // ⭐ متجر الأسلحة — بطاقات كاملة
-  const weaponIcons = { w1: '🗡️', w2: '🏹', w3: '🔱', w4: '⚔️', w5: '🔥', w6: '⚒️' };
-  const weaponColors = { w1: '#b8956a', w2: '#d4a76a', w3: '#8b6914', w4: '#ffd700', w5: '#ff6b6b', w6: '#9b59b6' };
-  const weaponRanges = { w1: 'قريب', w2: 'بعيد', w3: 'قريب', w4: 'قريب', w5: 'بعيد', w6: 'قريب' };
-
-  for (const w of weapons) {
-    const isOwned = w.owned;
-    const isEquipped = equippedId === w.id;
-    const isMaxed = w.level >= w.maxLevel;
-    const isLockedByLevel = houseLevel < w.requireLevel;
-    const canBuy = !isOwned && !isLockedByLevel && eco.canAfford('cash', w.cashPrice);
-    const canUpg = isOwned && !isMaxed && w.canUpgrade(eco, houseLevel);
-    const color = weaponColors[w.id] || '#b8956a';
-    const icon = weaponIcons[w.id] || '🗡️';
-    const starStr = '⭐'.repeat(w.level) + '☆'.repeat(Math.max(0, w.maxLevel - w.level));
-    const powerVal = isOwned ? Math.round(w.power) : Math.round(w.basePower * 1.5);
-    const upgradeCosts = w.getUpgradeCosts ? w.getUpgradeCosts() : null;
-    const upgradeCostStr = upgradeCosts ? `💵${upgradeCosts.cash} 💎${upgradeCosts.gems}${upgradeCosts.artifact > 0 ? ` 🏺${upgradeCosts.artifact}` : ''}${upgradeCosts.desertGem > 0 ? ` 💠${upgradeCosts.desertGem}` : ''}` : '';
+  for (const item of sellItems) {
+    let canAfford = false;
+    let label = '';
+    if (item.isHeal) {
+      canAfford = eco.canAfford('cash', item.price) && this.world?.leader;
+      label = canAfford ? 'شراء' : 'غير كافٍ';
+    } else if (item.isBuy) {
+      canAfford = eco.canAfford('cash', item.price);
+      label = canAfford ? 'شراء' : 'غير كافٍ';
+    } else {
+      canAfford = (eco.resources[item.resource] || 0) >= item.cost;
+      label = canAfford ? 'بيع' : 'ليس لديك';
+    }
 
     html += `
-      <div class="shop-weapon-card" style="background:var(--bg-card);border:2px solid ${isEquipped ? color : 'var(--border-light)'};border-radius:16px;padding:12px;box-shadow:${isEquipped ? '0 0 20px '+color+'33' : 'var(--shadow-card)'};transition:all 0.2s">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-          <div style="font-size:2rem;width:44px;text-align:center">${icon}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:0.85rem;font-weight:800;color:var(--text-primary)">${w.name}</div>
-            <div style="font-size:0.6rem;color:var(--text-secondary)">${w.desc || ''} — مدى: ${weaponRanges[w.id] || 'قريب'}</div>
-          </div>
-          ${isEquipped ? '<div style="background:'+color+';color:#fff;padding:2px 8px;border-radius:8px;font-size:0.6rem;font-weight:800">✔ مجهز</div>' : ''}
+      <div class="shop-item${canAfford ? ' shop-item-available' : ' shop-item-locked'}" style="display:flex;align-items:center;gap:8px;">
+        <div style="font-size:1.5rem;min-width:36px;text-align:center">${item.icon}</div>
+        <div style="flex:1">
+          <div style="font-size:0.8rem;font-weight:700;color:var(--text-primary)">${item.name}</div>
+          <div style="font-size:0.65rem;color:var(--text-secondary)">${item.desc}</div>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:6px">
-          <div style="flex:1;background:var(--bg-input);border-radius:10px;padding:6px;text-align:center;border:1px solid var(--border-light)">
-            <span style="font-size:0.55rem;color:var(--text-secondary);display:block">👊 القوة</span>
-            <span style="font-size:0.9rem;font-weight:800;color:var(--text-primary)">${powerVal}</span>
-          </div>
-          <div style="flex:1;background:var(--bg-input);border-radius:10px;padding:6px;text-align:center;border:1px solid var(--border-light)">
-            <span style="font-size:0.55rem;color:var(--text-secondary);display:block">🏠 يحتاج</span>
-            <span style="font-size:0.9rem;font-weight:800;color:var(--text-primary)">Lv.${w.requireLevel}</span>
-          </div>
-          ${isOwned ? `
-          <div style="flex:1;background:var(--bg-input);border-radius:10px;padding:6px;text-align:center;border:1px solid var(--border-light)">
-            <span style="font-size:0.55rem;color:var(--text-secondary);display:block">⭐ الترقية</span>
-            <span style="font-size:0.9rem;font-weight:800;color:${color}">${w.level}/${w.maxLevel}</span>
-          </div>
-          ` : ''}
+        <div style="text-align:center;min-width:70px">
+          <button class="shop-buy-btn" data-shop="${item.id}" ${canAfford ? '' : 'disabled'} style="padding:5px 12px;font-size:0.7rem;font-weight:700;background:${canAfford ? 'var(--accent-red)' : '#666'};color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">${label}</button>
         </div>
-        ${isOwned ? `<div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:6px;text-align:center">${starStr}</div>` : ''}
-        ${!isOwned && isLockedByLevel ? `<div style="text-align:center;font-size:0.65rem;color:var(--red);margin-bottom:6px">🔒 يحتاج بيت الزعيم Lv.${w.requireLevel}</div>` : ''}
-        <div style="display:flex;gap:6px">
-          ${!isOwned ? `
-            <button class="shop-buy-weapon-btn" data-wid="${w.id}" data-action="buy" ${canBuy ? '' : 'disabled'}
-              style="flex:1;padding:10px;border:none;border-radius:10px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;transition:transform 0.15s;${canBuy ? 'background:linear-gradient(135deg,'+color+',#5a3d2b);color:#fff' : 'background:#4a4a4a;color:#888;cursor:default'}">
-              ${canBuy ? `🔓 شراء (${w.cashPrice.toLocaleString()} 💵)` : (isLockedByLevel ? '🔒 مقفل' : '💰 غير كافٍ')}
-            </button>
-          ` : `
-            ${!isEquipped ? `
-            <button class="shop-equip-weapon-btn" data-wid="${w.id}"
-              style="flex:1;padding:10px;border:2px solid ${color};border-radius:10px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;background:transparent;color:${color};transition:transform 0.15s">
-              🏹 تجهيز
-            </button>
-            ` : `
-            <button class="shop-unequip-weapon-btn" data-wid="${w.id}"
-              style="flex:1;padding:10px;border:2px solid var(--border-light);border-radius:10px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;background:var(--bg-input);color:var(--text-secondary);transition:transform 0.15s">
-              ✕ إلغاء التجهيز
-            </button>
-            `}
-            ${!isMaxed && !isLockedByLevel ? `
-            <button class="shop-upgrade-weapon-btn" data-wid="${w.id}" ${canUpg ? '' : 'disabled'}
-              style="flex:1;padding:10px;border:none;border-radius:10px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;transition:transform 0.15s;${canUpg ? 'background:linear-gradient(135deg,'+color+',#5a3d2b);color:#fff' : 'background:#4a4a4a;color:#888;cursor:default'}">
-              ${canUpg ? `▲ ${upgradeCostStr}` : (isLockedByLevel ? '🔒' : isMaxed ? '⭐ MAX' : '💰')}
-            </button>
-            ` : `
-            <div style="flex:1;padding:10px;border-radius:10px;font-size:0.75rem;font-weight:800;text-align:center;background:linear-gradient(135deg,#ffd700,#e69500);color:#2a1810">⭐ المستوى الأقصى</div>
-            `}
-          `}
-        </div>
-      </div>
-    `;
+      </div>`;
   }
 
-  html += '</div>';
+  html += `
+    <div class="shop-section-title" style="margin-top:16px">💎 صرف العملات</div>
+    <div style="margin-bottom:10px;font-size:0.65rem;color:var(--text-secondary);text-align:center">حوّل بين العملات المختلفة</div>
+  `;
+
+  // 💰 صرف العملات
+  const exchanges = [
+    { id: 'exchange_gold_cash', icon: '🔄', name: 'ذهب → مال', desc: '1 🪙 → 10 💵', from: 'gold', to: 'cash', rate: 10 },
+    { id: 'exchange_cash_gold', icon: '🔄', name: 'مال → ذهب', desc: '50 💵 → 1 🪙', from: 'cash', to: 'gold', rate: 0.02 },
+    { id: 'exchange_gems_cash', icon: '💎', name: 'جوهرة → مال', desc: '1 💎 → 200 💵', from: 'gems', to: 'cash', rate: 200 },
+  ];
+
+  for (const ex of exchanges) {
+    const canEx = ex.from === 'gold' ? eco.canAfford('gold', 1) :
+                   ex.from === 'cash' ? eco.canAfford('cash', 50) :
+                   eco.canAfford('gems', 1);
+    html += `
+      <div class="shop-item${canEx ? ' shop-item-available' : ' shop-item-locked'}" style="display:flex;align-items:center;gap:8px;">
+        <div style="font-size:1.5rem;min-width:36px;text-align:center">${ex.icon}</div>
+        <div style="flex:1">
+          <div style="font-size:0.8rem;font-weight:700;color:var(--text-primary)">${ex.name}</div>
+          <div style="font-size:0.65rem;color:var(--text-secondary)">${ex.desc}</div>
+        </div>
+        <div style="text-align:center;min-width:70px">
+          <button class="shop-exchange-btn" data-shop="${ex.id}" ${canEx ? '' : 'disabled'} style="padding:5px 12px;font-size:0.7rem;font-weight:700;background:${canEx ? 'var(--accent-red)' : '#666'};color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">صرف</button>
+        </div>
+      </div>`;
+  }
+
   container.innerHTML = html;
 
-  // ربط الأزرار
+  // ربط أزرار البيع/الشراء
   container.querySelectorAll('.shop-buy-btn[data-shop]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.shop;
-      if (window.shopBuy) window.shopBuy(id);
+      switch(id) {
+        case 'sell_artifact':
+          if ((eco.resources.artifacts || 0) >= 1) {
+            eco.spend('artifacts', 1);
+            eco.addRaw('cash', 500);
+            this.showNotification('🏺 بعت قطعة أثرية بـ 500 💵');
+          }
+          break;
+        case 'sell_scroll':
+          if ((eco.resources.scrolls || 0) >= 1) {
+            eco.spend('scrolls', 1);
+            eco.addRaw('gold', 100);
+            this.showNotification('📜 بعت مخطوطة بـ 100 🪙');
+          }
+          break;
+        case 'sell_hammer':
+          if ((eco.resources.hammers || 0) >= 1) {
+            eco.spend('hammers', 1);
+            eco.addRaw('cash', 200);
+            this.showNotification('🔨 بعت مطرقة بـ 200 💵');
+          }
+          break;
+        case 'buy_scroll':
+          if (eco.canAfford('cash', 500)) {
+            eco.spend('cash', 500);
+            eco.addRaw('scrolls', 1);
+            this.showNotification('📜 اشتريت مخطوطة بـ 500 💵');
+          }
+          break;
+        case 'buy_hammer':
+          if (eco.canAfford('cash', 800)) {
+            eco.spend('cash', 800);
+            eco.addRaw('hammers', 1);
+            this.showNotification('🔨 اشتريت مطرقة بـ 800 💵');
+          }
+          break;
+        case 'heal_potion':
+          if (eco.canAfford('cash', 50) && this.world?.leader) {
+            eco.spend('cash', 50);
+            this.world.leader.hp = Math.min(this.world.leader.maxHp, this.world.leader.hp + 30);
+            this.showNotification('🧪 استخدمت جرعة علاج! +30 HP');
+          }
+          break;
+      }
       this._renderShopPage();
       this.updateTopBar();
     });
   });
 
-  container.querySelectorAll('.shop-buy-weapon-btn').forEach(btn => {
+  // ربط أزرار الصرف
+  container.querySelectorAll('.shop-exchange-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const wid = btn.dataset.wid;
-      if (window.shopBuy) window.shopBuy('buy_' + wid);
-      this._renderShopPage();
-      this.updateTopBar();
-    });
-  });
-
-  container.querySelectorAll('.shop-equip-weapon-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const wid = btn.dataset.wid;
-      if (window.shopBuy) window.shopBuy('equip_' + wid);
-      this._renderShopPage();
-      this.updateTopBar();
-    });
-  });
-
-  container.querySelectorAll('.shop-unequip-weapon-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (window.shopBuy) window.shopBuy('unequip');
-      this._renderShopPage();
-      this.updateTopBar();
-    });
-  });
-
-  container.querySelectorAll('.shop-upgrade-weapon-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const wid = btn.dataset.wid;
-      if (window.shopBuy) window.shopBuy(wid);
+      const id = btn.dataset.shop;
+      switch(id) {
+        case 'exchange_gold_cash':
+          if (eco.canAfford('gold', 1)) {
+            eco.spend('gold', 1);
+            eco.addRaw('cash', 10);
+            this.showNotification('🔄 صرفت 1 🪙 → 10 💵');
+          }
+          break;
+        case 'exchange_cash_gold':
+          if (eco.canAfford('cash', 50)) {
+            eco.spend('cash', 50);
+            eco.addRaw('gold', 1);
+            this.showNotification('🔄 صرفت 50 💵 → 1 🪙');
+          }
+          break;
+        case 'exchange_gems_cash':
+          if (eco.canAfford('gems', 1)) {
+            eco.spend('gems', 1);
+            eco.addRaw('cash', 200);
+            this.showNotification('💎 صرفت 1 💎 → 200 💵');
+          }
+          break;
+      }
       this._renderShopPage();
       this.updateTopBar();
     });

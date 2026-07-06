@@ -372,19 +372,19 @@ export class NetworkSync {
           w.store.set('notification', { text: `⏳ باقي ${mins} دقيقة للصندوق القادم`, t: Date.now() });
         }
         break;
-      case "upgrade_weapon_ack":
+      case "weapon_upgrade_ack":
         if (msg.ok) {
           w._weaponStarLevel = msg.starLevel;
           w._weaponGemLevel = msg.gemLevel;
           if (w.army && w.army.weapons) {
             const existing = w.army.weapons.find(x => x.id === msg.weaponId);
-            if (existing) { existing.starLevel = msg.starLevel; existing.gemLevel = msg.gemLevel; }
-            else { w.army.weapons.push({ id: msg.weaponId, starLevel: msg.starLevel, gemLevel: msg.gemLevel }); }
+            if (existing) {
+              existing.level = msg.level;
+              existing.starLevel = msg.starLevel;
+              existing.gemLevel = msg.gemLevel;
+            }
           }
-          if (w.store) w.store.set('weaponStats', { starLevel: msg.starLevel, gemLevel: msg.gemLevel, combinedLevel: msg.combinedLevel, damageMult: msg.damageMult });
-          if (w.store) w.store.set('notification', { text: msg.breakthrough
-            ? `🌟 اختراق نجمة! السلاح الآن ${msg.starLevel} ★ — ضرر ×${(msg.damageMult || 1).toFixed(2)}`
-            : `💎 ترقية الجوهرة → ${msg.gemLevel} | الضرر ×${(msg.damageMult || 1).toFixed(2)}`, t: Date.now() });
+          if (w.store) w.store.set('notification', { text: `⬆️ السلاح → المستوى ${msg.level} ⭐ (${msg.damageMult ? 'ضرر ×'+msg.damageMult.toFixed(2) : ''})`, t: Date.now() });
           if (w._onWeaponUpgraded) w._onWeaponUpgraded(msg);
         } else if (w.store) {
           w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });

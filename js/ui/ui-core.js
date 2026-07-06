@@ -37,7 +37,8 @@ export class GameUI {
     this.startTopBarLoop();
     this.initPlayerPanel();
     this.initChat();
-    this.initTutorial();
+    // تم إزالة this.initTutorial() من هنا — يتم استدعاؤها فقط بعد انتهاء القصة
+    // لتجنب تعارض overlay القصة مع overlay التدريب
     this.initDailyCheck();
     this.initStory();
   }
@@ -101,7 +102,11 @@ export class GameUI {
 
   initStory() {
     const storyManager = window._storyManager;
-    if (!storyManager || !storyManager.canShowStory()) return;
+    if (!storyManager || !storyManager.canShowStory()) {
+      // لا توجد مشاهد قصة — ابدأ التدريب مباشرة إذا كان مطلوباً
+      this.initTutorial();
+      return;
+    }
     setTimeout(() => {
       this.showStoryScene(() => {
         // بعد انتهاء القصة، ابدأ التدريب إذا كان مطلوباً

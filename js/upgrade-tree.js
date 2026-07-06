@@ -29,33 +29,33 @@
 
 const UPGRADE_PATHS = [
   {
-    // ========== 1. الجيش (بدلاً من السفن) ==========
+    // ========== 1. الجيش (مربوط بـ GameArmy.unitLevel) ==========
     id: "army",
     name: "الجيش",
     icon: "⚔️",
     // 🖼️ image: 'assets/images/upgrades/army.png', // 120×120 — ارفع صورتك هنا
-    desc: "تطوير قوة الجيش الصحراوي",
+    desc: "تطوير تكتيكات الجيش الصحراوي (يتطلب مستوى جنود)",
     levels: [
-      { cost: 50, desc: "قوة الجيش +10", effect: 10, icon: "⚔️" },
-      { cost: 120, desc: "قوة الجيش +25", effect: 25, icon: "🗡️" },
-      { cost: 250, desc: "قوة الجيش +50", effect: 50, icon: "🛡️" },
-      { cost: 500, desc: "قوة الجيش +100", effect: 100, icon: "🏹" },
-      { cost: 1000, desc: "قوة الجيش +200", effect: 200, icon: "⚒️" },
+      { cost: 50, desc: "تكتيكات الجيش +10", effect: 10, icon: "⚔️", requireUnitLevel: 1 },
+      { cost: 120, desc: "تكتيكات الجيش +25", effect: 25, icon: "🗡️", requireUnitLevel: 5 },
+      { cost: 250, desc: "تكتيكات الجيش +50", effect: 50, icon: "🛡️", requireUnitLevel: 10 },
+      { cost: 500, desc: "تكتيكات الجيش +100", effect: 100, icon: "🏹", requireUnitLevel: 20 },
+      { cost: 1000, desc: "تكتيكات الجيش +200", effect: 200, icon: "⚒️", requireUnitLevel: 35 },
     ]
   },
   {
-    // ========== 2. المعرفة (بدلاً من الابتكار) ==========
+    // ========== 2. المعرفة (مربوط بـ القصة knowledgeLevel) ==========
     id: "knowledge",
     name: "المعرفة",
     icon: "📜",
     // 🖼️ image: 'assets/images/upgrades/knowledge.png', // 120×120 — ارفع صورتك هنا
-    desc: "تطوير المعرفة والعلوم الصحراوية",
+    desc: "تطوير المعرفة والعلوم الصحراوية (يتطلب التقدم في القصة)",
     levels: [
-      { cost: 40, desc: "إنتاج الذهب +15%", effect: 15, icon: "📖" },
-      { cost: 100, desc: "إنتاج الذهب +30%", effect: 30, icon: "📚" },
-      { cost: 200, desc: "إنتاج الذهب +50%", effect: 50, icon: "🔮" },
-      { cost: 400, desc: "إنتاج الذهب +80%", effect: 80, icon: "💎" },
-      { cost: 800, desc: "إنتاج الذهب +120%", effect: 120, icon: "👑" },
+      { cost: 40, desc: "إنتاج الذهب +15%", effect: 15, icon: "📖", requireKnowledgeLevel: 1 },
+      { cost: 100, desc: "إنتاج الذهب +30%", effect: 30, icon: "📚", requireKnowledgeLevel: 2 },
+      { cost: 200, desc: "إنتاج الذهب +50%", effect: 50, icon: "🔮", requireKnowledgeLevel: 3 },
+      { cost: 400, desc: "إنتاج الذهب +80%", effect: 80, icon: "💎", requireKnowledgeLevel: 4 },
+      { cost: 800, desc: "إنتاج الذهب +120%", effect: 120, icon: "👑", requireKnowledgeLevel: 5 },
     ]
   },
   {
@@ -125,6 +125,29 @@ export class UpgradeTree {
     return p.levels[lvl].desc;
   }
 
+  getLockReason(pathId) {
+    const p = UPGRADE_PATHS.find(x => x.id === pathId);
+    if (!p) return null;
+    const lvl = this.levels[pathId] || 0;
+    if (lvl >= p.levels.length) return null;
+    const levelData = p.levels[lvl];
+    if (levelData.requireKnowledgeLevel) {
+      const eco = this.economy;
+      const has = eco.knowledgeLevel || 1;
+      if (has < levelData.requireKnowledgeLevel) {
+        return { reason: 'knowledge', required: levelData.requireKnowledgeLevel, current: has };
+      }
+    }
+    if (levelData.requireUnitLevel) {
+      // نحتاج الوصول إلى army.unitLevel — نخزن مرجع من خارج
+      const unitLevel = this._armyRef?.unitLevel || 1;
+      if (unitLevel < levelData.requireUnitLevel) {
+        return { reason: 'unit', required: levelData.requireUnitLevel, current: unitLevel };
+      }
+    }
+    return null;
+  }
+
   getEffect(pathId) {
     const p = UPGRADE_PATHS.find(x => x.id === pathId);
     if (!p) return 0;
@@ -140,7 +163,19 @@ export class UpgradeTree {
     if (!p) return false;
     const lvl = this.levels[pathId] || 0;
     if (lvl >= p.levels.length) return false;
-    return this.economy.canAfford("gold", p.levels[lvl].cost);
+    const levelData = p.levels[lvl];
+    // تحقق من متطلبات المعرفة (القصة)
+    if (levelData.requireKnowledgeLevel) {
+      const eco = this.economy;
+      const has = eco.knowledgeLevel || 1;
+      if (has < levelData.requireKnowledgeLevel) return false;
+    }
+    // تحقق من متطلبات مستوى الجنود
+    if (levelData.requireUnitLevel) {
+      const unitLevel = this._armyRef?.unitLevel || 1;
+      if (unitLevel < levelData.requireUnitLevel) return false;
+    }
+    return this.economy.canAfford("gold", levelData.cost);
   }
 
   upgrade(pathId) {
@@ -162,9 +197,15 @@ export class UpgradeTree {
       maxLevel: p.levels.length,
       cost: this.getCurrentCost(p.id),
       canAfford: this.canUpgrade(p.id),
+      lockReason: this.getLockReason(p.id),
       effect: this.getEffect(p.id),
       desc: this.getDesc(p.id),
     }));
+  }
+
+  // ربط مرجع الجيش للتحقق من متطلبات unitLevel
+  setArmyRef(army) {
+    this._armyRef = army;
   }
 
   loadState(saved) {

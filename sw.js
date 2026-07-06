@@ -20,7 +20,7 @@ const STATIC_ASSETS = [
   '/js/ui/ui-gameplay.js',
   '/js/ui/ui-promotion.js',
   '/js/ui/context-menu.js',
-  '/js/ui/world-upgrades.js',
+  // '/js/ui/world-upgrades.js',  // ❌ محذوف — استُبدل بنظام الأسلحة الجديد في ui-promotion.js
   '/js/economy.js',
   '/js/army.js',
   '/js/village.js',
@@ -49,10 +49,8 @@ const STATIC_ASSETS = [
   '/js/isometric.js',
   '/js/pathfinding.js',
   '/js/enemies.js',
-  '/js/weapons.js',
   '/js/br-mode.js',
   '/js/combat/combat-effects.js',
-  '/js/combat/knowledge-system.js',
   '/js/combat/troop-visuals.js',
   '/js/combat/weapon-system.js',
   '/js/combat/weapon-visuals.js'
