@@ -254,6 +254,8 @@ export class NetworkSync {
     const url = `${base}/ws/world`;
     this._ws = new WebSocket(url);
 
+    this._setOfflineIndicator(false);
+
     this._ws.onopen = () => {
       const w = this.world;
       this.send({
@@ -289,11 +291,22 @@ export class NetworkSync {
 
     this._ws.onclose = () => {
       console.warn("[WS] قطع الاتصال، إعادة محاولة...");
+      this._setOfflineIndicator(true);
       this._ws = null;
       this._wsReconnectTimer = setTimeout(() => this._connectWS(), 2000);
     };
 
-    this._ws.onerror = () => {};
+    this._ws.onerror = () => { this._setOfflineIndicator(true); };
+  }
+
+  _setOfflineIndicator(offline) {
+    const el = document.getElementById("offline-indicator");
+    if (!el) return;
+    if (offline) {
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
   }
 
   _handleMessage(msg) {

@@ -1,11 +1,14 @@
 import { GameEngine } from "./engine.js";
+import { ExtractionMode } from "./modes/extraction-mode.js";
+import { HordeMode } from "./modes/horde-mode.js";
+import { CaveMode } from "./modes/cave-mode.js";
 import {
   aStar,
   initCollisionGrid,
   markObstacle,
   simplifyPath
 } from "./pathfinding.js";
-import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles } from "./combat/combat-effects.js";
+import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles, spawnHitEffect, spawnMonsterDeathEffect, spawnComboEffect } from "./combat/combat-effects.js";
 import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/context-menu.js";
 import { computeWeaponDamage } from "./combat/weapon-system.js";
 import { computeKnowledgeBonuses } from "./economy.js";
@@ -14,6 +17,7 @@ import { drawWeaponGlow, drawWeaponStarIcons, drawWeaponOnHero } from "./combat/
 import { spriteFactory, SpriteFactory } from "./sprite-factory.js";
 import { IsometricSystem, DepthSorter } from "./isometric.js";
 import { getEnemyForLevel, getEnemiesForVillage, getBossForVillage, calculateEnemyPower } from "./enemies.js";
+import { SOLDIER_ROLES } from "./army.js";
 
 export class WorldMap {
   constructor(economy, username = "بطل الصحراء", apiBase = "", army = null) {
@@ -49,6 +53,7 @@ export class WorldMap {
     this._moveTargetY = null;
     this._pvpParticles = [];
     this._pvpDefeatShown = false;
+    this._pvpProtectionTimer = 0; // حماية بعد الموت بالثواني
     this._equippedWeapon = "";
     this._weaponStarLevel = 0;
     this._weaponGemLevel = 0;
@@ -126,6 +131,13 @@ export class WorldMap {
       minRadius: 100,
       nextShrink: 30,
     };
+    // ── Combat upgrades: Crit, Combo, Poison ──
+    this._comboCount = 0;
+    this._comboTimer = 0;
+    this._comboThreshold = 3;
+    this._poisonEffects = [];
+    this._monsterAbilityTimers = {};
+
     this._onBRKillFeed = null;
     this._onCashEarned = null;
     this._events = null; // مرجع لـ EventManager
@@ -136,9 +148,11 @@ export class WorldMap {
     this._onTreasureOpened = null;
     this._onSelfStatsChanged = null;
     this.treasureChests = [];
+    this._activeMode = null;
   }
 
   _preloadImages() {
+    const v = window._buildId || Date.now();
     const keys = [
       "leader-player", "avatar-player", "soldier-player",
       "leader-enemy", "soldier-enemy", "bandit-br",
@@ -147,8 +161,9 @@ export class WorldMap {
     for (const key of keys) {
       const img = new Image();
       img.onload = () => this.images.set(key, img);
-      img.onerror = () => {}; // silent → fallback shapes
-      img.src = ImageResolver ? ImageResolver.src(key) : ("assets/images/" + key + ".png");
+      img.onerror = () => {};
+      const base = ImageResolver ? ImageResolver.src(key) : ("assets/images/" + key + ".png");
+      img.src = base + '?v=' + v;
     }
   }
 
@@ -221,37 +236,34 @@ export class WorldMap {
     const theirPower = tgt.army_power || 5000;
     const myMaxHp = this.leader.maxHp || 120;
     const myCurHp = Math.max(0, this.leader.hp);
-    const theirMaxHp = tgt.maxHp || 120;
-    const theirCurHp = Math.max(0, tgt._hp ?? theirMaxHp);
 
     const myEffective = Math.floor(myPower * Math.max(0, myCurHp / myMaxHp));
 
     const enemyStats = this.estimateEnemyStats(tgt);
-    const lootBase = Math.max(10, Math.floor(theirPower * 0.08));
-    const lootAmount = Math.min(this.sessionStats.coinsEarned || 0, lootBase);
+    let cashLost = 0;
+    let reward = 0;
 
     if (won) {
-      let reward = Math.max(10, Math.floor(theirPower * 0.05));
+      reward = Math.max(10, Math.floor(theirPower * 0.05));
       let goldReward = Math.floor(reward * 0.2);
       if (this._events) {
         const pvpMult = this._events.getMult("mult_pvp");
         if (pvpMult > 1) { reward = Math.floor(reward * pvpMult); goldReward = Math.floor(goldReward * pvpMult); }
       }
 
-      const stolenLoot = Math.min(lootBase, tgt._sessionCoins || 0);
       if (this.economy) {
-        this.economy.addRaw("cash", reward + stolenLoot);
+        this.economy.addRaw("cash", reward);
         this.economy.addRaw("gold", goldReward);
       }
 
       this.worldFx.push({
         x: this.leader.x, y: this.leader.y,
-        text: `⚔️ انتصرت على ${tgt.username}! +${reward + stolenLoot} 💵 +${goldReward} 🪙`,
+        text: `⚔️ انتصرت على ${tgt.username}! +${reward} 💵 +${goldReward} 🪙`,
         color: "#4cd964", life: 2.5, maxLife: 2.5
       });
       if (this.store) {
         this.store.set('notification', {
-          text: `⚔️ انتصرت على ${tgt.username}! +${reward + stolenLoot} 💵`,
+          text: `⚔️ انتصرت على ${tgt.username}! +${reward} 💵`,
           t: Date.now()
         });
       }
@@ -265,20 +277,25 @@ export class WorldMap {
       });
       this.leader.hp = 0;
 
-      const actualLoot = Math.min(lootBase, this.sessionStats.coinsEarned || 0);
-      if (actualLoot > 0) {
-        if (this.economy) this.economy.addRaw("cash", -actualLoot);
-        this.sessionStats.coinsEarned -= actualLoot;
+      // خسارة 5% من الرصيد الكلي — توازن: يخسر المهزوم من ماله الحقيقي
+      const myCash = this.economy?.cash || 0;
+      cashLost = Math.min(Math.max(10, Math.floor(myCash * 0.05)), myCash);
+      if (cashLost > 0 && this.economy) {
+        this.economy.addRaw("cash", -cashLost);
       }
 
+      // خسارة 10% من القوة (مع حد أدنى 500)
       const newPower = Math.max(500, Math.floor(myPower * 0.9));
       if (this.economy) this.economy.power = newPower;
+
+      // حماية لمدة 30 ثانية بعد الموت — لا يمكن مهاجمتك
+      this._pvpProtectionTimer = 30;
 
       this._pvpDefeatShown = true;
       this._showPvPDefeat(
         tgt.username,
         theirPower,
-        actualLoot,
+        cashLost,
         Math.floor(myPower * 0.1),
         enemyStats.maxHp,
         enemyStats.damage
@@ -292,8 +309,8 @@ export class WorldMap {
         target: tgt.username,
         won,
         myPower: myEffective,
-        loot: won ? 0 : lootAmount,
-        winnerReward: won ? Math.max(10, Math.floor(theirPower * 0.05)) : 0,
+        loot: cashLost,
+        winnerReward: reward,
       });
     }
 
@@ -376,7 +393,83 @@ export class WorldMap {
     const defenseBuffPercent = knowledgeBonuses.defensePercent;
     const moveSpeedBuffPercent = knowledgeBonuses.moveSpeedPercent;
 
-    return { maxHp, totalDamage, weaponStats, defenseBuffPercent, moveSpeedBuffPercent };
+    // Rage: كلما قل HP زاد الضرر (حتى ×1.5 عند 10% HP)
+    const hpRatio = Math.max(0.1, (this.leader?.hp || maxHp) / maxHp);
+    const rageMultiplier = 1 + (1 - hpRatio) * 0.5;
+    const rageDamage = Math.floor(totalDamage * rageMultiplier);
+
+    return { maxHp, totalDamage: rageDamage, weaponStats, defenseBuffPercent, moveSpeedBuffPercent, rageActive: hpRatio < 0.3 };
+  }
+
+  _getWeaponCritStats() {
+    const result = computeWeaponDamage({
+      equippedWeapon: this._equippedWeapon || "",
+      weapons: this.army?.weapons || [],
+    });
+    return {
+      critChance: result.critChance || 0,
+      critMultiplier: result.critMultiplier || 1,
+      weaponDamage: result.weaponDamage || 0,
+    };
+  }
+
+  _rollCrit() {
+    const stats = this._getWeaponCritStats();
+    const isCrit = Math.random() < stats.critChance;
+    return {
+      isCrit,
+      multiplier: isCrit ? stats.critMultiplier : 1,
+      weaponDmg: stats.weaponDamage,
+    };
+  }
+
+  _applyMonsterAbility(monster, target) {
+    if (!monster.ability || !monster.alive) return false;
+    const ab = monster.ability;
+    if (Math.random() >= ab.chance) return false;
+
+    const abKey = `${monster.id}_${ab.type}`;
+    const now = Date.now();
+    if (this._monsterAbilityTimers[abKey] && now < this._monsterAbilityTimers[abKey]) return false;
+
+    switch (ab.type) {
+      case "heal": {
+        const healAmt = Math.floor(monster.maxHp * (ab.healPercent || 0.3));
+        monster.hp = Math.min(monster.maxHp, monster.hp + healAmt);
+        this.worldFx.push({ x: monster.x, y: monster.y, text: `💚 +${healAmt}`, color: "#4cd964", life: 1, maxLife: 1 });
+        this._monsterAbilityTimers[abKey] = now + 5000;
+        return true;
+      }
+      case "shield": {
+        monster._shieldTimer = 3;
+        this.worldFx.push({ x: monster.x, y: monster.y, text: "🛡️ درع!", color: "#4a90d9", life: 1, maxLife: 1 });
+        this._monsterAbilityTimers[abKey] = now + 6000;
+        return true;
+      }
+      case "poison": {
+        const dps = ab.poisonDps || 3;
+        const dur = ab.poisonDuration || 3;
+        this._poisonEffects.push({ target, dps, duration: dur, timer: dur, sourceId: monster.id });
+        this.worldFx.push({ x: monster.x, y: monster.y, text: "☠️ سم!", color: "#a855f7", life: 1, maxLife: 1 });
+        this._monsterAbilityTimers[abKey] = now + 4000;
+        return true;
+      }
+      case "charge": {
+        const mult = ab.chargeMultiplier || 2;
+        const chargeDmg = Math.floor(monster.damage * mult);
+        if (target === this.leader) {
+          this.damageHero(chargeDmg);
+        } else {
+          target.hp = Math.max(0, target.hp - chargeDmg);
+        }
+        this.worldFx.push({ x: monster.x, y: monster.y, text: `💥 ${chargeDmg}!`, color: "#ff4444", life: 1, maxLife: 1 });
+        if (this.engine) this.engine.shake(6, 0.15);
+        this._monsterAbilityTimers[abKey] = now + 8000;
+        return true;
+      }
+      default:
+        return false;
+    }
   }
 
   estimateEnemyStats(target) {
@@ -394,6 +487,7 @@ export class WorldMap {
 
   checkCombatProximity() {
     this.combatCooldown = Math.max(0, this.combatCooldown - 0.016);
+    this._pvpProtectionTimer = Math.max(0, this._pvpProtectionTimer - 0.016);
     this.nearbyPlayer = null;
 
     let closest = null;
@@ -490,24 +584,32 @@ export class WorldMap {
   // ==================== تهيئة الجيش ====================
   initArmyUnits(count) {
     this.armyUnits = [];
+    const roles = ["warrior", "archer", "shield", "warrior", "archer", "warrior", "shield", "warrior"];
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
       const dist = 20 + Math.random() * 25;
+      const roleKey = roles[i % roles.length];
+      const role = SOLDIER_ROLES[roleKey];
       this.armyUnits.push({
         x: this.leader.x + Math.cos(a) * dist,
         y: this.leader.y + Math.sin(a) * dist,
-        speed: 135 + Math.random() * 10,
+        speed: role.speed + Math.random() * 10,
         radius: 10,
-        hp: 40,
-        maxHp: 40,
-        baseDmg: 5,
+        hp: role.hp,
+        maxHp: role.hp,
+        baseDmg: role.baseDmg,
         dmgBonus: 0,
         defBonus: 0,
         attackCD: 0,
+        attackRange: role.range,
         path: null,
         pathIdx: 0,
         fighting: null,
-        facing: 1
+        facing: 1,
+        role: roleKey,
+        roleName: role.name,
+        icon: role.icon,
+        color: role.color,
       });
     }
   }
@@ -660,10 +762,46 @@ export class WorldMap {
     }
   }
 
+  // ==================== Modes (Extraction / Horde / Cave) ====================
+  switchToMode(modeName) {
+    // تنظيف أي وضع سابق (BR, campaign, etc.)
+    if (this.mode === "battle_royale") {
+      this.matchStarted = false;
+      this.matchEnded = false;
+      this.bandits = [];
+      this.killFeed = [];
+      document.getElementById("br-timer")?.classList.add("hidden");
+      document.getElementById("br-players")?.classList.add("hidden");
+      document.getElementById("br-kills")?.classList.add("hidden");
+      document.getElementById("br-kill-feed")?.classList.add("hidden");
+      document.getElementById("br-zone-warning")?.classList.add("hidden");
+    }
+    this.exitCurrentMode();
+    let mode;
+    switch (modeName) {
+      case "extraction": mode = new ExtractionMode(this); break;
+      case "horde": mode = new HordeMode(this); break;
+      case "cave": mode = new CaveMode(this); break;
+      default: return;
+    }
+    if (mode) {
+      mode.init();
+      this._activeMode = mode;
+      this.enterWorldMap();
+    }
+  }
+
+  exitCurrentMode() {
+    if (this._activeMode) {
+      this._activeMode.exit();
+      this._activeMode = null;
+    }
+  }
+
   // ==================== الوحوش ====================
   spawnMonsters() {
-    // لا نعيد توليد الوحوش في وضع الحملة أو إذا وصلت وحوش السيرفر
-    if (this._campaignMode || this._monstersSynced) return;
+    // لا نعيد توليد الوحوش في وضع الحملة أو إذا وصلت وحوش السيرفر أو في أوضاع خاصة
+    if (this._campaignMode || this._monstersSynced || this._activeMode) return;
     this.monsters = [];
     for (let i = 0; i < 12; i++) {
       let x, y;
@@ -725,6 +863,9 @@ export class WorldMap {
       facing: 1,
       attackCD: 0,
       respawnTimer: 0,
+      ability: enemy.ability || null,
+      isBoss: enemy.isBoss || false,
+      _shieldTimer: 0,
     };
   }
 
@@ -737,6 +878,7 @@ export class WorldMap {
 
   // ==================== 🎁 صناديق الكنز ====================
   spawnTreasureChests() {
+    if (this._activeMode) return;
     this.treasureChests = [];
     const chestCount = 6 + Math.floor(Math.random() * 4); // 6-9 صناديق
     const playerLevel = this.economy?.level || 1;
@@ -916,6 +1058,16 @@ export class WorldMap {
     const target = this._pvpTarget;
     if (!target) return;
     if (this._pvpDisabled) return;
+    // حماية لمدة 30 ثانية بعد الموت
+    if (this._pvpProtectionTimer > 0) {
+      const secs = Math.ceil(this._pvpProtectionTimer);
+      this.worldFx.push({
+        x: this.leader.x, y: this.leader.y,
+        text: `🛡️ أنت محمي لمدة ${secs}ث`,
+        color: "#4cd964", life: 2, maxLife: 2
+      });
+      return;
+    }
     this._hidePvPMenu();
     this._startPvPAttack(target);
   }
@@ -1003,6 +1155,7 @@ export class WorldMap {
   }
 
   onWipe() {
+    if (this._activeMode) this._activeMode.onWipe();
     this._cancelPvPAttack();
     this._pvpDefeatShown = false;
     document.getElementById("pvp-defeat-modal")?.classList.add("hidden");
@@ -1081,6 +1234,8 @@ export class WorldMap {
     this.updatePvPParticles(dt);
     this.checkCombatProximity();
     this.updatePvPCombat(dt);
+    this._updateComboTimer(dt);
+    this._updatePoisonEffects(dt);
     this.checkWipe();
     // 🎁 إعادة ظهور صناديق الكنز بعد فتحها
     for (const c of this.treasureChests) {
@@ -1107,12 +1262,15 @@ export class WorldMap {
       }
     }
     if (this.mode === "battle_royale") this.updateBR(dt);
+    if (this._activeMode) this._activeMode.update(dt);
 
     ctx.save();
     ctx.translate(-cam.x, -cam.y);
 
     // ── رسم الأرضية (isometric tiles أو flat) ──
-    if (this._isometricEnabled && this._iso._generated) {
+    if (this._activeMode && this._activeMode.modeName === "cave") {
+      this._activeMode.drawBackground(ctx);
+    } else if (this._isometricEnabled && this._iso._generated) {
       this._iso.drawTiles(ctx);
     } else if (this.mapImage) {
       ctx.drawImage(this.mapImage, 0, 0, this.W, this.H);
@@ -1129,6 +1287,9 @@ export class WorldMap {
     this._drawEntitiesSorted(ctx);
 
     this.drawPvPParticles(ctx);
+    if (this._activeMode && this._activeMode.modeName === "cave") {
+      this._activeMode.drawDarkness(ctx);
+    }
     this.drawWorldFx(ctx);
     this.drawMiniMap(ctx, cam);
 
@@ -1137,6 +1298,7 @@ export class WorldMap {
     this.drawArmyHUD(dt, ctx);
     this.drawPvPMenu(ctx, cam);
     this.drawBRUI(ctx);
+    if (this._activeMode) this._activeMode.drawUI(ctx);
   }
 
   /**
@@ -1520,8 +1682,9 @@ export class WorldMap {
 
       const myStats = this.computePvPStats();
       const enemyStats = this.estimateEnemyStats(target);
+      const crit = this._rollCrit();
 
-      const myDmg = myStats.totalDamage;
+      const myDmg = Math.floor(myStats.totalDamage * crit.multiplier) + (crit.isCrit ? crit.weaponDmg : 0);
       const theirDmg = enemyStats.damage;
 
       target._hp = (target._hp ?? enemyStats.maxHp) - myDmg;
@@ -1530,11 +1693,20 @@ export class WorldMap {
       if (target._hp <= 0) target._hp = 0;
       if (this.leader.hp <= 0) this.leader.hp = 0;
 
+      // تأثيرات مرئية
+      const midX = (this.leader.x + target.x) / 2;
+      const midY = (this.leader.y + target.y) / 2 - 20;
+      spawnHitEffect(this, midX, midY, crit.isCrit, this._equippedWeapon);
+      if (this.engine) {
+        this.engine.shake(crit.isCrit ? 8 : 3, 0.08);
+      }
+
+      const dmgText = crit.isCrit ? `💥 CRIT ${myDmg}!` : `-${myDmg}`;
       this.worldFx.push({
-        x: (this.leader.x + target.x) / 2,
-        y: (this.leader.y + target.y) / 2 - 20,
-        text: `💥 -${myDmg}`,
-        color: "#ff6b35",
+        x: midX,
+        y: midY,
+        text: dmgText,
+        color: crit.isCrit ? "#ffd700" : "#ff6b35",
         life: 0.8, maxLife: 0.8
       });
 
@@ -1619,6 +1791,33 @@ export class WorldMap {
     drawPvPParticles(this, ctx);
   }
 
+  _updateComboTimer(dt) {
+    if (this._comboTimer > 0) {
+      this._comboTimer -= dt;
+      if (this._comboTimer <= 0) {
+        this._comboCount = 0;
+      }
+    }
+  }
+
+  _updatePoisonEffects(dt) {
+    for (let i = this._poisonEffects.length - 1; i >= 0; i--) {
+      const p = this._poisonEffects[i];
+      p.timer -= dt;
+      // ضرر السم
+      if (p.timer % 1 < dt || p.timer >= p.duration - dt) {
+        if (p.target === this.leader) {
+          this.leader.hp = Math.max(0, this.leader.hp - p.dps * dt);
+        } else {
+          p.target.hp = Math.max(0, p.target.hp - p.dps * dt);
+        }
+      }
+      if (p.timer <= 0) {
+        this._poisonEffects.splice(i, 1);
+      }
+    }
+  }
+
   _syncBonuses() {
     let dmgBonus = 0, defBonus = 0;
     if (this._allianceManager) {
@@ -1661,8 +1860,16 @@ export class WorldMap {
       } else {
         h.attackCD -= dt;
         if (h.attackCD <= 0) {
-          const totalDmg = h.baseDmg + h.upgradeDmg;
-          this.damageMonster(h.fighting, totalDmg);
+          const crit = this._rollCrit();
+          // Rage bonus
+          const hpRatio = Math.max(0.1, h.hp / h.maxHp);
+          const rageMult = 1 + (1 - hpRatio) * 0.5;
+          const totalDmg = Math.floor((h.baseDmg + h.upgradeDmg + crit.weaponDmg) * crit.multiplier * rageMult);
+          this.damageMonster(h.fighting, totalDmg, crit.isCrit);
+          // إظهار Rage إذا نشط
+          if (hpRatio < 0.3) {
+            this.worldFx.push({ x: h.x, y: h.y - 20, text: "🔥 غضب!", color: "#ff4444", life: 0.5, maxLife: 0.5 });
+          }
           h.attackCD = h.attackInterval;
         }
       }
@@ -1724,21 +1931,25 @@ export class WorldMap {
     for (let i = 0; i < this.armyUnits.length; i++) {
       const unit = this.armyUnits[i];
 
-      // ── اشتباك مع الوحوش (بدون تغيير) ──
+      // ── اشتباك مع الوحوش (مع crit + أدوار) ──
       if (unit.fighting && unit.fighting.alive) {
         const dx = unit.fighting.x - unit.x;
         const dy = unit.fighting.y - unit.y;
         const dist = Math.hypot(dx, dy);
+        const atkRange = unit.attackRange || 25;
 
-        if (dist > 25) {
+        if (dist > atkRange) {
           unit.facing = dx >= 0 ? 1 : -1;
           unit.x += (dx / dist) * unit.speed * dt;
           unit.y += (dy / dist) * unit.speed * dt;
         } else {
           unit.attackCD -= dt;
           if (unit.attackCD <= 0) {
-            this.damageMonster(unit.fighting, unit.baseDmg + unit.dmgBonus);
-            unit.attackCD = 0.6;
+            const crit = this._rollCrit();
+            const totalDmg = Math.floor((unit.baseDmg + unit.dmgBonus + crit.weaponDmg * 0.3) * (unit.role === "shield" ? 0.7 : crit.multiplier));
+            const isCrit = crit.isCrit && unit.role !== "shield";
+            this.damageMonster(unit.fighting, totalDmg, isCrit);
+            unit.attackCD = unit.role === "archer" ? 1.0 : unit.role === "shield" ? 0.8 : 0.6;
           }
         }
         continue;
@@ -1798,6 +2009,9 @@ export class WorldMap {
         continue;
       }
 
+      // تقليل shield timer
+      if (m._shieldTimer > 0) m._shieldTimer -= dt;
+
       // إذا السيرفر متصل — لا نحرك الوحوش محلياً (السيرفر هو المسؤول)
       if (connected) continue;
 
@@ -1812,20 +2026,28 @@ export class WorldMap {
         }
       }
 
-      // نطاق الرؤية (Chase range)
-      const CHASE_RANGE = 300;
+      // نطاق الرؤية (Chase range) — حسب نوع الوحش
+      let CHASE_RANGE = 300;
+      if (m._peaceful) CHASE_RANGE = 80;
+      else if (m._aggressiveRange) CHASE_RANGE = m._aggressiveRange;
 
       if (minDist < CHASE_RANGE) {
         // ===== مطاردة سلسة (Chase) =====
         if (minDist < 30) {
           m.attackCD -= dt;
           if (m.attackCD <= 0) {
-            if (target === this.leader) {
-              this.damageHero(m.damage);
-            } else {
-              target.hp = Math.max(0, target.hp - m.damage);
+            // قدرة الوحش الخاصة
+            if (m.ability && !this._applyMonsterAbility(m, target)) {
+              // هجوم عادي
+              if (target === this.leader) {
+                this.damageHero(m.damage);
+              } else {
+                target.hp = Math.max(0, target.hp - m.damage);
+              }
+              // تأثير هجوم عادي
+              spawnHitEffect(this, target.x || m.x, target.y || m.y, false);
             }
-            m.attackCD = 1.2;
+            m.attackCD = m.ability?.type === "heal" ? 2.5 : 1.2;
           }
           // تباطؤ تدريجي عند الاقتراب (حركة ناعمة حول الهدف)
           m._patrolTarget = null;
@@ -1884,34 +2106,79 @@ export class WorldMap {
     }
   }
 
-  damageMonster(monster, dmg) {
+  damageMonster(monster, dmg, isCrit = false) {
     if (!monster || !monster.alive) return;
+
+    // شيلد الوحش
+    if (monster._shieldTimer > 0) {
+      dmg = Math.floor(dmg * 0.5);
+    }
+
+    // دودج
+    if (monster.ability?.type === "dodge" && Math.random() < (monster.ability.chance || 0)) {
+      this.worldFx.push({ x: monster.x, y: monster.y, text: "💨 تفادى!", color: "#4a90d9", life: 0.8, maxLife: 0.8 });
+      return;
+    }
+
     monster.hp -= dmg;
+    const finalDmg = dmg;
+
+    // تأثيرات ضرب
+    spawnHitEffect(this, monster.x, monster.y, isCrit, this._equippedWeapon);
+    if (this.engine) {
+      const shakeIntensity = isCrit ? 8 : Math.min(4, Math.floor(dmg / 10));
+      this.engine.shake(shakeIntensity, 0.1);
+    }
+
+    // نص الضرر يظهر
+    const dmgText = isCrit ? `💥 ${finalDmg}!` : `-${finalDmg}`;
+    const dmgColor = isCrit ? "#ffd700" : "#ff6b35";
+    this.worldFx.push({ x: monster.x, y: monster.y - 10, text: dmgText, color: dmgColor, life: 0.8, maxLife: 0.8 });
+
     if (monster.hp <= 0) {
       if (this._onMonsterKilled) this._onMonsterKilled();
+      if (this._activeMode) this._activeMode.onMonsterKilled(monster);
       monster.alive = false;
       monster.respawnTimer = 25;
       const reward = monster.rewardMoney || 10;
       const goldReward = monster.rewardGold || Math.floor(reward * 0.3);
+
+      // ── Combo ──
+      this._comboCount++;
+      this._comboTimer = 5;
+      if (this._comboCount >= this._comboThreshold) {
+        const comboMult = 1 + Math.floor(this._comboCount / 3) * 0.25;
+        const bonusXp = Math.floor(10 * (comboMult - 1));
+        if (this.economy) {
+          this.economy.addXp(bonusXp);
+          spawnComboEffect(this, monster.x, monster.y - 20, this._comboCount);
+        }
+      }
+
       this.sessionStats.kills++;
       if (this.netSync) this.netSync.send({ type: "monster_killed", id: monster.id });
       this.createDrop(monster.x, monster.y, reward, goldReward);
+
       // 🏺 القطع الأثرية من الـ Bosses
       if (monster.isBoss && this.economy) {
-        const artifactDrop = 1 + Math.floor(Math.random() * 2); // 1-2 قطع
-        const gemDrop = monster.enemyId === 'final_boss' ? 1 : 0; // فقط boss النهائي يعطي جوهرة
+        const artifactDrop = 1 + Math.floor(Math.random() * 2);
+        const gemDrop = monster.enemyId === 'final_boss' ? 1 : 0;
         if (artifactDrop > 0) this.economy.addRaw('artifacts', artifactDrop);
         if (gemDrop > 0) this.economy.addRaw('desertGem', gemDrop);
         if (this.store) {
           this.store.set('notification', {
-            text: `🏺 حصلت على ${artifactDrop} قطع أثرية!${gemDrop ? ' 💠 وجوهرة الصحراء!' : ''}`,
+            text: `🏺 حصلت على ${artifactDrop} قطع أثرية!${gemDrop ? ' 💠وجوهرة الصحراء!' : ''}`,
             t: Date.now()
           });
         }
       } else if (this.economy && Math.random() < 0.08) {
-        // 8% فرصة سقوط قطعة أثرية من الوحوش العادية (للمستويات العالية)
         this.economy.addRaw('artifacts', 1);
       }
+
+      // تأثير موت الوحش
+      spawnMonsterDeathEffect(this, monster);
+      if (this.engine) this.engine.shake(monster.isBoss ? 12 : 4, monster.isBoss ? 0.3 : 0.15);
+
       this.worldFx.push({ x: monster.x, y: monster.y, text: `⚔️ قتلت ${monster.name}`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
     }
   }
@@ -1994,6 +2261,20 @@ export class WorldMap {
       // تاج ذهبي
       ctx.fillStyle = "#f5d76e";
       ctx.fillRect(-6, -l.radius - 8, 12, 8);
+    }
+
+    // Rage glow عندما HP < 30%
+    const hpRatio = l.hp / l.maxHp;
+    if (hpRatio < 0.3 && l.fighting) {
+      const ragePulse = 0.3 + 0.2 * Math.sin(Date.now() * 0.008);
+      ctx.save();
+      ctx.shadowColor = "#ff0000";
+      ctx.shadowBlur = 20 * ragePulse;
+      ctx.fillStyle = `rgba(255,0,0,${ragePulse * 0.15})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, l.radius * 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
     // HP bar
@@ -2492,6 +2773,7 @@ export class WorldMap {
   }
 
   async exitWorldMap() {
+    this.exitCurrentMode();
     if (this.netSync) {
       this.netSync.sendWSUpdate();
       await this.netSync.sendPositionUpdate();

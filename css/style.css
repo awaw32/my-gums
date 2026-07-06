@@ -297,6 +297,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
   background: var(--bg-surface);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -786,6 +787,8 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 #quick-panel.open {
   max-height: calc(var(--sub-h) + var(--qu-h) + 8px);
   opacity: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 /* ====== توافق مع الشاشات الصغيرة جداً ====== */
@@ -2233,8 +2236,30 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .pvp-defeat-label { color: var(--text-secondary); }
 .pvp-defeat-val { font-weight: 700; color: var(--text-primary); }
 .pvp-defeat-val.lost { color: #c0392b; }
+.pvp-defeat-countdown-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px;
+  background: rgba(192,57,43,0.08);
+  border-radius: 12px;
+  direction: rtl;
+}
+.pvp-defeat-countdown-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.pvp-defeat-countdown-num {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--accent-red);
+  min-width: 24px;
+  text-align: center;
+}
 .pvp-defeat-btn {
-  margin-top: 22px;
+  margin-top: 14px;
   padding: 14px 40px;
   border-radius: 14px;
   border: none;
@@ -4272,3 +4297,120 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .cinematic-overlay[style*="isTitle"] h1 {
   animation: cinematic-glow 1.5s ease-in-out infinite;
 }
+
+/* ====== تأكيد الصرف (Confirmation Dialog) ====== */
+#confirm-overlay {
+  position: fixed; inset: 0; z-index: 99999999;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; direction: rtl;
+  animation: confirm-fadein 0.2s ease;
+}
+#confirm-overlay.hidden { display: none !important; }
+#confirm-card {
+  width: 100%; max-width: 320px;
+  background: var(--bg-card, #fff);
+  border-radius: 24px; border: 2px solid var(--border-light, #e0d5c7);
+  padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  text-align: center;
+  animation: confirm-slidein 0.25s ease;
+}
+#confirm-icon { font-size: 2.5rem; margin-bottom: 12px; }
+#confirm-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary, #3d2b1a); }
+#confirm-desc { font-size: 0.85rem; color: #666; margin-bottom: 16px; line-height: 1.6; }
+#confirm-cost { background: #fef3c7; border-radius: 12px; padding: 12px; margin-bottom: 20px; font-size: 0.85rem; font-weight: 700; color: #92400e; border: 1px solid #fcd34d; }
+#confirm-cancel-btn {
+  flex: 1; padding: 14px 16px; min-height: 48px; border-radius: 12px;
+  background: #f3f4f6; color: #4b5563; border: none;
+  font-size: 0.85rem; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+#confirm-ok-btn {
+  flex: 1; padding: 14px 16px; min-height: 48px; border-radius: 12px;
+  background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff; border: none;
+  font-size: 0.85rem; font-weight: 700; cursor: pointer; font-family: inherit;
+  box-shadow: 0 4px 12px rgba(217,119,6,0.3);
+}
+#confirm-cancel-btn:active, #confirm-ok-btn:active { opacity: 0.85; }
+@keyframes confirm-fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes confirm-slidein { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* ====== مؤشر الاتصال (Offline Indicator) ====== */
+#offline-indicator {
+  position: fixed; top: calc(8px + var(--safe-t)); left: 50%;
+  transform: translateX(-50%); z-index: 9999999;
+  display: flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #fff; padding: 8px 20px; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 700; direction: rtl;
+  box-shadow: 0 4px 16px rgba(220,38,38,0.3);
+  animation: offline-pulse 2s ease-in-out infinite;
+  white-space: nowrap;
+}
+#offline-indicator.hidden { display: none !important; }
+#offline-indicator-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #fff; animation: offline-blink 1s ease-in-out infinite;
+}
+@keyframes offline-pulse { 0%, 100% { box-shadow: 0 4px 16px rgba(220,38,38,0.3); } 50% { box-shadow: 0 4px 24px rgba(220,38,38,0.5); } }
+@keyframes offline-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ====== حالات فارغة أنيقة (Empty States) ====== */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 20px; text-align: center;
+}
+.empty-state-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.7; }
+.empty-state-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary, #3d2b1a); margin-bottom: 6px; }
+.empty-state-desc { font-size: 0.75rem; color: var(--text-secondary, #8b7355); line-height: 1.5; max-width: 220px; }
+.empty-state-cta {
+  margin-top: 14px; padding: 10px 24px; min-height: 44px;
+  background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff;
+  border: none; border-radius: 12px; font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+
+/* ====== تحسينات الجوال الشاملة v2 ====== */
+@media (max-width: 480px) {
+  .lands-building { min-width: 60px; min-height: 60px; }
+  .lands-building-pad img { width: 40px; height: 40px; }
+  .lands-building-icon-wrap { width: 48px; height: 48px; }
+  .pvp-defeat-card { padding: 24px 16px; }
+  .pvp-defeat-card h2 { font-size: 1rem; }
+  .pvp-defeat-detail { font-size: 0.75rem; padding: 8px 2px; }
+  .shop-weapon-card { padding: 8px; }
+  .shop-weapon-card button { font-size: 0.65rem !important; padding: 8px !important; min-height: 36px; }
+  .weapon-shop-grid { gap: 6px; }
+}
+
+/* تحسين عام لحجم اللمس — كل الأزرار ≥44px */
+button, .nav-btn, .action-btn, .shop-buy-btn, .promo-btn, .quick-upgrade-btn,
+.weapon-card-btn, .craft-btn, .upgrade-btn, .tab-btn, .daily-claim-btn,
+.prestige-btn, .offline-claim-btn, .pvp-defeat-btn, .hero-ability-btn,
+.lands-building, .quest-claim-btn, .alliance-raid-btn, .alliance-boss-btn {
+  min-height: 44px;
+}
+.nav-btn { min-height: 52px; }
+.shop-buy-btn, .promo-btn, .weapon-card-btn { padding: 10px 16px !important; font-size: 0.75rem !important; }
+
+/* تحسين حجم الخط العربي — لا أقل من 0.7rem */
+.shop-item-name, .weapon-card-name, .building-name, .quest-title,
+.event-title, .panel-header, .prestige-title, .alliance-title,
+.lands-building-name, .promo-card-title, .tab-label {
+  font-size: clamp(0.7rem, 2.5vw, 0.85rem) !important;
+}
+.shop-item-desc, .weapon-card-desc, .building-desc, .quest-desc,
+.event-desc, .prestige-desc, .alliance-desc, .lands-building-level,
+.promo-card-desc {
+  font-size: clamp(0.65rem, 2vw, 0.8rem) !important;
+}
+
+/* إزالة تأخير النقر على الجوال */
+button, a, .nav-btn, .action-btn, [data-screen], [data-sub] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* إخفاء spinners من حقول الأرقام */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }

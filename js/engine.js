@@ -130,6 +130,13 @@ class GameEngine {
       },
     };
 
+    // ─── Screen Shake ───────────────────────────────────────────
+    this._shakeDuration = 0;
+    this._shakeIntensity = 0;
+    this._shakeTimer = 0;
+    this._shakeOffsetX = 0;
+    this._shakeOffsetY = 0;
+
     // ─── Timing ─────────────────────────────────────────────────
     this.lastTime   = performance.now();
     this.deltaTime  = 0;
@@ -210,12 +217,24 @@ class GameEngine {
       this.fpsTimer -= 1;
     }
 
+    // ── Screen Shake ──
+    if (this._shakeTimer > 0) {
+      this._shakeTimer -= this.deltaTime;
+      const progress = this._shakeTimer / this._shakeDuration;
+      const intensity = this._shakeIntensity * progress;
+      this._shakeOffsetX = (Math.random() - 0.5) * 2 * intensity;
+      this._shakeOffsetY = (Math.random() - 0.5) * 2 * intensity;
+    } else {
+      this._shakeOffsetX = 0;
+      this._shakeOffsetY = 0;
+    }
+
     this.ctx.clearRect(0, 0, this.width, this.height);
 
     const cam = this.camera;
     const cx = cam.w / 2, cy = cam.h / 2;
     this.ctx.save();
-    this.ctx.translate(cx, cy);
+    this.ctx.translate(cx + this._shakeOffsetX, cy + this._shakeOffsetY);
     this.ctx.scale(cam.zoom, cam.zoom);
     this.ctx.translate(-cx, -cy);
 
@@ -343,6 +362,12 @@ class GameEngine {
   zoomBy(factor) {
     const z = this.camera.zoom * factor;
     this.camera.zoom = Math.max(this.camera.minZoom, Math.min(this.camera.maxZoom, z));
+  }
+
+  shake(intensity, duration) {
+    this._shakeIntensity = intensity;
+    this._shakeDuration = duration;
+    this._shakeTimer = duration;
   }
   setZoom(level) {
     this.camera.zoom = Math.max(this.camera.minZoom, Math.min(this.camera.maxZoom, level));

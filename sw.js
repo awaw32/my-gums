@@ -6,7 +6,7 @@
  * 3. تحديث تلقائي عند تغيير الإصدار
  */
 
-const CACHE_NAME = 'desert-kingdom-v1';
+const CACHE_NAME = 'desert-kingdom-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -97,33 +97,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // استراتيجية الكاش أولاً للملفات الثابتة
+  // استراتيجية: الشبكة أولاً — الكاش كنسخة احتياطية عند انقطاع النت
+  // بهذه الطريقة، التحديثات تظهر فوراً بدون مسح الكاش
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      // إذا كان الملف موجوداً في الكاش — ارجع منه
-      if (cached) {
-        // ومع ذلك حاول تحديثه في الخلفية
-        fetch(event.request).then((response) => {
-          if (response.ok) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, response);
-            });
-          }
-        }).catch(() => {});
-        return cached;
+    fetch(event.request).then((response) => {
+      // خزّن النسخة الجديدة في الكاش للاستخدام لما النت يضعف
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, clone);
+        });
       }
-
-      // إذا الملف مش موجود — حمله من الشبكة  
-      return fetch(event.request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
-        }
-        return response;
-      }).catch(() => {
-        // إذا الشبكة مش موجودة والمحتوى مش مخبأ — أرجع رسالة خطأ
+      return response;
+    }).catch(() => {
+      // إذا النت مقطوع — استخدم الكاش
+      return caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        // إذا الملف مش موجود في الكاش أصلاً — أرجع رسالة خطأ
         if (url.pathname.endsWith('.html')) {
           return new Response(
             '<html dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ملك الصحراء</title><style>body{background:#FFF8F0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:Cairo,sans-serif;direction:rtl;text-align:center;padding:20px}div{max-width:400px}h2{color:#C0392B;font-size:1.5rem}p{color:#7D6B5A;font-size:1rem;line-height:1.6}button{background:#C0392B;color:#fff;border:0;padding:12px 24px;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:16px}</style></head><body><div><h2>🚫 لا يوجد اتصال</h2><p>عذراً، اللعبة تحتاج اتصال بالإنترنت للعب. حاول مرة أخرى لاحقاً.</p><button onclick="window.location.reload()">إعادة المحاولة</button></div></body></html>',

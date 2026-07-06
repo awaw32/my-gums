@@ -127,6 +127,13 @@ async function loadFromDatabase(economy, army, village, username) {
   }
 }
 
+function showLoadingError() {
+  const loadingPct = document.getElementById("loading-pct");
+  const loadingError = document.getElementById("loading-error");
+  if (loadingPct) loadingPct.textContent = "❌ فشل";
+  if (loadingError) loadingError.classList.remove("hidden");
+}
+
 async function init() {
   const loadingFill = document.getElementById("loading-progress");
   const loadingPct = document.getElementById("loading-pct");
@@ -708,6 +715,8 @@ async function init() {
 
     // 🦅 ربط مشاهد الـ Boss — تحويل القصة إلى وضع قتال الزعيم
     storyManager._onBossFight = (bossId) => {
+      // لا تقاطع أوضاع اللعب الخاصة (استخراج، حشد، كهف)
+      if (world._activeMode) { return; }
       // تشغيل حوار الزعيم أولاً
       storyManager.playBossDialogue().then(() => {
         ui.showNotification(`⚔️ معركة الزعيم: ${bossId}!`);
@@ -1139,6 +1148,5 @@ async function init() {
 
 init().catch(err => {
   console.error("❌ [FATAL] فشل تهيئة اللعبة:", err, err?.stack);
-  const sc = document.getElementById('screen-content');
-  if (sc) sc.innerHTML = '<div style="padding:30px;text-align:center;color:#e74c3c;background:#1a1a2e;min-height:100dvh"><h2>❌ حدث خطأ</h2><p style="margin-top:12px;font-size:14px;opacity:.7">تحقق من وحدة التحكم (F12)</p></div>';
+  showLoadingError();
 });

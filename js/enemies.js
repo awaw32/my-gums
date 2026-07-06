@@ -18,7 +18,8 @@ export const ENEMY_TYPES = {
     color: "#8a5a3a",
     radius: 14,
     speed: 120,
-    description: "ذئب جائع يهاجم المستوطنين الجدد"
+    description: "ذئب جائع يهاجم المستوطنين الجدد",
+    ability: { type: "pack_call", chance: 0.2, desc: "ينادي ذئباً آخر للمساعدة" }
   },
   desert_scorpion: {
     id: "desert_scorpion",
@@ -31,7 +32,8 @@ export const ENEMY_TYPES = {
     color: "#8b4513",
     radius: 12,
     speed: 100,
-    description: "عقرب سام يحرس الواحة"
+    description: "عقرب سام يحرس الواحة",
+    ability: { type: "poison", chance: 0.3, desc: "يسم الخصم — ضرر مستمر لمدة 3ث", poisonDps: 3, poisonDuration: 3 }
   },
   desert_thief: {
     id: "desert_thief",
@@ -44,7 +46,8 @@ export const ENEMY_TYPES = {
     color: "#2c1810",
     radius: 16,
     speed: 110,
-    description: "لص يسرق الموارد من المستوطنين"
+    description: "لص يسرق الموارد من المستوطنين",
+    ability: { type: "dodge", chance: 0.3, desc: "يتفادى الهجمات بنسبة 30%" }
   },
 
   // ── Boss فصل 1 ──
@@ -60,7 +63,8 @@ export const ENEMY_TYPES = {
     radius: 22,
     speed: 90,
     isBoss: true,
-    description: "عاصفة رملية كبرى تهدد الواحة"
+    description: "عاصفة رملية كبرى تهدد الواحة",
+    ability: { type: "sandstorm", chance: 0.15, desc: "عاصفة رملية تعمي الخصم — تقلل دقته 50% لـ 3ث" }
   },
 
   // ── فصل 2: أطلال القصر ──
@@ -75,7 +79,8 @@ export const ENEMY_TYPES = {
     color: "#7f8c8d",
     radius: 18,
     speed: 80,
-    description: "شبح فارس قديم يحرس القصر"
+    description: "شبح فارس قديم يحرس القصر",
+    ability: { type: "phase", chance: 0.25, desc: "يتلاشى ويتجنب الهجمات لـ 1.5ث" }
   },
   shadow_knight: {
     id: "shadow_knight",
@@ -88,7 +93,8 @@ export const ENEMY_TYPES = {
     color: "#1a1a2e",
     radius: 20,
     speed: 95,
-    description: "فارس مدرع من العصر القديم"
+    description: "فارس مدرع من العصر القديم",
+    ability: { type: "charge", chance: 0.2, desc: "هجوم سريع — ضرر ×2", chargeMultiplier: 2 }
   },
   sand_sorcerer: {
     id: "sand_sorcerer",
@@ -101,7 +107,8 @@ export const ENEMY_TYPES = {
     color: "#8e44ad",
     radius: 18,
     speed: 70,
-    description: "ساحر يستخدم قوى الرمال"
+    description: "ساحر يستخدم قوى الرمال",
+    ability: { type: "heal", chance: 0.15, desc: "يشفي نفسه بنسبة 30% من HP", healPercent: 0.3 }
   },
 
   // ── Boss فصل 2 ──
@@ -117,7 +124,8 @@ export const ENEMY_TYPES = {
     radius: 25,
     speed: 85,
     isBoss: true,
-    description: "حارس أخير يحرس الكنوز القديمة"
+    description: "حارس أخير يحرس الكنوز القديمة",
+    ability: { type: "shield", chance: 0.2, desc: "يدرع نفسه — يقلل الضرر 50% لـ 3ث" }
   },
 
   // ── فصل 3: قلعة الجبل ──
@@ -132,7 +140,8 @@ export const ENEMY_TYPES = {
     color: "#7f8c8d",
     radius: 20,
     speed: 100,
-    description: "محارب مدرب يهاجم القلاع"
+    description: "محارب مدرب يهاجم القلاع",
+    ability: { type: "charge", chance: 0.2, desc: "هجوم سريع — ضرر ×2", chargeMultiplier: 2 }
   },
   iron_knight: {
     id: "iron_knight",
@@ -145,7 +154,8 @@ export const ENEMY_TYPES = {
     color: "#566573",
     radius: 22,
     speed: 85,
-    description: "فارس بدرع حديدي ثقيل"
+    description: "فارس بدرع حديدي ثقيل",
+    ability: { type: "shield", chance: 0.2, desc: "يدرع نفسه — يقلل الضرر 50% لـ 3ث" }
   },
   mountain_eagle: {
     id: "mountain_eagle",
@@ -158,7 +168,8 @@ export const ENEMY_TYPES = {
     color: "#1a5276",
     radius: 20,
     speed: 130,
-    description: "طائر ضخم يهاجم من السماء"
+    description: "طائر ضخم يهاجم من السماء",
+    ability: { type: "swoop", chance: 0.15, desc: "انقضاض سريع — ضرر ×3", chargeMultiplier: 3 }
   },
 
   // ── Boss فصل 3 ──
@@ -174,7 +185,8 @@ export const ENEMY_TYPES = {
     radius: 30,
     speed: 80,
     isBoss: true,
-    description: "تنين عظيم يحرس قمة الجبل"
+    description: "تنين عظيم يحرس قمة الجبل",
+    ability: { type: "fire_breath", chance: 0.12, desc: "نفس النار — ضرر ×3 لكل الجنود", chargeMultiplier: 3 }
   },
 
   // ── فصل 4: سهول الريف ──
@@ -189,7 +201,8 @@ export const ENEMY_TYPES = {
     color: "#4a235a",
     radius: 18,
     speed: 110,
-    description: "لص مسلح يهاجم القوافل التجارية"
+    description: "لص مسلح يهاجم القوافل التجارية",
+    ability: { type: "dodge", chance: 0.25, desc: "يتفادى الهجمات بنسبة 25%" }
   },
   armored_knight: {
     id: "armored_knight",
@@ -202,7 +215,8 @@ export const ENEMY_TYPES = {
     color: "#1b2631",
     radius: 22,
     speed: 80,
-    description: "فارس بدرع كامل وسلاح ثقيل"
+    description: "فارس بدرع كامل وسلاح ثقيل",
+    ability: { type: "shield", chance: 0.25, desc: "يدرع نفسه — يقلل الضرر 50% لـ 3ث" }
   },
   war_sorcerer: {
     id: "war_sorcerer",
@@ -215,7 +229,8 @@ export const ENEMY_TYPES = {
     color: "#6c3483",
     radius: 18,
     speed: 90,
-    description: "ساحر يتحكم في عناصر الحرب"
+    description: "ساحر يتحكم في عناصر الحرب",
+    ability: { type: "aoe", chance: 0.12, desc: "هجوم شامل — يضر كل الجنود", aoeDamage: 50 }
   },
 
   // ── Boss فصل 4 ──
@@ -231,7 +246,8 @@ export const ENEMY_TYPES = {
     radius: 35,
     speed: 70,
     isBoss: true,
-    description: "جيش كامل من الغزاة يهدد السهول"
+    description: "جيش كامل من الغزاة يهدد السهول",
+    ability: { type: "aoe", chance: 0.1, desc: "هجوم شامل — يضر كل الجنود", aoeDamage: 100 }
   },
 
   // ── فصل 5: قصر الملك ──
@@ -246,7 +262,8 @@ export const ENEMY_TYPES = {
     color: "#922b21",
     radius: 20,
     speed: 95,
-    description: "محارب متمرد يريد العرش"
+    description: "محارب متمرد يريد العرش",
+    ability: { type: "charge", chance: 0.15, desc: "هجوم سريع — ضرر ×2.5", chargeMultiplier: 2.5 }
   },
   fleet_knight: {
     id: "fleet_knight",
@@ -259,7 +276,8 @@ export const ENEMY_TYPES = {
     color: "#1a5276",
     radius: 24,
     speed: 85,
-    description: "قائد أسطول بحري غازي"
+    description: "قائد أسطول بحري غازي",
+    ability: { type: "shield", chance: 0.2, desc: "يدرع نفسه — يقلل الضرر 50% لـ 3ث" }
   },
   dark_sorcerer: {
     id: "dark_sorcerer",
@@ -272,7 +290,8 @@ export const ENEMY_TYPES = {
     color: "#0d0d0d",
     radius: 20,
     speed: 90,
-    description: "ساحر ظلام أقوى يهدد المملكة"
+    description: "ساحر ظلام أقوى يهدد المملكة",
+    ability: { type: "heal", chance: 0.12, desc: "يشفي نفسه بنسبة 40% من HP", healPercent: 0.4 }
   },
 
   // ── Boss النهائي ──
@@ -288,7 +307,8 @@ export const ENEMY_TYPES = {
     radius: 40,
     speed: 100,
     isBoss: true,
-    description: "آخر تحدٍ قبل العرش - صقر عملاق يحرس العرش الملكي"
+    description: "آخر تحدٍ قبل العرش - صقر عملاق يحرس العرش الملكي",
+    ability: { type: "swoop", chance: 0.1, desc: "انقضاض سريع — ضرر ×4", chargeMultiplier: 4 }
   },
 
   // ── أعداء إضافيين (موسميين/نادرين) ──
@@ -303,7 +323,8 @@ export const ENEMY_TYPES = {
     color: "#8b0000",
     radius: 16,
     speed: 110,
-    description: "عقرب ضخم بسم قاتل - يظهر نادراً"
+    description: "عقرب ضخم بسم قاتل - يظهر نادراً",
+    ability: { type: "poison", chance: 0.4, desc: "يسم الخصم بقوة — ضرر مستمر 5ث", poisonDps: 5, poisonDuration: 5 }
   },
   sand_dragon: {
     id: "sand_dragon",
@@ -317,7 +338,8 @@ export const ENEMY_TYPES = {
     radius: 28,
     speed: 90,
     isBoss: true,
-    description: "تنين صحراوي نادر يظهر في العواصف الرملية"
+    description: "تنين صحراوي نادر يظهر في العواصف الرملية",
+    ability: { type: "fire_breath", chance: 0.12, desc: "نفس النار — ضرر ×3 لكل الجنود", chargeMultiplier: 3 }
   },
   giant_sand: {
     id: "giant_sand",
@@ -330,7 +352,8 @@ export const ENEMY_TYPES = {
     color: "#c4a35a",
     radius: 26,
     speed: 60,
-    description: "عملاق صحراوي ضخم مصنوع من الرمال المتحجرة"
+    description: "عملاق صحراوي ضخم مصنوع من الرمال المتحجرة",
+    ability: { type: "stomp", chance: 0.15, desc: "ضربة أرضية — تبطئ الخصم 50% لـ 2ث" }
   },
   mystic_mage: {
     id: "mystic_mage",
@@ -343,7 +366,8 @@ export const ENEMY_TYPES = {
     color: "#6c3483",
     radius: 16,
     speed: 80,
-    description: "ساحر قديم يحرس الأسرار المدفونة"
+    description: "ساحر قديم يحرس الأسرار المدفونة",
+    ability: { type: "heal", chance: 0.2, desc: "يشفي نفسه بنسبة 50% من HP", healPercent: 0.5 }
   },
   thief_assassin: {
     id: "thief_assassin",
@@ -356,7 +380,8 @@ export const ENEMY_TYPES = {
     color: "#1a1a1a",
     radius: 14,
     speed: 130,
-    description: "لص سريع يهاجم من الظلام"
+    description: "لص سريع يهاجم من الظلام",
+    ability: { type: "dodge", chance: 0.35, desc: "يتفادى الهجمات بنسبة 35%" }
   }
 };
 

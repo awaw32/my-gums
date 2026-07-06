@@ -23,6 +23,11 @@ export class PrestigeManager {
     return PRESTIGE_BONUSES[this.level - 1];
   }
 
+  getBonusForLevel(level) {
+    if (level < 1 || level > this.maxLevel) return { dmgMult: 1, title: "—", icon: "—" };
+    return PRESTIGE_BONUSES[level - 1];
+  }
+
   get dmgMult() { return this.currentBonus.dmgMult; }
   get xpMult() { return 1 + this.level * 0.5; } // كل مستوى Prestige يعطي +50% XP
 

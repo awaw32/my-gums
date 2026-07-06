@@ -408,6 +408,52 @@ export class GameUI {
     }, 3000);
   }
 
+  showConfirmDialog(opts) {
+    const overlay = document.getElementById("confirm-overlay");
+    const icon = document.getElementById("confirm-icon");
+    const title = document.getElementById("confirm-title");
+    const desc = document.getElementById("confirm-desc");
+    const cost = document.getElementById("confirm-cost");
+    const okBtn = document.getElementById("confirm-ok-btn");
+    const cancelBtn = document.getElementById("confirm-cancel-btn");
+    if (!overlay || !okBtn || !cancelBtn) return;
+
+    icon.textContent = opts.icon || "💎";
+    title.textContent = opts.title || "تأكيد الصرف";
+    desc.textContent = opts.desc || "هل أنت متأكد؟";
+    cost.textContent = opts.cost || "";
+    okBtn.textContent = opts.okLabel || "تأكيد";
+    overlay.classList.remove("hidden");
+
+    const cleanup = () => {
+      overlay.classList.add("hidden");
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      overlay.onclick = null;
+    };
+
+    okBtn.onclick = () => { cleanup(); if (opts.onConfirm) opts.onConfirm(); };
+    cancelBtn.onclick = cleanup;
+    overlay.onclick = (e) => { if (e.target === overlay) cleanup(); };
+  }
+
+  spendWithConfirm(type, amount, label, onSpend) {
+    if (amount <= 0) { if (onSpend) onSpend(); return; }
+    const eco = this.economy;
+    if (!eco.canAfford(type, amount)) {
+      this.showNotification(`❌ لا تملك ${label} كافياً`);
+      return;
+    }
+    this.showConfirmDialog({
+      icon: "💎",
+      title: `💰 صرف ${amount} ${label}`,
+      desc: `هل أنت متأكد من صرف ${amount} ${label}؟ هذا الإجراء لا يمكن التراجع عنه.`,
+      cost: `${amount} 💎`,
+      okLabel: `✅ ادفع ${amount} ${label}`,
+      onConfirm() { if (eco.spend(type, amount) && onSpend) onSpend(); }
+    });
+  }
+
   showPlayerPanel() {
     if (this._playerPanel) {
       this._playerPanel.classList.remove("hidden");
@@ -746,6 +792,9 @@ export class GameUI {
     
     // المهام اليومية
     html += '<div class="quests-section-title">📋 المهام اليومية</div>';
+    if (!dailyQuests || dailyQuests.length === 0) {
+      html += '<div class="empty-state" style="padding:20px"><div class="empty-state-icon">📋</div><div class="empty-state-title">لا مهام اليوم</div><div class="empty-state-desc">كل المهام اكتملت! استعد غداً لمهام جديدة.</div></div>';
+    } else {
     html += '<div class="quests-list">';
     for (const quest of dailyQuests) {
       const progress = Math.min(100, (quest.progress / quest.target) * 100);
@@ -765,6 +814,7 @@ export class GameUI {
       `;
     }
     html += '</div>';
+    }
     
     container.innerHTML = html;
     
@@ -1068,7 +1118,7 @@ export class GameUI {
       const itemIcons = { heal_potion: '🧪', xp_scroll: '📜', arena_ticket: '🎫', fire_sword: '🗡️', desert_shield: '🛡️', power_helmet: '⛑️', power_gem: '💎', tower_blueprint: '📐' };
       const itemLabels = { heal_potion: 'جرعة علاج (+50 HP)', xp_scroll: 'لفافة خبرة (+500 XP)', arena_ticket: 'تذكرة ساحة', fire_sword: 'سيف ناري (30ث)', desert_shield: 'درع صحراوي (60ث)', power_helmet: 'خوذة القوة (60ث)', power_gem: 'جوهرة القوة (×2 5د)', tower_blueprint: 'مخطط برج' };
       itemsEl.innerHTML = Object.keys(state.items).length === 0
-        ? '<div style="text-align:center;padding:20px;color:var(--beige-dark)">📭 المخزون فارغ — اصنع قطعتك الأولى!</div>'
+        ? '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-title">المخزون فارغ</div><div class="empty-state-desc">لم تصنع أي قطعة بعد. توجه إلى ورشة التصنيع لصنع أدواتك الأولى!</div></div>'
         : Object.entries(state.items).map(([id, count]) => {
             const isUsable = usableItems.includes(id);
             return `<div class="inventory-item">
@@ -1123,7 +1173,7 @@ export class GameUI {
     if (!list || !this.events) return;
     const all = this.events.getState();
     list.innerHTML = all.length === 0
-      ? '<div style="text-align:center;padding:20px;color:var(--beige-dark)">لا توجد أحداث حالياً</div>'
+      ? '<div class="empty-state"><div class="empty-state-icon">🎊</div><div class="empty-state-title">لا توجد أحداث</div><div class="empty-state-desc">الصحراء هادئة اليوم... لكن التاجر يهمس بقدوم حدث قريب. ترقّب!</div></div>'
       : all.map(e => `<div class="event-card${e.active ? ' event-active' : ''}">
           <div class="event-icon">${e.icon}</div>
           <div class="event-info">
@@ -1151,12 +1201,23 @@ export class GameUI {
       btn.className = "action-btn prestige-btn";
       btn.textContent = `🔄 Prestige الآن!`;
       btn.addEventListener("click", () => {
-        if (this.prestige.prestige()) {
-          this.showNotification(`🔄 Prestige #${state.level + 1}!`);
-          this.renderPrestige();
-          this.renderPromotion();
-          this.updateTopBar();
-        }
+        const nextLevel = state.level + 1;
+        const nextBonus = this.prestige.getBonusForLevel(nextLevel);
+        this.showConfirmDialog({
+          icon: "👑",
+          title: `🔄 إعادة الميلاد — المستوى ${nextLevel}`,
+          desc: `الملك العظيم، هل أنت متأكد من بدء الحكاية من جديد؟ ستفقد كل التقدم ولكن ستحتفظ بـ 50 💎 وقوة مضاعفة!`,
+          cost: `🔄 Prestige ${nextLevel}: ${nextBonus?.icon || ''} ×${nextBonus?.dmgMult || '?'} ضرر | +${50 * nextLevel}% XP`,
+          okLabel: "👑 أعد الميلاد",
+          onConfirm: () => {
+            if (this.prestige.prestige()) {
+              this.showNotification(`🔄 Prestige #${nextLevel}! ${nextBonus?.icon} الضرر ×${nextBonus?.dmgMult}`);
+              this.renderPrestige();
+              this.renderPromotion();
+              this.updateTopBar();
+            }
+          }
+        });
       });
       container.appendChild(btn);
     } else {
@@ -1219,6 +1280,10 @@ export class GameUI {
       return;
     }
     const state = this.oasisManager.getState();
+    if (!state || state.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🌴</div><div class="empty-state-title">لا واحات بعد</div><div class="empty-state-desc">لم تسيطر على أي واحة بعد. الواحات تدر دخلاً ثابتاً — ابحث عنها في الخريطة!</div></div>';
+      return;
+    }
     container.innerHTML = `
       <div class="oases-grid">
         ${state.map((o, i) => `

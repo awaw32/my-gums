@@ -55,6 +55,23 @@ GameUI.prototype.buildWarScreen = function() {
         <div class="war-mode-desc">PvE — مراحل القصة</div>
       </button>
     </div>
+    <div class="war-modes-row" style="margin-top:8px">
+      <button class="war-mode-btn" id="extraction-enter-btn" data-mode="extraction">
+        <div class="war-mode-icon">🪙</div>
+        <div class="war-mode-name">استخراج</div>
+        <div class="war-mode-desc">PvE — جمع الذهب والتسليم</div>
+      </button>
+      <button class="war-mode-btn" id="horde-enter-btn" data-mode="horde">
+        <div class="war-mode-icon">🌊</div>
+        <div class="war-mode-name">حشد</div>
+        <div class="war-mode-desc">PvE — وحوش تتضاعف</div>
+      </button>
+      <button class="war-mode-btn" id="cave-enter-btn" data-mode="cave">
+        <div class="war-mode-icon">🕯️</div>
+        <div class="war-mode-name">كهف</div>
+        <div class="war-mode-desc">PvE — استكشاف وظلام</div>
+      </button>
+    </div>
     <div class="war-mode-details" id="war-mode-details">
       <div class="war-detail-card" id="war-detail-oasis">
         <div class="war-detail-header">
@@ -99,6 +116,51 @@ GameUI.prototype.buildWarScreen = function() {
             <div class="war-stat"><span class="war-stat-icon">📖</span><span class="war-stat-label">المراحل</span><span class="war-stat-value" id="war-campaign-progress">0/∞</span></div>
           </div>
           <button class="war-start-btn" id="war-start-campaign">🚀 ابدأ الحملة</button>
+        </div>
+      </div>
+      <div class="war-detail-card hidden" id="war-detail-extraction">
+        <div class="war-detail-header">
+          <span class="war-detail-icon">🪙</span>
+          <span class="war-detail-title">استخراج الذهب</span>
+        </div>
+        <div class="war-detail-body">
+          <p>وحوش مسالمة — اذبحها واجمع الذهب. لكن احترس: كلما جمعت أكثر، تباطأت أكثر! سلم الذهب في نقطة التسليم قبل فوات الوقت.</p>
+          <div class="war-detail-stats">
+            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE (وحوش مسالمة)</span></div>
+            <div class="war-stat"><span class="war-stat-icon">🎒</span><span class="war-stat-label">الحقيبة</span><span class="war-stat-value">تتثقل بالذهب</span></div>
+            <div class="war-stat"><span class="war-stat-icon">📍</span><span class="war-stat-label">التسليم</span><span class="war-stat-value">نقطة في الخريطة</span></div>
+          </div>
+          <button class="war-start-btn" id="war-start-extraction">🪙 ابدأ الاستخراج</button>
+        </div>
+      </div>
+      <div class="war-detail-card hidden" id="war-detail-horde">
+        <div class="war-detail-header">
+          <span class="war-detail-icon">🌊</span>
+          <span class="war-detail-title">حشد الأعداء</span>
+        </div>
+        <div class="war-detail-body">
+          <p>وحوش شرسة تتضاعف! كل وحش تقتله يظهر اثنان مكانه. كم موجة تستطيع الصمود؟</p>
+          <div class="war-detail-stats">
+            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE (حشد)</span></div>
+            <div class="war-stat"><span class="war-stat-icon">🔄</span><span class="war-stat-label">التضاعف</span><span class="war-stat-value">كل وحش ← 2</span></div>
+            <div class="war-stat"><span class="war-stat-icon">⏱</span><span class="war-stat-label">الموجات</span><span class="war-stat-value">كم تصمد؟</span></div>
+          </div>
+          <button class="war-start-btn" id="war-start-horde">🌊 ابدأ الحشد</button>
+        </div>
+      </div>
+      <div class="war-detail-card hidden" id="war-detail-cave">
+        <div class="war-detail-header">
+          <span class="war-detail-icon">🕯️</span>
+          <span class="war-detail-title">استكشاف الكهف</span>
+        </div>
+        <div class="war-detail-body">
+          <p>ادخل الكهف المظلم — أرضية سوداء وبراكين ووحوش نارية. استكشف الأنفاق واجمع الكنوز النادرة!</p>
+          <div class="war-detail-stats">
+            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE (كهف)</span></div>
+            <div class="war-stat"><span class="war-stat-icon">🌋</span><span class="war-stat-label">البيئة</span><span class="war-stat-value">ظلام + حمم</span></div>
+            <div class="war-stat"><span class="war-stat-icon">💎</span><span class="war-stat-label">الكنوز</span><span class="war-stat-value">أشياء نادرة</span></div>
+          </div>
+          <button class="war-start-btn" id="war-start-cave">🕯️ ادخل الكهف</button>
         </div>
       </div>
     </div>
@@ -390,7 +452,7 @@ GameUI.prototype._landsToast = function(msg) {
 };
 
 GameUI.prototype.renderWar = function() {
-  const modes = ['oasis', 'adventure', 'campaign'];
+  const modes = ['oasis', 'adventure', 'campaign', 'extraction', 'horde', 'cave'];
   const selectMode = (mode) => {
     for (const m of modes) {
       const btn = document.querySelector(`.war-mode-btn[data-mode="${m}"]`);
@@ -409,9 +471,15 @@ GameUI.prototype.renderWar = function() {
   const oasisBtn = document.getElementById("war-start-oasis");
   const adventureBtn = document.getElementById("war-start-adventure");
   const campaignBtn = document.getElementById("war-start-campaign");
+  const extractionBtn = document.getElementById("war-start-extraction");
+  const hordeBtn = document.getElementById("war-start-horde");
+  const caveBtn = document.getElementById("war-start-cave");
   if (oasisBtn) oasisBtn.addEventListener('click', () => this.enterArena());
   if (adventureBtn) adventureBtn.addEventListener('click', () => this.enterAdventure());
   if (campaignBtn) campaignBtn.addEventListener('click', () => this.enterCampaign());
+  if (extractionBtn) extractionBtn.addEventListener('click', () => this.enterExtraction());
+  if (hordeBtn) hordeBtn.addEventListener('click', () => this.enterHorde());
+  if (caveBtn) caveBtn.addEventListener('click', () => this.enterCave());
 };
 
 GameUI.prototype.enterArena = function() {
@@ -484,6 +552,69 @@ GameUI.prototype.enterCampaign = function() {
     const objective = chapter ? chapter.title : "حملة الأبطال";
     this.showNotification(`🗺️ ${objective} — اقضِ على وحوش ${this.village?.currentVillage?.name || "القرية"}!`);
   }
+};
+
+GameUI.prototype.enterExtraction = function() {
+  document.getElementById("gameCanvas")?.classList.remove("hidden");
+  const topBar = document.getElementById("top-bar");
+  const bottomBar = document.getElementById("bottom-bar");
+  const subBar = document.getElementById("sub-bar");
+  const content = document.getElementById("screen-content");
+  const worldButtons = document.getElementById("world-buttons");
+  const quickPanel = document.getElementById("quick-panel");
+  if (topBar) topBar.style.display = "none";
+  if (subBar) subBar.style.display = "none";
+  if (quickPanel) quickPanel.style.display = "none";
+  if (bottomBar) bottomBar.style.display = "none";
+  if (content) content.style.display = "none";
+  if (worldButtons) worldButtons.classList.remove("hidden");
+  this.showPlayerPanel();
+  if (this.world) {
+    this.world.switchToMode("extraction");
+  }
+  this.showNotification("🪙 وضع الاستخراج — اذبح الوحوش المسالمة واجمع الذهب! سلمه قبل فوات الوقت!");
+};
+
+GameUI.prototype.enterHorde = function() {
+  document.getElementById("gameCanvas")?.classList.remove("hidden");
+  const topBar = document.getElementById("top-bar");
+  const bottomBar = document.getElementById("bottom-bar");
+  const subBar = document.getElementById("sub-bar");
+  const content = document.getElementById("screen-content");
+  const worldButtons = document.getElementById("world-buttons");
+  const quickPanel = document.getElementById("quick-panel");
+  if (topBar) topBar.style.display = "none";
+  if (subBar) subBar.style.display = "none";
+  if (quickPanel) quickPanel.style.display = "none";
+  if (bottomBar) bottomBar.style.display = "none";
+  if (content) content.style.display = "none";
+  if (worldButtons) worldButtons.classList.remove("hidden");
+  this.showPlayerPanel();
+  if (this.world) {
+    this.world.switchToMode("horde");
+  }
+  this.showNotification("🌊 وضع الحشد — كل وحش تقتله يتضاعف! كم موجة تصمد؟");
+};
+
+GameUI.prototype.enterCave = function() {
+  document.getElementById("gameCanvas")?.classList.remove("hidden");
+  const topBar = document.getElementById("top-bar");
+  const bottomBar = document.getElementById("bottom-bar");
+  const subBar = document.getElementById("sub-bar");
+  const content = document.getElementById("screen-content");
+  const worldButtons = document.getElementById("world-buttons");
+  const quickPanel = document.getElementById("quick-panel");
+  if (topBar) topBar.style.display = "none";
+  if (subBar) subBar.style.display = "none";
+  if (quickPanel) quickPanel.style.display = "none";
+  if (bottomBar) bottomBar.style.display = "none";
+  if (content) content.style.display = "none";
+  if (worldButtons) worldButtons.classList.remove("hidden");
+  this.showPlayerPanel();
+  if (this.world) {
+    this.world.switchToMode("cave");
+  }
+  this.showNotification("🕯️ كهف الاستكشاف — ظلام وبراكين ووحوش نارية! ابحث عن الكنوز النادرة!");
 };
 
 GameUI.prototype.getBuildingIcon = function(b) {

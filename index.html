@@ -65,6 +65,12 @@
       <div class="loading-bar-fill" id="loading-progress"></div>
     </div>
     <p class="loading-pct" id="loading-pct">0%</p>
+    <div id="loading-error" class="loading-error hidden">
+      <div style="font-size:2rem;margin-bottom:10px">😵</div>
+      <div style="font-weight:700;font-size:0.9rem;color:#e74c3c">عذراً! تعذر تحميل اللعبة</div>
+      <div style="font-size:0.75rem;color:var(--beige-dark);margin:8px 0 16px">قد يكون اتصالك بالإنترنت ضعيفاً أو الخادم مشغولاً</div>
+      <button onclick="location.reload()" style="padding:12px 32px;min-height:44px;background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;border:none;border-radius:12px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit">🔄 حاول مجدداً</button>
+    </div>
   </div>
 
   <!-- ====== خلفية الشاشة الكاملة (FIXED - لا تتحرك أبداً) ====== -->
@@ -334,7 +340,12 @@
           <span class="pvp-defeat-label">نقص القوة</span>
           <span class="pvp-defeat-val lost" id="pvp-defeat-power-loss">0 👊</span>
         </div>
-        <button id="pvp-defeat-return-btn" class="pvp-defeat-btn">🗺️ إعادة دخول الخريطة</button>
+        <div class="pvp-defeat-countdown-wrap">
+          <span class="pvp-defeat-countdown-text">العودة تلقائياً خلال</span>
+          <span class="pvp-defeat-countdown-num" id="pvp-defeat-countdown">10</span>
+          <span class="pvp-defeat-countdown-text">ثواني</span>
+        </div>
+        <button id="pvp-defeat-return-btn" class="pvp-defeat-btn">🗺️ العودة للخريطة</button>
       </div>
     </div>
 
@@ -410,6 +421,26 @@
       <div id="modal-card" class="w-full max-w-sm bg-white rounded-2xl border border-[var(--border-light)] p-5 shadow-lg">
         <!-- المحتوى يُنشأ ديناميكياً من ui.js -->
       </div>
+    </div>
+
+    <!-- ====== تأكيد الصرف (Confirmation Dialog) ====== -->
+    <div id="confirm-overlay" class="fixed inset-0 z-[99999999] bg-black/60 flex items-center justify-center p-4 hidden" style="direction:rtl">
+      <div id="confirm-card" class="w-full max-w-xs bg-white rounded-3xl border-2 border-[var(--border-light)] p-6 shadow-2xl text-center">
+        <div id="confirm-icon" class="text-3xl mb-3">💎</div>
+        <h3 id="confirm-title" class="text-lg font-bold mb-2">تأكيد الصرف</h3>
+        <p id="confirm-desc" class="text-sm text-gray-600 mb-4 leading-relaxed">هل أنت متأكد من إتمام هذه العملية؟</p>
+        <div id="confirm-cost" class="bg-amber-50 rounded-xl p-3 mb-5 text-sm font-semibold text-amber-900 border border-amber-200"></div>
+        <div class="flex gap-3">
+          <button id="confirm-cancel-btn" class="flex-1 py-3 px-4 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm">إلغاء</button>
+          <button id="confirm-ok-btn" class="flex-1 py-3 px-4 rounded-xl bg-amber-600 text-white font-semibold text-sm shadow-md">تأكيد</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== مؤشر الاتصال (Offline Indicator) ====== -->
+    <div id="offline-indicator" class="hidden">
+      <span id="offline-indicator-text">🌪️ عاصفة رملية قطعت الاتصال... جاري إعادة الاتصال</span>
+      <span id="offline-indicator-dot"></span>
     </div>
 
   </div><!-- نهاية app-shell -->

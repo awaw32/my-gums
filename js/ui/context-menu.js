@@ -32,10 +32,44 @@ export function showPvPDefeat(worldMap, killerName, killerPower, lootTaken, powe
   const lossEl = document.getElementById("pvp-defeat-power-loss");
   if (!modal) return;
   if (killerEl) killerEl.textContent = killerName;
-  if (powerEl) powerEl.textContent = `${killerPower} 👊 (DMG: ${enemyDamage || '?'} | HP: ${enemyMaxHp || '?'})`;
+  if (powerEl) powerEl.textContent = `${killerPower} 👊`;
   if (lootEl) lootEl.textContent = `${lootTaken} 💵`;
   if (lossEl) lossEl.textContent = `${powerLoss} 👊`;
+
+  // عد تنازلي 10 ثواني ثم العودة تلقائياً
+  const countdownEl = document.getElementById("pvp-defeat-countdown");
+  const returnBtn = document.getElementById("pvp-defeat-return-btn");
+  let countdown = 10;
+  if (countdownEl) countdownEl.textContent = countdown.toString();
+
+  if (returnBtn) {
+    returnBtn.textContent = `🗺️ العودة (${countdown})`;
+  }
+
   modal.classList.remove("hidden");
+
+  const oldBtn = returnBtn?._pvpCountdown;
+  if (oldBtn) { clearInterval(oldBtn); }
+
+  const timer = setInterval(() => {
+    countdown--;
+    if (countdownEl) countdownEl.textContent = countdown.toString();
+    if (returnBtn) returnBtn.textContent = `🗺️ العودة (${countdown})`;
+    if (countdown <= 0) {
+      clearInterval(timer);
+      modal.classList.add("hidden");
+      if (worldMap._onPvPReturn) worldMap._onPvPReturn();
+    }
+  }, 1000);
+
+  if (returnBtn) {
+    returnBtn._pvpCountdown = timer;
+    returnBtn.onclick = () => {
+      clearInterval(timer);
+      modal.classList.add("hidden");
+      if (worldMap._onPvPReturn) worldMap._onPvPReturn();
+    };
+  }
 }
 
 export function showWipeScreen(worldMap, lost, killed) {

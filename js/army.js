@@ -1,3 +1,9 @@
+export const SOLDIER_ROLES = {
+  warrior:  { name: "مقاتل", baseDmg: 5,  range: 25,  hp: 40, speed: 135, icon: "🗡️", color: "#3d2b1f" },
+  archer:   { name: "قناص",  baseDmg: 3,  range: 60,  hp: 25, speed: 120, icon: "🏹", color: "#2c1810" },
+  shield:   { name: "درع",   baseDmg: 2,  range: 20,  hp: 70, speed: 100, icon: "🛡️", color: "#4a4a6a" },
+};
+
 export const WEAPON_DATA = [
   { id: "w1", name: "سيف بدوي", desc: "سيف قصير خفيف", basePower: 5, gemCost: 10, cashPrice: 100, requireLevel: 1 },
   { id: "w2", name: "قوس طويل", desc: "قوس للرماية من مسافة", basePower: 15, gemCost: 30, cashPrice: 400, requireLevel: 2 },

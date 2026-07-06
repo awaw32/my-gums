@@ -136,8 +136,9 @@ GameUI.prototype._openWeaponsLibrary = function() {
     overlay.remove();
     document.body.style.overflow = '';
   });
+  // لا تغلق عند الضغط خارج البطاقة في منطقة الأزرار السفلية
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
+    if (e.target === overlay && e.clientY < window.innerHeight - 80) {
       overlay.remove();
       document.body.style.overflow = '';
     }
@@ -237,7 +238,8 @@ GameUI.prototype._renderWeaponsLibraryPage = function() {
   container.innerHTML = html;
 
   container.querySelectorAll('.shop-buy-weapon-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const wid = btn.dataset.wid;
       if (window.shopBuy) window.shopBuy('buy_' + wid);
       this._renderWeaponsLibraryPage();
@@ -245,7 +247,8 @@ GameUI.prototype._renderWeaponsLibraryPage = function() {
     });
   });
   container.querySelectorAll('.shop-equip-weapon-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const wid = btn.dataset.wid;
       if (window.shopBuy) window.shopBuy('equip_' + wid);
       this._renderWeaponsLibraryPage();
@@ -253,14 +256,16 @@ GameUI.prototype._renderWeaponsLibraryPage = function() {
     });
   });
   container.querySelectorAll('.shop-unequip-weapon-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (window.shopBuy) window.shopBuy('unequip');
       this._renderWeaponsLibraryPage();
       this.updateTopBar();
     });
   });
   container.querySelectorAll('.shop-upgrade-weapon-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const wid = btn.dataset.wid;
       if (window.shopBuy) window.shopBuy(wid);
       this._renderWeaponsLibraryPage();
@@ -652,13 +657,28 @@ GameUI.prototype._upgradeWeapon = function(weaponId) {
   const w = this.army?.weapons?.find(x => x.id === weaponId);
   if (!w || w.level >= w.maxLevel) return;
   const houseLevel = this._landsState?.['b1']?.level || 1;
-  if (w.canUpgrade(this.economy, houseLevel)) {
+  const costs = w.getUpgradeCosts();
+  if (!costs || !w.canUpgrade(this.economy, houseLevel)) {
+    this.showNotification(`❌ الموارد غير كافية! تحتاج: 💵 ${costs?.cash || 0} 💎 ${costs?.gems || 0} 🏺 ${costs?.artifact || 0} 💠 ${costs?.desertGem || 0}`);
+    return;
+  }
+  const doUpgrade = () => {
     w.upgrade(this.economy, houseLevel);
     this.showNotification(`⬆️ ${w.name} → المستوى ${w.level}/${w.maxLevel}`);
     this.renderPromotion();
     this.updateTopBar();
+  };
+  if (costs.gems > 0) {
+    this.showConfirmDialog({
+      icon: "⬆️",
+      title: `ترقية ${w.name} إلى ⭐${w.level + 1}`,
+      desc: `ورشة السلاح جاهزة لترقية سلاحك. تكلفة الترقية تشمل جواهر ثمينة.`,
+      cost: `${costs.gems} 💎`,
+      okLabel: `⬆️ ادفع ${costs.gems} 💎`,
+      onConfirm: doUpgrade
+    });
   } else {
-    this.showNotification(`❌ الموارد غير كافية! تحتاج: 💵 ${w.getUpgradeCosts()?.cash || 0} 💎 ${w.getUpgradeCosts()?.gems || 0} 🏺 ${w.getUpgradeCosts()?.artifact || 0} 💠 ${w.getUpgradeCosts()?.desertGem || 0}`);
+    doUpgrade();
   }
 };
 
@@ -894,12 +914,22 @@ GameUI.prototype._renderShopPage = function() {
           }
           break;
         case 'exchange_gems_cash':
-          if (eco.canAfford('gems', 1)) {
-            eco.spend('gems', 1);
-            eco.addRaw('cash', 200);
-            this.showNotification('💎 صرفت 1 💎 → 200 💵');
-          }
-          break;
+          if (!eco.canAfford('gems', 1)) break;
+          this.showConfirmDialog({
+            icon: "💎",
+            title: "💰 صرف جوهرة → فلوس",
+            desc: "التاجر الغريب يعرض عليك صرف جوهرة واحدة بـ 200 💵. هل توافق؟",
+            cost: "1 💎 ← 200 💵",
+            okLabel: "✅ صرف 1 💎",
+            onConfirm: () => {
+              eco.spend('gems', 1);
+              eco.addRaw('cash', 200);
+              this.showNotification('💎 صرفت 1 💎 → 200 💵');
+              this._renderShopPage();
+              this.updateTopBar();
+            }
+          });
+          return;
       }
       this._renderShopPage();
       this.updateTopBar();
