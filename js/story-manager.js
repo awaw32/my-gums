@@ -6,6 +6,7 @@
  */
 
 import { STORY_CHAPTERS, STORY_VILLAGES, STORY_REWARDS } from './story.js';
+import { CinematicEngine } from './cinematic-engine.js';
 
 export class StoryManager {
   constructor(economy, village) {
@@ -22,6 +23,21 @@ export class StoryManager {
     this._onVillageUnlocked = null;
     this._onChapterScenesShow = null;
     this._onBossFight = null; // يُستدعى عند مشهد Boss
+    
+    // محرك السينماتيك
+    this.cinematic = null;
+    this._introPlayed = false;
+    this._initCinematic();
+  }
+
+  _initCinematic() {
+    try {
+      if (typeof document !== "undefined" && document.body) {
+        this.cinematic = new CinematicEngine(document.body);
+      }
+    } catch (e) {
+      this.cinematic = null;
+    }
   }
 
   get currentChapterData() {
@@ -30,6 +46,36 @@ export class StoryManager {
 
   get currentVillageData() {
     return STORY_VILLAGES.find(v => v.id === this.village.currentVillageId);
+  }
+
+  async playCinematicIntro() {
+    if (this._introPlayed || !this.cinematic) return;
+    this._introPlayed = true;
+    await this.cinematic.playIntro();
+  }
+
+  async playChapterDialogue(sceneType) {
+    if (!this.cinematic) return;
+    const villageId = this.village.currentVillageId || "wadi";
+    await this.cinematic.playDialogue(villageId, sceneType);
+  }
+
+  async playBossDialogue() {
+    if (!this.cinematic) return;
+    const villageId = this.village.currentVillageId || "wadi";
+    await this.cinematic.playDialogue(villageId, "boss");
+  }
+
+  async playVictoryScene() {
+    if (!this.cinematic) return;
+    const villageId = this.village.currentVillageId || "wadi";
+    await this.cinematic.playVictory(villageId);
+  }
+
+  async playChapterIntro() {
+    if (!this.cinematic) return;
+    const villageId = this.village.currentVillageId || "wadi";
+    await this.cinematic.playDialogue(villageId, "intro");
   }
 
   isChapterUnlocked(chapterId) {

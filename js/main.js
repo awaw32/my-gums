@@ -307,6 +307,22 @@ async function init() {
   if (loadingScreen) loadingScreen.classList.add("fade-out");
   if (appShell) appShell.classList.remove("hidden");
 
+  // تشغيل السينماتيك للمستخدم الجديد
+  if (!hasSavedData) {
+    setTimeout(() => {
+      storyManager.playCinematicIntro().then(() => {
+        // بعد السينماتيك، عرض مشهد الفصل الأول
+        if (storyManager.hasMoreScenes()) {
+          setTimeout(() => ui.showStoryScene(() => {}), 500);
+        }
+      });
+    }, 1000);
+  } else if (storyManager.shouldShowIntro()) {
+    setTimeout(() => {
+      storyManager.playChapterIntro();
+    }, 2000);
+  }
+
   let ui;
   try {
     ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests);
@@ -644,11 +660,15 @@ async function init() {
         economy.knowledgeLevel = chapter.reward.knowledgeLevel;
       }
       saveToDB();
-      if (storyManager.hasMoreScenes()) {
-        setTimeout(() => {
-          ui.showStoryScene(() => {});
-        }, 1500);
-      }
+      
+      // تشغيل مشهد النصر
+      storyManager.playVictoryScene().then(() => {
+        if (storyManager.hasMoreScenes()) {
+          setTimeout(() => {
+            ui.showStoryScene(() => {});
+          }, 1500);
+        }
+      });
     };
 
     storyManager._onVillageUnlocked = (village) => {
@@ -665,17 +685,20 @@ async function init() {
 
     // 🦅 ربط مشاهد الـ Boss — تحويل القصة إلى وضع قتال الزعيم
     storyManager._onBossFight = (bossId) => {
-      ui.showNotification(`⚔️ معركة الزعيم: ${bossId}!`);
-      const chapter = storyManager.currentChapterData;
-      if (chapter && chapter.village) {
-        const includeBoss = true;
-        world.spawnCampaignMonsters(chapter.village, includeBoss);
-        const canvas = document.getElementById("gameCanvas");
-        if (canvas) canvas.classList.remove("hidden");
-        const worldButtons = document.getElementById("world-buttons");
-        if (worldButtons) worldButtons.classList.remove("hidden");
-        world.enterWorldMap();
-      }
+      // تشغيل حوار الزعيم أولاً
+      storyManager.playBossDialogue().then(() => {
+        ui.showNotification(`⚔️ معركة الزعيم: ${bossId}!`);
+        const chapter = storyManager.currentChapterData;
+        if (chapter && chapter.village) {
+          const includeBoss = true;
+          world.spawnCampaignMonsters(chapter.village, includeBoss);
+          const canvas = document.getElementById("gameCanvas");
+          if (canvas) canvas.classList.remove("hidden");
+          const worldButtons = document.getElementById("world-buttons");
+          if (worldButtons) worldButtons.classList.remove("hidden");
+          world.enterWorldMap();
+        }
+      });
     };
 
     hero._onLevelUp = (lvl) => {
