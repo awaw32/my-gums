@@ -116,6 +116,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ ok: true }));
         } catch (err) {
+            console.warn("[API] Save validation error:", err.message);
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: err.message || "invalid json" }));
           }

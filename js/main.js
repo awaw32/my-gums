@@ -460,7 +460,7 @@ async function init() {
           hero: hero.getSaveData(),
           last_active: Date.now()
         })
-      }).catch(e => console.warn("[Save] saveToDB:", e.message));
+      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || r.statusText); }); return r.json(); }).catch(e => console.warn("[Save] saveToDB:", e.message));
     };
 
     // أي تغيير في الاقتصاد أو الجيش أو القرية = علامة متسخ
