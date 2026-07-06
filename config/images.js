@@ -111,8 +111,14 @@ const ImageResolver = {
     // وحوش إضافية
     'scorpion-elite':  'assets/images/monsters/scorpion_elite_96.png',
     'sand-dragon':     'assets/images/monsters/sand_dragon_96.png',
+    'giant-sand':      'assets/images/monsters/giant_sand_96.png',
+    'mystic-mage':     'assets/images/monsters/mystic_mage_96.png',
+    'thief-assassin':  'assets/images/monsters/thief_assassin_96.png',
     // جيش إضافي
     'warrior-scimitar': 'assets/images/army/warrior_scimitar_96.png',
+    'healer-oasis':     'assets/images/army/healer_oasis_96.png',
+    'archer-desert':    'assets/images/army/archer_desert_96.png',
+    'camel-rider':      'assets/images/army/camel_rider_96.png',
     // الأراضي
     landsBg: 'assets/images/bg-village.jpg',
     b1Empty: 'assets/images/building-ruins.png',

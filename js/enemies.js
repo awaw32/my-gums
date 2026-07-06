@@ -318,6 +318,45 @@ export const ENEMY_TYPES = {
     speed: 90,
     isBoss: true,
     description: "تنين صحراوي نادر يظهر في العواصف الرملية"
+  },
+  giant_sand: {
+    id: "giant_sand",
+    name: "عملاق الرمال",
+    icon: "🗿",
+    hp: 800,
+    damage: 80,
+    reward: { cash: 600, gold: 150, gems: 10 },
+    level: 25,
+    color: "#c4a35a",
+    radius: 26,
+    speed: 60,
+    description: "عملاق صحراوي ضخم مصنوع من الرمال المتحجرة"
+  },
+  mystic_mage: {
+    id: "mystic_mage",
+    name: "ساحر غامض",
+    icon: "🧙",
+    hp: 350,
+    damage: 55,
+    reward: { cash: 250, gold: 60, scrolls: 10 },
+    level: 20,
+    color: "#6c3483",
+    radius: 16,
+    speed: 80,
+    description: "ساحر قديم يحرس الأسرار المدفونة"
+  },
+  thief_assassin: {
+    id: "thief_assassin",
+    name: "لص قاتل",
+    icon: "🗡️",
+    hp: 200,
+    damage: 40,
+    reward: { cash: 150, gold: 35, gems: 5 },
+    level: 12,
+    color: "#1a1a1a",
+    radius: 14,
+    speed: 130,
+    description: "لص سريع يهاجم من الظلام"
   }
 };
 
