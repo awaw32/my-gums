@@ -258,7 +258,10 @@ GameUI.prototype._renderLandsBuildings = function() {
     btn.dataset.id = b.id;
     btn.innerHTML = `
       <div class="lands-building-pad">
-        <img src="${imgSrc}" width="56" height="56" onerror="this.style.display='none'" loading="lazy">
+        <div class="lands-building-icon-wrap" style="background:${st.state === 'built' ? '#2e7d32' : st.state === 'building' ? '#f57f17' : '#2a2a4e'}">
+          <span class="lands-building-icon-fallback">${b.icon || '🏗️'}</span>
+          <img src="${imgSrc}" alt="${b.name}" width="56" height="56" loading="lazy" onerror="this.style.display='none'">
+        </div>
         <span class="lands-state-badge ${badgeClass}">${badgeText}</span>
         ${isLocked ? '<span class="lands-lock-badge">🔒</span>' : ''}
       </div>
