@@ -38,10 +38,15 @@ export const STORY_CHAPTERS = [
     title: "بداية الحياة في الواحة",
     description: "وصلت إلى واحة صغيرة في قلب الصحراء. بدأت ببناء حياة جديدة وحماية ما تملك من الوحوش الجائعة.",
     levelRequired: 1,
+    bossFightScene: true,
     reward: {
       cash: 500,
       gold: 50,
       xp: 200,
+      heroXp: 50,
+      unitLevels: 2,
+      trainingLevel: 1,
+      knowledgeLevel: 1,
       title: "المستوطن الجديد"
     },
     bossId: "wadi_boss",
@@ -51,21 +56,53 @@ export const STORY_CHAPTERS = [
         title: "الوصول إلى الواحة",
         text: "سافرت لأيام عبر الصحراء حتى وصلت إلى واحة صغيرة. مياهها عذبة وأشجار النخيل توفر حماية من الشمس. قررت أن تبني هنا حياتك.",
         icon: "🏝️",
-        bg: "linear-gradient(135deg, #1a5276 0%, #2e86c1 50%, #85c1e9 100%)"
+        bg: "linear-gradient(135deg, #1a5276 0%, #2e86c1 50%, #85c1e9 100%)",
+        choices: [
+          { text: "🔨 ابدأ فوراً في بناء الخيمة", reward: { cash: 50 }, nextText: "بدأت ببناء خيمتك الأولى. مع كل مسمار تدقه، تشعر بالأمان." },
+          { text: "🔭 استكشف المنطقة أولاً", reward: { gold: 10 }, nextText: "تجولت في الواحة، وجدت ينبوعاً صافياً وعلامات لوجود وحوش قريبة." }
+        ]
       },
       {
         id: "wadi_danger",
         title: "الخطر يتقدم",
         text: "لكن الوحوش شمّت بوجودك. ذئاب صحراوية وعقارب تقترب من الواحة كل ليلة. عليك بناء دفاعات قبل أن يفقد كل شيء.",
         icon: "🐺",
-        bg: "linear-gradient(135deg, #1a1a1a 0%, #4a0000 50%, #8b0000 100%)"
+        bg: "linear-gradient(135deg, #1a1a1a 0%, #4a0000 50%, #8b0000 100%)",
+        choices: [
+          { text: "⚔️ درب الجنود فوراً", reward: { xp: 50 }, nextText: "جنودك يتدربون بجد. سيصبحون أقوى كل يوم." },
+          { text: "🧱 عزز الدفاعات أولاً", reward: { gold: 15 }, nextText: "تبني حواجز وأسواراً حول المخيم. الوحوش ستصبح أبطأ في الاختراق." }
+        ]
       },
       {
         id: "wadi_build",
         title: "بناء المستقبل",
         text: "ابدأ ببناء خيمة القائد، ثم مخيم الجنود، ثم مخزن الموارد، وأخيراً ساحة التدريب. هذه هي أساسات أي قرية صحراوية قوية.",
         icon: "🏗️",
-        bg: "linear-gradient(135deg, #0d3b0d 0%, #1a6b1a 50%, #2ecc71 100%)"
+        bg: "linear-gradient(135deg, #0d3b0d 0%, #1a6b1a 50%, #2ecc71 100%)",
+        choices: [
+          { text: "📈 استثمر في الاقتصاد", reward: { cash: 100 }, nextText: "مواردك تزداد. التجارة مع القوافل المارة تبدأ." },
+          { text: "🎯 حسّن التدريب القتالي", reward: { xp: 100 }, nextText: "جنودك يصبحون أكثر مهارة. جاهزون للقتال!" }
+        ]
+      },
+      {
+        id: "wadi_merchant",
+        title: "التاجر الغريب",
+        text: "وصل تاجر غريب إلى الواحة. يحمل بضائع نادرة من أقاصي الصحراء. يعرض عليك صفقة.",
+        icon: "🐪",
+        bg: "linear-gradient(135deg, #8b4513 0%, #cd853f 50%, #daa520 100%)",
+        choices: [
+          { text: "💰 اشترِ سلاحاً نادراً", reward: { gems: 5 }, nextText: "اشتريت خنجراً قديماً منقوشاً برموز غامضة." },
+          { text: "🗺️ اشترِ خريطة للمنطقة", reward: { gold: 20 }, nextText: "الخريطة تظهر طرقاً مختصرة ومواقع كنوز مخفية." }
+        ]
+      },
+      {
+        id: "wadi_boss",
+        title: "⚔️ معركة الزعيم: ذئب الواحة",
+        text: "فجأة، يظهر ذئب ضخم بعيون متوهجة. جسمه يغطيه ندوب معارك قديمة. هذا هو حامي الواحة، وعليك هزيمته لتثبت جدارتك!",
+        icon: "🐺",
+        bg: "linear-gradient(135deg, #1a0000 0%, #4a0000 50%, #ff0000 100%)",
+        isBoss: true,
+        bossId: "wadi_boss"
       }
     ]
   },
@@ -75,11 +112,16 @@ export const STORY_CHAPTERS = [
     title: "اكتشاف أطلال القصر",
     description: "وجدت أنقاض قصر قديم مدفون تحت الرمال. في داخله كنوز ومخطوطات لكنها محمية من حراس الأموات.",
     levelRequired: 15,
+    bossFightScene: true,
     reward: {
       cash: 2000,
       gold: 200,
       gems: 50,
       xp: 1000,
+      heroXp: 200,
+      unitLevels: 3,
+      trainingLevel: 1,
+      knowledgeLevel: 2,
       title: "باحث الآثار"
     },
     bossId: "palace_boss",
@@ -89,21 +131,53 @@ export const STORY_CHAPTERS = [
         title: "الاكتشاف",
         text: "أثناء الحفر بحثاً عن المياه، وجدت مدخلاً لقصر قديم. جدرانه مزينة بزخارف ذهبية وأبوابه محفورة بخط قديم.",
         icon: "🏛️",
-        bg: "linear-gradient(135deg, #4a3728 0%, #8b6914 50%, #daa520 100%)"
+        bg: "linear-gradient(135deg, #4a3728 0%, #8b6914 50%, #daa520 100%)",
+        choices: [
+          { text: "📜 ادرس النقوش أولاً", reward: { scrolls: 5 }, nextText: "النقوش تحكي قصة حضارة عظيمة. تتعلم أسراراً جديدة." },
+          { text: "⛏️ ادخل مباشرة", reward: { cash: 200 }, nextText: "دخلت القصر بحذر. تجد قاعة كبيرة مليئة بالكنوز." }
+        ]
       },
       {
         id: "palace_ghosts",
         title: "حراس الأموات",
         text: "أثناء دخولك القصر، ظهرت أشباح من الجدران. فرسان الظل وساحر الرمال يحرسون الكنوز. عليك هزيمتهم قبل الحصول على الموارد.",
         icon: "👻",
-        bg: "linear-gradient(135deg, #1a0a2e 0%, #3d1f6d 50%, #6c3fb5 100%)"
+        bg: "linear-gradient(135deg, #1a0a2e 0%, #3d1f6d 50%, #6c3fb5 100%)",
+        choices: [
+          { text: "🛡️ استخدم الدروع الواقية", reward: { defense: 5 }, nextText: "الدروع تحميك من هجمات الأشباح. تقترب من الكنز!" },
+          { text: "⚔️ هجوم شامل", reward: { xp: 200 }, nextText: "جنودك يهاجمون الأشباح. المعركة شرسة لكنكم تنتصرون." }
+        ]
       },
       {
         id: "palace_treasure",
         title: "الكنوز المخفية",
         text: "بعد هزيمة الأشباح، وجدت مكتبة مخطوطات وورشة سلاح قديمة. هذه الموارد ستحولك من فلاح إلى محارب حقيقي.",
         icon: "📜",
-        bg: "linear-gradient(135deg, #1a1a0a 0%, #5c5c1f 50%, #b8b800 100%)"
+        bg: "linear-gradient(135deg, #1a1a0a 0%, #5c5c1f 50%, #b8b800 100%)",
+        choices: [
+          { text: "🔬 ادرس المخطوطات", reward: { scrolls: 10, gems: 5 }, nextText: "المخطوطات تحتوي على وصفات لصنع أسلحة قوية." },
+          { text: "⚒️ طوّر ورشة السلاح", reward: { hammers: 10, cash: 300 }, nextText: "الورشة جاهزة. يمكنك الآن صنع أسلحة متطورة!" }
+        ]
+      },
+      {
+        id: "palace_riddle",
+        title: "لغز الغرفة المغلقة",
+        text: "تجد غرفة مغلقة بأبواب حجرية ضخمة. عليها أحجية قديمة: 'ما هو الشيء الذي يموت إذا شرب؟'",
+        icon: "🧩",
+        bg: "linear-gradient(135deg, #2c1810 0%, #4a2c1a 50%, #6b4226 100%)",
+        choices: [
+          { text: "🔥 أجب: 'النار'", reward: { gems: 10 }, nextText: "الباب يفتح ببطء. داخلها كنوز لا تصدق!" },
+          { text: "💥 استخدم القوة لفتح الباب", reward: { cash: 200, hammers: 5 }, nextText: "تكسر الباب بالقوة. لكن بعض الكنوز تتحطم." }
+        ]
+      },
+      {
+        id: "palace_boss",
+        title: "⚔️ معركة الزعيم: ساحر الرمال",
+        text: "تصل إلى قاعة العرش. هناك، ساحر الرمال العظيم ينتظرك. عصاه السحرية تلمع برمال متحركة. هذه أصعب معركة حتى الآن!",
+        icon: "🧙",
+        bg: "linear-gradient(135deg, #1a002a 0%, #3d0066 50%, #6c00b5 100%)",
+        isBoss: true,
+        bossId: "palace_boss"
       }
     ]
   },
@@ -113,11 +187,16 @@ export const STORY_CHAPTERS = [
     title: "بناء قلعة الجبل",
     description: "على قمة الجبل، بنيت قلعة محصنة. الآن يجب الدفاع عنها من الغزاة والمحتلين.",
     levelRequired: 30,
+    bossFightScene: true,
     reward: {
       cash: 10000,
       gold: 1000,
       gems: 150,
       xp: 5000,
+      heroXp: 500,
+      unitLevels: 4,
+      trainingLevel: 2,
+      knowledgeLevel: 3,
       title: "حامي الجبل"
     },
     bossId: "mountain_boss",
@@ -127,21 +206,53 @@ export const STORY_CHAPTERS = [
         title: "الصعود",
         text: "صعدت إلى قمة الجبل مع جنودك. من هنا ترى الصحراء كلها. موقع استراتيجي لا يمكن الاستغناء عنه.",
         icon: "⛰️",
-        bg: "linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #7f8c8d 100%)"
+        bg: "linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #7f8c8d 100%)",
+        choices: [
+          { text: "🏗️ ابدأ ببناء القلعة فوراً", reward: { cash: 500 }, nextText: "القلعة تبدأ في الارتفاع. الجدران سميكة والأبراج عالية." },
+          { text: "🔭 استكشف الجبل أولاً", reward: { gems: 10 }, nextText: "تجد كهفاً مليئاً بالبلورات النادرة. ثروة إضافية!" }
+        ]
       },
       {
         id: "mountain_siege",
         title: "الحصار",
         text: "جيش من الغزاة يحاصر القلعة. عليك بناء السور الخارجي وورشة الحصار قبل أن يخترقوها. القتال سيكون عنيفاً.",
         icon: "⚔️",
-        bg: "linear-gradient(135deg, #4a0000 0%, #8b0000 50%, #cc0000 100%)"
+        bg: "linear-gradient(135deg, #4a0000 0%, #8b0000 50%, #cc0000 100%)",
+        choices: [
+          { text: "🏹 استخدم الرماة على الأسوار", reward: { xp: 500 }, nextText: "الرماة يمنعون الغزاة من الاقتراب. خسائر قليلة." },
+          { text: "💥 فتح البوابات وهجوم مفاجئ", reward: { cash: 1000, gems: 15 }, nextText: "هجومك المفاجئ يشتت الغزاة. تحقق نصراً ساحقاً!" }
+        ]
       },
       {
         id: "mountain_victory",
         title: "النصر",
         text: "صمدت أمام الحصار وبناءت قلعة لا تتزعزع. الآن أصبحت قوة يجب حسابها في الصحراء.",
         icon: "🏰",
-        bg: "linear-gradient(135deg, #1a4a1a 0%, #2d7a2d 50%, #3cb371 100%)"
+        bg: "linear-gradient(135deg, #1a4a1a 0%, #2d7a2d 50%, #3cb371 100%)",
+        choices: [
+          { text: "🎉 أقم احتفالاً للنصر", reward: { gold: 200 }, nextText: "الجنود يحتفلون. الروح المعنوية عالية!" },
+          { text: "♻️ استعد للهجوم التالي", reward: { xp: 500, trainingLevel: 1 }, nextText: "الاستعداد الدائم هو مفتاح البقاء. جيشك يتدرب بجد." }
+        ]
+      },
+      {
+        id: "mountain_alliance",
+        title: "عرض التحالف",
+        text: "يصل رسول من قبيلة مجاورة. يعرضون التحالف معك ضد عدو مشترك. لكن هناك شروط.",
+        icon: "🤝",
+        bg: "linear-gradient(135deg, #1a3a1a 0%, #2d5a2d 50%, #3cb371 100%)",
+        choices: [
+          { text: "✅ اقبل التحالف", reward: { gold: 500, alliancePower: 10 }, nextText: "التحالف يعزز قوتك. الآن لديك حلفاء في المعركة." },
+          { text: "❌ ارفض واثبت استقلالك", reward: { cash: 1500 }, nextText: "القبيلة تغادر لكنها تحترم قرارك." }
+        ]
+      },
+      {
+        id: "mountain_boss",
+        title: "⚔️ معركة الزعيم: تنين الجبل",
+        text: "من أعلى القلعة، ترى ظلاً هائلاً يحلق في السماء. تنين الجبل الأسطوري! لهيب ناره يحرق كل شيء. هذه معركة المصير!",
+        icon: "🐉",
+        bg: "linear-gradient(135deg, #2a0000 0%, #6a0000 50%, #cc0000 100%)",
+        isBoss: true,
+        bossId: "mountain_boss"
       }
     ]
   },
@@ -151,11 +262,16 @@ export const STORY_CHAPTERS = [
     title: "توسيع النفوذ",
     description: "وسعت ممالكك لتشمل السهول الخصبة. الآن تتحكم في التجارة والزراعة والجيوش.",
     levelRequired: 50,
+    bossFightScene: true,
     reward: {
       cash: 50000,
       gold: 5000,
       gems: 500,
       xp: 25000,
+      heroXp: 1000,
+      unitLevels: 5,
+      trainingLevel: 2,
+      knowledgeLevel: 4,
       title: "سيد السهول"
     },
     bossId: "plains_boss",
@@ -165,21 +281,53 @@ export const STORY_CHAPTERS = [
         title: "التوسع",
         text: "في السهول الخصبة، أرض خصبة للمزارع والتجارة. بناء سوق وميناء وحصن حدودي سيجعلك تتحكم في اقتصاد المنطقة.",
         icon: "🌾",
-        bg: "linear-gradient(135deg, #228b22 0%, #32cd32 50%, #90ee90 100%)"
+        bg: "linear-gradient(135deg, #228b22 0%, #32cd32 50%, #90ee90 100%)",
+        choices: [
+          { text: "🌾 استثمر في الزراعة", reward: { food: 100, cash: 1000 }, nextText: "الحقول تنتج محاصيل وفيرة. التجارة تزدهر." },
+          { text: "🏪 ابنِ سوقاً مركزياً", reward: { gold: 500, gems: 25 }, nextText: "التجار من كل مكان يأتون إلى سوقك. أرباح هائلة!" }
+        ]
       },
       {
         id: "plains_trade",
         title: "التجارة",
         text: "التجار من كل أنحاء الصحراء يريدون التجارة معك. لكن قطاع الطرق يهاجمون القوافل. عليك حماية طرق التجارة.",
         icon: "🐫",
-        bg: "linear-gradient(135deg, #8b4513 0%, #cd853f 50%, #daa520 100%)"
+        bg: "linear-gradient(135deg, #8b4513 0%, #cd853f 50%, #daa520 100%)",
+        choices: [
+          { text: "🛡️ أرسل حراساً للقوافل", reward: { gold: 1000, cash: 2000 }, nextText: "القوافل تصل بأمان. التجارة تزداد ضعفين." },
+          { text: "⚔️ طارد قطاع الطرق", reward: { xp: 2000, gems: 30 }, nextText: "تقضي على قطاع الطرق. طرق التجارة تصبح آمنة." }
+        ]
       },
       {
         id: "plains_power",
         title: "القوة",
         text: "أصبحت من أقوى القوى في الصحراء. جيوشك مدربة وأسلحتك متطورة. الوقت قد حان للوصول للعرش.",
         icon: "👑",
-        bg: "linear-gradient(135deg, #4a0080 0%, #7b00cc 50%, #9b30ff 100%)"
+        bg: "linear-gradient(135deg, #4a0080 0%, #7b00cc 50%, #9b30ff 100%)",
+        choices: [
+          { text: "🗡️ جهّز جيش الغزو", reward: { xp: 3000, unitLevels: 1 }, nextText: "الجيش جاهز. الرايات ترفرف في الريح." },
+          { text: "📚 طوّر الأكاديمية الحربية", reward: { trainingLevel: 1, gems: 50 }, nextText: "الضباط يتدربون على أحدث تكتيكات الحرب." }
+        ]
+      },
+      {
+        id: "plains_diplomacy",
+        title: "المؤتمر الدولي",
+        text: "قادة القبائل يدعونك لمؤتمر في واحة النخبة. يريدون مناقشة مستقبل الصحراء ومشاركة النفوذ.",
+        icon: "🗣️",
+        bg: "linear-gradient(135deg, #1a1a4a 0%, #2d2d7a 50%, #3b3bb5 100%)",
+        choices: [
+          { text: "🤝 تعاون وبناء تحالفات", reward: { alliancePower: 25, gold: 2000 }, nextText: "القبائل توحد صفوفها. الآن أنت القائد الأعلى." },
+          { text: "👑 افرض سيطرتك بالقوة", reward: { cash: 10000, gems: 75 }, nextText: "القبائل تخضع لحكمك. لكن بعضها يحمل الضغينة." }
+        ]
+      },
+      {
+        id: "plains_boss",
+        title: "⚔️ معركة الزعيم: جيش الغزاة",
+        text: "جيش الغزاة العظيم يظهر في الأفق. آلاف الجنود المدججين بالسلاح. هذه أكبر معركة في تاريخ الصحراء!",
+        icon: "⚔️",
+        bg: "linear-gradient(135deg, #3a0000 0%, #8b0000 50%, #ff0000 100%)",
+        isBoss: true,
+        bossId: "plains_boss"
       }
     ]
   },
@@ -189,11 +337,16 @@ export const STORY_CHAPTERS = [
     title: "قمة العرش",
     description: "وصلت للقلعة الملكية. الآن يجب تأمين عرشك والسيطرة على المملكة كلها. أنت ملك الصحراء.",
     levelRequired: 75,
+    bossFightScene: true,
     reward: {
       cash: 500000,
       gold: 50000,
       gems: 5000,
       xp: 100000,
+      heroXp: 2000,
+      unitLevels: 5,
+      trainingLevel: 3,
+      knowledgeLevel: 5,
       title: "ملك الصحراء"
     },
     bossId: "final_boss",
@@ -203,21 +356,53 @@ export const STORY_CHAPTERS = [
         title: "الوصول إلى القصر",
         text: "وقفت أمام القصر الملكي العظيم. مئات الأبراج والجدران السميكة. هذا هو مصيرك.",
         icon: "🏰",
-        bg: "linear-gradient(135deg, #b8860b 0%, #daa520 50%, #ffd700 100%)"
+        bg: "linear-gradient(135deg, #b8860b 0%, #daa520 50%, #ffd700 100%)",
+        choices: [
+          { text: "🎺 ادخل بكرامة ملكية", reward: { gold: 5000, gems: 100 }, nextText: "الأبواب تفتح. الحرس الملكي ينحني احتراماً." },
+          { text: "⚔️ اقتحم بقوة", reward: { cash: 25000, xp: 10000 }, nextText: "تقتحم القصر بقوة. المقاومة شرسة لكنك تتقدم." }
+        ]
       },
       {
         id: "throne_battle",
         title: "المعركة الأخيرة",
         text: "حراس العرش لا يستسلمون بسهولة. فرسان مدرعون وساحرون أقوياء يحرسون العرش. عليك إثبات أنك تستحقه.",
         icon: "⚔️",
-        bg: "linear-gradient(135deg, #8b0000 0%, #cc0000 50%, #ff0000 100%)"
+        bg: "linear-gradient(135deg, #8b0000 0%, #cc0000 50%, #ff0000 100%)",
+        choices: [
+          { text: "🎯 تحدّى قائد الحراس", reward: { xp: 15000, unitLevels: 2 }, nextText: "قائد الحراس يقبل التحدي. معركة الأبطال تبدأ!" },
+          { text: "🌪️ هجوم شامل بكل القوات", reward: { cash: 50000, gems: 200 }, nextText: "كل قواتك تهاجم من كل اتجاه. الحراس يتراجعون!" }
+        ]
       },
       {
         id: "throne_coronation",
         title: "التتويج",
         text: "جلست على العرش. الناس يهتفون باسمك. أنت الآن ملك الصحراء. حكمك عادل وقوي.",
         icon: "👑",
-        bg: "linear-gradient(135deg, #ffd700 0%, #ffec8b 50%, #fffacd 100%)"
+        bg: "linear-gradient(135deg, #ffd700 0%, #ffec8b 50%, #fffacd 100%)",
+        choices: [
+          { text: "👑 أعلن عهداً من العدل", reward: { gold: 10000, gems: 500 }, nextText: "الشعب يهتف. عصر ذهبي جديد يبدأ." },
+          { text: "⚔️ أعلن التوسع في الأراضي", reward: { cash: 100000, xp: 25000, title: "الفاتح العظيم" }, nextText: "الجيوش تتجه لأراضٍ جديدة. امبراطوريتك تتسع!" }
+        ]
+      },
+      {
+        id: "throne_legacy",
+        title: "الإرث",
+        text: "المؤرخون يكتبون قصتك. جيل بعد جيل سيروي حكاية ملك الصحراء الذي بنى مملكة من لا شيء.",
+        icon: "📜",
+        bg: "linear-gradient(135deg, #1a0a00 0%, #3d1f00 50%, #6b3a00 100%)",
+        choices: [
+          { text: "🏛️ ابنِ نصباً تذكارياً", reward: { gems: 1000, gold: 25000 }, nextText: "النصب يخلد اسمك للأبد. المسافرون يقفون إجلالاً." },
+          { text: "📚 اكتب كتاباً عن رحلتك", reward: { xp: 50000, scrolls: 500 }, nextText: "كتابك يصبح مرجعاً لكل قادة الصحراء." }
+        ]
+      },
+      {
+        id: "throne_boss",
+        title: "⚔️ المعركة النهائية: صقر الصحراء",
+        text: "فجأة، يظلم الجو. صقر الصحراء الأسطوري، حارس الخلود، يحط على القصر. عيناه تشعان بنور غامض. هذه معركة القدر! انتصارك يعني الخلود، هزيمتك تعني النهاية.",
+        icon: "🦅",
+        bg: "linear-gradient(135deg, #00001a 0%, #2a003a 50%, #6a00b5 100%)",
+        isBoss: true,
+        bossId: "final_boss"
       }
     ]
   }

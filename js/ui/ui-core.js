@@ -1,6 +1,7 @@
 import { formatNumber } from "../economy.js";
 import { injectPromotionMethods } from "./ui-promotion.js";
 import { injectGameplayMethods } from "./ui-gameplay.js";
+import { ALLIANCE_RAIDS } from "../alliance-manager.js";
 
 export class GameUI {
   constructor(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests) {
@@ -119,21 +120,50 @@ export class GameUI {
       return;
     }
 
+    // 🦅 مشهد Boss — له تأثير خاص
+    if (scene.isBoss) {
+      this._showBossScene(scene, callback);
+      return;
+    }
+
+    const hasChoices = scene.choices && scene.choices.length > 0;
+    const alreadyChosen = hasChoices ? storyManager.getChoiceForScene(scene.id) : null;
+
     const overlay = document.createElement("div");
     overlay.id = "story-overlay";
     overlay.className = "story-overlay";
+    
+    // بناء أزرار الخيارات
+    let choicesHtml = '';
+    if (hasChoices && alreadyChosen === null) {
+      choicesHtml = '<div class="story-choices">' +
+        scene.choices.map((c, i) => `
+          <button class="story-choice-btn" data-choice="${i}">
+            <span class="story-choice-text">${c.text}</span>
+          </button>
+        `).join('') +
+      '</div>';
+    } else if (hasChoices && alreadyChosen !== null) {
+      const chosen = scene.choices[alreadyChosen];
+      choicesHtml = `<div class="story-choice-result">
+        <div class="story-choice-made">✅ ${chosen.text}</div>
+        <p class="story-choice-next-text">${chosen.nextText || chosen.text}</p>
+      </div>`;
+    }
+
     overlay.innerHTML = `
       <div class="story-bg" style="background: ${scene.bg || 'linear-gradient(135deg, #1a0a00 0%, #3d1f00 50%, #5a2d00 100%)'}"></div>
       <div class="story-content">
         <div class="story-icon">${scene.icon}</div>
         <h2 class="story-title">${scene.title}</h2>
         <p class="story-text">${scene.text}</p>
+        ${choicesHtml}
         <div class="story-progress">
           <div class="story-progress-bar" style="width: ${storyManager.getProgress().percentage}%"></div>
         </div>
         <div class="story-buttons">
-          <button class="story-btn-skip" onclick="window._storyManager.skip()">تخطي</button>
-          <button class="story-btn-next" onclick="window._storyManager.next()">التالي</button>
+          <button class="story-btn-skip">تخطي</button>
+          <button class="story-btn-next">التالي</button>
         </div>
         <div class="story-counter" dir="ltr">${storyManager.currentScene} / ${storyManager.getCurrentScenes().length}</div>
       </div>
@@ -142,6 +172,44 @@ export class GameUI {
 
     const nextBtn = overlay.querySelector('.story-btn-next');
     const skipBtn = overlay.querySelector('.story-btn-skip');
+    
+    // تعطيل زر التالي حتى يختار اللاعب إذا كان هناك خيارات
+    if (hasChoices && alreadyChosen === null) {
+      nextBtn.disabled = true;
+      nextBtn.style.opacity = '0.5';
+    }
+
+    // ربط أزرار الخيارات
+    if (hasChoices) {
+      overlay.querySelectorAll('.story-choice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.choice);
+          const result = storyManager.makeChoice(scene.id, idx);
+          if (result) {
+            // إظهار نتيجة الاختيار
+            nextBtn.disabled = false;
+            nextBtn.style.opacity = '1';
+            const choicesContainer = overlay.querySelector('.story-choices');
+            if (choicesContainer) {
+              choicesContainer.innerHTML = `<div class="story-choice-result">
+                <div class="story-choice-made">✅ ${result.text}</div>
+                <p class="story-choice-next-text">${result.nextText || ''}</p>
+              </div>`;
+            }
+            // إظهار المكافأة
+            if (result.reward) {
+              const rewardStr = Object.entries(result.reward)
+                .map(([k, v]) => {
+                  const icons = { cash: '💵', gold: '🪙', gems: '💎', xp: '⭐', scrolls: '📜', hammers: '🔨', food: '🌾', defense: '🛡️', unitLevels: '⚔️', trainingLevel: '🏋️', alliancePower: '👑' };
+                  return `${icons[k] || '•'} ${v}`;
+                }).join(' ');
+              if (rewardStr) this.showNotification(`🎯 حصلت على: ${rewardStr}`);
+            }
+            this.updateTopBar();
+          }
+        });
+      });
+    }
 
     nextBtn.onclick = () => {
       overlay.remove();
@@ -153,6 +221,50 @@ export class GameUI {
     };
 
     skipBtn.onclick = () => {
+      overlay.remove();
+      if (callback) callback();
+    };
+  }
+
+  /** 🦅 مشهد Boss خاص بتأثيرات دراماتيكية */
+  _showBossScene(scene, callback) {
+    const storyManager = window._storyManager;
+    if (!storyManager) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "story-overlay";
+    overlay.className = "story-overlay story-boss-overlay";
+    overlay.innerHTML = `
+      <div class="story-boss-effect"></div>
+      <div class="story-bg" style="background: ${scene.bg || 'linear-gradient(135deg, #1a0000 0%, #4a0000 50%, #8b0000 100%)'}"></div>
+      <div class="story-content story-boss-content">
+        <div class="story-boss-icon-pulse">${scene.icon}</div>
+        <h2 class="story-boss-title">${scene.title}</h2>
+        <p class="story-text story-boss-text">${scene.text}</p>
+        <div class="story-boss-stats">
+          <span class="story-boss-stat">⚔️ ${scene.bossId || 'Boss'}</span>
+        </div>
+        <div class="story-buttons">
+          <button class="story-btn-skip story-btn-skip-boss">تخطي</button>
+          <button class="story-btn-next story-btn-fight">⚔️ اذهب للمعركة!</button>
+        </div>
+        <div class="story-progress">
+          <div class="story-progress-bar" style="width: ${storyManager.getProgress().percentage}%"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('.story-btn-fight').onclick = () => {
+      overlay.remove();
+      // تفعيل وضع القتال ضد الزعيم
+      if (storyManager._onBossFight) {
+        storyManager._onBossFight(scene.bossId);
+      }
+      if (callback) callback();
+    };
+
+    overlay.querySelector('.story-btn-skip-boss').onclick = () => {
       overlay.remove();
       if (callback) callback();
     };
@@ -610,7 +722,7 @@ export class GameUI {
       const rewardText = Object.entries(storyChapter.reward || {})
         .filter(([k]) => k !== 'title')
         .map(([k, v]) => {
-          const icons = { gold: '🪙', cash: '💵', gems: '💎', xp: '⭐', food: '🌾' };
+          const icons = { gold: '🪙', cash: '💵', gems: '💎', xp: '⭐', food: '🌾', heroXp: '🦸', unitLevels: '⚔️', trainingLevel: '🏋️', knowledgeLevel: '📚' };
           return `${icons[k] || '•'} ${v}`;
         }).join(' + ');
       const completeBtnText = canCompleteStory ? 'أكمل الفصل ✓' : 'ابنِ جميع المباني أولاً';
@@ -762,8 +874,10 @@ export class GameUI {
       container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⚠️ التحالف غير متاح</div>`;
       return;
     }
-    const state = this.allianceManager.getState();
-    container.innerHTML = `
+    const am = this.allianceManager;
+    const state = am.getState();
+    
+    let html = `
       <div class="alliance-card alliance-main">
         <div class="alliance-tier-icon">${state.level === 0 ? "🏜️" : state.level >= 4 ? "👑" : state.level >= 2 ? "🏰" : "⛺"}</div>
         <div class="alliance-tier-name">${state.tierName || "بدون تحالف"}</div>
@@ -778,27 +892,124 @@ export class GameUI {
         <div class="alliance-card bonus-card">💵 دخل ×${state.incomeMult.toFixed(1)}</div>
       </div>
     `;
+    
+    // زر الترقية
     if (state.canUpgrade) {
-      const btn = document.createElement("button");
-      btn.className = "action-btn upgrade-btn alliance-upgrade-btn";
-      btn.textContent = `▲ ترقية (${formatNumber(state.upgradeCost)} 🪙)`;
-      btn.addEventListener("click", () => {
-        if (this.allianceManager.upgrade()) {
+      html += `<button class="action-btn upgrade-btn alliance-upgrade-btn" style="margin-bottom:10px">▲ ترقية (${formatNumber(state.upgradeCost)} 🪙)</button>`;
+    } else if (state.level < state.maxLevel) {
+      html += `<div class="alliance-need" style="text-align:center;padding:8px;color:var(--text-secondary);font-size:0.75rem">تحتاج ${formatNumber(state.upgradeCost)} 🪙</div>`;
+    } else {
+      html += `<div class="alliance-max" style="text-align:center;padding:8px;color:var(--gold);font-size:0.8rem">⭐⭐⭐ المستوى الأقصى</div>`;
+    }
+    
+    // 🎯 قسم غارات التحالف
+    html += `<div class="panel-header" style="margin-top:12px;font-size:0.9rem">🎯 غارات التحالف</div>`;
+    
+    if (am.isRaidActive && am._raidBoss) {
+      // معركة الغارة نشطة
+      const boss = am._raidBoss;
+      const hpPct = Math.max(0, (boss.hp / boss.maxHp) * 100);
+      html += `
+        <div class="alliance-card" style="border-color:#e74c3c;background:linear-gradient(135deg,rgba(231,76,60,0.08),rgba(192,57,43,0.04))">
+          <div style="text-align:center">
+            <div style="font-size:2.5rem;margin-bottom:6px">🐉</div>
+            <div style="font-weight:700;font-size:0.9rem;color:#e74c3c">${boss.name}</div>
+            <div style="margin:10px 0">
+              <div style="height:8px;background:rgba(0,0,0,0.1);border-radius:4px;overflow:hidden">
+                <div style="height:100%;width:${hpPct}%;background:linear-gradient(90deg,#e74c3c,#c0392b);border-radius:4px;transition:width 0.3s"></div>
+              </div>
+              <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:4px">${Math.floor(boss.hp).toLocaleString()} / ${boss.maxHp.toLocaleString()}</div>
+            </div>
+            <button class="action-btn" id="raid-attack-btn" style="background:#e74c3c">⚔️ هاجم الزعيم!</button>
+            <button class="action-btn" id="raid-retreat-btn" style="margin-top:6px;background:#666;font-size:0.7rem">🏳️ انسحاب</button>
+          </div>
+        </div>
+      `;
+    } else if (am._raidCooldown > 0) {
+      const mins = Math.ceil(am._raidCooldown / 60);
+      html += `<div class="alliance-card" style="text-align:center;opacity:0.6">⏳ التبريد: ${mins} دقيقة</div>`;
+    } else {
+      // عرض الغارات المتاحة
+      const raids = am.availableRaids;
+      if (raids.length === 0) {
+        html += `<div class="alliance-card" style="text-align:center;opacity:0.6;font-size:0.75rem">⚠️ ارقَ تحالفك أولاً أو زِد قوتك لفتح الغارات</div>`;
+      } else {
+        html += '<div style="display:flex;flex-direction:column;gap:8px">';
+        for (let i = 0; i < ALLIANCE_RAIDS.length; i++) {
+          const r = ALLIANCE_RAIDS[i];
+          const unlocked = r.level <= am.level + 1;
+          const enoughPower = am.economy.power >= r.powerReq;
+          html += `
+            <div class="alliance-card" style="${!unlocked ? 'opacity:0.4' : ''}">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:1.5rem">${unlocked ? '🐉' : '🔒'}</span>
+                <div style="flex:1">
+                  <div style="font-weight:700;font-size:0.8rem;color:var(--text-primary)">${r.name}</div>
+                  <div style="font-size:0.6rem;color:var(--text-secondary)">⚔️ ${r.powerReq.toLocaleString()} 👊</div>
+                </div>
+                <div style="font-size:0.55rem;text-align:left;direction:ltr">
+                  ${Object.entries(r.reward).map(([k,v]) => {
+                    const icons = {cash:'💵',gold:'🪙',gems:'💎',artifacts:'🏺',desertGem:'💠'};
+                    return `${icons[k]||'•'}${v}`;
+                  }).join(' ')}
+                </div>
+              </div>
+              ${unlocked && enoughPower ? `<button class="action-btn raid-start-btn" data-raid="${i}" style="margin-top:8px;background:linear-gradient(135deg,#e67e22,#d35400)">🎯 ابدأ الغارة</button>` : ''}
+              ${!enoughPower && unlocked ? `<div style="font-size:0.6rem;color:var(--text-secondary);margin-top:4px">تحتاج ${r.powerReq.toLocaleString()} 👊</div>` : ''}
+            </div>
+          `;
+        }
+        html += '</div>';
+      }
+    }
+    
+    container.innerHTML = html;
+    
+    // ربط الأزرار
+    const upgradeBtn = container.querySelector('.alliance-upgrade-btn');
+    if (upgradeBtn) {
+      upgradeBtn.addEventListener('click', () => {
+        if (am.upgrade()) {
           this.renderAlliance();
           this.updateTopBar();
         }
       });
-      container.appendChild(btn);
-    } else if (state.level < state.maxLevel) {
-      const need = document.createElement("div");
-      need.className = "alliance-need";
-      need.textContent = `تحتاج ${formatNumber(state.upgradeCost)} 🪙`;
-      container.appendChild(need);
-    } else {
-      const max = document.createElement("div");
-      max.className = "alliance-max";
-      max.textContent = "⭐⭐⭐ المستوى الأقصى";
-      container.appendChild(max);
+    }
+    
+    container.querySelectorAll('.raid-start-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.raid);
+        if (am.startRaid(idx)) {
+          this.showNotification(`🎯 بدأت غارة ${ALLIANCE_RAIDS[idx].name}!`);
+          this.renderAlliance();
+        } else {
+          this.showNotification('❌ لا يمكن بدء الغارة حالياً (تبريد أو متطلبات)');
+        }
+      });
+    });
+    
+    const attackBtn = document.getElementById('raid-attack-btn');
+    if (attackBtn) {
+      attackBtn.addEventListener('click', () => {
+        const dmg = am.dealRaidDamage();
+        if (dmg > 0) {
+          this.showNotification(`⚔️ ضربت الزعيم بـ ${dmg} ضرر!`);
+          if (!am.isRaidActive) {
+            this.showNotification(`🎉 انتصرت في الغارة! تحقق من المكافآت!`);
+          }
+          this.renderAlliance();
+          this.updateTopBar();
+        }
+      });
+    }
+    
+    const retreatBtn = document.getElementById('raid-retreat-btn');
+    if (retreatBtn) {
+      retreatBtn.addEventListener('click', () => {
+        am.cancelRaid();
+        this.showNotification('🏳️ انسحبت من الغارة (تبريد 5 دقائق)');
+        this.renderAlliance();
+      });
     }
   }
 
@@ -1139,7 +1350,7 @@ export class GameUI {
     if (this._topBarInterval) clearInterval(this._topBarInterval);
     if (this._buildingTimerInterval) clearInterval(this._buildingTimerInterval);
     if (this._questRefreshTimer) clearInterval(this._questRefreshTimer);
-    this._topBarInterval = setInterval(() => this.updateTopBar(), 500);
+    this._topBarInterval = setInterval(() => this.updateTopBar(), 1000); // كل ثانية بدلاً من 500ms لتقليل الحمل
     this.startBuildingTimerLoop();
     if (this.oasisManager) {
       this.oasisManager._onOasesChanged = () => {

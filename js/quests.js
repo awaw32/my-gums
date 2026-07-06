@@ -2,23 +2,12 @@
 
 /**
  * =============================================================================
- *  🏜️ ملك السحراء — نظام القصة + المهام اليومية + التحالف (Quests & Story System)
+ *  🏜️ ملك السحراء — المهام اليومية ونظام التحالف (Daily Quests & Alliance)
  * =============================================================================
- *  يدعم:
- *  - قصة رئيسية (Story Chapters) مع صور ونصوص صحراوية
- *  - مهام يومية (Daily Quests) مع تايمر
- *  - مهام موسمية / أحداث
- *  - مهام تحالف (Alliance Missions)
- *  - مكافآت (موارد، قوة جيش، تقدم قصة)
- *  - نظام إدماني: ستريك يومي، مكافآت تسجيل دخول
- *
- *  الثيم: صحراوي نقي (جمال، سيوف، خيام، كثبان)
+ *  القصة الرئيسية أصبحت في StoryManager (story-manager.js)
+ *  هذا الملف يدير المهام اليومية فقط
  * =============================================================================
  */
-
-import { STORY_CHAPTERS as STORY } from './story.js';
-
-export { STORY as STORY_CHAPTERS };
 
 export const DAILY_QUESTS = [
   {
@@ -70,7 +59,6 @@ export class QuestManager {
     this.army = army;
     this.village = village;
     
-    this.storyProgress = 0;
     this.dailyQuests = JSON.parse(JSON.stringify(DAILY_QUESTS));
     this.allianceMissions = JSON.parse(JSON.stringify(ALLIANCE_MISSIONS));
     this.lastDailyReset = Date.now();
@@ -79,11 +67,9 @@ export class QuestManager {
   }
 
   loadFromSave() {
-    // سيتم ربطه مع save.js لاحقاً
     const saved = localStorage.getItem('desert_quests');
     if (saved) {
       const data = JSON.parse(saved);
-      this.storyProgress = data.storyProgress || 0;
       this.dailyQuests = data.dailyQuests || this.dailyQuests;
       this.lastDailyReset = data.lastDailyReset || Date.now();
       if (data.unitPowerBonus && this.army) this.army.unitPowerBase = data.unitPowerBonus;
@@ -92,7 +78,6 @@ export class QuestManager {
 
   save() {
     localStorage.setItem('desert_quests', JSON.stringify({
-      storyProgress: this.storyProgress,
       dailyQuests: this.dailyQuests,
       lastDailyReset: this.lastDailyReset,
       unitPowerBonus: this.army.unitPowerBase
@@ -134,27 +119,6 @@ export class QuestManager {
     if (quest.reward.armyPower) this.army.unitPowerBase += quest.reward.armyPower;
     
     if (this._onQuestCompleted) this._onQuestCompleted(quest);
-  }
-
-  getStoryChapter() {
-    return STORY[this.storyProgress] || null;
-  }
-
-  advanceStory() {
-    if (this.storyProgress < STORY.length - 1) {
-      const chapter = STORY[this.storyProgress];
-      if (chapter.reward) {
-        if (chapter.reward.gold) this.economy.addRaw('gold', chapter.reward.gold);
-        if (chapter.reward.gems) this.economy.addRaw('gems', chapter.reward.gems);
-        if (chapter.reward.cash) this.economy.addRaw('cash', chapter.reward.cash);
-        if (chapter.reward.food) this.economy.addRaw('food', chapter.reward.food);
-        if (chapter.reward.xp) this.economy.addXp(chapter.reward.xp);
-      }
-      this.storyProgress++;
-      this.save();
-      return true;
-    }
-    return false;
   }
 
   getDailyQuests() {

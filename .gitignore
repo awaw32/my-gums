@@ -25,6 +25,9 @@ Thumbs.db
 # Planning artifacts (internal)
 .planning/
 
+# Runtime data (SQLite DB, etc.)
+data/
+
 # Temp
 tmp/
 temp/

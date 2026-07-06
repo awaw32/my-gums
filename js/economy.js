@@ -5,6 +5,8 @@ export const RESOURCE_TYPES = {
   hammers: { name: 'المطارق', icon: '🔨', color: '#e74c3c', format: 'big' },
   scrolls: { name: 'المخطوطات', icon: '📜', color: '#f39c12', format: 'big' },
   food: { name: 'الطعام', icon: '🌾', color: '#f1c40f', format: 'big' },
+  artifacts: { name: 'قطع أثرية', icon: '🏺', color: '#8e44ad', format: 'fixed' },
+  desertGem: { name: 'جوهرة الصحراء', icon: '💠', color: '#00ffff', format: 'fixed' },
 };
 
 export function formatNumber(n) {
@@ -30,6 +32,8 @@ export class GameEconomy {
       hammers: 0,
       scrolls: 0,
       food: 50,
+      artifacts: 0,
+      desertGem: 0,
     };
     this.multiplier = 1;
     this.level = 1;
@@ -45,6 +49,8 @@ export class GameEconomy {
     this._onLevelUp = null;
     this._onGoldEarned = null;
     this._onCashEarned = null;
+    this.knowledgeLevel = 1;
+    this.knowledgeType = 'economic';
     this._prestige = null; // مرجع لـ PrestigeManager للبونصات
     this._events = null; // مرجع لـ EventManager للمضاعفات
   }

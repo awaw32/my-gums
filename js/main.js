@@ -78,6 +78,8 @@ async function loadFromDatabase(economy, army, village, username) {
       economy.hammers = data.hammers || 0;
       economy.scrolls = data.scrolls || 0;
       economy.resources.food = data.food ?? 50;
+      economy.resources.artifacts = data.artifacts ?? 0;
+      economy.resources.desertGem = data.desertGem ?? 0;
       economy.level = data.level || 1;
       economy.xp = data.xp || 0;
       economy.xpToNext = getXpForLevel(economy.level);
@@ -94,6 +96,7 @@ async function loadFromDatabase(economy, army, village, username) {
           if (w) {
             w.level = wd.level || 0;
             w.upgradeLevel = wd.upgradeLevel ?? (wd.level > 0 ? wd.level * 8 : 0);
+            w.owned = w.upgradeLevel > 0; // ✅ استعادة حالة التملك من السيرفر
             if (wd.starLevel) w.starLevel = wd.starLevel;
             if (wd.gemLevel) w.gemLevel = wd.gemLevel;
           }
@@ -111,6 +114,7 @@ async function loadFromDatabase(economy, army, village, username) {
       window._loadedEvents = data.events || null;
       window._loadedTutorial = data.tutorial || null;
       window._loadedStory = data.story || null;
+      window._loadedEquippedWeapon = data.equippedWeapon || '';
       window._brWins = data.brWins ?? 0;
       window._brKills = data.brKills ?? 0;
       window._loadedHero = data.hero || null;
@@ -167,6 +171,9 @@ async function init() {
   const dailyLogin = new DailyLoginManager(economy);
   const storyManager = new StoryManager(economy, village);
   window._storyManager = storyManager;
+  window._army = army;
+  window._economy = economy;
+  window._allianceManager = allianceManager;
   const prestige = new PrestigeManager(economy, village, army, storyManager);
   const inventory = new InventoryManager(economy);
   const events = new EventManager();
@@ -197,6 +204,13 @@ async function init() {
   delete window._loadedTutorial;
   delete window._loadedStory;
   delete window._loadedHero;
+  
+  // 🆕 استعادة السلاح المجهز من قاعدة البيانات
+  if (window._loadedEquippedWeapon) {
+    world._equippedWeapon = window._loadedEquippedWeapon;
+    world.syncWeaponVisuals();
+    delete window._loadedEquippedWeapon;
+  }
   if (window._loadedLandsState) {
     window._pendingLandsState = window._loadedLandsState;
     delete window._loadedLandsState;
@@ -368,7 +382,14 @@ async function init() {
       ui.showNotification(`📅 يوم ${day}: حصلت على ${reward.label}`);
     };
 
+    // 🔥 تحسين: dirty flag — نحفظ فقط عندما يكون هناك تغيير حقيقي
+    let _saveDirty = false;
+    const markDirty = () => { _saveDirty = true; };
+
     const saveToDB = () => {
+      if (!_saveDirty) return; // ما في تغيير — لا نحفظ
+      _saveDirty = false;
+
       const landsState = ui._landsState || {};
       // نسخة احتياطية محلية دائماً
       saveGame(economy, village, army);
@@ -382,6 +403,8 @@ async function init() {
           hammers: economy.hammers,
           scrolls: economy.scrolls,
           food: economy.food,
+          artifacts: economy.resources.artifacts || 0,
+          desertGem: economy.resources.desertGem || 0,
           army_power: economy.power,
           unitLevel: army.unitLevel,
           trainingLevel: army.trainingLevel,
@@ -415,8 +438,73 @@ async function init() {
       }).catch(e => console.warn("[Save] saveToDB:", e.message));
     };
 
+    // أي تغيير في الاقتصاد أو الجيش أو القرية = علامة متسخ
+    const _origAddRaw = economy.addRaw.bind(economy);
+    economy.addRaw = function(...args) {
+      _origAddRaw(...args);
+      markDirty();
+    };
+    const _origSpend = economy.spend.bind(economy);
+    economy.spend = function(...args) {
+      const ok = _origSpend(...args);
+      if (ok) markDirty();
+      return ok;
+    };
+    const _origAddXp = economy.addXp.bind(economy);
+    economy.addXp = function(...args) {
+      _origAddXp(...args);
+      markDirty();
+    };
+
     ui._onSave = saveToDB;
+    ui._markDirty = markDirty;
     ui.setShopBuyCallback(function shopBuy(item) {
+      // 🆕 شراء سلاح جديد بالكاش
+      if (item.startsWith('buy_')) {
+        const wid = item.replace('buy_', '');
+        const weapon = army.weapons.find(w => w.id === wid);
+        if (weapon && !weapon.owned) {
+          if (weapon.buy(economy)) {
+            audio.playSound('buy');
+            world._equippedWeapon = wid;
+            world.syncWeaponVisuals();
+            audio.playWeaponSound(wid, 'equip');
+            ui.showNotification(`🔓 تم شراء ${weapon.name}! 🗡️ مجهز تلقائياً`);
+            saveToDB();
+            ui.updateTopBar();
+          } else {
+            ui.showNotification(`❌ المال غير كافٍ لشراء ${weapon.name}`);
+          }
+        }
+        return;
+      }
+
+      // 🆕 تجهيز سلاح
+      if (item.startsWith('equip_')) {
+        const wid = item.replace('equip_', '');
+        const weapon = army.weapons.find(w => w.id === wid);
+        if (weapon && weapon.owned) {
+          world._equippedWeapon = wid;
+          world.syncWeaponVisuals();
+          audio.playWeaponSound(wid, 'equip');
+          ui.showNotification(`🗡️ تم تجهيز ${weapon.name}`);
+          saveToDB();
+          ui.updateTopBar();
+        }
+        return;
+      }
+
+      // 🆕 إلغاء تجهيز السلاح
+      if (item === 'unequip') {
+        world._equippedWeapon = '';
+        world.syncWeaponVisuals();
+        audio.playSound('click');
+        ui.showNotification('✕ تم إلغاء تجهيز السلاح');
+        saveToDB();
+        ui.updateTopBar();
+        return;
+      }
+
       switch (item) {
         case "unit":
             if (army.unitLevel < army.maxUnitLevel) {
@@ -473,7 +561,12 @@ async function init() {
 
     // توصيل الأصوات والإنجازات والمهام بأحداث اللعبة
     world._onMonsterKilled = () => {
-      audio.playSound('kill');
+      // 🎵 صوت هجوم خاص حسب السلاح المجهز
+      if (world._equippedWeapon) {
+        audio.playWeaponSound(world._equippedWeapon, 'attack');
+      } else {
+        audio.playSound('kill');
+      }
       achievements.updateProgress('kills', 1);
       hero.addXp(15);
       economy.addXp(10);
@@ -485,8 +578,18 @@ async function init() {
       economy.addXp(3);
       // drop value يُتبع في collectDrop عبر _onCashEarned
     };
+    world._onTreasureOpened = (reward) => {
+      audio.playSound('treasure');
+      const gemText = reward.desertGem > 0 ? ` 💠x${reward.desertGem}` : '';
+      ui.showNotification(`🎁 صندوق كنز! +${reward.artifacts} 🏺 +${reward.cash} 💵 +${reward.gold} 🪙${gemText}`);
+      saveToDB();
+    };
     world._onPvPWin = () => {
       audio.playSound('levelup');
+      // 🎵 صوت هجوم السلاح المجهز عند الانتصار في PvP
+      if (world._equippedWeapon) {
+        audio.playWeaponSound(world._equippedWeapon, 'attack');
+      }
       achievements.updateProgress('pvp_wins', 1);
       hero.addXp(50);
       economy.addXp(25);
@@ -512,6 +615,58 @@ async function init() {
     quests._onQuestCompleted = (q) => {
       ui.showNotification(`📜 اكتملت المهمة: ${q.title} — حصلت على المكافأة!`);
       audio.playSound('levelup');
+    };
+
+    // توصيل القصة — عرض مشاهد الفصل التالي بعد إكمال الفصل الحالي
+    storyManager._onChapterComplete = (chapter) => {
+      // مكافآت إضافية: Hero XP, Army Levels, Knowledge, Training
+      if (chapter.reward.heroXp) hero.addXp(chapter.reward.heroXp);
+      if (chapter.reward.unitLevels) {
+        for (let i = 0; i < chapter.reward.unitLevels; i++) {
+          if (army.unitLevel < army.maxUnitLevel) army.unitLevel++;
+        }
+      }
+      if (chapter.reward.trainingLevel) {
+        for (let i = 0; i < chapter.reward.trainingLevel; i++) {
+          if (army.trainingLevel < army.maxTrainingLevel) army.trainingLevel++;
+        }
+      }
+      if (chapter.reward.knowledgeLevel && economy.knowledgeLevel < chapter.reward.knowledgeLevel) {
+        economy.knowledgeLevel = chapter.reward.knowledgeLevel;
+      }
+      saveToDB();
+      if (storyManager.hasMoreScenes()) {
+        setTimeout(() => {
+          ui.showStoryScene(() => {});
+        }, 1500);
+      }
+    };
+
+    storyManager._onVillageUnlocked = (village) => {
+      ui.showNotification(`🗺️ تم فتح قرية جديدة: ${village.name}`);
+    };
+
+    storyManager._onChapterScenesShow = (callback) => {
+      ui.showStoryScene(callback);
+    };
+
+    storyManager._onSceneWatched = (sceneId) => {
+      achievements.updateProgress('story_scenes', 1);
+    };
+
+    // 🦅 ربط مشاهد الـ Boss — تحويل القصة إلى وضع قتال الزعيم
+    storyManager._onBossFight = (bossId) => {
+      ui.showNotification(`⚔️ معركة الزعيم: ${bossId}!`);
+      const chapter = storyManager.currentChapterData;
+      if (chapter && chapter.village) {
+        const includeBoss = true;
+        world.spawnCampaignMonsters(chapter.village, includeBoss);
+        const canvas = document.getElementById("gameCanvas");
+        if (canvas) canvas.classList.remove("hidden");
+        const worldButtons = document.getElementById("world-buttons");
+        if (worldButtons) worldButtons.classList.remove("hidden");
+        world.enterWorldMap();
+      }
     };
 
     hero._onLevelUp = (lvl) => {
@@ -782,20 +937,34 @@ async function init() {
     });
 
     // تشغيل الأحداث الدورية
+    const TICK_INTERVAL = 15000; // 15 ثانية لكل tick
     let eventTimer = 0;
-    let lastPowerCheck = economy.power; // نبدأ من القوة الحالية عشان ما نضاعفش التتبع
-    const eventsInterval = setInterval(() => {
-      eventTimer += 15;
-      events.update(15);
-      // تتبع إنجازات القوة (فقط القمم الجديدة)
+    let lastPowerCheck = economy.power;
+    const gameTickInterval = setInterval(() => {
+      const dt = TICK_INTERVAL / 1000; // 15 ثانية
+      
+      // تحديث الاقتصاد والقرية والواحات
+      economy.tick();
+      village.update(dt);
+      economy.refreshIncome(village);
+      oasisManager.tick(dt);
+      allianceManager.tickRaidCooldown(dt);
+      hero.tick(dt);
+      
+      // الأحداث
+      eventTimer += dt;
+      events.update(dt);
+      
+      // تتبع إنجازات القوة
       const curPower = economy.power;
       if (curPower > lastPowerCheck) {
         achievements.updateProgress('power', curPower - lastPowerCheck);
         lastPowerCheck = curPower;
       }
+      
+      // بدء أحداث عشوائية كل 5 دقائق
       if (eventTimer > 300) {
         eventTimer = 0;
-        // بدء أحداث عشوائية إذا لم يكن هناك حدث نشط
         if (events.getActiveEvents().length === 0) {
           const available = events.getAll().filter(e => !e.active);
           if (available.length > 0) {
@@ -805,21 +974,7 @@ async function init() {
           }
         }
       }
-    }, 15000);
-    _gameIntervals.push(eventsInterval);
-
-    // تشغيل حدث Gold Rush كبداية
-    setTimeout(() => {
-      events.startEvent('gold_rush');
-      ui.showNotification('🎊 🏆 انهيار الذهب! الذهب من الوحوش ×2!');
-    }, 60000);
-
-    const economyInterval = setInterval(() => {
-      economy.tick();
-      village.update(15);
-      economy.refreshIncome(village);
-      oasisManager.tick(15); // 15 ثانية انقضت
-      hero.tick(15);
+      
       // إعادة تعيين عدادات التحديات اليومية عند تغيير اليوم
       if (world.sessionStats && world._lastChallengeDate !== new Date().toDateString()) {
         world.sessionStats.upgradesToday = 0;
@@ -828,24 +983,24 @@ async function init() {
         world.sessionStats.coinsEarned = 0;
         world._lastChallengeDate = new Date().toDateString();
       }
+      
       // مزامنة مستوى مباني الأراضي مع أنظمة اللعبة
       if (ui._landsState) {
-        const b2 = ui._landsState['b2']; // سكن الجنود
-        const b3 = ui._landsState['b3']; // مستودع البضائع
-        const b4 = ui._landsState['b4']; // ساحة التدريب
+        const b2 = ui._landsState['b2'];
+        const b3 = ui._landsState['b3'];
+        const b4 = ui._landsState['b4'];
         if (b2) {
           army.barracksLevel = b2.level || 1;
           army.unitsCount = army.getMaxUnits(b2.level || 1);
         }
-        // مستودع البضائع: كل لفل يزيد إنتاج الذهب بـ 10%
         if (b3 && b3.state === 'built' && b3.level > 0) {
           economy.b3GoldBonus = 1 + (b3.level - 1) * 0.10;
         }
-        // ساحة التدريب: كل لفل يزيد قوة الجنود بـ 5%
         if (b4 && b4.state === 'built' && b4.level > 0) {
           army.b4TrainingBonus = 1 + (b4.level - 1) * 0.05;
         }
       }
+      
       // استهلاك الطعام للجيش
       if (world.leader && world.running) {
         const aliveUnits = world.armyUnits.filter(u => u.hp > 0).length;
@@ -854,16 +1009,22 @@ async function init() {
           economy.addRaw("food", -foodCost);
         } else {
           economy.food = 0;
-          // الجوع يضر بالجيش
           for (const u of world.armyUnits) {
             if (u.hp > 0) u.hp = Math.max(0, u.hp - 2);
           }
           if (world.leader) world.leader.hp = Math.max(0, world.leader.hp - 1);
         }
       }
-      saveToDB();
-    }, 15000);
-    _gameIntervals.push(economyInterval);
+      
+      saveToDB(); // يحفظ فقط إذا كان هناك تغيير (dirty flag)
+    }, TICK_INTERVAL);
+    _gameIntervals.push(gameTickInterval);
+
+    // تشغيل حدث Gold Rush كبداية
+    setTimeout(() => {
+      events.startEvent('gold_rush');
+      ui.showNotification('🎊 🏆 انهيار الذهب! الذهب من الوحوش ×2!');
+    }, 60000);
 
     // إتاحة تنظيف الفواصل من خارج الدالة
     window._cleanupGameIntervals = () => {

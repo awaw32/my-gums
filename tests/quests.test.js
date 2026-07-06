@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { QuestManager, DAILY_QUESTS, STORY_CHAPTERS, ALLIANCE_MISSIONS } from '../js/quests.js';
+import { QuestManager, DAILY_QUESTS, ALLIANCE_MISSIONS } from '../js/quests.js';
 
 function makeMockEconomy() {
   return {
@@ -39,10 +39,6 @@ describe('QuestManager', () => {
   describe('initialization', () => {
     it('should create 3 daily quests', () => {
       expect(quests.dailyQuests).toHaveLength(3);
-    });
-
-    it('should start with storyProgress at 0', () => {
-      expect(quests.storyProgress).toBe(0);
     });
 
     it('should deep-copy DAILY_QUESTS to avoid mutation', () => {
@@ -124,34 +120,6 @@ describe('QuestManager', () => {
     });
   });
 
-  describe('story advancement', () => {
-    it('getStoryChapter should return first chapter at start', () => {
-      const ch = quests.getStoryChapter();
-      expect(ch).toBeTruthy();
-      expect(ch.id).toBe(1);
-    });
-
-    it('advanceStory should move to next chapter', () => {
-      const result = quests.advanceStory();
-      expect(result).toBe(true);
-      expect(quests.storyProgress).toBe(1);
-    });
-
-    it('advanceStory should give rewards from chapter', () => {
-      const goldBefore = eco.resources.gold;
-      const xpBefore = eco.xp || 0;
-      quests.advanceStory();
-      expect(eco.resources.gold).toBe(goldBefore + 50);
-      expect(eco.xp).toBe(xpBefore + 200);
-    });
-
-    it('advanceStory should return false when at last chapter', () => {
-      quests.storyProgress = STORY_CHAPTERS.length;
-      const result = quests.advanceStory();
-      expect(result).toBe(false);
-    });
-  });
-
   describe('daily reset', () => {
     it('checkDailyReset should reset quests if >1 day elapsed', () => {
       quests.dailyQuests[0].progress = 300;
@@ -176,31 +144,26 @@ describe('QuestManager', () => {
 
   describe('save/load persistence', () => {
     it('save should persist to localStorage', () => {
-      quests.storyProgress = 1;
       quests.dailyQuests[0].progress = 200;
       quests.save();
       const raw = store['desert_quests'];
       expect(raw).toBeTruthy();
       const data = JSON.parse(raw);
-      expect(data.storyProgress).toBe(1);
       expect(data.dailyQuests[0].progress).toBe(200);
     });
 
     it('loadFromSave should restore from localStorage', () => {
       store['desert_quests'] = JSON.stringify({
-        storyProgress: 1,
         dailyQuests: [{ id: 'daily_1', title: 'test', type: 'collect', target: 500, progress: 300, reward: { gold: 100 }, resetDaily: true }],
         lastDailyReset: Date.now(),
       });
       const q2 = new QuestManager(eco, arm, vil);
-      expect(q2.storyProgress).toBe(1);
       expect(q2.dailyQuests[0].progress).toBe(300);
     });
 
     it('loadFromSave should use defaults when no saved data', () => {
-      // No saved data in store
       const q2 = new QuestManager(eco, arm, vil);
-      expect(q2.storyProgress).toBe(0);
+      expect(q2.dailyQuests.length).toBe(3);
     });
   });
 
@@ -253,17 +216,4 @@ describe('DAILY_QUESTS data', () => {
   });
 });
 
-describe('STORY_CHAPTERS data', () => {
-  it('should have at least 2 chapters', () => {
-    expect(STORY_CHAPTERS.length).toBeGreaterThanOrEqual(2);
-  });
 
-  it('each chapter should have required fields', () => {
-    for (const ch of STORY_CHAPTERS) {
-      expect(ch.id).toBeGreaterThan(0);
-      expect(ch.title).toBeTruthy();
-      expect(ch.description).toBeTruthy();
-      expect(ch.reward).toBeTruthy();
-    }
-  });
-});

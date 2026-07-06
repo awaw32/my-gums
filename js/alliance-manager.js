@@ -5,11 +5,25 @@ const ALLIANCE_TIERS = [
   { level: 4, name: "إمبراطورية", cost: 800, damageBonus: 20, defenseBonus: 8, incomeMult: 1.5 },
 ];
 
+// 🎯 غارات التحالف: مستويات مختلفة من الغارات التعاونية
+const ALLIANCE_RAIDS = [
+  { level: 1, name: "غارة الواحة", bossId: "wadi_boss", powerReq: 5000, reward: { cash: 5000, gold: 500, gems: 50 } },
+  { level: 2, name: "غارة الأطلال", bossId: "palace_boss", powerReq: 15000, reward: { cash: 20000, gold: 2000, gems: 150 } },
+  { level: 3, name: "غارة الجبل", bossId: "mountain_boss", powerReq: 50000, reward: { cash: 75000, gold: 7500, gems: 500, artifacts: 10 } },
+  { level: 4, name: "غارة العرش", bossId: "final_boss", powerReq: 200000, reward: { cash: 250000, gold: 25000, gems: 1500, artifacts: 50, desertGem: 3 } },
+];
+
+export { ALLIANCE_RAIDS };
+
 export class AllianceManager {
   constructor(economy) {
     this.economy = economy;
     this.level = 0;
     this._onChanged = null;
+    this._raidCooldown = 0; // تايمر الغارة بالثواني
+    this._raidActive = false;
+    this._raidBoss = null;
+    this._onRaidStateChange = null;
   }
 
   get currentTier() {
@@ -83,5 +97,93 @@ export class AllianceManager {
     if (typeof level === "number" && level >= 0 && level <= this.maxLevel) {
       this.level = level;
     }
+  }
+
+  // ==================== 🎯 نظام غارات التحالف ====================
+
+  get availableRaids() {
+    return ALLIANCE_RAIDS.filter(r => r.level <= this.level + 1 && this.economy.power >= r.powerReq);
+  }
+
+  get nextRaid() {
+    if (this.level === 0) return null;
+    return ALLIANCE_RAIDS.find(r => r.level <= this.level && r.level > 0) || null;
+  }
+
+  startRaid(raidIndex) {
+    if (this._raidActive) return false;
+    if (this._raidCooldown > 0) return false;
+    const raid = ALLIANCE_RAIDS[raidIndex];
+    if (!raid) return false;
+    if (raid.level > this.level + 1) return false;
+    if (this.economy.power < raid.powerReq) return false;
+
+    this._raidActive = true;
+    this._raidBoss = {
+      name: raid.name,
+      hp: raid.powerReq * 2,
+      maxHp: raid.powerReq * 2,
+      damage: Math.floor(raid.powerReq * 0.01),
+      alive: true,
+      raidIndex,
+    };
+    if (this._onRaidStateChange) this._onRaidStateChange(this._raidBoss);
+    return true;
+  }
+
+  get raidCooldown() {
+    return this._raidCooldown;
+  }
+
+  get isRaidActive() {
+    return this._raidActive;
+  }
+
+  dealRaidDamage() {
+    if (!this._raidActive || !this._raidBoss || !this._raidBoss.alive) return 0;
+    const dmg = Math.floor(this.economy.power * 0.02) + this.damageBonus;
+    this._raidBoss.hp -= dmg;
+    if (this._raidBoss.hp <= 0) {
+      this._raidBoss.hp = 0;
+      this._raidBoss.alive = false;
+      this._completeRaid();
+    }
+    if (this._onRaidStateChange) this._onRaidStateChange(this._raidBoss);
+    return dmg;
+  }
+
+  _completeRaid() {
+    const raid = ALLIANCE_RAIDS[this._raidBoss.raidIndex];
+    if (!raid) return;
+    // منح المكافآت
+    const rewards = raid.reward;
+    for (const [res, amt] of Object.entries(rewards)) {
+      if (res === 'artifacts' && this.economy.resources.artifacts !== undefined) {
+        this.economy.addRaw('artifacts', amt);
+      } else if (res === 'desertGem' && this.economy.resources.desertGem !== undefined) {
+        this.economy.addRaw('desertGem', amt);
+      } else if (this.economy.resources[res] !== undefined) {
+        this.economy.addRaw(res, amt);
+      }
+    }
+    this._raidActive = false;
+    this._raidCooldown = 3600; // 1 ساعة تبريد
+    this._raidBoss = null;
+    if (this._onRaidStateChange) this._onRaidStateChange(null);
+    if (this._onChanged) this._onChanged(this.level);
+  }
+
+  tickRaidCooldown(dt) {
+    if (this._raidCooldown > 0) {
+      this._raidCooldown -= dt;
+      if (this._raidCooldown < 0) this._raidCooldown = 0;
+    }
+  }
+
+  cancelRaid() {
+    this._raidActive = false;
+    this._raidBoss = null;
+    this._raidCooldown = 300; // 5 دقائق تبريد للإلغاء
+    if (this._onRaidStateChange) this._onRaidStateChange(null);
   }
 }

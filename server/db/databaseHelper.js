@@ -97,9 +97,138 @@ function ensureMinPower(playerData) {
   return playerData;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  SQLite — تخزين دائم بدون MongoDB (essential للـ VPS)
+// ═══════════════════════════════════════════════════════════════════
+let sqliteDb = null;
+let sqliteAvailable = false;
+const DATA_DIR = process.env.DATA_DIR || "./data";
+
+// متغيرات عامة للـ dirty tracking — معرفة خارج الـ try عشان savePlayer يقدر يناديها
+let _dirtyUsernames = null;
+let markDirty = (username) => {};      // no-op افتراضي
+let flushToSQLite = (username) => {};  // no-op افتراضي
+
+try {
+  const path = require("path");
+  const fs = require("fs");
+  const dbPath = path.resolve(DATA_DIR, "desert-kingdom.db");
+
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+
+  const Database = require("better-sqlite3");
+  sqliteDb = new Database(dbPath);
+
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS players (
+      username TEXT PRIMARY KEY NOT NULL,
+      data TEXT NOT NULL,
+      last_active INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    )
+  `);
+
+  sqliteDb.exec(`
+    CREATE INDEX IF NOT EXISTS idx_players_active ON players(last_active)
+  `);
+
+  sqliteAvailable = true;
+
+  // تحميل جميع اللاعبين من SQLite إلى الذاكرة عند بدء التشغيل
+  const rows = sqliteDb.prepare("SELECT username, data, last_active FROM players").all();
+  for (const row of rows) {
+    try {
+      const playerData = JSON.parse(row.data);
+      playerData.last_active = row.last_active;
+      memStore.set(row.username, playerData);
+    } catch (e) {
+      console.warn(`[SQLite] خطأ في قراءة بيانات اللاعب ${row.username}:`, e.message);
+    }
+  }
+  console.log(`[SQLite] تم تحميل ${rows.length} لاعب/لاعبة من قاعدة البيانات المحلية ✅`);
+
+  // حفظ دوري للبيانات المتسخة كل 30 ثانية
+  _dirtyUsernames = new Set();
+
+  const flushDirtyInterval = setInterval(() => {
+    if (!_dirtyUsernames || _dirtyUsernames.size === 0) return;
+    const usernames = Array.from(_dirtyUsernames);
+    _dirtyUsernames.clear();
+    const stmt = sqliteDb.prepare(
+      "INSERT OR REPLACE INTO players (username, data, last_active, updated_at) VALUES (?, ?, ?, strftime('%s','now'))"
+    );
+    const saveMany = sqliteDb.transaction((entries) => {
+      for (const [uname, data, lastActive] of entries) {
+        stmt.run(uname, data, lastActive);
+      }
+    });
+    try {
+      const entries = [];
+      for (const uname of usernames) {
+        const player = memStore.get(uname);
+        if (player) {
+          entries.push([uname, JSON.stringify(player), player.last_active || Date.now()]);
+        }
+      }
+      if (entries.length > 0) saveMany(entries);
+    } catch (e) {
+      console.warn("[SQLite] خطأ في الحفظ الدوري:", e.message);
+    }
+  }, 30000);
+
+  // ── حفظ البيانات المتسخة عند إيقاف السيرفر ──
+  const flushOnShutdown = () => {
+    if (!_dirtyUsernames || _dirtyUsernames.size === 0) return;
+    const stmt = sqliteDb.prepare(
+      "INSERT OR REPLACE INTO players (username, data, last_active, updated_at) VALUES (?, ?, ?, strftime('%s','now'))"
+    );
+    for (const uname of _dirtyUsernames) {
+      const player = memStore.get(uname);
+      if (player) {
+        try { stmt.run(uname, JSON.stringify(player), player.last_active || Date.now()); } catch (e) {}
+      }
+    }
+    _dirtyUsernames.clear();
+  };
+
+  process.on("SIGTERM", flushOnShutdown);
+  process.on("SIGINT", flushOnShutdown);
+
+  // تعيين دوال markDirty و flushToSQLite الفعلية
+  markDirty = (username) => {
+    if (username && _dirtyUsernames) _dirtyUsernames.add(username);
+  };
+
+  flushToSQLite = (username) => {
+    if (!sqliteAvailable || !username) return;
+    const player = memStore.get(username);
+    if (!player) return;
+    try {
+      sqliteDb.prepare(
+        "INSERT OR REPLACE INTO players (username, data, last_active, updated_at) VALUES (?, ?, ?, strftime('%s','now'))"
+      ).run(username, JSON.stringify(player), player.last_active || Date.now());
+      if (_dirtyUsernames) _dirtyUsernames.delete(username);
+    } catch (e) {
+      console.warn(`[SQLite] فشل الحفظ الفوري لـ ${username}:`, e.message);
+    }
+  };
+} catch (e) {
+  console.warn(`[SQLite] غير متاح (better-sqlite3 غير مثبت أو خطأ):`, e.message);
+  console.warn(`[SQLite] اللعبة ستشتغل بدون حفظ دائم — استخدم MongoDB أو ثبّت better-sqlite3`);
+  // markDirty و flushToSQLite تبقى no-op (معرفة في الأعلى)
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  دوال الحفظ والتحميل الأساسية
+// ═══════════════════════════════════════════════════════════════════
+
 async function savePlayer(username, data) {
   const existing = memStore.get(username) || getDefaultPlayer(username);
-  memStore.set(username, { ...existing, ...data, last_active: data.last_active || Date.now() });
+  const merged = { ...existing, ...data, last_active: data.last_active || Date.now() };
+  memStore.set(username, merged);
+  markDirty(username); // الآن markDirty في أعلى النطاق (متاحة دائماً)
   if (mongoConnected) {
     await Player.updateOne(
       { username },
@@ -147,6 +276,9 @@ async function getLeaderboard(sortBy = "power") {
   return entries;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  التصدير — دائماً في نهاية الملف
+// ═══════════════════════════════════════════════════════════════════
 module.exports = {
   mongoConnected,
   memStore,
@@ -158,4 +290,7 @@ module.exports = {
   getLeaderboard,
   WEAPON_DEFS,
   ensureMinPower,
+  sqliteAvailable,
+  markDirty,
+  flushToSQLite,
 };

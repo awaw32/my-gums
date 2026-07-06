@@ -10,7 +10,7 @@ import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/co
 import { computeWeaponDamage } from "./combat/weapon-system.js";
 import { computeKnowledgeBonuses } from "./combat/knowledge-system.js";
 import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.js";
-import { drawWeaponGlow, drawWeaponStarIcons } from "./combat/weapon-visuals.js";
+import { drawWeaponGlow, drawWeaponStarIcons, drawWeaponOnHero } from "./combat/weapon-visuals.js";
 import { spriteFactory, SpriteFactory } from "./sprite-factory.js";
 import { IsometricSystem, DepthSorter } from "./isometric.js";
 import { getEnemyForLevel, getEnemiesForVillage, getBossForVillage, calculateEnemyPower } from "./enemies.js";
@@ -50,8 +50,8 @@ export class WorldMap {
     this._pvpParticles = [];
     this._pvpDefeatShown = false;
     this._equippedWeapon = "";
-    this._weaponStarLevel = 1;
-    this._weaponGemLevel = 1;
+    this._weaponStarLevel = 0;
+    this._weaponGemLevel = 0;
     this._glowTime = 0;
     this._wipeFlag = false;
     this._allianceManager = null;
@@ -133,7 +133,9 @@ export class WorldMap {
     this._onPvPLose = null;
     this._onPvPReturn = null;
     this._onDropCollected = null;
+    this._onTreasureOpened = null;
     this._onSelfStatsChanged = null;
+    this.treasureChests = [];
   }
 
   _preloadImages() {
@@ -577,6 +579,7 @@ export class WorldMap {
     }
 
     this.spawnMonsters(); // وحوش محلية كبديل (يتم تحديثها من السيرفر عند الاتصال)
+    this.spawnTreasureChests(); // 🎁 صناديق الكنز في الخريطة
 
     // عوائق الصحراء
     markObstacle(420, 380, 95);
@@ -732,6 +735,40 @@ export class WorldMap {
     return "monster-1";
   }
 
+  // ==================== 🎁 صناديق الكنز ====================
+  spawnTreasureChests() {
+    this.treasureChests = [];
+    const chestCount = 6 + Math.floor(Math.random() * 4); // 6-9 صناديق
+    const playerLevel = this.economy?.level || 1;
+    const levelScale = 1 + (playerLevel - 1) * 0.15; // كل مستوى +15%
+    for (let i = 0; i < chestCount; i++) {
+      let x, y;
+      do {
+        x = 150 + Math.random() * (this.W - 300);
+        y = 150 + Math.random() * (this.H - 300);
+      } while (this.isInSafeZone(x, y) || this._isNearOtherChest(x, y, i));
+      this.treasureChests.push({
+        id: `chest_${i}_${Date.now()}`,
+        x, y,
+        opened: false,
+        respawnTimer: 0,
+        reward: {
+          artifacts: Math.max(1, Math.floor((1 + Math.random() * 3) * levelScale)),
+          cash: Math.floor((50 + Math.random() * 200) * levelScale),
+          gold: Math.floor((10 + Math.random() * 50) * levelScale),
+          desertGem: Math.random() < 0.15 ? 1 : 0,
+        },
+      });
+    }
+  }
+
+  _isNearOtherChest(x, y, currentIndex) {
+    for (let i = 0; i < currentIndex; i++) {
+      if (Math.hypot(this.treasureChests[i].x - x, this.treasureChests[i].y - y) < 150) return true;
+    }
+    return false;
+  }
+
   respawnMonster(monster) {
     monster.alive = true;
     monster.hp = monster.maxHp;
@@ -771,7 +808,45 @@ export class WorldMap {
     if (this._onDropCollected) this._onDropCollected();
   }
 
+  findTreasureChestAt(x, y) {
+    for (let i = this.treasureChests.length - 1; i >= 0; i--) {
+      const c = this.treasureChests[i];
+      if (!c.opened && Math.hypot(c.x - x, c.y - y) < 40) return i;
+    }
+    return -1;
+  }
+
+  openTreasureChest(index) {
+    if (index < 0 || index >= this.treasureChests.length) return;
+    const chest = this.treasureChests[index];
+    if (!chest || chest.opened) return;
+    chest.opened = true;
+    chest.respawnTimer = 90; // يعود بعد 90 ثانية
+    const { artifacts, cash, gold, desertGem } = chest.reward;
+    if (this.economy) {
+      if (artifacts > 0) this.economy.addRaw('artifacts', artifacts);
+      if (cash > 0) this.economy.addRaw('cash', cash);
+      if (gold > 0) this.economy.addRaw('gold', gold);
+      if (desertGem > 0) this.economy.addRaw('desertGem', desertGem);
+    }
+    const gemText = desertGem > 0 ? ` 💠x${desertGem}` : '';
+    this.worldFx.push({
+      x: chest.x, y: chest.y,
+      text: `🎁 ${artifacts} 🏺 +${cash} 💵 +${gold} 🪙${gemText}`,
+      color: "#ffd700", life: 2.0, maxLife: 2.0
+    });
+    if (this._onTreasureOpened) this._onTreasureOpened(chest.reward);
+  }
+
   onTap(wx, wy) {
+    // 🎁 فتح صندوق كنز إذا نقر عليه
+    const chestIdx = this.findTreasureChestAt(wx, wy);
+    if (chestIdx >= 0) {
+      this.openTreasureChest(chestIdx);
+      this._hidePvPMenu();
+      return;
+    }
+
     const dropIdx = this.findDropAt(wx, wy);
     if (dropIdx >= 0) {
       this.collectDrop(dropIdx);
@@ -1007,6 +1082,30 @@ export class WorldMap {
     this.checkCombatProximity();
     this.updatePvPCombat(dt);
     this.checkWipe();
+    // 🎁 إعادة ظهور صناديق الكنز بعد فتحها
+    for (const c of this.treasureChests) {
+      if (c.opened) {
+        c.respawnTimer -= dt;
+        if (c.respawnTimer <= 0) {
+          c.opened = false;
+          // اختيار موقع جديد عشوائي
+          let nx, ny;
+          do {
+            nx = 150 + Math.random() * (this.W - 300);
+            ny = 150 + Math.random() * (this.H - 300);
+          } while (this.isInSafeZone(nx, ny));
+          c.x = nx;
+          c.y = ny;
+          const levelScale = 1 + ((this.economy?.level || 1) - 1) * 0.15;
+          c.reward = {
+            artifacts: Math.max(1, Math.floor((1 + Math.random() * 3) * levelScale)),
+            cash: Math.floor((50 + Math.random() * 200) * levelScale),
+            gold: Math.floor((10 + Math.random() * 50) * levelScale),
+            desertGem: Math.random() < 0.15 ? 1 : 0,
+          };
+        }
+      }
+    }
     if (this.mode === "battle_royale") this.updateBR(dt);
 
     ctx.save();
@@ -1058,6 +1157,12 @@ export class WorldMap {
     for (const d of this.drops) {
       if (d.collected) continue;
       ds.add(d.x, d.y, (c) => this._drawDropEntity(c, d));
+    }
+
+    // 🎁 إضافة صناديق الكنز
+    for (const c of this.treasureChests) {
+      if (c.opened) continue;
+      ds.add(c.x, c.y, (c2) => this._drawTreasureChestEntity(c2, c));
     }
 
     // إضافة الجنود
@@ -1295,6 +1400,54 @@ export class WorldMap {
     ctx.fillRect(-14, -22, 28, 3);
     ctx.fillStyle = "#ff6600";
     ctx.fillRect(-14, -22, 28 * hpPct, 3);
+    ctx.restore();
+  }
+
+  /**
+   * رسم صندوق كنز 🎁
+   */
+  _drawTreasureChestEntity(ctx, c) {
+    const time = Date.now() * 0.003;
+    const bobY = Math.sin(time + c.x * 0.01) * 3;
+    const pulse = Math.sin(time * 1.5) * 0.15 + 0.85;
+
+    ctx.save();
+    ctx.translate(c.x, c.y + bobY);
+
+    // 🟤 توهج ذهبي خلف الصندوق
+    ctx.shadowColor = "#ffd700";
+    ctx.shadowBlur = 18 * pulse;
+
+    // جسم الصندوق
+    ctx.fillStyle = "#8B4513";
+    ctx.beginPath();
+    ctx.roundRect(-12, -10, 24, 18, 3);
+    ctx.fill();
+
+    // غطاء الصندوق
+    ctx.fillStyle = "#A0522D";
+    ctx.beginPath();
+    ctx.roundRect(-13, -12, 26, 6, 2);
+    ctx.fill();
+
+    // إبزيم ذهبي
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#FFD700";
+    ctx.beginPath();
+    ctx.arc(0, -2, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#DAA520";
+    ctx.beginPath();
+    ctx.arc(0, -2, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // علامة استفهام فوق الصندوق
+    ctx.fillStyle = "rgba(255,215,0," + (0.5 + Math.sin(time * 2) * 0.3) + ")";
+    ctx.font = "bold 12px Cairo, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText("❓", 0, -14);
+
     ctx.restore();
   }
 
@@ -1554,6 +1707,15 @@ export class WorldMap {
         this.collectDrop(i);
       }
     }
+
+    // 🎁 جمع تلقائي للصناديق عندما يمر القائد فوقها
+    for (let i = this.treasureChests.length - 1; i >= 0; i--) {
+      const c = this.treasureChests[i];
+      if (c.opened) continue;
+      if (Math.hypot(c.x - this.leader.x, c.y - this.leader.y) < 35) {
+        this.openTreasureChest(i);
+      }
+    }
     const h = this.leader;
     const history = h._posHistory;
     const len = history.length;
@@ -1734,6 +1896,22 @@ export class WorldMap {
       this.sessionStats.kills++;
       if (this.netSync) this.netSync.send({ type: "monster_killed", id: monster.id });
       this.createDrop(monster.x, monster.y, reward, goldReward);
+      // 🏺 القطع الأثرية من الـ Bosses
+      if (monster.isBoss && this.economy) {
+        const artifactDrop = 1 + Math.floor(Math.random() * 2); // 1-2 قطع
+        const gemDrop = monster.enemyId === 'final_boss' ? 1 : 0; // فقط boss النهائي يعطي جوهرة
+        if (artifactDrop > 0) this.economy.addRaw('artifacts', artifactDrop);
+        if (gemDrop > 0) this.economy.addRaw('desertGem', gemDrop);
+        if (this.store) {
+          this.store.set('notification', {
+            text: `🏺 حصلت على ${artifactDrop} قطع أثرية!${gemDrop ? ' 💠 وجوهرة الصحراء!' : ''}`,
+            t: Date.now()
+          });
+        }
+      } else if (this.economy && Math.random() < 0.08) {
+        // 8% فرصة سقوط قطعة أثرية من الوحوش العادية (للمستويات العالية)
+        this.economy.addRaw('artifacts', 1);
+      }
       this.worldFx.push({ x: monster.x, y: monster.y, text: `⚔️ قتلت ${monster.name}`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
     }
   }
@@ -1765,6 +1943,18 @@ export class WorldMap {
   }
 
   // ==================== الرسم ====================
+  syncWeaponVisuals() {
+    const weapons = this.army?.weapons || [];
+    const equipped = weapons.find(w => w.id === this._equippedWeapon);
+    if (equipped && equipped.owned) {
+      this._weaponStarLevel = equipped.level || 1;
+      this._weaponGemLevel = equipped.gemLevel || 1;
+    } else {
+      this._weaponStarLevel = 0;
+      this._weaponGemLevel = 0;
+    }
+  }
+
   drawHero(ctx) {
     const l = this.leader;
     const useSprites = this._isometricEnabled && spriteFactory.isReady;
@@ -1814,6 +2004,11 @@ export class WorldMap {
     ctx.fillRect(-l.radius, -l.radius - 18, l.radius * 2 * hp, 4);
 
     ctx.restore();
+
+    // 🗡️ رسم السلاح المجهز فوق القائد (مع حركة عائمة)
+    if (this._equippedWeapon) {
+      drawWeaponOnHero(ctx, this._equippedWeapon, l.x, l.y, l.radius, this._weaponStarLevel || 1, this._glowTime || 0);
+    }
 
     if (this._weaponStarLevel >= 1) {
       drawWeaponStarIcons(ctx, l.x, l.y - l.radius - 28, this._weaponStarLevel, 8);
@@ -1938,6 +2133,15 @@ export class WorldMap {
       if (!mon.alive) continue;
       ctx.fillStyle = mon.color;
       ctx.fillRect(sx + mon.x * scale - 1, sy + mon.y * scale - 1, 3, 3);
+    }
+
+    // 🎁 رسم صناديق الكنز على الميني ماب
+    for (const c of this.treasureChests) {
+      if (c.opened) continue;
+      ctx.fillStyle = "#FFD700";
+      ctx.beginPath();
+      ctx.arc(sx + c.x * scale + 0.5, sy + c.y * scale + 0.5, 2, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // رسم لاعبين آخرين

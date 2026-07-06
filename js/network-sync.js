@@ -16,7 +16,7 @@ export class NetworkSync {
   start() {
     if (this._ws) return;
     this._connectWS();
-    this._wsInterval = setInterval(() => this.sendWSUpdate(), 100);
+    this._wsInterval = setInterval(() => this.sendWSUpdate(), 200);
     this._posInterval = setInterval(() => this.sendPositionUpdate(), 5000);
     this._boundUnload = () => this.stop();
     window.addEventListener("beforeunload", this._boundUnload);

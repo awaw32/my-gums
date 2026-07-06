@@ -1,10 +1,19 @@
 export const WEAPON_DATA = [
-  { id: "w1", name: "سيف بدوي", desc: "سيف قصير خفيف", basePower: 5, gemCost: 10, requireLevel: 1 },
-  { id: "w2", name: "قوس طويل", desc: "قوس للرماية من مسافة", basePower: 15, gemCost: 30, requireLevel: 2 },
-  { id: "w3", name: "رمح حديدي", desc: "رمح ثقيل للهجوم", basePower: 30, gemCost: 60, requireLevel: 3 },
-  { id: "w4", name: "سيف دمشقي", desc: "سيف فولاذي صلب", basePower: 50, gemCost: 120, requireLevel: 4 },
-  { id: "w5", name: "قوس ناري", desc: "قوس يطلق سهماً نارياً", basePower: 80, gemCost: 200, requireLevel: 5 },
-  { id: "w6", name: "فأس معركة", desc: "فأس ضخمة ثنائية اليد", basePower: 120, gemCost: 350, requireLevel: 6 },
+  { id: "w1", name: "سيف بدوي", desc: "سيف قصير خفيف", basePower: 5, gemCost: 10, cashPrice: 100, requireLevel: 1 },
+  { id: "w2", name: "قوس طويل", desc: "قوس للرماية من مسافة", basePower: 15, gemCost: 30, cashPrice: 400, requireLevel: 2 },
+  { id: "w3", name: "رمح حديدي", desc: "رمح ثقيل للهجوم", basePower: 30, gemCost: 60, cashPrice: 1200, requireLevel: 3 },
+  { id: "w4", name: "سيف دمشقي", desc: "سيف فولاذي صلب", basePower: 50, gemCost: 120, cashPrice: 4000, requireLevel: 4 },
+  { id: "w5", name: "قوس ناري", desc: "قوس يطلق سهماً نارياً", basePower: 80, gemCost: 200, cashPrice: 12000, requireLevel: 5 },
+  { id: "w6", name: "فأس معركة", desc: "فأس ضخمة ثنائية اليد", basePower: 120, gemCost: 350, cashPrice: 25000, requireLevel: 6 },
+];
+
+// تكاليف الترقية لكل مستوى نجمي (0→1, 1→2, 2→3, 3→4, 4→5)
+const UPGRADE_COSTS = [
+  { cash: 500,  gems: 10,  artifact: 0,  desertGem: 0, label: "1⭐" },
+  { cash: 2000, gems: 30,  artifact: 1,  desertGem: 0, label: "2⭐" },
+  { cash: 8000, gems: 80,  artifact: 2,  desertGem: 0, label: "3⭐" },
+  { cash: 25000, gems: 200, artifact: 4, desertGem: 1, label: "4⭐" },
+  { cash: 80000, gems: 500, artifact: 8, desertGem: 3, label: "5⭐" },
 ];
 
 export class Weapon {
@@ -14,36 +23,57 @@ export class Weapon {
     this.desc = data.desc;
     this.basePower = data.basePower;
     this.gemCost = data.gemCost;
+    this.cashPrice = data.cashPrice || 0;
     this.requireLevel = data.requireLevel;
-    this.level = 0;
+    this.owned = false;
+    this.level = 0;       // 0-5 عدد النجوم
     this.maxLevel = 5;
-    this.upgradeLevel = 0;
+    this.upgradeLevel = 0; // عداد داخلي (محفوظ للتوافق)
     this.maxUpgradeLevel = 40;
+  }
+
+  buy(economy) {
+    if (this.owned) return false;
+    if (!economy.canAfford('cash', this.cashPrice)) return false;
+    economy.spend('cash', this.cashPrice);
+    this.owned = true;
+    this.upgradeLevel = 1;
+    return true;
   }
 
   get power() {
     return this.basePower * (1 + this.level * 0.5);
   }
 
-  get upgradeCost() {
-    return Math.floor(this.gemCost * (1 + Math.floor(this.upgradeLevel / 3) * 0.5));
+  getUpgradeCosts() {
+    // التكلفة للترقية من المستوى الحالي إلى التالي
+    if (this.level >= this.maxLevel) return null;
+    return UPGRADE_COSTS[this.level];
   }
 
   canUpgrade(economy, houseLevel) {
-    if (this.upgradeLevel >= this.maxUpgradeLevel) return false;
+    if (this.level >= this.maxLevel) return false;
+    if (!this.owned) return false;
     if (houseLevel < this.requireLevel) return false;
-    return economy.canAfford('gems', this.upgradeCost);
+    const cost = this.getUpgradeCosts();
+    if (!cost) return false;
+    if (!economy.canAfford('cash', cost.cash)) return false;
+    if (!economy.canAfford('gems', cost.gems)) return false;
+    if (cost.artifact > 0 && !economy.canAfford('artifacts', cost.artifact)) return false;
+    if (cost.desertGem > 0 && !economy.canAfford('desertGem', cost.desertGem)) return false;
+    return true;
   }
 
   upgrade(economy, houseLevel) {
     if (!this.canUpgrade(economy, houseLevel)) return false;
-    const cost = this.upgradeCost;
-    if (!economy.spend('gems', cost)) return false;
-    this.upgradeLevel++;
-    const newLevel = Math.min(5, Math.floor(this.upgradeLevel / 8));
-    if (newLevel > this.level) {
-      this.level = newLevel;
-    }
+    const cost = this.getUpgradeCosts();
+    if (!cost) return false;
+    economy.spend('cash', cost.cash);
+    economy.spend('gems', cost.gems);
+    if (cost.artifact > 0) economy.spend('artifacts', cost.artifact);
+    if (cost.desertGem > 0) economy.spend('desertGem', cost.desertGem);
+    this.level++;
+    this.upgradeLevel = this.level * 8; // للتوافق مع الحفظ القديم
     return true;
   }
 }

@@ -15,10 +15,13 @@ export class StoryManager {
     this.completedChapters = [];
     this.currentScene = 0;
     this.scenesWatched = {};
+    this.choicesMade = {}; // { chapterId: { sceneId: choiceIndex } }
     this.unlockedVillages = ["wadi"];
     this._onChapterComplete = null;
     this._onSceneWatched = null;
     this._onVillageUnlocked = null;
+    this._onChapterScenesShow = null;
+    this._onBossFight = null; // يُستدعى عند مشهد Boss
   }
 
   get currentChapterData() {
@@ -100,6 +103,59 @@ export class StoryManager {
     return true;
   }
 
+  /**
+   * اختيار خيار حواري وتطبيق المكافآت
+   */
+  makeChoice(sceneId, choiceIndex) {
+    const scene = this.currentChapterData?.scenes?.find(s => s.id === sceneId);
+    if (!scene || !scene.choices || !scene.choices[choiceIndex]) return null;
+    
+    if (!this.choicesMade[this.currentChapter]) {
+      this.choicesMade[this.currentChapter] = {};
+    }
+    this.choicesMade[this.currentChapter][sceneId] = choiceIndex;
+    
+    const choice = scene.choices[choiceIndex];
+    // تطبيق المكافآت
+    if (choice.reward && this.economy) {
+      for (const [res, amt] of Object.entries(choice.reward)) {
+        if (res === 'xp') {
+          this.economy.addXp(amt);
+        } else if (res === 'alliancePower') {
+          if (window._allianceManager) window._allianceManager.addPower(amt);
+        } else if (res === 'unitLevels') {
+          if (window._army) {
+            for (let i = 0; i < amt; i++) {
+              if (window._army.unitLevel < window._army.maxUnitLevel) window._army.unitLevel++;
+            }
+          }
+        } else if (res === 'trainingLevel') {
+          if (window._army) {
+            for (let i = 0; i < amt; i++) {
+              if (window._army.trainingLevel < window._army.maxTrainingLevel) window._army.trainingLevel++;
+            }
+          }
+        } else if (res === 'defense') {
+          if (window._economy) window._economy.defense = (window._economy.defense || 0) + amt;
+        } else if (res === 'title') {
+          this._playerTitle = amt;
+        } else if (this.economy.resources[res] !== undefined) {
+          this.economy.add(res, amt);
+        }
+      }
+    }
+    
+    if (this._onSceneWatched) {
+      this._onSceneWatched(sceneId);
+    }
+    
+    return choice;
+  }
+  
+  getChoiceForScene(sceneId) {
+    return this.choicesMade[this.currentChapter]?.[sceneId] ?? null;
+  }
+
   watchScene(sceneId) {
     if (!this.scenesWatched[this.currentChapter]) {
       this.scenesWatched[this.currentChapter] = [];
@@ -139,11 +195,21 @@ export class StoryManager {
   }
 
   canShowStory() {
-    return this.economy.level >= 1 && !this.isChapterComplete(1);
+    return this.hasMoreScenes();
   }
 
   shouldShowIntro() {
     return this.economy.level === 1 && this.completedChapters.length === 0;
+  }
+
+  showChapterScenes(callback) {
+    if (!this.hasMoreScenes()) {
+      if (callback) callback();
+      return;
+    }
+    if (this._onChapterScenesShow) {
+      this._onChapterScenesShow(callback);
+    }
   }
 
   getProgress() {
@@ -167,6 +233,7 @@ export class StoryManager {
       completedChapters: this.completedChapters,
       currentScene: this.currentScene,
       scenesWatched: this.scenesWatched,
+      choicesMade: this.choicesMade,
       unlockedVillages: this.unlockedVillages,
       title: this._playerTitle
     };
@@ -178,6 +245,7 @@ export class StoryManager {
     this.completedChapters = data.completedChapters || [];
     this.currentScene = data.currentScene || 0;
     this.scenesWatched = data.scenesWatched || {};
+    this.choicesMade = data.choicesMade || {};
     this.unlockedVillages = data.unlockedVillages || ["wadi"];
     this._playerTitle = data.title || "المستوطن الجديد";
   }
@@ -187,6 +255,7 @@ export class StoryManager {
     this.completedChapters = [];
     this.currentScene = 0;
     this.scenesWatched = {};
+    this.choicesMade = {};
     this.unlockedVillages = ["wadi"];
     this._playerTitle = "المستوطن الجديد";
   }

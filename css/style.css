@@ -3842,3 +3842,263 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   transform: translate(-50%, -50%);
   font-size: 2rem;
 }
+/* ===================================================================
+   🎬 Story Overlay — مشاهد القصة مع خيارات حوارية ومشاهد Boss
+   =================================================================== */
+.story-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.85);
+  animation: storyFadeIn 0.5s ease;
+  direction: rtl;
+  overflow: hidden;
+}
+@keyframes storyFadeIn {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(6px); }
+}
+.story-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.9;
+}
+.story-content {
+  position: relative;
+  z-index: 1;
+  max-width: 380px;
+  width: 88%;
+  background: rgba(255,248,240,0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,215,0,0.2);
+  border-radius: 24px;
+  padding: 28px 20px 20px;
+  text-align: center;
+  animation: storySlideUp 0.5s ease;
+  box-shadow: 0 0 60px rgba(0,0,0,0.5);
+}
+@keyframes storySlideUp {
+  from { transform: translateY(30px); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.story-icon {
+  font-size: 3.5rem;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 20px rgba(255,215,0,0.3));
+  animation: storyIconFloat 3s ease-in-out infinite;
+}
+@keyframes storyIconFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.story-title {
+  font-family: 'Amiri', serif;
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #FFD700;
+  margin-bottom: 10px;
+  text-shadow: 0 2px 12px rgba(255,215,0,0.3);
+}
+.story-text {
+  font-size: 0.85rem;
+  color: rgba(255,248,240,0.9);
+  line-height: 1.7;
+  margin-bottom: 16px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.story-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.story-choice-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 2px solid rgba(255,215,0,0.3);
+  background: rgba(255,248,240,0.08);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.25s ease;
+  text-align: center;
+}
+.story-choice-btn:active {
+  transform: scale(0.96);
+  border-color: #FFD700;
+  background: rgba(255,215,0,0.15);
+}
+.story-choice-result {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(46,204,113,0.1);
+  border: 1px solid rgba(46,204,113,0.3);
+  border-radius: 14px;
+  animation: storyResultIn 0.3s ease;
+}
+@keyframes storyResultIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+.story-choice-made {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2ecc71;
+  margin-bottom: 4px;
+}
+.story-choice-next-text {
+  font-size: 0.7rem;
+  color: rgba(255,248,240,0.7);
+  line-height: 1.5;
+}
+.story-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.story-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #FFD700, #FF8C00);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+.story-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.story-btn-next, .story-btn-skip {
+  padding: 8px 24px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.story-btn-next {
+  background: linear-gradient(135deg, #FFD700, #FF8C00);
+  color: #1a0e06;
+}
+.story-btn-next:active { transform: scale(0.94); }
+.story-btn-next:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none !important;
+}
+.story-btn-skip {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,248,240,0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.story-btn-skip:active { transform: scale(0.94); background: rgba(255,255,255,0.15); }
+.story-counter {
+  font-size: 0.6rem;
+  color: rgba(255,248,240,0.4);
+  margin-top: 8px;
+  font-family: monospace;
+}
+.story-boss-overlay .story-content {
+  border-color: rgba(255,0,0,0.3);
+  background: rgba(40,0,0,0.15);
+  box-shadow: 0 0 80px rgba(255,0,0,0.15);
+}
+.story-boss-effect {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(ellipse at center, rgba(255,0,0,0.08) 0%, transparent 70%);
+  animation: bossPulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes bossPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.story-boss-icon-pulse {
+  font-size: 4rem;
+  animation: bossIconPulse 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 30px rgba(255,0,0,0.4));
+}
+@keyframes bossIconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+.story-boss-title {
+  font-family: 'Amiri', serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #ff4444;
+  text-shadow: 0 0 20px rgba(255,0,0,0.4);
+  margin-bottom: 10px;
+}
+.story-boss-text {
+  font-size: 0.85rem;
+  color: rgba(255,200,200,0.9);
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+.story-boss-stats {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.story-boss-stat {
+  padding: 4px 14px;
+  background: rgba(255,0,0,0.15);
+  border: 1px solid rgba(255,0,0,0.3);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ff6666;
+}
+.story-btn-fight {
+  padding: 12px 32px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  cursor: pointer;
+  font-family: inherit;
+  background: linear-gradient(180deg, #c0392b, #8a1a1a);
+  color: #fff;
+  border: 2px solid rgba(255,68,68,0.3);
+  animation: fightBtnPulse 2s ease-in-out infinite;
+  transition: transform 0.15s;
+}
+.story-btn-fight:active { transform: scale(0.94); }
+@keyframes fightBtnPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,0,0,0.3); }
+  50% { box-shadow: 0 0 25px rgba(255,0,0,0.6); }
+}
+.story-btn-skip-boss {
+  padding: 8px 20px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,200,200,0.5);
+  border: 1px solid rgba(255,255,255,0.08);
+  cursor: pointer;
+  font-family: inherit;
+}
+.story-btn-skip-boss:active { transform: scale(0.94); }
+@media (max-width: 360px) {
+  .story-title { font-size: 1.1rem; }
+  .story-text { font-size: 0.75rem; }
+  .story-choice-btn { font-size: 0.75rem; padding: 10px 12px; }
+  .story-boss-title { font-size: 1.2rem; }
+  .story-btn-fight { font-size: 0.8rem; padding: 10px 24px; }
+}

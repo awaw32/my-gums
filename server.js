@@ -47,6 +47,8 @@ const {
   memStore,
   Player,
   getDefaultPlayer,
+  markDirty,
+  flushToSQLite,
 } = require("./server/db/databaseHelper");
 
 // ═══════════════════════════════════════════════════════════════════
@@ -210,9 +212,26 @@ wss.on("connection", (ws, req) => {
   // ── World Map multiplayer ────────────────────────────────────────
   if (url === "/ws/world") {
     let username = null;
+    let worldMsgCount = 0;
+    let worldLastReset = Date.now();
+    // سجل PvP للحد من السبام
+    const _pvpCooldowns = new Map();
+    // تنظيف سجل PvP القديم كل 5 دقائق
+    const _pvpCleanupInterval = setInterval(() => {
+      const cutoff = Date.now() - 300000; // 5 دقائق
+      for (const [key, time] of _pvpCooldowns) {
+        if (time < cutoff) _pvpCooldowns.delete(key);
+      }
+    }, 300000);
+    ws.on("close", () => clearInterval(_pvpCleanupInterval));
     console.log(`[WorldWS] Connection from ${ip}`);
 
     ws.on("message", (raw) => {
+      // ── Rate limiting لكل اتصال ──
+      const now = Date.now();
+      if (now - worldLastReset > 1000) { worldMsgCount = 0; worldLastReset = now; }
+      if (++worldMsgCount > 60) { ws.close(1008, "Rate limit"); return; }
+
       let msg;
       try { msg = JSON.parse(raw); } catch { return; }
 
@@ -300,21 +319,42 @@ wss.on("connection", (ws, req) => {
         const won = msg.won;
         const loot = msg.loot || 0;
         const reward = msg.winnerReward || 0;
+
+        // ── التحقق من مهلة PvP ──
+        const now = Date.now();
+        const lastPvP = _pvpCooldowns.get(username) || 0;
+        if (now - lastPvP < 5000) { // 5 ثواني مهلة بين كل PvP
+          if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "انتظر قليلاً قبل PvP" }));
+          return;
+        }
+        _pvpCooldowns.set(username, now);
+
+        // ── التحقق من أن الهدف موجود ──
         const tc = worldClients.get(targetName);
-        // notify target about the result
-        if (tc && tc.ws.readyState === 1) {
+        if (!tc) return;
+
+        // ── التحقق من صحة المكافآت (Server-Authoritative) ──
+        const attackerPower = (worldClients.get(username)?.army_power || 5000);
+        const targetPower = (tc.army_power || 5000);
+        const maxReasonableLoot = Math.min(50000, Math.floor(Math.max(attackerPower, targetPower) * 0.15));
+        const maxReasonableReward = Math.min(25000, Math.floor(Math.max(attackerPower, targetPower) * 0.08));
+        const validatedLoot = Math.max(0, Math.min(loot, maxReasonableLoot));
+        const validatedReward = Math.max(0, Math.min(reward, maxReasonableReward));
+
+        // إرسال النتيجة للهدف مع القيم المُتحقق منها
+        if (tc.ws.readyState === 1) {
           tc.ws.send(JSON.stringify({
             type: "pvp_result",
             attacker: username,
             won: !won,
-            loot: won ? 0 : loot,
-            reward: won ? 0 : reward,
+            loot: won ? 0 : validatedLoot,
+            reward: won ? 0 : validatedReward,
             myPower: msg.myPower || 0,
           }));
         }
         // if winner gets loot, the target's session coins are lost
-        if (!won && loot > 0 && tc) {
-          tc.sessionCoins = Math.max(0, (tc.sessionCoins || 0) - loot);
+        if (!won && validatedLoot > 0 && tc) {
+          tc.sessionCoins = Math.max(0, (tc.sessionCoins || 0) - validatedLoot);
         }
         // if attacker won, broadcast player_despawn for the target
         if (won) {
@@ -377,6 +417,7 @@ wss.on("connection", (ws, req) => {
             playerData[res] = (playerData[res] || 0) - val;
           }
           memStore.set(username, playerData);
+          markDirty(username);
           c.armyYardLevel = currentLevel + 1;
           const stats = computeArmyYardStats(c.armyYardLevel);
           const reply = JSON.stringify({
@@ -408,6 +449,7 @@ wss.on("connection", (ws, req) => {
             playerData[res] = (playerData[res] || 0) - val;
           }
           memStore.set(username, playerData);
+          markDirty(username);
           c.knowledgeLevel = currentLevel + 1;
           if (msg.knowledgeType) c.knowledgeType = msg.knowledgeType;
           const bonuses = computeKnowledgeBonuses({ knowledgeLevel: c.knowledgeLevel, knowledgeType: c.knowledgeType });
@@ -426,6 +468,7 @@ wss.on("connection", (ws, req) => {
           const playerData = memStore.get(username) || getDefaultPlayer(username);
           const result = claimReward(playerData);
           memStore.set(username, playerData);
+          markDirty(username);
           if (result.claimed) {
             c.gems = (c.gems || 0) + result.reward.gems;
             c.gold = (c.gold || 0) + result.reward.gold;
@@ -446,6 +489,7 @@ wss.on("connection", (ws, req) => {
           }
           const result = applyGemUpgrade(playerData, weaponId);
           memStore.set(username, playerData);
+          markDirty(username);
           if (result.ok) {
             c.weaponStarLevel = result.starLevel;
             c.weaponGemLevel = result.gemLevel;
@@ -465,6 +509,7 @@ wss.on("connection", (ws, req) => {
           }
           const result = applyStarUpgrade(playerData, weaponId);
           memStore.set(username, playerData);
+          markDirty(username);
           if (result.ok) {
             c.weaponStarLevel = result.starLevel;
             c.weaponGemLevel = result.gemLevel;
@@ -492,6 +537,7 @@ wss.on("connection", (ws, req) => {
           const playerData = memStore.get(username) || getDefaultPlayer(username);
           const result = applyBuildingUpgrade(playerData, buildingId);
           memStore.set(username, playerData);
+          markDirty(username);
           if (result.ok && c) {
             if (!c.buildings) c.buildings = {};
             c.buildings[buildingId] = result.newLevel;
@@ -511,6 +557,7 @@ wss.on("connection", (ws, req) => {
           const playerData = memStore.get(username) || getDefaultPlayer(username);
           const result = applyResearchUpgrade(playerData, categoryId, skillId);
           memStore.set(username, playerData);
+          markDirty(username);
           if (result.ok && c) {
             if (!c.research) c.research = {};
             c.research[`${categoryId}.${skillId}`] = result.newLevel;
@@ -953,6 +1000,7 @@ server.on("request", async (req, res) => {
           // حفظ في الذاكرة أولاً (دائماً)
           const existing = memStore.get(username) || getDefaultPlayer(username);
           memStore.set(username, { ...existing, ...data, last_active: lastActive });
+          markDirty(username);
           // وحاول في MongoDB إذا متاح
           if (mongoConnected) {
             await Player.updateOne(
@@ -1022,8 +1070,8 @@ server.on("request", async (req, res) => {
         if (data.knowledgeLevel !== undefined) updated.knowledgeLevel = data.knowledgeLevel;
         if (data.knowledgeType !== undefined) updated.knowledgeType = data.knowledgeType;
         if (data.equippedWeapon !== undefined) updated.equippedWeapon = data.equippedWeapon;
-        if (data.weapons !== undefined) updated.weapons = data.weapons;
-        memStore.set(uname, updated);
+        if (data.weapons !== undefined) updated.weapons = data.weapons;          memStore.set(uname, updated);
+          markDirty(uname);
         if (mongoConnected) {
           await Player.updateOne({ username: uname }, { $set: updated }, { upsert: true });
         }
@@ -1057,6 +1105,7 @@ server.on("request", async (req, res) => {
     const playerData = memStore.get(uname) || getDefaultPlayer(uname);
     const result = claimReward(playerData);
     memStore.set(uname, playerData);
+    markDirty(uname);
     if (result.claimed && mongoConnected) {
       await Player.updateOne({ username: uname }, { $set: playerData }, { upsert: true });
     }

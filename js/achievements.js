@@ -53,6 +53,9 @@ const ACHIEVEMENTS = [
   { id: "craft_1", title: "صانع", desc: "اصنع أول قطعة", icon: "🔨", target: 1, type: "crafts", reward: { gold: 100 } },
   { id: "craft_10", title: "حرفي", desc: "اصنع 10 قطع", icon: "⚒️", target: 10, type: "crafts", reward: { gold: 300, gems: 15 } },
   { id: "chat_1", title: "ثرثار", desc: "أرسل أول رسالة", icon: "💬", target: 1, type: "chat_messages", reward: { gold: 50 } },
+  { id: "story_3", title: "راوي", desc: "شاهد 3 مشاهد قصصية", icon: "📖", target: 3, type: "story_scenes", reward: { gold: 100, gems: 5 } },
+  { id: "story_9", title: "قاص", desc: "شاهد 9 مشاهد قصصية", icon: "📚", target: 9, type: "story_scenes", reward: { gold: 500, gems: 25 } },
+  { id: "story_15", title: "مؤرخ الصحراء", desc: "شاهد كل مشاهد القصة", icon: "👑", target: 15, type: "story_scenes", reward: { gold: 2000, gems: 100 } },
 ];
 
 export class AchievementManager {
