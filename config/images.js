@@ -108,6 +108,11 @@ const ImageResolver = {
     'monster-1': 'assets/images/monsters/monster-1-wolf.png',
     'monster-2': 'assets/images/monsters/monster-2-shadow.png',
     'monster-3': 'assets/images/monsters/monster-3-chief.png',
+    // وحوش إضافية
+    'scorpion-elite':  'assets/images/monsters/scorpion_elite_96.png',
+    'sand-dragon':     'assets/images/monsters/sand_dragon_96.png',
+    // جيش إضافي
+    'warrior-scimitar': 'assets/images/army/warrior_scimitar_96.png',
     // الأراضي
     landsBg: 'assets/images/bg-village.jpg',
     b1Empty: 'assets/images/building-ruins.png',

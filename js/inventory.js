@@ -180,6 +180,26 @@ export const ITEM_DEFS = {
     levelStats: [{ name: "مخطط برج" }],
     upgradeCost: [null],
   },
+  iron_sword: {
+    id: "iron_sword",
+    name: "سيف حديدي",
+    icon: "🗡️",
+    category: "weapon",
+    weight: 3,
+    maxLevel: 3,
+    dropSize: 16,
+    description: "سيف حديدي ثقيل بضرر عالي",
+    levelStats: [
+      { damage: 150, duration: 30000, name: "سيف حديدي" },
+      { damage: 300, duration: 45000, name: "سيف حديدي II" },
+      { damage: 500, duration: 60000, name: "سيف حديدي III" },
+    ],
+    upgradeCost: [
+      null,
+      { gold: 300, hammers: 60, scrolls: 25 },
+      { gold: 700, hammers: 150, scrolls: 60, gems: 25 },
+    ],
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -230,6 +250,11 @@ export const RECIPES = [
     id: "r9", name: "مخطط برج", icon: "📐", product: "tower_blueprint",
     ingredients: { gold: 300, hammers: 50, scrolls: 30, gems: 8 },
     description: "يفتح برج دفاع جديد",
+  },
+  {
+    id: "r10", name: "سيف حديدي", icon: "🗡️", product: "iron_sword",
+    ingredients: { gold: 250, hammers: 40, scrolls: 15, gems: 5 },
+    description: "سيف حديدي ثقيل بقوة 150",
   },
 ];
 
@@ -387,6 +412,14 @@ export class InventoryManager {
         break;
 
       case 'fire_sword':
+        if (world && world.leader) {
+          world.leader.upgradeDmg += stats.damage;
+          setTimeout(() => { if (world.leader) world.leader.upgradeDmg -= stats.damage; }, stats.duration);
+          if (world.store) world.store.set('notification', { text: `🗡️ ${stats.name}! +${stats.damage} ضرر`, t: Date.now() });
+        }
+        break;
+
+      case 'iron_sword':
         if (world && world.leader) {
           world.leader.upgradeDmg += stats.damage;
           setTimeout(() => { if (world.leader) world.leader.upgradeDmg -= stats.damage; }, stats.duration);

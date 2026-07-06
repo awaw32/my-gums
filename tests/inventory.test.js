@@ -26,9 +26,9 @@ describe('InventoryManager', () => {
   });
 
   describe('getAllRecipes', () => {
-    it('should return all 9 recipes', () => {
+    it('should return all 10 recipes', () => {
       const recipes = inv.getAllRecipes();
-      expect(recipes).toHaveLength(9);
+      expect(recipes).toHaveLength(10);
       expect(recipes[0].id).toBe('r1');
     });
   });
@@ -142,7 +142,7 @@ describe('InventoryManager', () => {
     it('getState should return items and recipes', () => {
       const state = inv.getState();
       expect(state.items).toBeDefined();
-      expect(state.recipes).toHaveLength(9);
+      expect(state.recipes).toHaveLength(10);
     });
 
     it('getSaveData should return items and maxCapacity', () => {

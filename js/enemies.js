@@ -289,6 +289,35 @@ export const ENEMY_TYPES = {
     speed: 100,
     isBoss: true,
     description: "آخر تحدٍ قبل العرش - صقر عملاق يحرس العرش الملكي"
+  },
+
+  // ── أعداء إضافيين (موسميين/نادرين) ──
+  scorpion_elite: {
+    id: "scorpion_elite",
+    name: "عقرب النخبة",
+    icon: "🦂",
+    hp: 180,
+    damage: 35,
+    reward: { cash: 80, gold: 25, gems: 3 },
+    level: 10,
+    color: "#8b0000",
+    radius: 16,
+    speed: 110,
+    description: "عقرب ضخم بسم قاتل - يظهر نادراً"
+  },
+  sand_dragon: {
+    id: "sand_dragon",
+    name: "تنين الرمال",
+    icon: "🐉",
+    hp: 5000,
+    damage: 200,
+    reward: { cash: 3000, gold: 500, gems: 25 },
+    level: 70,
+    color: "#daa520",
+    radius: 28,
+    speed: 90,
+    isBoss: true,
+    description: "تنين صحراوي نادر يظهر في العواصف الرملية"
   }
 };
 
