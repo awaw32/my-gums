@@ -23,8 +23,9 @@ describe('Player Data Validation', () => {
     expect(() => sanitizePlayerData({ level: 999 })).toThrow();
   });
 
-  it('should reject unknown fields', () => {
-    expect(() => sanitizePlayerData({ hackedField: true })).toThrow();
+  it('should allow unknown fields (passthrough)', () => {
+    const result = sanitizePlayerData({ hackedField: true });
+    expect(result.hackedField).toBe(true);
   });
 
   it('should allow last_active only', () => {

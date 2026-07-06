@@ -890,7 +890,14 @@ server.on("request", async (req, res) => {
   // ── API: GET/POST /api/players/:username ───────────────────────
   const playerMatch = req.url.match(/^\/api\/players\/([a-zA-Z0-9_\-\.%\u0600-\u06FF]+)$/);
   if (playerMatch) {
-    const username = decodeURIComponent(playerMatch[1]);
+    const raw = decodeURIComponent(playerMatch[1]);
+    // أمان: رفض أسماء المستخدمين التي تحتوي على روابط أو أحرف غير مسموحة
+    if (/[\/:;<>"']/.test(raw)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "invalid username" }));
+      return;
+    }
+    const username = raw;
 
     if (req.method === "GET") {
       if (!mongoConnected) {

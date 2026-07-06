@@ -24,9 +24,13 @@ import { StoryManager } from "./story-manager.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
+function sanitizeUsername(name) {
+  return name.replace(/[^\w\s\u0600-\u06FF-]/g, '').trim().slice(0, 20) || 'بطل الصحراء';
+}
+
 function getOrPromptUsername() {
   const saved = localStorage.getItem("player_username");
-  if (saved && saved.trim()) return saved.trim();
+  if (saved && saved.trim()) return sanitizeUsername(saved.trim());
 
   const overlay = document.createElement("div");
   overlay.id = "name-overlay";
@@ -50,7 +54,7 @@ function getOrPromptUsername() {
   const btn = overlay.querySelector("#name-submit-btn");
 
   const submit = () => {
-    const name = input.value.trim() || "بطل الصحراء";
+    const name = sanitizeUsername(input.value);
     localStorage.setItem("player_username", name);
     overlay.remove();
     return name;

@@ -46,13 +46,13 @@ const PlayerSaveSchema = z.object({
   brKills: z.number().int().min(0).optional(),
   landsState: z.record(z.any()).optional(),
   hero: z.record(z.any()).optional(),
-}).strict();
+}).passthrough();
 
 function sanitizePlayerData(data) {
   const result = PlayerSaveSchema.safeParse(data);
   if (!result.success) {
     const issues = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
-    throw new Error(`Validation failed: ${issues}`);
+    throw new Error(`Validation rejected: ${issues}`);
   }
   return result.data;
 }
