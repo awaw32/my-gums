@@ -142,8 +142,7 @@ async function init() {
   // ثم تحميل من قاعدة البيانات (الرسمية) — يلغي بيانات localStorage
   await loadFromDatabase(economy, army, village, PLAYER_USERNAME);
   
-  const hasSavedData = economy.level > 1 || economy.xp > 0 || economy.cash > 0 || 
-                       economy.gold > 0 || economy.gems > 0 || 
+  const hasSavedData = economy.level > 1 || economy.xp > 0 || 
                        (economy.buildings && Object.keys(economy.buildings).length > 0);
   
   const oasisManager = new OasisManager(economy);
@@ -286,7 +285,13 @@ async function init() {
   if (loadingScreen) loadingScreen.classList.add("fade-out");
   if (appShell) appShell.classList.remove("hidden");
 
-    const ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests);
+  let ui;
+  try {
+    ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests);
+  } catch (err) {
+    console.error("❌ [FATAL] GameUI constructor threw:", err);
+    throw err;
+  }
     world.onExit = () => ui.exitWorldMap();
 
     // ربط العالم بأنظمة الترقيات والتحالف
@@ -871,4 +876,8 @@ async function init() {
 }
 
 
-init();
+init().catch(err => {
+  console.error("❌ [FATAL] فشل تهيئة اللعبة:", err, err?.stack);
+  const sc = document.getElementById('screen-content');
+  if (sc) sc.innerHTML = '<div style="padding:30px;text-align:center;color:#e74c3c;background:#1a1a2e;min-height:100dvh"><h2>❌ حدث خطأ</h2><p style="margin-top:12px;font-size:14px;opacity:.7">تحقق من وحدة التحكم (F12)</p></div>';
+});

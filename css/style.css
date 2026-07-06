@@ -471,7 +471,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   width: 100%;
   flex: 1;
   min-height: 0;
-  background: transparent;
+  background: #1a1a2e;
   overflow: hidden;
   padding: 12px;
 }
@@ -970,6 +970,7 @@ body.modal-open { overflow: hidden; }
   background-size: 100% 100% !important;
   background-position: center top !important;
   background-repeat: no-repeat !important;
+  background-color: #1a1a2e;
   z-index: 0;
   transform: translateX(-50%) translateZ(0);
   will-change: transform;
