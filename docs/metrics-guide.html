@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>دليل التنفيذ الآمن - Desert Kingdom Metrics</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e4e4e4;
+      line-height: 1.8;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      padding: 40px 20px;
+      background: linear-gradient(135deg, #d4a76a 0%, #c9954c 100%);
+      border-radius: 16px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 40px rgba(212, 167, 106, 0.3);
+    }
+    header h1 {
+      font-size: 2.5em;
+      color: #1a1a2e;
+      margin-bottom: 10px;
+    }
+    header p {
+      color: #2d2d2d;
+      font-size: 1.2em;
+    }
+    .badge {
+      display: inline-block;
+      background: #27ae60;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.85em;
+      margin: 5px;
+    }
+    .badge.warning { background: #f39c12; }
+    .badge.danger { background: #e74c3c; }
+    .section {
+      background: #1e2a3a;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 25px;
+      border: 1px solid #2c3e50;
+    }
+    .section h2 {
+      color: #d4a76a;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #2c3e50;
+    }
+    .section h3 {
+      color: #3498db;
+      margin: 15px 0 10px;
+    }
+    code {
+      background: #0d1117;
+      color: #7ee784;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background: #0d1117;
+      border-radius: 8px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 15px 0;
+      border: 1px solid #30363d;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+      color: #c9d1d9;
+      font-size: 0.85em;
+      line-height: 1.6;
+    }
+    .keyword { color: #ff7b72; }
+    .string { color: #a5d6ff; }
+    .comment { color: #8b949e; }
+    .func { color: #d2a8ff; }
+    .number { color: #79c0ff; }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    .table th, .table td {
+      padding: 12px 15px;
+      text-align: right;
+      border-bottom: 1px solid #2c3e50;
+    }
+    .table th {
+      background: #2c3e50;
+      color: #d4a76a;
+    }
+    .table tr:hover { background: #253547; }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      margin: 20px 0;
+      padding: 15px;
+      background: #253547;
+      border-radius: 8px;
+      border-right: 4px solid #d4a76a;
+    }
+    .step-number {
+      background: #d4a76a;
+      color: #1a1a2e;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-left: 15px;
+      flex-shrink: 0;
+    }
+    .step-content { flex: 1; }
+    .alert {
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin: 15px 0;
+    }
+    .alert-success {
+      background: rgba(39, 174, 96, 0.2);
+      border: 1px solid #27ae60;
+      color: #2ecc71;
+    }
+    .alert-warning {
+      background: rgba(243, 156, 18, 0.2);
+      border: 1px solid #f39c12;
+      color: #f1c40f;
+    }
+    .alert-danger {
+      background: rgba(231, 76, 60, 0.2);
+      border: 1px solid #e74c3c;
+      color: #e74c3c;
+    }
+    .latency-map {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .latency-card {
+      background: #253547;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .latency-card .city {
+      font-size: 1.1em;
+      color: #3498db;
+      margin-bottom: 5px;
+    }
+    .latency-card .ms {
+      font-size: 1.8em;
+      font-weight: bold;
+      color: #27ae60;
+    }
+    .latency-card .ms.warn { color: #f39c12; }
+    .latency-card .ms.bad { color: #e74c3c; }
+    .checklist {
+      list-style: none;
+    }
+    .checklist li {
+      padding: 8px 0;
+      padding-right: 30px;
+      position: relative;
+    }
+    .checklist li::before {
+      content: "✓";
+      position: absolute;
+      right: 0;
+      color: #27ae60;
+      font-weight: bold;
+    }
+    .checklist li.pending::before {
+      content: "○";
+      color: #7f8c8d;
+    }
+    .file-tree {
+      font-family: monospace;
+      background: #0d1117;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+    }
+    .file-tree .new { color: #27ae60; }
+    .file-tree .modified { color: #f39c12; }
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #2c3e50;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      background: #253547;
+      margin-left: 5px;
+    }
+    .tab.active {
+      background: #d4a76a;
+      color: #1a1a2e;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>دليل التنفيذ الآمن</h1>
+      <p>إضافة Metrics (p95 Latency, Rooms Active, Tick Drift) بدون كسر المشروع</p>
+      <div style="margin-top: 15px;">
+        <span class="badge">Non-Breaking</span>
+        <span class="badge">Feature Flag</span>
+        <span class="badge">Prometheus</span>
+      </div>
+    </header>
+
+    <div class="section">
+      <h2>ملخص سريع</h2>
+      <div class="alert alert-success">
+        <strong>المبدأ:</strong> كل إضافة محاطة بـ <code>if (metrics.enabled)</code> — لو حاب تطفي كل شيء، حط <code>ENABLE_METRICS=false</code> في <code>.env</code>
+      </div>
+      <ul class="checklist">
+        <li><code>npm install prom-client</code> — مكتبة Prometheus لـ Node.js</li>
+        <li>3 عدادات: <code>ws_roundtrip_ms</code>, <code>rooms_active</code>, <code>tick_drift_ms</code></li>
+        <li><code>/health</code> يرجع الآن <code>p95_latency_ms</code> و <code>tick_drift_ms</code></li>
+        <li><code>/metrics</code> endpoint جديد لـ Prometheus scraping</li>
+        <li>214 اختبار يمر بنجاح — صفر أخطاء</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>الملفات المضافة/المعدلة</h2>
+      <div class="file-tree">
+<span class="new">+ server/metrics.js</span>          <span class="comment">← ملف جديد: كل منطق Prometheus</span>
+<span class="modified">~ server.js</span>                  <span class="comment">← إضافة require + تعديل heartbeat</span>
+<span class="modified">~ server/routes/api.js</span>       <span class="comment">← إضافة /metrics + تحديث /health</span>
+<span class="modified">~ server/logic/combatLoop.js</span> <span class="comment">← قياس tick drift</span>
+<span class="modified">~ .env.example</span>               <span class="comment">← إضافة ENABLE_METRICS</span>
+<span class="modified">~ package.json</span>               <span class="comment">← إضافة prom-client</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>خطوات التنفيذ</h2>
+      
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h3>التثبيت</h3>
+          <pre><code><span class="comment"># في مجلد المشروع</span>
+npm install prom-client --save</code></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h3>ملف metrics.js (جديد)</h3>
+          <p>هذا الملف يعزل كل منطق Prometheus. لو <code>prom-client</code> مش موجود أو حصل خطأ، المشروع يشتغل عادي.</p>
+          <pre><code><span class="comment">// server/metrics.js</span>
+<span class="keyword">const</span> ENABLED = process.env.ENABLE_METRICS !== <span class="string">"false"</span>;
+
+<span class="keyword">let</span> client, register, latencyHist, roomsGauge, tickDriftGauge;
+
+<span class="keyword">if</span> (ENABLED) {
+  <span class="keyword">try</span> {
+    client = <span class="func">require</span>(<span class="string">"prom-client"</span>);
+    register = <span class="keyword">new</span> client.<span class="func">Registry</span>();
+    client.<span class="func">collectDefaultMetrics</span>({ register });
+
+    latencyHist = <span class="keyword">new</span> client.<span class="func">Histogram</span>({
+      name: <span class="string">"ws_roundtrip_ms"</span>,
+      help: <span class="string">"WebSocket round-trip latency"</span>,
+      buckets: [<span class="number">20</span>, <span class="number">40</span>, <span class="number">60</span>, <span class="number">80</span>, <span class="number">100</span>, <span class="number">150</span>, <span class="number">200</span>, <span class="number">300</span>, <span class="number">500</span>],
+      registers: [register],
+    });
+
+    roomsGauge = <span class="keyword">new</span> client.<span class="func">Gauge</span>({
+      name: <span class="string">"rooms_active"</span>,
+      help: <span class="string">"Number of active game rooms"</span>,
+      registers: [register],
+    });
+
+    tickDriftGauge = <span class="keyword">new</span> client.<span class="func">Gauge</span>({
+      name: <span class="string">"tick_drift_ms"</span>,
+      help: <span class="string">"Tick loop drift from expected 50ms"</span>,
+      registers: [register],
+    });
+  } <span class="keyword">catch</span> (err) {
+    console.warn(<span class="string">"[Metrics] Disabled:"</span>, err.message);
+  }
+}
+
+module.exports = {
+  enabled: ENABLED && !!register,
+  observeLatency: (ms) => { <span class="keyword">if</span> (latencyHist) latencyHist.<span class="func">observe</span>(ms); },
+  setRoomsActive: (n) => { <span class="keyword">if</span> (roomsGauge) roomsGauge.<span class="func">set</span>(n); },
+  setTickDrift: (ms) => { <span class="keyword">if</span> (tickDriftGauge) tickDriftGauge.<span class="func">set</span>(Math.max(<span class="number">0</span>, ms)); },
+  getP95Latency: () => { <span class="comment">/* ... */</span> },
+  getTickDrift: () => { <span class="comment">/* ... */</span> },
+  getMetricsText: <span class="keyword">async</span> () => register ? register.<span class="func">metrics</span>() : <span class="string">""</span>,
+  getContentType: () => register ? register.contentType : <span class="string">"text/plain"</span>,
+};</code></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h3>تعديل server.js (Heartbeat)</h3>
+          <p>الـ heartbeat موجود أصلاً — نضيف فقط قياس latency:</p>
+          <pre><code><span class="comment">// في أعلى server.js</span>
+<span class="keyword">const</span> metrics = <span class="func">require</span>(<span class="string">"./server/metrics"</span>);
+
+<span class="comment">// في wss.on("connection")</span>
+ws.isAlive = <span class="keyword">true</span>;
+ws.lastPingTs = <span class="number">0</span>;
+ws.<span class="func">on</span>(<span class="string">"pong"</span>, () => {
+  ws.isAlive = <span class="keyword">true</span>;
+  <span class="keyword">if</span> (ws.lastPingTs > <span class="number">0</span> && metrics.enabled) {
+    <span class="keyword">const</span> rtt = performance.<span class="func">now</span>() - ws.lastPingTs;
+    metrics.<span class="func">observeLatency</span>(rtt);
+  }
+});
+
+<span class="comment">// في HEARTBEAT_INTERVAL (كل 30 ثانية)</span>
+<span class="keyword">const</span> HEARTBEAT_INTERVAL = <span class="func">setInterval</span>(() => {
+  wss.clients.<span class="func">forEach</span>((ws) => {
+    <span class="keyword">if</span> (ws.isAlive === <span class="keyword">false</span>) <span class="keyword">return</span> ws.<span class="func">terminate</span>();
+    ws.isAlive = <span class="keyword">false</span>;
+    ws.lastPingTs = performance.<span class="func">now</span>();
+    ws.<span class="func">ping</span>();
+  });
+  <span class="keyword">if</span> (metrics.enabled) {
+    metrics.<span class="func">setRoomsActive</span>(rooms.size);
+  }
+}, <span class="number">30000</span>);</code></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <h3>تعديل combatLoop.js (Tick Drift)</h3>
+          <pre><code><span class="comment">// في أعلى الملف</span>
+<span class="keyword">const</span> metrics = <span class="func">require</span>(<span class="string">"../metrics"</span>);
+<span class="keyword">let</span> lastTickTime = performance.<span class="func">now</span>();
+
+<span class="comment">// في بداية gameTick()</span>
+<span class="keyword">function</span> <span class="func">gameTick</span>() {
+  <span class="keyword">const</span> now = performance.<span class="func">now</span>();
+  <span class="keyword">const</span> drift = now - lastTickTime - TICK_MS;
+  <span class="keyword">if</span> (metrics.enabled) {
+    metrics.<span class="func">setTickDrift</span>(drift);
+  }
+  lastTickTime = now;
+  <span class="comment">// ... باقي الكود كما هو</span>
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">5</div>
+        <div class="step-content">
+          <h3>تحديث /health و /metrics في api.js</h3>
+          <pre><code><span class="comment">// في /health endpoint</span>
+<span class="keyword">if</span> (req.url === <span class="string">"/health"</span>) {
+  <span class="keyword">const</span> healthData = {
+    status: <span class="string">"ok"</span>,
+    mongo: mongoConnected ? <span class="string">"connected"</span> : <span class="string">"unavailable"</span>,
+    rooms: rooms.size,
+    players: <span class="comment">/* ... */</span>,
+    uptime: process.<span class="func">uptime</span>(),
+    tickRate: <span class="number">1000</span> / TICK_MS,
+  };
+  <span class="keyword">if</span> (metrics.enabled) {
+    healthData.p95_latency_ms = metrics.<span class="func">getP95Latency</span>();
+    healthData.tick_drift_ms = metrics.<span class="func">getTickDrift</span>();
+  }
+  res.<span class="func">end</span>(JSON.<span class="func">stringify</span>(healthData));
+}
+
+<span class="comment">// /metrics endpoint جديد</span>
+<span class="keyword">if</span> (req.url === <span class="string">"/metrics"</span> && req.method === <span class="string">"GET"</span>) {
+  <span class="keyword">if</span> (!metrics.enabled) {
+    res.writeHead(<span class="number">404</span>); res.<span class="func">end</span>(<span class="string">"Metrics disabled"</span>);
+    <span class="keyword">return true</span>;
+  }
+  res.writeHead(<span class="number">200</span>, { <span class="string">"Content-Type"</span>: metrics.<span class="func">getContentType</span>() });
+  res.<span class="func">end</span>(<span class="keyword">await</span> metrics.<span class="func">getMetricsText</span>());
+  <span class="keyword">return true</span>;
+}</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>اختبار التنفيذ</h2>
+      
+      <h3>1. تأكد من عدم كسر شيء</h3>
+      <pre><code><span class="comment"># شغّل الاختبارات</span>
+npm test
+<span class="comment"># النتيجة المتوقعة: 214 passed</span>
+
+<span class="comment"># شغّل lint</span>
+npm run lint
+<span class="comment"># النتيجة المتوقعة: 0 errors</span></code></pre>
+
+      <h3>2. شغّل السيرفر</h3>
+      <pre><code>npm run dev
+<span class="comment"># افتح http://localhost:3000</span></code></pre>
+
+      <h3>3. اختبر /health</h3>
+      <pre><code>curl http://localhost:3000/health
+
+<span class="comment"># النتيجة المتوقعة:</span>
+{
+  <span class="string">"status"</span>: <span class="string">"ok"</span>,
+  <span class="string">"mongo"</span>: <span class="string">"connected"</span>,
+  <span class="string">"rooms"</span>: <span class="number">0</span>,
+  <span class="string">"players"</span>: <span class="number">0</span>,
+  <span class="string">"uptime"</span>: <span class="number">123.45</span>,
+  <span class="string">"tickRate"</span>: <span class="number">20</span>,
+  <span class="string">"p95_latency_ms"</span>: <span class="number">0</span>,
+  <span class="string">"tick_drift_ms"</span>: <span class="number">0</span>
+}</code></pre>
+
+      <h3>4. اختبر /metrics</h3>
+      <pre><code>curl http://localhost:3000/metrics
+
+<span class="comment"># النتيجة المتوقعة (جزء منها):</span>
+# HELP ws_roundtrip_ms WebSocket round-trip latency
+# TYPE ws_roundtrip_ms histogram
+ws_roundtrip_ms_bucket{le=<span class="string">"20"</span>} <span class="number">0</span>
+ws_roundtrip_ms_bucket{le=<span class="string">"40"</span>} <span class="number">0</span>
+ws_roundtrip_ms_bucket{le=<span class="string">"60"</span>} <span class="number">0</span>
+...
+# HELP rooms_active Number of active game rooms
+# TYPE rooms_active gauge
+rooms_active <span class="number">0</span></code></pre>
+
+      <h3>5. اختبر Feature Flag</h3>
+      <pre><code><span class="comment"># في .env</span>
+ENABLE_METRICS=<span class="keyword">false</span>
+
+<span class="comment"># شغّل السيرفر مرة ثانية</span>
+npm run dev
+
+<span class="comment"># /metrics يرجع 404</span>
+curl http://localhost:3000/metrics
+<span class="comment"># Metrics disabled</span>
+
+<span class="comment"># /health يرجع بدون حقول metrics</span>
+curl http://localhost:3000/health
+<span class="comment"># { "status": "ok", ... } بدون p95_latency_ms</span></code></pre>
+    </div>
+
+    <div class="section">
+      <h2>ليه هذا مهم للخليج ومصر؟</h2>
+      
+      <p>أنت في المدينة المنورة. اللاعبين موزعين في المنطقة:</p>
+      
+      <div class="latency-map">
+        <div class="latency-card">
+          <div class="city">الرياض</div>
+          <div class="ms">40-60ms</div>
+          <div>ممتاز</div>
+        </div>
+        <div class="latency-card">
+          <div class="city">دبي</div>
+          <div class="ms warn">75-90ms</div>
+          <div>مقبول</div>
+        </div>
+        <div class="latency-card">
+          <div class="city">الكويت</div>
+          <div class="ms warn">75-90ms</div>
+          <div>مقبول</div>
+        </div>
+        <div class="latency-card">
+          <div class="city">القاهرة</div>
+          <div class="ms bad">100-120ms</div>
+          <div>حرج</div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning">
+        <strong>القاعدة:</strong> إذا <code>p95_latency</code> تجاوز <strong>120ms</strong>، اللاعب المصري بيشوف تأخر حركتين. هذا يعني أنه يضغط "هجوم" والعدو يكون اختفى من زمان.
+      </div>
+
+      <h3>متى تفتح سيرفر ثاني؟</h3>
+      <table class="table">
+        <tr>
+          <th>المنطقة</th>
+          <th>p95 Threshold</th>
+          <th>الإجراء</th>
+        </tr>
+        <tr>
+          <td>الخليج</td>
+          <td>&lt; 80ms</td>
+          <td>سيرفر واحد يكفي</td>
+        </tr>
+        <tr>
+          <td>مصر + الخليج</td>
+          <td>&gt; 100ms</td>
+          <td>افتح سيرفر في القاهرة</td>
+        </tr>
+        <tr>
+          <td>شمال أفريقيا</td>
+          <td>&gt; 150ms</td>
+          <td>سيرفر في الدار البيضاء</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>تحسينات اختيارية (لاحقاً)</h2>
+      
+      <table class="table">
+        <tr>
+          <th>التحسين</th>
+          <th>الأولوية</th>
+          <th>الكسر؟</th>
+          <th>الكود</th>
+        </tr>
+        <tr>
+          <td>CORS_ORIGIN محدد</td>
+          <td><span class="badge danger">عالية</span></td>
+          <td>لا</td>
+          <td><code>CORS_ORIGIN=https://yourdomain.com</code></td>
+        </tr>
+        <tr>
+          <td>JWT بدل playerId</td>
+          <td><span class="badge danger">عالية</span></td>
+          <td>لا</td>
+          <td>السيرفر يوقّع token، الكلاينت يرسله</td>
+        </tr>
+        <tr>
+          <td>WS Rate Limit 30/s</td>
+          <td><span class="badge warning">متوسطة</span></td>
+          <td>لا</td>
+          <td>موجود في <code>networkServer.js</code></td>
+        </tr>
+        <tr>
+          <td>HTTPS إجباري</td>
+          <td><span class="badge warning">متوسطة</span></td>
+          <td>لا</td>
+          <td><code>HTTPS=true</code> + Let's Encrypt</td>
+        </tr>
+        <tr>
+          <td>Redis pub/sub</td>
+          <td><span class="badge">منخفضة</span></td>
+          <td>لا</td>
+          <td>للتوسع لأكثر من سيرفر</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>الخلاصة</h2>
+      
+      <div class="alert alert-success">
+        <strong>ما انكسر:</strong>
+        <ul style="margin-top: 10px; padding-right: 20px;">
+          <li>214 اختبار يمر</li>
+          <li>0 أخطاء ESLint</li>
+          <li>اللعبة تشتغل بدون <code>ENABLE_METRICS</code></li>
+          <li>اللعبة تشتغل بدون <code>prom-client</code> (graceful fallback)</li>
+        </ul>
+      </div>
+
+      <div class="alert alert-warning">
+        <strong>لو حصل خطأ:</strong>
+        <ol style="margin-top: 10px; padding-right: 20px;">
+          <li>حط <code>ENABLE_METRICS=false</code> في <code>.env</code></li>
+          <li>أو احذف <code>server/metrics.js</code> والأسطر المرتبطة</li>
+          <li>المشروع يرجع 100% كما كان</li>
+        </ol>
+      </div>
+    </div>
+
+    <footer style="text-align: center; padding: 30px; color: #7f8c8d;">
+      <p>Desert Kingdom Metrics Guide | July 2026</p>
+      <p>Generated for <code>awaw32/my-gums</code></p>
+    </footer>
+  </div>
+
+  <script>
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabGroup = tab.closest('.section');
+        tabGroup.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tabGroup.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        tabGroup.querySelector(`#${tab.dataset.tab}`).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

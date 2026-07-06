@@ -2,12 +2,15 @@
 
 const { computePlayerStats } = require("./formulas");
 const { getEnemyForLevel, calculateEnemyPower } = require("../data/enemies");
+const metrics = require("../metrics");
 
 function createCombatLoop(deps) {
   const { rooms, broadcast, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2 } = deps;
 
   const PVP_ENGAGEMENT_RADIUS = 80;
   const PVP_TICK_MS = 300;
+
+  let lastTickTime = performance.now();
 
   function getAveragePlayerLevel() {
     const clients = Array.from(worldClients.values());
@@ -42,6 +45,18 @@ function createCombatLoop(deps) {
   }
 
   function gameTick() {
+    const now = performance.now();
+    const drift = now - lastTickTime - TICK_MS;
+    if (metrics.enabled) {
+      metrics.setTickDrift(drift);
+    }
+    lastTickTime = now;
+
+    // Dynamic tick: إذا مافي غرف نشطة ولا عملاء عالم، نوفر CPU
+    const hasActiveRooms = Array.from(rooms.values()).some(r => r.matchStarted && r.players.size > 0);
+    const hasWorldClients = worldClients.size > 0;
+    if (!hasActiveRooms && !hasWorldClients) return;
+
     rooms.forEach((room, roomCode) => {
       if (!room.matchStarted) return;
       for (const [, player] of room.players) {
@@ -111,7 +126,23 @@ function createCombatLoop(deps) {
     }
   }
 
-  const tickInterval = setInterval(gameTick, TICK_MS);
+  // Self-correcting tick loop — يعوّض الـ drift تلقائياً
+  let tickTimer = null;
+  let expectedTickTime = performance.now();
+
+  function scheduleNextTick() {
+    const now = performance.now();
+    const drift = now - expectedTickTime;
+    const nextDelay = Math.max(0, TICK_MS - drift);
+    expectedTickTime += TICK_MS;
+    tickTimer = setTimeout(() => {
+      gameTick();
+      scheduleNextTick();
+    }, nextDelay);
+  }
+
+  scheduleNextTick();
+
   const pvpCombatInterval = setInterval(pvpTick, PVP_TICK_MS);
 
   const monsterInterval = setInterval(() => {
@@ -143,7 +174,7 @@ function createCombatLoop(deps) {
   }, 1000);
 
   return {
-    tickInterval,
+    tickTimer,
     monsterInterval,
     pvpCombatInterval,
     initWorldMonsters,

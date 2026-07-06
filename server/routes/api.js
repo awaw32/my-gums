@@ -1,6 +1,7 @@
 "use strict";
 
 const { sanitizePlayerData } = require("../validation/player");
+const metrics = require("../metrics");
 
 function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, markDirty, rooms, BUILDING_DEFS, TICK_MS, claimReward }) {
 
@@ -235,15 +236,31 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     }
 
     if (req.url === "/health") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({
+      const healthData = {
         status: "ok",
         mongo: mongoConnected ? "connected" : "unavailable",
         rooms: rooms.size,
         players: Array.from(rooms.values()).reduce((acc, r) => acc + r.players.size, 0),
         uptime: process.uptime(),
         tickRate: 1000 / TICK_MS,
-      }));
+      };
+      if (metrics.enabled) {
+        healthData.p95_latency_ms = metrics.getP95Latency();
+        healthData.tick_drift_ms = metrics.getTickDrift();
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(healthData));
+      return true;
+    }
+
+    if (req.url === "/metrics" && req.method === "GET") {
+      if (!metrics.enabled) {
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.end("Metrics disabled");
+        return true;
+      }
+      res.writeHead(200, { "Content-Type": metrics.getContentType() });
+      res.end(await metrics.getMetricsText());
       return true;
     }
 

@@ -50,6 +50,7 @@ const { applyBuildingUpgrade, BUILDING_DEFS } = require("./server/db/buildings")
 const { applyResearchUpgrade } = require("./server/db/research");
 const { sanitizePlayerData } = require("./server/validation/player");
 const NetworkServer = require("./server/network/networkServer");
+const metrics = require("./server/metrics");
 
 const worldMonsters = [];
 const WORLD_W2 = 2400, WORLD_H2 = 2400;
@@ -98,7 +99,14 @@ wss.on("connection", (ws, req) => {
   const url = req.url || "/";
 
   ws.isAlive = true;
-  ws.on("pong", () => { ws.isAlive = true; });
+  ws.lastPingTs = 0;
+  ws.on("pong", () => {
+    ws.isAlive = true;
+    if (ws.lastPingTs > 0 && metrics.enabled) {
+      const rtt = performance.now() - ws.lastPingTs;
+      metrics.observeLatency(rtt);
+    }
+  });
 
   if (url === "/ws/world") {
     handleWorldConnection(ws, req);
@@ -117,8 +125,12 @@ const HEARTBEAT_INTERVAL = setInterval(() => {
   wss.clients.forEach((ws) => {
     if (ws.isAlive === false) return ws.terminate();
     ws.isAlive = false;
+    ws.lastPingTs = performance.now();
     ws.ping();
   });
+  if (metrics.enabled) {
+    metrics.setRoomsActive(rooms.size);
+  }
 }, 30000);
 
 wss.on("close", () => clearInterval(HEARTBEAT_INTERVAL));

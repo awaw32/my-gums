@@ -949,8 +949,25 @@ async function init() {
     const TICK_INTERVAL = 15000; // 15 ثانية لكل tick
     let eventTimer = 0;
     let lastPowerCheck = economy.power;
-    const gameTickInterval = setInterval(() => {
-      const dt = TICK_INTERVAL / 1000; // 15 ثانية
+    let lastTickTime = performance.now();
+    
+    // Self-correcting tick loop — يعوّض الـ drift تلقائياً
+    let tickTimer = null;
+    let expectedTickTime = performance.now();
+    
+    function scheduleNextTick() {
+      const now = performance.now();
+      const drift = now - expectedTickTime;
+      const nextDelay = Math.max(0, TICK_INTERVAL - drift);
+      expectedTickTime += TICK_INTERVAL;
+      tickTimer = setTimeout(runGameTick, nextDelay);
+      _gameIntervals.push(tickTimer);
+    }
+    
+    function runGameTick() {
+      const now = performance.now();
+      const dt = (now - lastTickTime) / 1000; // الوقت الفعلي بالثواني
+      lastTickTime = now;
       
       // تحديث الاقتصاد والقرية والواحات
       economy.tick();
@@ -1042,8 +1059,13 @@ async function init() {
       }
       
       saveToDB(); // يحفظ فقط إذا كان هناك تغيير (dirty flag)
-    }, TICK_INTERVAL);
-    _gameIntervals.push(gameTickInterval);
+      
+      // جدولة الـ tick التالي
+      scheduleNextTick();
+    }
+    
+    // بدء الـ tick loop
+    scheduleNextTick();
 
     // تشغيل حدث Gold Rush كبداية
     setTimeout(() => {
