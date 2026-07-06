@@ -11,6 +11,8 @@ function makeMockEconomy() {
       return false;
     },
     addRaw: function(type, amt) { if (this.resources[type] !== undefined) this.resources[type] += amt; },
+    addXp: function(amt) { /* mock */ },
+    multiplier: 1,
   };
 }
 
@@ -24,9 +26,9 @@ describe('InventoryManager', () => {
   });
 
   describe('getAllRecipes', () => {
-    it('should return all 8 recipes', () => {
+    it('should return all 9 recipes', () => {
       const recipes = inv.getAllRecipes();
-      expect(recipes).toHaveLength(8);
+      expect(recipes).toHaveLength(9);
       expect(recipes[0].id).toBe('r1');
     });
   });
@@ -47,12 +49,12 @@ describe('InventoryManager', () => {
 
     it('should correctly check gold=500 recipe when gold is exactly 500', () => {
       eco.resources.gold = 500;
-      expect(inv.canCraft('r6')).toBe(true);
+      expect(inv.canCraft('r7')).toBe(true);
     });
 
     it('should return false if gold is barely insufficient', () => {
       eco.resources.gold = 499;
-      expect(inv.canCraft('r6')).toBe(false);
+      expect(inv.canCraft('r7')).toBe(false);
     });
   });
 
@@ -62,9 +64,9 @@ describe('InventoryManager', () => {
       const foodBefore = eco.resources.food;
       const result = inv.craft('r1');
       expect(result).toBe(true);
-      expect(eco.resources.gold).toBe(goldBefore - 20);
-      expect(eco.resources.food).toBe(foodBefore - 10);
-      expect(inv.getItemCount('heal_potion')).toBe(1);
+      expect(eco.resources.gold).toBe(goldBefore - 10);
+      expect(eco.resources.food).toBe(foodBefore - 5);
+      expect(inv.getItemCount('bandage')).toBe(1);
     });
 
     it('should return false and not change state when resources insufficient', () => {
@@ -73,7 +75,7 @@ describe('InventoryManager', () => {
       const result = inv.craft('r1');
       expect(result).toBe(false);
       expect(eco.resources.gold).toBe(goldBefore);
-      expect(inv.getItemCount('heal_potion')).toBe(0);
+      expect(inv.getItemCount('bandage')).toBe(0);
     });
 
     it('should return false for unknown recipe', () => {
@@ -83,43 +85,43 @@ describe('InventoryManager', () => {
     it('should increment item count on multiple crafts', () => {
       inv.craft('r1');
       inv.craft('r1');
-      expect(inv.getItemCount('heal_potion')).toBe(2);
+      expect(inv.getItemCount('bandage')).toBe(2);
     });
 
     it('should fire _onCrafted callback on success', () => {
       let crafted = null;
       inv._onCrafted = (r) => { crafted = r; };
-      inv.craft('r7');
+      inv.craft('r8');
       expect(crafted).toBeTruthy();
-      expect(crafted.id).toBe('r7');
+      expect(crafted.id).toBe('r8');
     });
   });
 
   describe('getItemCount', () => {
     it('should return 0 for uncrafted items', () => {
-      expect(inv.getItemCount('heal_potion')).toBe(0);
+      expect(inv.getItemCount('bandage')).toBe(0);
     });
 
     it('should return count after crafting', () => {
       inv.craft('r2');
-      expect(inv.getItemCount('fire_sword')).toBe(1);
+      expect(inv.getItemCount('heal_potion')).toBe(1);
     });
   });
 
   describe('useItem', () => {
     it('should return false if item not owned', () => {
-      expect(inv.useItem('heal_potion')).toBe(false);
+      expect(inv.useItem('bandage')).toBe(false);
     });
 
     it('should decrease item count after use', () => {
       inv.craft('r1');
-      expect(inv.getItemCount('heal_potion')).toBe(1);
-      inv.useItem('heal_potion', null);
-      expect(inv.getItemCount('heal_potion')).toBe(0);
+      expect(inv.getItemCount('bandage')).toBe(1);
+      inv.useItem('bandage', null);
+      expect(inv.getItemCount('bandage')).toBe(0);
     });
 
     it('should add xp when using xp_scroll', () => {
-      inv.craft('r8');
+      inv.craft('r6');
       let xpAdded = 0;
       eco.addXp = (amt) => { xpAdded = amt; };
       inv.useItem('xp_scroll', null);
@@ -127,7 +129,7 @@ describe('InventoryManager', () => {
     });
 
     it('should set multiplier to 2 when using power_gem', () => {
-      inv.craft('r6');
+      inv.craft('r7');
       eco.multiplier = 1;
       inv.useItem('power_gem', null);
       expect(eco.multiplier).toBe(2);
@@ -140,24 +142,26 @@ describe('InventoryManager', () => {
     it('getState should return items and recipes', () => {
       const state = inv.getState();
       expect(state.items).toBeDefined();
-      expect(state.recipes).toHaveLength(8);
+      expect(state.recipes).toHaveLength(9);
     });
 
-    it('getSaveData should return items object', () => {
+    it('getSaveData should return items and maxCapacity', () => {
       inv.craft('r1');
       const data = inv.getSaveData();
-      expect(data.heal_potion).toBe(1);
+      expect(data.items.bandage).toBeDefined();
+      expect(data.items.bandage.count).toBe(1);
+      expect(data.maxCapacity).toBe(20);
     });
 
     it('loadState should restore items', () => {
-      inv.loadState({ heal_potion: 3, fire_sword: 1 });
-      expect(inv.getItemCount('heal_potion')).toBe(3);
-      expect(inv.getItemCount('fire_sword')).toBe(1);
+      inv.loadState({ items: { bandage: { count: 3, level: 1 }, heal_potion: { count: 1, level: 1 } } });
+      expect(inv.getItemCount('bandage')).toBe(3);
+      expect(inv.getItemCount('heal_potion')).toBe(1);
     });
 
     it('loadState should handle null gracefully', () => {
       inv.loadState(null);
-      expect(inv.getItemCount('heal_potion')).toBe(0);
+      expect(inv.getItemCount('bandage')).toBe(0);
     });
   });
 });

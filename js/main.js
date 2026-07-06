@@ -14,6 +14,7 @@ import { AchievementManager } from "./achievements.js";
 import { DailyLoginManager } from "./daily-login.js";
 import { PrestigeManager } from "./prestige.js";
 import { InventoryManager } from "./inventory.js";
+import { DroppedItemsManager } from "./dropped-items.js";
 import { EventManager } from "./events.js";
 import { TutorialManager } from "./tutorial.js";
 import { GameStore } from "./game-store.js";
@@ -178,6 +179,9 @@ async function init() {
   window._allianceManager = allianceManager;
   const prestige = new PrestigeManager(economy, village, army, storyManager);
   const inventory = new InventoryManager(economy);
+  const droppedItems = new DroppedItemsManager();
+  window._inventory = inventory;
+  window._droppedItems = droppedItems;
   const events = new EventManager();
   const tutorial = new TutorialManager();
   
@@ -632,6 +636,25 @@ async function init() {
     inventory._onCrafted = () => {
       achievements.updateProgress('crafts', 1);
     };
+
+    // ربط نظام الإسقاط مع المخزون
+    inventory._onItemDropped = (dropped) => {
+      droppedItems.add(dropped);
+      // بث الإسقاط للاعبين الآخرين
+      if (netSync && netSync._ws && netSync._ws.readyState === 1) {
+        netSync._ws.send(JSON.stringify({
+          type: "item_dropped",
+          item: dropped,
+        }));
+      }
+    };
+
+    inventory._onItemUsed = (itemId) => {
+      achievements.updateProgress('items_used', 1);
+    };
+
+    // تنظيف الأدوات القديمة كل دقيقة
+    setInterval(() => droppedItems.cleanup(), 60000);
     achievements._onUnlock = (a) => {
       ui.showNotification(`🏆 إنجاز: ${a.title} — ${a.desc}`);
       audio.playSound('levelup');
