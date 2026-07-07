@@ -7,6 +7,12 @@ export const RESOURCE_TYPES = {
   food: { name: 'الطعام', icon: '🌾', color: '#f1c40f', format: 'big' },
   artifacts: { name: 'قطع أثرية', icon: '🏺', color: '#8e44ad', format: 'fixed' },
   desertGem: { name: 'جوهرة الصحراء', icon: '💠', color: '#00ffff', format: 'fixed' },
+  // ==================== 🏜️ موارد الصحراء الجديدة ====================
+  water: { name: 'ماء', icon: '💧', color: '#3498db', format: 'big' },
+  salt: { name: 'ملح', icon: '🧂', color: '#ecf0f1', format: 'big' },
+  leather: { name: 'جلود', icon: '🟫', color: '#8B4513', format: 'big' },
+  copper: { name: 'نحاس', icon: '🪙', color: '#b87333', format: 'big' },
+  herbs: { name: 'أعشاب', icon: '🌿', color: '#27ae60', format: 'fixed' },
 };
 
 export function formatNumber(n) {
@@ -58,6 +64,11 @@ export class GameEconomy {
       food: 50,
       artifacts: 0,
       desertGem: 0,
+      water: 100,
+      salt: 20,
+      leather: 10,
+      copper: 5,
+      herbs: 3,
     };
     this.multiplier = 1;
     this.level = 1;
@@ -107,6 +118,16 @@ export class GameEconomy {
   get artifacts() { return this.resources.artifacts || 0; }
   get artifact() { return this.resources.artifacts || 0; } // alias للمطابقة مع UPGRADE_COSTS
   get desertGem() { return this.resources.desertGem || 0; }
+  get water() { return this.resources.water || 0; }
+  set water(v) { this.resources.water = Math.max(0, v); }
+  get salt() { return this.resources.salt || 0; }
+  set salt(v) { this.resources.salt = Math.max(0, v); }
+  get leather() { return this.resources.leather || 0; }
+  set leather(v) { this.resources.leather = Math.max(0, v); }
+  get copper() { return this.resources.copper || 0; }
+  set copper(v) { this.resources.copper = Math.max(0, v); }
+  get herbs() { return this.resources.herbs || 0; }
+  set herbs(v) { this.resources.herbs = Math.max(0, v); }
 
   get food() { return this.resources.food; }
   set food(v) { this.resources.food = Math.max(0, v); }

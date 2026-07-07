@@ -152,6 +152,7 @@ export class WorldMap {
   }
 
   _preloadImages() {
+    if (typeof window === "undefined" || typeof Image === "undefined") return;
     const v = window._buildId || Date.now();
     const keys = [
       "leader-player", "avatar-player", "soldier-player",
@@ -316,9 +317,12 @@ export class WorldMap {
 
     const newArmyPower = this.economy ? Math.max(500, Math.floor((this.economy.power || 5000))) : 5000;
     try {
+      const hdrs = { "Content-Type": "application/json" };
+      const tok = localStorage.getItem("player_token");
+      if (tok) hdrs["Authorization"] = `Bearer ${tok}`;
       fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: hdrs,
         body: JSON.stringify({
           cash: this.economy?.cash || 0,
           gems: this.economy?.gems || 0,
@@ -939,13 +943,33 @@ export class WorldMap {
     drop.collected = true;
     const money = drop.money || 0;
     const gold = drop.gold || 0;
-    if (this.economy) {
-      if (money > 0) this.economy.addRaw("cash", money);
-      if (gold > 0) this.economy.addRaw("gold", gold);
-      if (money > 0 && this._onCashEarned) this._onCashEarned(money);
+    if (this._activeMode && this._activeMode.modeName === "extraction" && gold > 0) {
+      const bagMult = 1 + ((this._activeMode._currentUpgrades?.bagSize || 1) - 1) * 0.1;
+      const goldToCarry = Math.floor(gold * bagMult);
+      this._activeMode._carryingGold = Math.min(
+        this._activeMode._carryingGold + goldToCarry,
+        this._activeMode._getMaxBag()
+      );
+      this.worldFx.push({
+        x: drop.x, y: drop.y,
+        text: `🪙 +${goldToCarry} (${this._activeMode._carryingGold}/${this._activeMode._getMaxBag()})`,
+        color: "#FFD700", life: 0.8, maxLife: 0.8
+      });
+      if (this._onSelfStatsChanged) this._onSelfStatsChanged();
+      if (money > 0 && this.economy) {
+        this.economy.addRaw("cash", money);
+        this.sessionStats.coinsEarned += money;
+        if (this._onCashEarned) this._onCashEarned(money);
+      }
+    } else {
+      if (this.economy) {
+        if (money > 0) this.economy.addRaw("cash", money);
+        if (gold > 0) this.economy.addRaw("gold", gold);
+        if (money > 0 && this._onCashEarned) this._onCashEarned(money);
+      }
+      this.sessionStats.coinsEarned += money;
+      this.worldFx.push({ x: drop.x, y: drop.y, text: `+${money} 💵${gold > 0 ? ` +${gold} 🪙` : ''}`, color: "#FFD700", life: 0.8, maxLife: 0.8 });
     }
-    this.sessionStats.coinsEarned += money;
-    this.worldFx.push({ x: drop.x, y: drop.y, text: `+${money} 💵${gold > 0 ? ` +${gold} 🪙` : ''}`, color: "#FFD700", life: 0.8, maxLife: 0.8 });
     this.drops.splice(index, 1);
     if (this._onDropCollected) this._onDropCollected();
   }
@@ -1623,7 +1647,7 @@ export class WorldMap {
     // Glow effect
     ctx.shadowColor = "#f1c40f";
     ctx.shadowBlur = 8;
-    ctx.fillStyle = "#f1c40f";
+    ctx.fillStyle = d.gold > 0 ? "#FFD700" : "#f1c40f";
     ctx.beginPath();
     const bobY = Math.sin(Date.now() * 0.003 + d.x) * 2;
     ctx.arc(0, bobY - 4, 8, 0, Math.PI * 2);
@@ -1636,11 +1660,17 @@ export class WorldMap {
     ctx.arc(-2, bobY - 6, 3, 0, Math.PI * 2);
     ctx.fill();
 
-    // Money text
+    // Label
     ctx.fillStyle = "#fff";
     ctx.font = "bold 10px Cairo";
     ctx.textAlign = "center";
-    ctx.fillText("+" + d.money, 0, -14);
+    if (d.gold > 0 && d.money <= 0) {
+      ctx.fillText("🪙", 0, -14);
+    } else if (d.gold > 0) {
+      ctx.fillText("+" + d.money + " 💵🪙", 0, -14);
+    } else {
+      ctx.fillText("+" + d.money, 0, -14);
+    }
     ctx.restore();
   }
 

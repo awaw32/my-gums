@@ -39,23 +39,6 @@ GameUI.prototype.buildWarScreen = function() {
   div.innerHTML = `
     <div class="panel-header">⚔️ ساحات الحرب</div>
     <div class="war-modes-row">
-      <button class="war-mode-btn" id="arena-enter-btn" data-mode="oasis">
-        <div class="war-mode-icon">🌴</div>
-        <div class="war-mode-name">واحة الغنائم</div>
-        <div class="war-mode-desc">PvP — قاتل اللاعبين</div>
-      </button>
-      <button class="war-mode-btn" id="adventure-enter-btn" data-mode="adventure">
-        <div class="war-mode-icon">🐍</div>
-        <div class="war-mode-name">مغامرة</div>
-        <div class="war-mode-desc">PvE — وحوش الصحراء</div>
-      </button>
-      <button class="war-mode-btn" id="campaign-enter-btn" data-mode="campaign">
-        <div class="war-mode-icon">🗺️</div>
-        <div class="war-mode-name">حملة</div>
-        <div class="war-mode-desc">PvE — مراحل القصة</div>
-      </button>
-    </div>
-    <div class="war-modes-row" style="margin-top:8px">
       <button class="war-mode-btn" id="extraction-enter-btn" data-mode="extraction">
         <div class="war-mode-icon">🪙</div>
         <div class="war-mode-name">استخراج</div>
@@ -73,60 +56,15 @@ GameUI.prototype.buildWarScreen = function() {
       </button>
     </div>
     <div class="war-mode-details" id="war-mode-details">
-      <div class="war-detail-card" id="war-detail-oasis">
-        <div class="war-detail-header">
-          <span class="war-detail-icon">🌴</span>
-          <span class="war-detail-title">واحة الغنائم</span>
-        </div>
-        <div class="war-detail-body">
-          <p>ادخل عالم الصحراء وقاتل اللاعبين الآخرين في معارك PvP مباشرة. اجمع الغنائم واحترق أعداءك!</p>
-          <div class="war-detail-stats">
-            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvP + PvE</span></div>
-            <div class="war-stat"><span class="war-stat-icon">🏆</span><span class="war-stat-label">المكافآت</span><span class="war-stat-value">ذهب + غنائم</span></div>
-            <div class="war-stat"><span class="war-stat-icon">💀</span><span class="war-stat-label">العقوبة</span><span class="war-stat-value">خسارة جزء من المال</span></div>
-          </div>
-          <button class="war-start-btn" id="war-start-oasis">🚀 ادخل واحة الغنائم</button>
-        </div>
-      </div>
-      <div class="war-detail-card hidden" id="war-detail-adventure">
-        <div class="war-detail-header">
-          <span class="war-detail-icon">🐍</span>
-          <span class="war-detail-title">مغامرة الصحراء</span>
-        </div>
-        <div class="war-detail-body">
-          <p>استكشف أعماق الصحراء واقتل الوحوش البرية. لا PvP هنا — ركز على القتال والجمع!</p>
-          <div class="war-detail-stats">
-            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE فقط</span></div>
-            <div class="war-stat"><span class="war-stat-icon">🏆</span><span class="war-stat-label">المكافآت</span><span class="war-stat-value">ذهب + خبرة + مواد</span></div>
-            <div class="war-stat"><span class="war-stat-icon">🔒</span><span class="war-stat-label"> PvP</span><span class="war-stat-value">معطّل</span></div>
-          </div>
-          <button class="war-start-btn" id="war-start-adventure">🚀 ابدأ المغامرة</button>
-        </div>
-      </div>
-      <div class="war-detail-card hidden" id="war-detail-campaign">
-        <div class="war-detail-header">
-          <span class="war-detail-icon">🗺️</span>
-          <span class="war-detail-title">حملة الأبطال</span>
-        </div>
-        <div class="war-detail-body">
-          <p>اتبع القصة الرئيسية وتقدم عبر المراحل. قاتل الزعماء واكتمل الفصول!</p>
-          <div class="war-detail-stats">
-            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE + مراحل</span></div>
-            <div class="war-stat"><span class="war-stat-icon">🏆</span><span class="war-stat-label">المكافآت</span><span class="war-stat-value">ذهب + مكافآت خاصة</span></div>
-            <div class="war-stat"><span class="war-stat-icon">📖</span><span class="war-stat-label">المراحل</span><span class="war-stat-value" id="war-campaign-progress">0/∞</span></div>
-          </div>
-          <button class="war-start-btn" id="war-start-campaign">🚀 ابدأ الحملة</button>
-        </div>
-      </div>
-      <div class="war-detail-card hidden" id="war-detail-extraction">
+      <div class="war-detail-card" id="war-detail-extraction">
         <div class="war-detail-header">
           <span class="war-detail-icon">🪙</span>
           <span class="war-detail-title">استخراج الذهب</span>
         </div>
         <div class="war-detail-body">
-          <p>وحوش مسالمة — اذبحها واجمع الذهب. لكن احترس: كلما جمعت أكثر، تباطأت أكثر! سلم الذهب في نقطة التسليم قبل فوات الوقت.</p>
+          <p>وحوش في الصحراء — اذبحها واجمع الذهب المتساقط. كلما حملت أكثر، تباطأت أكثر! سلم الذهب في نقطة التسليم قبل فوات الوقت.</p>
           <div class="war-detail-stats">
-            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE (وحوش مسالمة)</span></div>
+            <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE</span></div>
             <div class="war-stat"><span class="war-stat-icon">🎒</span><span class="war-stat-label">الحقيبة</span><span class="war-stat-value">تتثقل بالذهب</span></div>
             <div class="war-stat"><span class="war-stat-icon">📍</span><span class="war-stat-label">التسليم</span><span class="war-stat-value">نقطة في الخريطة</span></div>
           </div>
@@ -452,7 +390,7 @@ GameUI.prototype._landsToast = function(msg) {
 };
 
 GameUI.prototype.renderWar = function() {
-  const modes = ['oasis', 'adventure', 'campaign', 'extraction', 'horde', 'cave'];
+  const modes = ['extraction', 'horde', 'cave'];
   const selectMode = (mode) => {
     for (const m of modes) {
       const btn = document.querySelector(`.war-mode-btn[data-mode="${m}"]`);
@@ -467,16 +405,10 @@ GameUI.prototype.renderWar = function() {
       btn.addEventListener('click', () => selectMode(m));
     }
   }
-  selectMode('oasis');
-  const oasisBtn = document.getElementById("war-start-oasis");
-  const adventureBtn = document.getElementById("war-start-adventure");
-  const campaignBtn = document.getElementById("war-start-campaign");
+  selectMode('extraction');
   const extractionBtn = document.getElementById("war-start-extraction");
   const hordeBtn = document.getElementById("war-start-horde");
   const caveBtn = document.getElementById("war-start-cave");
-  if (oasisBtn) oasisBtn.addEventListener('click', () => this.enterArena());
-  if (adventureBtn) adventureBtn.addEventListener('click', () => this.enterAdventure());
-  if (campaignBtn) campaignBtn.addEventListener('click', () => this.enterCampaign());
   if (extractionBtn) extractionBtn.addEventListener('click', () => this.enterExtraction());
   if (hordeBtn) hordeBtn.addEventListener('click', () => this.enterHorde());
   if (caveBtn) caveBtn.addEventListener('click', () => this.enterCave());

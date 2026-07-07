@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شخصيات اللعبة — تصميم محسّن</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sand-50: #FDF6EC;
+  --sand-100: #F5E6CA;
+  --sand-200: #E8D0A8;
+  --sand-300: #D4B896;
+  --clay-400: #C4956A;
+  --clay-500: #A67B5B;
+  --terra-600: #A0522D;
+  --terra-700: #8B4513;
+  --gold-500: #D4A843;
+  --gold-600: #C4942F;
+  --brown-700: #5C3A1E;
+  --brown-900: #2C1810;
+  --black-20: rgba(44,24,16,0.2);
+  --black-40: rgba(44,24,16,0.4);
+  --black-60: rgba(44,24,16,0.6);
+  --white-10: rgba(255,255,255,0.1);
+  --white-20: rgba(255,255,255,0.2);
+  --white-60: rgba(255,255,255,0.6);
+  --font-display: 'Reem Kufi', sans-serif;
+  --font-body: 'Tajawal', sans-serif;
+  --radius: 12px;
+  --card-shadow: 0 8px 32px rgba(44,24,16,0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--brown-900);
+  color: var(--brown-900);
+  min-height: 100vh;
+  overflow-x: hidden;
+  direction: rtl;
+}
+
+.bg-layer {
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 30%, #D4A84322 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, #A0522D33 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 20% 90%, #C4956A22 0%, transparent 50%),
+    linear-gradient(180deg, #3D2518 0%, #5C3A1E 30%, #8B6B45 55%, #A67B5B 75%, #C4956A 100%);
+}
+.bg-noise {
+  position: fixed; inset: 0; z-index: 1;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+}
+
+.particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+@keyframes float1 { 0%{transform:translate(0,0) rotate(0deg);opacity:0} 10%{opacity:0.35} 90%{opacity:0.35} 100%{transform:translate(120px,-450px) rotate(360deg);opacity:0} }
+@keyframes float2 { 0%{transform:translate(0,0) rotate(0deg);opacity:0} 10%{opacity:0.25} 90%{opacity:0.25} 100%{transform:translate(-90px,-550px) rotate(-360deg);opacity:0} }
+.particle {
+  position: absolute; border-radius: 50%;
+  background: var(--gold-500);
+  width: 3px; height: 3px;
+  animation: float1 14s linear infinite;
+}
+.particle:nth-child(2n) { width:4px;height:4px;background:var(--sand-200);animation-name:float2;animation-duration:16s; }
+.particle:nth-child(3n) { width:2px;height:2px;background:var(--clay-400);animation-duration:11s; }
+
+.page { position: relative; z-index: 2; max-width: 1200px; margin: 0 auto; padding: 40px 24px 60px; }
+
+.header { text-align: center; margin-bottom: 56px; position: relative; }
+.header h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  color: var(--gold-500);
+  text-shadow: 0 2px 12px rgba(212,168,67,0.25);
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+.header .sub {
+  font-family: var(--font-body);
+  font-size: clamp(0.9rem, 1.6vw, 1.1rem);
+  font-weight: 400;
+  color: var(--sand-200);
+  margin-top: 8px;
+  letter-spacing: 0.08em;
+}
+.header-line {
+  width: 120px; height: 3px; margin: 18px auto 0;
+  background: linear-gradient(90deg, transparent, var(--gold-500), transparent);
+  border-radius: 2px;
+}
+
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 40px; }
+
+.card {
+  background: linear-gradient(170deg, rgba(245,230,202,0.95), rgba(212,184,150,0.92));
+  border-radius: var(--radius);
+  padding: 28px 24px 24px;
+  box-shadow: var(--card-shadow);
+  position: relative;
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--white-20);
+  animation: cardReveal 0.6s ease-out both;
+}
+.card:nth-child(1) { animation-delay: 0.1s; }
+.card:nth-child(2) { animation-delay: 0.25s; }
+.card:nth-child(3) { animation-delay: 0.4s; }
+@keyframes cardReveal {
+  from { opacity:0; transform: translateY(30px); }
+  to { opacity:1; transform: translateY(0); }
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 24px; right: 24px;
+  height: 3px; border-radius: 0 0 2px 2px;
+  background: linear-gradient(90deg, var(--gold-500), var(--terra-600), var(--gold-500));
+}
+
+.card-header { text-align: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--black-20); }
+.card-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--brown-900);
+}
+.card-header .en-name {
+  font-family: var(--font-body);
+  font-size: 0.85rem; font-weight: 400;
+  color: var(--clay-500);
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+.comparison {
+  display: flex; align-items: center; justify-content: center;
+  gap: 14px; margin-bottom: 20px;
+}
+.sprite-box { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sprite-box .label {
+  font-size: 0.72rem; font-weight: 500;
+  color: var(--brown-700);
+  white-space: nowrap;
+}
+.sprite-box canvas {
+  image-rendering: pixelated;
+  background: radial-gradient(ellipse at 50% 60%, rgba(92,58,30,0.06), rgba(92,58,30,0.14));
+  border-radius: 6px;
+  box-shadow: inset 0 0 12px var(--black-20), 0 2px 8px var(--black-20);
+}
+.vs-badge {
+  font-family: var(--font-display);
+  font-size: 0.8rem; font-weight: 700;
+  color: var(--terra-600);
+  opacity: 0.5;
+  padding: 0 4px;
+}
+
+.preview-box { text-align: center; margin-bottom: 16px; }
+.preview-box canvas {
+  image-rendering: pixelated;
+  background: radial-gradient(ellipse at 50% 60%, rgba(92,58,30,0.04), rgba(92,58,30,0.12));
+  border-radius: 10px;
+  box-shadow: inset 0 0 20px var(--black-20), 0 4px 16px var(--black-20);
+  width: 100%; max-width: 192px; height: auto;
+  aspect-ratio: 1;
+}
+
+.controls { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.controls-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+.btn-rotate {
+  font-family: var(--font-body);
+  font-size: 0.85rem; font-weight: 700;
+  padding: 8px 20px;
+  border: none; border-radius: 8px;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--terra-600), var(--terra-700));
+  color: var(--sand-100);
+  box-shadow: 0 3px 12px rgba(160,82,45,0.3);
+  transition: all 0.2s;
+  letter-spacing: 0.03em;
+}
+.btn-rotate:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(160,82,45,0.4); }
+.btn-rotate:active { transform: translateY(0); }
+.btn-rotate:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 2px; }
+
+.btn-auto {
+  font-family: var(--font-body);
+  font-size: 0.78rem; font-weight: 500;
+  padding: 6px 14px;
+  border: 1px solid var(--black-20); border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--brown-700);
+  transition: all 0.2s;
+}
+.btn-auto:hover { background: var(--white-20); }
+.btn-auto.active { background: var(--gold-500); color: var(--brown-900); border-color: var(--gold-500); box-shadow: 0 2px 8px rgba(212,168,67,0.3); }
+.btn-auto:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 2px; }
+
+.dir-label { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--brown-700); }
+.frame-label { font-size: 0.75rem; font-weight: 500; color: var(--clay-500); }
+
+.footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--white-10); }
+.footer p { font-size: 0.8rem; color: var(--white-60); letter-spacing: 0.04em; }
+
+@media (max-width: 900px) {
+  .cards { grid-template-columns: 1fr; gap: 20px; }
+  .page { padding: 24px 16px 40px; }
+  .header { margin-bottom: 32px; }
+}
+@media (max-width: 480px) {
+  .card { padding: 20px 16px; }
+  .comparison { gap: 8px; }
+  .preview-box canvas { max-width: 128px; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-layer"></div>
+<div class="bg-noise"></div>
+<div class="particles" id="particles"></div>
+
+<div class="page">
+  <header class="header">
+    <h1>شخصيات اللعبة</h1>
+    <p class="sub">Improved Canvas Character Sprites</p>
+    <div class="header-line"></div>
+  </header>
+  <div class="cards" id="cards"></div>
+  <footer class="footer">
+    <p>Canvas Pixel Art — 8 Directions × 4 Frames • 64×64 Resolution</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const DIR_NAMES = ['شمال','شمال شرق','شرق','جنوب شرق','جنوب','جنوب غرب','غرب','شمال غرب'];
+const DIR_COUNT = 8;
+const FRAME_COUNT = 4;
+const FPS = 8;
+
+// Character definitions
+const CHARS = [
+  { id:'leader', name:'القائد', en:'Leader',
+    skin:'#C68E5B', robe:'#D4C4A8', robeD:'#C4B498',
+    acc:'#CC3333', accD:'#222', metal:'#C0C0C0', dark:'#3D2B1F' },
+  { id:'soldier', name:'الجندي', en:'Soldier',
+    skin:'#C68E5B', robe:'#A67B5B', robeD:'#8B6B45',
+    acc:'#A0A0A0', accD:'#666', metal:'#C0C0C0', dark:'#3D2B1F' },
+  { id:'bandit', name:'قطاع طرق', en:'Bandit',
+    skin:'#B8845A', robe:'#4A3728', robeD:'#3D2B1F',
+    acc:'#CC3333', accD:'#FF8A8A', metal:'#C0C0C0', dark:'#2C1810' }
+];
+
+// Walk cycle: [legLX, legLY, legRX, legRY, armOff, bobY]
+const WALK = [
+  [0,0,0,0,0,0],
+  [-2,-3,2,1,1,-2],
+  [-1,0,1,-1,0,-3],
+  [2,1,-2,-3,-1,-2]
+];
+
+// Colour palette for simple sprites
+const SIMPLE = {
+  body:'#8B7355', head:'#C68E5B', legs:'#5C3A1E', eye:'#333'
+};
+
+// ── Drawing helpers (absolute 64×64 coords) ──
+function r(ctx, x, y, w, h, c) { ctx.fillStyle=c; ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
+function o(ctx, cx, cy, rx, ry, c) { ctx.fillStyle=c; ctx.beginPath(); ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2); ctx.fill(); }
+function T(ctx, x1,y1, x2,y2, x3,y3, c) { ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.closePath(); ctx.fill(); }
+
+// ── Simple (old) sprite ──
+function drawSimple(ctx, def) {
+  r(ctx,22,18,14,16, SIMPLE.body);
+  o(ctx,29,12,6,7, SIMPLE.head);
+  r(ctx,25,34,4,10, SIMPLE.legs);
+  r(ctx,30,34,4,10, SIMPLE.legs);
+  r(ctx,26,11,2,2, SIMPLE.eye);
+  r(ctx,32,11,2,2, SIMPLE.eye);
+  r(ctx,24,16,10,2, def.id==='leader'?'#D4C4A8':(def.id==='bandit'?'#4A3728':'#8B6B45'));
+}
+
+// ── Back view ──
+function drawBack(ctx, def) {
+  r(ctx,18,22,28,24, def.robe);
+  o(ctx,32,14,10,10, def.dark);
+  if (def.id==='leader') { o(ctx,32,13,11,11,'#F5F0E0'); r(ctx,22,12,20,3,def.accD); }
+  if (def.id==='soldier') { ctx.fillStyle='#8A8A8A'; ctx.beginPath(); ctx.arc(32,8,10,Math.PI,0); ctx.fill(); r(ctx,22,8,20,4,'#8A8A8A'); r(ctx,22,10,20,2,'#666'); }
+  if (def.id==='bandit') { ctx.fillStyle=def.acc; ctx.beginPath(); ctx.arc(32,12,11,Math.PI,0); ctx.fill(); r(ctx,21,12,22,3,def.acc); r(ctx,24,7,16,3,'#1A0E08'); }
+}
+
+// ── Front view ──
+function drawFront(ctx, def, w) {
+  const bob = w[5];
+  const lx = 24 + w[0], ly = 42 + w[1];
+  const rx = 34 + w[2], ry = 42 + w[3];
+
+  // Shadow
+  ctx.fillStyle = 'rgba(44,24,16,0.15)';
+  ctx.beginPath(); ctx.ellipse(32,60,16,4,0,0,Math.PI*2); ctx.fill();
+
+  // Legs / feet
+  if (def.id==='soldier') {
+    r(ctx,lx,ly,5,14, def.dark);
+    r(ctx,rx,ry,5,14, def.dark);
+    r(ctx,lx-1,ly+10,7,4, '#1A0E08');
+    r(ctx,rx-1,ry+10,7,4, '#1A0E08');
+  } else {
+    r(ctx,lx+1,ly+8,5,4, '#1A0E08');
+    r(ctx,rx,ry+8,5,4, '#1A0E08');
+  }
+
+  const bodyY = 22 + bob;
+
+  // Body / robe
+  if (def.id==='soldier') {
+    r(ctx,20,bodyY,24,20, def.robe);
+    r(ctx,22,bodyY,20,3, def.robeD);
+    r(ctx,23,bodyY+3,18,12, def.robe);
+    r(ctx,19,bodyY+16,26,3, def.dark);
+    r(ctx,16,bodyY-2,5,14, def.dark);
+    r(ctx,43,bodyY-2,5,14, def.dark);
+  } else if (def.id==='bandit') {
+    r(ctx,17,bodyY,30,24, def.robe);
+    ctx.fillStyle=def.robe;
+    ctx.beginPath();
+    ctx.moveTo(17,bodyY+20); ctx.lineTo(14,bodyY+24); ctx.lineTo(18,bodyY+22);
+    ctx.lineTo(21,bodyY+26); ctx.lineTo(26,bodyY+22); ctx.lineTo(30,bodyY+27);
+    ctx.lineTo(35,bodyY+22); ctx.lineTo(40,bodyY+26); ctx.lineTo(44,bodyY+22);
+    ctx.lineTo(47,bodyY+24); ctx.lineTo(47,bodyY); ctx.closePath(); ctx.fill();
+    r(ctx,17,bodyY+16,30,3, def.dark);
+    r(ctx,17,bodyY+6,30,2, def.acc);
+  } else {
+    r(ctx,16,bodyY,32,24, def.robe);
+    ctx.fillStyle=def.robe;
+    ctx.beginPath();
+    ctx.moveTo(16,bodyY+20); ctx.lineTo(13,bodyY+25); ctx.lineTo(18,bodyY+22);
+    ctx.lineTo(22,bodyY+27); ctx.lineTo(27,bodyY+22); ctx.lineTo(32,bodyY+28);
+    ctx.lineTo(37,bodyY+22); ctx.lineTo(42,bodyY+27); ctx.lineTo(48,bodyY+22);
+    ctx.lineTo(48,bodyY); ctx.closePath(); ctx.fill();
+    r(ctx,16,bodyY+16,32,3, def.dark);
+    r(ctx,16,bodyY+6,32,2, def.acc);
+  }
+
+  // Arms
+  const armOff = w[4];
+  r(ctx,14,bodyY+4+armOff,4,12, def.skin);
+  r(ctx,46,bodyY+4-armOff,4,12, def.skin);
+
+  // Weapons
+  if (def.id==='leader') {
+    ctx.fillStyle=def.metal;
+    ctx.beginPath(); ctx.moveTo(50,bodyY+2); ctx.quadraticCurveTo(58,bodyY-8,54,bodyY+4); ctx.fill();
+    r(ctx,48,bodyY+2,4,3, def.leather||'#8B4513');
+  }
+  if (def.id==='soldier') {
+    o(ctx,13,bodyY+8,7,8, def.leather||'#8B4513');
+    o(ctx,13,bodyY+8,4,5, def.metal);
+    r(ctx,49,bodyY-14,2,36, '#8B6914');
+    T(ctx,50,bodyY-16,48,bodyY-8,52,bodyY-8, def.metal);
+  }
+  if (def.id==='bandit') {
+    ctx.fillStyle=def.metal;
+    ctx.beginPath(); ctx.moveTo(50,bodyY+2); ctx.quadraticCurveTo(57,bodyY-6,53,bodyY+6); ctx.fill();
+  }
+
+  // Head and neck
+  const headY = 4 + bob;
+  r(ctx,29,bodyY-6,6,6, def.skin);
+  o(ctx,32,headY+10,9,9, def.skin);
+  r(ctx,26,headY+9,3,2, '#222');
+  r(ctx,35,headY+9,3,2, '#222');
+  r(ctx,30,headY+15,4,1, '#8B5A3A');
+
+  // Headwear
+  if (def.id==='leader') {
+    ctx.fillStyle='#F5F0E0';
+    o(ctx,32,headY+8,11,11);
+    r(ctx,21,headY+4,22,2, def.acc);
+    r(ctx,21,headY+9,22,2, def.acc);
+    r(ctx,20,headY+6,24,3, def.accD);
+    r(ctx,21,headY+16,6,7, '#F5F0E0');
+    r(ctx,37,headY+16,6,7, '#F5F0E0');
+    ctx.fillStyle='#3D2B1F';
+    ctx.beginPath(); ctx.moveTo(27,headY+16); ctx.quadraticCurveTo(32,headY+22,37,headY+16); ctx.fill();
+  }
+  if (def.id==='soldier') {
+    ctx.fillStyle='#8A8A8A';
+    ctx.beginPath(); ctx.arc(32,headY+5,10,Math.PI,0); ctx.fill();
+    r(ctx,22,headY+5,20,3, '#8A8A8A');
+    r(ctx,31,headY+8,2,8, '#A0A0A0');
+    r(ctx,22,headY+6,20,2, '#666');
+  }
+  if (def.id==='bandit') {
+    ctx.fillStyle=def.acc;
+    ctx.beginPath(); ctx.arc(32,headY+7,11,Math.PI,0); ctx.fill();
+    r(ctx,21,headY+7,22,3, def.acc);
+    r(ctx,30,headY-2,4,7, def.acc);
+    r(ctx,23,headY-1,18,3, '#1A0E08');
+    ctx.strokeStyle='#FF8A8A'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(36,headY+8); ctx.lineTo(40,headY+14); ctx.stroke();
+  }
+}
+
+// ── Main draw ──
+function drawChar(ctx, def, frame, dir, size, simple) {
+  ctx.clearRect(0,0,size,size);
+  const s = size/64;
+  ctx.save();
+  ctx.scale(s,s);
+  if (simple) { drawSimple(ctx,def); ctx.restore(); return; }
+  if (dir===0) { drawBack(ctx,def); ctx.restore(); return; }
+  // Flip for east-facing directions
+  if (dir===2||dir===1||dir===3) { ctx.translate(64,0); ctx.scale(-1,1); }
+  drawFront(ctx,def,WALK[frame]);
+  ctx.restore();
+}
+
+// ── Build UI ──
+const state = {};
+CHARS.forEach(c => { state[c.id] = { dir:4, frame:0, auto:true, timer:0 }; });
+
+const cardsEl = document.getElementById('cards');
+CHARS.forEach(def => {
+  const card = document.createElement('div'); card.className='card';
+  card.innerHTML = `
+    <div class="card-header"><h2>${def.name}</h2><div class="en-name">${def.en}</div></div>
+    <div class="comparison">
+      <div class="sprite-box"><span class="label">قديم (48×48)</span><canvas id="o-${def.id}" width="48" height="48"></canvas></div>
+      <span class="vs-badge">VS</span>
+      <div class="sprite-box"><span class="label">جديد (64×64)</span><canvas id="n-${def.id}" width="64" height="64"></canvas></div>
+    </div>
+    <div class="preview-box"><canvas id="a-${def.id}" width="192" height="192"></canvas></div>
+    <div class="controls">
+      <div class="controls-row">
+        <button class="btn-rotate" data-id="${def.id}">⟳ تدوير</button>
+        <button class="btn-auto active" data-id="${def.id}">تشغيل تلقائي</button>
+      </div>
+      <span class="dir-label" id="d-${def.id}">${DIR_NAMES[4]}</span>
+      <span class="frame-label" id="f-${def.id}">الإطار ١ من ٤</span>
+    </div>`;
+  cardsEl.appendChild(card);
+});
+
+// ── Render ──
+function render() {
+  CHARS.forEach(def => {
+    const s = state[def.id];
+    drawChar(document.getElementById(`o-${def.id}`).getContext('2d'), def, 0, 4, 48, true);
+    drawChar(document.getElementById(`n-${def.id}`).getContext('2d'), def, 0, s.dir, 64, false);
+    const actx = document.getElementById(`a-${def.id}`).getContext('2d');
+    actx.save(); actx.scale(3,3);
+    actx.shadowColor='rgba(44,24,16,0.2)'; actx.shadowBlur=3; actx.shadowOffsetY=2;
+    drawChar(actx, def, s.frame, s.dir, 64, false);
+    actx.restore();
+    document.getElementById(`d-${def.id}`).textContent = DIR_NAMES[s.dir];
+    document.getElementById(`f-${def.id}`).textContent = `الإطار ${s.frame+1} من ٤`;
+  });
+}
+
+// ── Animation loop ──
+let last = performance.now(), acc = 0;
+function loop(now) {
+  let dt = Math.min(now - last, 200); last = now;
+  acc += dt;
+  if (acc >= 1000/FPS) {
+    acc -= 1000/FPS;
+    CHARS.forEach(def => {
+      const s = state[def.id];
+      s.frame = (s.frame+1)%FRAME_COUNT;
+      if (s.auto) { s.timer++; if (s.timer>=FRAME_COUNT*2) { s.timer=0; s.dir=(s.dir+1)%DIR_COUNT; } }
+    });
+    render();
+  }
+  requestAnimationFrame(loop);
+}
+
+// ── Controls ──
+document.querySelectorAll('.btn-rotate').forEach(b => b.addEventListener('click',()=>{
+  state[b.dataset.id].dir=(state[b.dataset.id].dir+1)%DIR_COUNT;
+  state[b.dataset.id].timer=0;
+}));
+document.querySelectorAll('.btn-auto').forEach(b => b.addEventListener('click',()=>{
+  const id=b.dataset.id; state[id].auto=!state[id].auto;
+  b.classList.toggle('active');
+  if(state[id].auto) state[id].timer=0;
+}));
+
+// ── Particles ──
+(function(){const c=document.getElementById('particles');for(let i=0;i<30;i++){const p=document.createElement('div');p.className='particle';p.style.left=Math.random()*100+'%';p.style.top=Math.random()*100+'%';p.style.animationDuration=(10+Math.random()*10)+'s';p.style.animationDelay=(Math.random()*10)+'s';c.appendChild(p)}})();
+
+// ── Start ──
+render(); requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

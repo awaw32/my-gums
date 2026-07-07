@@ -79,6 +79,8 @@ const IMG = {
   itemPowerGem:       null, //assets/images/items/power_gem.png
   itemArenaTicket:    null, //assets/images/items/arena_ticket.png
   itemTowerBlueprint: null, //assets/images/items/tower_blueprint.png
+  itemIronSword:      null, //assets/images/items/sword_iron_96.png
+  itemDesertScimitar: null, //assets/images/items/desert_scimitar.jpg
 };
 
 // =============================================================================
@@ -148,15 +150,23 @@ const ImageResolver = {
     hammersIcon: 'assets/images/resources/hammers_32.png',
     scrollsIcon: 'assets/images/resources/scrolls_32.png',
     // أدوات المخزون
-    itemBandage:        'assets/images/items/bandage.png',
+    itemBandage:        'assets/images/items/bandage.svg',
     itemHealPotion:     'assets/images/items/heal_potion.png',
     itemFireSword:      'assets/images/items/fire_sword.png',
     itemDesertShield:   'assets/images/items/desert_shield.png',
     itemPowerHelmet:    'assets/images/items/power_helmet.png',
     itemXpScroll:       'assets/images/items/xp_scroll.png',
     itemPowerGem:       'assets/images/items/power_gem.png',
-    itemArenaTicket:    'assets/images/items/arena_ticket.png',
-    itemTowerBlueprint: 'assets/images/items/tower_blueprint.png',
+    itemArenaTicket:    'assets/images/items/arena_ticket.svg',
+    itemTowerBlueprint: 'assets/images/items/tower_blueprint.svg',
+    itemIronSword:      'assets/images/items/sword_iron_96.png',
+    itemDesertScimitar: 'assets/images/items/desert_scimitar.jpg',
+    // موارد الصحراء
+    resourceWater:   'assets/images/resources/water_32.svg',
+    resourceSalt:    'assets/images/resources/salt_32.svg',
+    resourceLeather: 'assets/images/resources/leather_32.svg',
+    resourceCopper:  'assets/images/resources/copper_32.svg',
+    resourceHerbs:   'assets/images/resources/herbs_32.svg',
   },
 
   /** جلب رابط الصورة النهائي: الأولوية للرابط السحابي */

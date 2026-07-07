@@ -1,0 +1,28 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e5]: 👑
+    - heading "ملك السحراء" [level=1] [ref=e6]
+    - paragraph [ref=e7]: King of the Deserts
+    - paragraph [ref=e10]: 10%
+  - navigation [ref=e12]:
+    - button "👑 التحالف" [ref=e13] [cursor=pointer]:
+      - generic [ref=e14]: 👑
+      - generic [ref=e15]: التحالف
+    - button "⚔️ حرب" [ref=e16] [cursor=pointer]:
+      - generic [ref=e17]: ⚔️
+      - generic [ref=e18]: حرب
+    - button "🗺️ أراضي" [ref=e19] [cursor=pointer]:
+      - generic [ref=e21]: 🗺️
+      - generic [ref=e22]: أراضي
+    - button "⭐ الترقية" [ref=e23] [cursor=pointer]:
+      - generic [ref=e24]: ⭐
+      - generic [ref=e25]: الترقية
+    - button "🏆 المرتبة" [ref=e26] [cursor=pointer]:
+      - generic [ref=e27]: 🏆
+      - generic [ref=e28]: المرتبة
+  - generic [ref=e30]:
+    - generic [ref=e31]: 👑
+    - heading "ملك الصحراء" [level=1] [ref=e32]
+    - paragraph [ref=e33]: أدخل اسمك لتبدأ المغامرة
+    - textbox "اسمك في اللعبة..." [active] [ref=e34]
+    - button "🚀 ابدأ المغامرة" [ref=e35] [cursor=pointer]

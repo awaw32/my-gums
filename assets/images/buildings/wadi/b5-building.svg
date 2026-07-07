@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <path d="M128 70 L228 118 L128 166 L28 118 Z" fill="#E8D5B5" stroke="#D4B896" stroke-width="4" stroke-linejoin="round"/>
+  <!-- half built walls -->
+  <g fill="#A67B5B" stroke="#8B5A2B" stroke-width="2">
+    <path d="M108 110 L148 130 L148 150 L108 130 Z"/>
+    <path d="M148 130 L178 115 L178 135 L148 150 Z"/>
+  </g>
+  <!-- scaffolding -->
+  <g stroke="#8B5A2B" stroke-width="2" fill="none">
+    <line x1="110" y1="108" x2="110" y2="80"/>
+    <line x1="146" y1="126" x2="146" y2="98"/>
+    <line x1="176" y1="112" x2="176" y2="84"/>
+    <line x1="110" y1="88" x2="176" y2="92"/>
+  </g>
+  <circle cx="128" cy="118" r="3" fill="#C19A6B" opacity="0.3"/>
+</svg>

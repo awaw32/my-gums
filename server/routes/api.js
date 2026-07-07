@@ -24,6 +24,51 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       res.writeHead(204); res.end(); return true;
     }
 
+    if (req.url === "/api/auth/login" && req.method === "POST") {
+      let body = "";
+      let size = 0;
+      req.on("data", chunk => {
+        size += chunk.length;
+        if (size > 4096) { req.destroy(); return; }
+        body += chunk;
+      });
+      req.on("end", () => {
+        try {
+          const { username, password } = JSON.parse(body);
+          if (!username || typeof username !== "string" || username.length < 2 || username.length > 30 || /[\/:;<>"']/.test(username)) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "invalid username" }));
+            return;
+          }
+          const { generateToken, verifyToken } = require("../network/auth");
+          const sanitized = username.slice(0, 30);
+          // Simple password check (if player exists in memStore)
+          const existing = memStore.get(sanitized);
+          if (existing && existing.password) {
+            if (password !== existing.password) {
+              res.writeHead(401, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "wrong password" }));
+              return;
+            }
+          }
+          // If new player, save password
+          if (!existing) {
+            const pData = getDefaultPlayer(sanitized);
+            pData.password = password || "";
+            memStore.set(sanitized, pData);
+            markDirty(sanitized);
+          }
+          const token = generateToken(sanitized);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ token, username: sanitized }));
+        } catch {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "invalid json" }));
+        }
+      });
+      return true;
+    }
+
     if (req.url === "/api/players" || req.url.startsWith("/api/players?")) {
       if (req.method === "GET") {
         if (!mongoConnected) {

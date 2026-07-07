@@ -67,14 +67,20 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         username = msg.username;
         if (!username || typeof username !== "string") return;
         username = String(username).slice(0, 30);
+        if (ws.authUsername && ws.authUsername !== username) {
+          ws.close(4001, "Username mismatch"); return;
+        }
         combatSystem.initWorldMonsters();
         const color = playerColor(username);
         const initHP = msg.hp ?? 120;
         const initMaxHP = msg.maxHp ?? 120;
+        const { clampPosition } = require("../validation/movement");
+        const initPos = clampPosition(msg.x_position || 1200, msg.y_position || 1200);
         worldClients.set(username, {
           ws, username, color,
-          x: msg.x_position || 1200,
-          y: msg.y_position || 1200,
+          x: initPos.x,
+          y: initPos.y,
+          _lastMoveTs: Date.now(),
           army_power: msg.army_power || 5000,
           kills: msg.kills || 0,
           coinsEarned: msg.coinsEarned || 0,
@@ -107,22 +113,31 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
       } else if (msg.type === "update" && username) {
         const c = worldClients.get(username);
         if (c) {
-          c.x = msg.x_position ?? c.x;
-          c.y = msg.y_position ?? c.y;
-          c.army_power = msg.army_power ?? c.army_power;
+          const { validatePosition } = require("../validation/movement");
+          const now = Date.now();
+          const timeDelta = now - (c._lastMoveTs || now);
+          if (msg.x_position !== undefined || msg.y_position !== undefined) {
+            const lastX = c.x;
+            const lastY = c.y;
+            const newX = msg.x_position ?? lastX;
+            const newY = msg.y_position ?? lastY;
+            const result = validatePosition(newX, newY, lastX, lastY, timeDelta);
+            if (!result.valid) {
+              if (c.ws.readyState === 1) {
+                c.ws.send(JSON.stringify({ type: "move_rejected", reason: result.reason }));
+              }
+              broadcastWorld(ws);
+              return;
+            }
+            c.x = result.clamped.x;
+            c.y = result.clamped.y;
+            c._lastMoveTs = now;
+          }
           c.kills = msg.kills ?? c.kills;
           c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
-          c.unitLevel = msg.unitLevel ?? c.unitLevel;
           c.armyAlive = msg.armyAlive ?? c.armyAlive;
-          if (msg.hp !== undefined) c.hp = msg.hp;
-          if (msg.maxHp !== undefined) c.maxHp = msg.maxHp;
-          if (msg.level !== undefined) c.level = msg.level;
-          if (msg.br_hp !== undefined) c.br_hp = msg.br_hp;
+          if (msg.br_hp !== undefined) c.br_hp = Math.max(0, msg.br_hp);
           if (msg.br_alive !== undefined) c.br_alive = msg.br_alive;
-          if (msg.armyYardLevel !== undefined) c.armyYardLevel = msg.armyYardLevel;
-          if (msg.knowledgeLevel !== undefined) c.knowledgeLevel = msg.knowledgeLevel;
-          if (msg.knowledgeType !== undefined) c.knowledgeType = msg.knowledgeType;
-          if (msg.equippedWeapon !== undefined) c.equippedWeapon = msg.equippedWeapon;
           broadcastWorld(ws);
         }
       } else if (msg.type === "monster_killed" && username) {

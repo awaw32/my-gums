@@ -1,0 +1,31 @@
+- generic [ref=f1e29]:
+  - generic [ref=f1e84] [cursor=pointer]:
+    - generic [ref=f1e85]: "[التحالف]"
+    - generic [ref=f1e86]: "لاعب:"
+    - generic [ref=f1e87]: مرحباً بالجميع!
+  - generic [ref=f1e180]:
+    - button "✕" [ref=f1e181] [cursor=pointer]
+    - button "💬" [ref=f1e182] [cursor=pointer]
+    - button "🎯" [ref=f1e183] [cursor=pointer]
+    - button "＋" [ref=f1e184] [cursor=pointer]
+    - button "－" [ref=f1e185] [cursor=pointer]
+  - generic [ref=f1e186]:
+    - generic [ref=f1e187]:
+      - generic [ref=f1e188]: 👥 المتصلون
+      - generic [ref=f1e189]: "1"
+    - generic [ref=f1e227]:
+      - generic [ref=f1e228]: ⭐ مختبر (أنت)
+      - generic [ref=f1e229]:
+        - generic [ref=f1e230]:
+          - generic [ref=f1e231]: 👊
+          - generic [ref=f1e232]: "328"
+        - generic [ref=f1e233]:
+          - generic [ref=f1e234]: 💀
+          - generic [ref=f1e235]: "0"
+        - generic [ref=f1e236]:
+          - generic [ref=f1e237]: 💵
+          - generic [ref=f1e238]: "0"
+  - generic:
+    - generic [ref=f1e239]: 🌊 وضع الحشد — كل وحش تقتله يتضاعف! كم موجة تصمد؟
+    - generic [ref=f1e240]: 🌊 وضع الحشد — كل وحش تقتله يتضاعف! كم موجة تصمد؟
+  - generic [ref=f1e205]: 🌪️ عاصفة رملية قطعت الاتصال... جاري إعادة الاتصال

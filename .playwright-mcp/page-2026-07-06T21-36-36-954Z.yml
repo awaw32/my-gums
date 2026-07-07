@@ -1,0 +1,94 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e29]:
+    - banner [ref=f1e30]:
+      - generic [ref=f1e31]:
+        - generic [ref=f1e32]: 🧙
+        - generic [ref=f1e33]:
+          - generic [ref=f1e34]: Lv.2
+          - generic [ref=f1e37]: 13/114
+      - generic [ref=f1e38]:
+        - generic [ref=f1e39]:
+          - generic [ref=f1e40]: 🪙
+          - generic [ref=f1e41]: 6.54K
+        - generic [ref=f1e42]:
+          - generic [ref=f1e43]: 💵
+          - generic [ref=f1e44]: 2.03K
+        - generic [ref=f1e45]:
+          - generic [ref=f1e46]: 🌾
+          - generic [ref=f1e47]: 1.01K
+        - generic [ref=f1e48]:
+          - generic [ref=f1e49]: 👊
+          - generic [ref=f1e50]: "328"
+        - generic [ref=f1e51]:
+          - generic [ref=f1e52]: 💎
+          - generic [ref=f1e53]: 2.00K
+      - button "☰" [ref=f1e55] [cursor=pointer]
+    - main [ref=f1e56]:
+      - generic [ref=f1e110]:
+        - generic [ref=f1e111]: ⚔️ ساحات الحرب
+        - generic [ref=f1e112]:
+          - button "🌴 واحة الغنائم PvP — قاتل اللاعبين" [ref=f1e113] [cursor=pointer]:
+            - generic [ref=f1e114]: 🌴
+            - generic [ref=f1e115]: واحة الغنائم
+            - generic [ref=f1e116]: PvP — قاتل اللاعبين
+          - button "🐍 مغامرة PvE — وحوش الصحراء" [ref=f1e117] [cursor=pointer]:
+            - generic [ref=f1e118]: 🐍
+            - generic [ref=f1e119]: مغامرة
+            - generic [ref=f1e120]: PvE — وحوش الصحراء
+          - button "🗺️ حملة PvE — مراحل القصة" [ref=f1e121] [cursor=pointer]:
+            - generic [ref=f1e122]: 🗺️
+            - generic [ref=f1e123]: حملة
+            - generic [ref=f1e124]: PvE — مراحل القصة
+        - generic [ref=f1e125]:
+          - button "🪙 استخراج PvE — جمع الذهب والتسليم" [active] [ref=f1e126] [cursor=pointer]:
+            - generic [ref=f1e127]: 🪙
+            - generic [ref=f1e128]: استخراج
+            - generic [ref=f1e129]: PvE — جمع الذهب والتسليم
+          - button "🌊 حشد PvE — وحوش تتضاعف" [ref=f1e130] [cursor=pointer]:
+            - generic [ref=f1e131]: 🌊
+            - generic [ref=f1e132]: حشد
+            - generic [ref=f1e133]: PvE — وحوش تتضاعف
+          - button "🕯️ كهف PvE — استكشاف وظلام" [ref=f1e134] [cursor=pointer]:
+            - generic [ref=f1e135]: 🕯️
+            - generic [ref=f1e136]: كهف
+            - generic [ref=f1e137]: PvE — استكشاف وظلام
+        - generic [ref=f1e159]:
+          - generic [ref=f1e160]:
+            - generic [ref=f1e161]: 🪙
+            - generic [ref=f1e162]: استخراج الذهب
+          - generic [ref=f1e163]:
+            - paragraph [ref=f1e164]: "وحوش مسالمة — اذبحها واجمع الذهب. لكن احترس: كلما جمعت أكثر، تباطأت أكثر! سلم الذهب في نقطة التسليم قبل فوات الوقت."
+            - generic [ref=f1e165]:
+              - generic [ref=f1e166]:
+                - generic [ref=f1e167]: ⚔️
+                - generic [ref=f1e168]: نوع القتال
+                - generic [ref=f1e169]: PvE (وحوش مسالمة)
+              - generic [ref=f1e170]:
+                - generic [ref=f1e171]: 🎒
+                - generic [ref=f1e172]: الحقيبة
+                - generic [ref=f1e173]: تتثقل بالذهب
+              - generic [ref=f1e174]:
+                - generic [ref=f1e175]: 📍
+                - generic [ref=f1e176]: التسليم
+                - generic [ref=f1e177]: نقطة في الخريطة
+            - button "🪙 ابدأ الاستخراج" [ref=f1e178] [cursor=pointer]
+    - generic [ref=f1e84] [cursor=pointer]:
+      - generic [ref=f1e85]: "[التحالف]"
+      - generic [ref=f1e86]: "لاعب:"
+      - generic [ref=f1e87]: مرحباً بالجميع!
+  - navigation [ref=f1e12]:
+    - button "👑 التحالف" [ref=f1e13] [cursor=pointer]:
+      - generic [ref=f1e14]: 👑
+      - generic [ref=f1e15]: التحالف
+    - button "⚔️ حرب" [ref=f1e16] [cursor=pointer]:
+      - generic [ref=f1e17]: ⚔️
+      - generic [ref=f1e18]: حرب
+    - button "🗺️ أراضي" [ref=f1e19] [cursor=pointer]:
+      - generic [ref=f1e21]: 🗺️
+      - generic [ref=f1e22]: أراضي
+    - button "⭐ الترقية" [ref=f1e23] [cursor=pointer]:
+      - generic [ref=f1e24]: ⭐
+      - generic [ref=f1e25]: الترقية
+    - button "🏆 المرتبة" [ref=f1e26] [cursor=pointer]:
+      - generic [ref=f1e27]: 🏆
+      - generic [ref=f1e28]: المرتبة

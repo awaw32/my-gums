@@ -481,6 +481,21 @@
   } catch(e) {}
 </script>  <script type="module" src="js/main.js?v=20260703"></script>
   <script>
+    // ==================== 🛡️ Global Error Boundary ====================
+    window.addEventListener('error', function(e) {
+      console.error('🔥 [Client] Uncaught Error:', e.message);
+      var toast = document.getElementById('notification-container');
+      if (toast) {
+        var el = document.createElement('div');
+        el.className = 'notification error';
+        el.textContent = '❌ خطأ: ' + (e.message || 'حدث خطأ غير متوقع');
+        toast.appendChild(el);
+        setTimeout(function() { el.remove(); }, 6000);
+      }
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('🔥 [Client] Unhandled Promise Rejection:', e.reason);
+    });
     // ===== تسجيل Service Worker للـ PWA =====
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(reg => {

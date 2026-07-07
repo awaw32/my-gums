@@ -98,6 +98,19 @@ const onlineCore = new NetworkServer();
 wss.on("connection", (ws, req) => {
   const url = req.url || "/";
 
+  // Require valid token for world and online connections
+  const { wsAuth } = require("./server/network/auth");
+  const targetPath = url.split("?")[0];
+
+  if (targetPath === "/ws/world" || targetPath === "/ws/online") {
+    const authResult = wsAuth(req);
+    if (!authResult.authenticated) {
+      ws.close(4001, "Authentication required");
+      return;
+    }
+    ws.authUsername = authResult.username;
+  }
+
   ws.isAlive = true;
   ws.lastPingTs = 0;
   ws.on("pong", () => {
@@ -108,12 +121,12 @@ wss.on("connection", (ws, req) => {
     }
   });
 
-  if (url === "/ws/world") {
+  if (targetPath === "/ws/world") {
     handleWorldConnection(ws, req);
     return;
   }
 
-  if (url === "/ws/online") {
+  if (targetPath === "/ws/online") {
     onlineCore.handleConnection(ws, req);
     return;
   }
@@ -186,6 +199,23 @@ server.listen(PORT, () => {
   console.log(`  Port: ${PORT}`);
   console.log(`  Tick: ${TICK_MS}ms (${1000 / TICK_MS}Hz)`);
   console.log(`  Health: http://localhost:${PORT}/health\n`);
+});
+
+// ==================== 🛡️ Global Error Handlers ====================
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught Exception:", err.message);
+  console.error(err.stack);
+  try { wss.clients.forEach((ws) => ws.close()); } catch {}
+  try { server.close(); } catch {}
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[FATAL] Unhandled Rejection at:", promise);
+  console.error("  Reason:", reason?.message || reason);
+  try { wss.clients.forEach((ws) => ws.close()); } catch {}
+  try { server.close(); } catch {}
+  process.exit(1);
 });
 
 process.on("SIGTERM", () => {

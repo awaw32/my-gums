@@ -11,6 +11,7 @@ export class ExtractionMode {
     this._extractionTimer = 0;
     this._extractionTimeLimit = 300; // 5 min
     this._extractionActive = true;
+    this._extractionKills = 0;
     this._currentUpgrades = {
       bagSize: 1,
       speed: 1,
@@ -36,6 +37,7 @@ export class ExtractionMode {
 
     this._carryingGold = 0;
     this._totalDeposited = 0;
+    this._extractionKills = 0;
     this._extractionTimer = this._extractionTimeLimit;
     this._extractionActive = true;
 
@@ -166,6 +168,7 @@ export class ExtractionMode {
     w.worldFx.push({ x: w.leader.x, y: w.leader.y, text: `✅ سلمت ${deposited} 🪙!`, color: "#4cd964", life: 2, maxLife: 2 });
     w.sessionStats.coinsEarned += deposited;
     this._carryingGold = 0;
+    if (w._onSelfStatsChanged) w._onSelfStatsChanged();
 
     // نقطة تسليم جديدة
     this._placeDepositZone();
@@ -189,12 +192,12 @@ export class ExtractionMode {
 
   onMonsterKilled(monster) {
     if (!this._extractionActive) return;
-    const goldDrop = Math.floor((monster.rewardGold || 10) * (1 + (this._currentUpgrades.bagSize - 1) * 0.1));
-    this._carryingGold = Math.min(this._carryingGold + goldDrop, this._getMaxBag());
+    this._extractionKills++;
+    if (this.world._onSelfStatsChanged) this.world._onSelfStatsChanged();
     this.world.worldFx.push({
       x: monster.x, y: monster.y - 20,
-      text: `🪙 +${goldDrop} (المحمول: ${this._carryingGold}/${this._getMaxBag()})`,
-      color: "#FFD700", life: 1.5, maxLife: 1.5
+      text: `💀 قتل!`,
+      color: "#ff6b6b", life: 1, maxLife: 1
     });
   }
 

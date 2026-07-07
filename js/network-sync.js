@@ -91,13 +91,20 @@ export class NetworkSync {
     }
   }
 
+  _authHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    const token = localStorage.getItem("player_token");
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  }
+
   async sendPositionUpdate() {
     const w = this.world;
     if (!w || !w.leader) return;
     try {
       await fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: this._authHeaders(),
         body: JSON.stringify({
           cash: w.economy?.cash || 0,
           gems: w.economy?.gems || 0,
@@ -129,7 +136,7 @@ export class NetworkSync {
     try {
       await fetch(`${this.apiBase}/api/players/${encodeURIComponent(this.username)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: this._authHeaders(),
         body: JSON.stringify({
           username: this.username,
           x_position: Math.floor(w.leader.x),
@@ -251,7 +258,8 @@ export class NetworkSync {
     if (this._ws) return;
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const base = this.apiBase ? this.apiBase.replace(/^http/, "ws") : `${protocol}//${location.host}`;
-    const url = `${base}/ws/world`;
+    const token = localStorage.getItem("player_token") || "";
+    const url = `${base}/ws/world?token=${encodeURIComponent(token)}`;
     this._ws = new WebSocket(url);
 
     this._setOfflineIndicator(false);

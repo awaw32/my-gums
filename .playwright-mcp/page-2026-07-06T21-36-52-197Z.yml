@@ -1,0 +1,29 @@
+- generic [ref=f1e29]:
+  - generic [ref=f1e84] [cursor=pointer]:
+    - generic [ref=f1e85]: "[التحالف]"
+    - generic [ref=f1e86]: "لاعب:"
+    - generic [ref=f1e87]: مرحباً بالجميع!
+  - generic [ref=f1e180]:
+    - button "✕" [ref=f1e181] [cursor=pointer]
+    - button "💬" [ref=f1e182] [cursor=pointer]
+    - button "🎯" [ref=f1e183] [cursor=pointer]
+    - button "＋" [ref=f1e184] [cursor=pointer]
+    - button "－" [ref=f1e185] [cursor=pointer]
+  - generic [ref=f1e186]:
+    - generic [ref=f1e187]:
+      - generic [ref=f1e188]: 👥 المتصلون
+      - generic [ref=f1e189]: "1"
+    - generic [ref=f1e191]:
+      - generic [ref=f1e192]: ⭐ مختبر (أنت)
+      - generic [ref=f1e193]:
+        - generic [ref=f1e194]:
+          - generic [ref=f1e195]: 👊
+          - generic [ref=f1e196]: "328"
+        - generic [ref=f1e197]:
+          - generic [ref=f1e198]: 💀
+          - generic [ref=f1e199]: "0"
+        - generic [ref=f1e200]:
+          - generic [ref=f1e201]: 💵
+          - generic [ref=f1e202]: "0"
+  - generic [ref=f1e203]: 🪙 وضع الاستخراج — اذبح الوحوش المسالمة واجمع الذهب! سلمه قبل فوات الوقت!
+  - generic [ref=f1e205]: 🌪️ عاصفة رملية قطعت الاتصال... جاري إعادة الاتصال

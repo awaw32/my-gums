@@ -371,14 +371,23 @@ export class GameUI {
       const myItem = document.createElement("div");
       myItem.className = "player-item player-item-me";
       const myPower = this.economy?.power || 0;
-      const myKills = this.world.sessionStats?.kills || 0;
-      const myCoins = this.world.sessionStats?.coinsEarned || 0;
+      const curMode = this.world._activeMode?.modeName;
+      let myKills, myExtra, extraIcon;
+      if (curMode === "extraction") {
+        myKills = this.world._activeMode._extractionKills || 0;
+        myExtra = this.world._activeMode._totalDeposited || 0;
+        extraIcon = "🪙";
+      } else {
+        myKills = this.world.sessionStats?.kills || 0;
+        myExtra = this.world.sessionStats?.coinsEarned || 0;
+        extraIcon = "💵";
+      }
       myItem.innerHTML = `
         <div class="player-item-name" style="color:var(--gold)">⭐ ${this.world.username} (أنت)</div>
         <div class="player-item-stats">
           <span class="player-stat"><span class="player-stat-icon">👊</span><span class="player-stat-value">${formatNumber(myPower)}</span></span>
           <span class="player-stat"><span class="player-stat-icon">💀</span><span class="player-stat-value">${myKills}</span></span>
-          <span class="player-stat"><span class="player-stat-icon">💵</span><span class="player-stat-value">${formatNumber(myCoins)}</span></span>
+          <span class="player-stat"><span class="player-stat-icon">${extraIcon}</span><span class="player-stat-value">${formatNumber(myExtra)}</span></span>
         </div>`;
       this._playerListEl.appendChild(myItem);
     }

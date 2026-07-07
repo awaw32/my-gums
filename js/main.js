@@ -29,9 +29,24 @@ function sanitizeUsername(name) {
   return name.replace(/[^\w\s\u0600-\u06FF-]/g, '').trim().slice(0, 20) || 'بطل الصحراء';
 }
 
-function getOrPromptUsername() {
+async function getOrPromptUsername() {
   const saved = localStorage.getItem("player_username");
-  if (saved && saved.trim()) return sanitizeUsername(saved.trim());
+  const savedToken = localStorage.getItem("player_token");
+  if (saved && saved.trim()) {
+    const name = sanitizeUsername(saved.trim());
+    if (savedToken) return name;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: name, password: "" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("player_token", data.token);
+      }
+    } catch {}
+    return name;
+  }
 
   const overlay = document.createElement("div");
   overlay.id = "name-overlay";
@@ -54,15 +69,25 @@ function getOrPromptUsername() {
   const input = overlay.querySelector("#name-input");
   const btn = overlay.querySelector("#name-submit-btn");
 
-  const submit = () => {
+  const submit = async () => {
     const name = sanitizeUsername(input.value);
     localStorage.setItem("player_username", name);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: name, password: "" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("player_token", data.token);
+      }
+    } catch {}
     overlay.remove();
     return name;
   };
 
   return new Promise(resolve => {
-    btn.onclick = () => { const name = submit(); resolve(name); };
+    btn.onclick = () => { submit().then(resolve); };
     input.onkeydown = e => { if (e.key === "Enter") btn.click(); };
     setTimeout(() => input?.focus(), 200);
   });
@@ -70,7 +95,10 @@ function getOrPromptUsername() {
 
 async function loadFromDatabase(economy, army, village, username) {
   try {
-    const response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`);
+    const headers = { "Content-Type": "application/json" };
+    const token = localStorage.getItem("player_token");
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers });
     const data = await response.json();
     if (data && data.cash !== undefined) {
       economy.cash = data.cash;

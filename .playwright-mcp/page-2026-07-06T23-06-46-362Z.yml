@@ -1,0 +1,28 @@
+- generic [ref=f1e12]:
+  - generic [ref=f1e66] [cursor=pointer]:
+    - generic [ref=f1e67]: "[التحالف]"
+    - generic [ref=f1e68]: "لاعب:"
+    - generic [ref=f1e69]: مرحباً بالجميع!
+  - generic [ref=f1e179]:
+    - button "✕" [ref=f1e180] [cursor=pointer]
+    - button "💬" [ref=f1e181] [cursor=pointer]
+    - button "🎯" [ref=f1e182] [cursor=pointer]
+    - button "＋" [ref=f1e183] [cursor=pointer]
+    - button "－" [ref=f1e184] [cursor=pointer]
+  - generic [ref=f1e185]:
+    - generic [ref=f1e186]:
+      - generic [ref=f1e187]: 👥 المتصلون
+      - generic [ref=f1e188]: "1"
+    - generic [ref=f1e190]:
+      - generic [ref=f1e191]: ⭐ مختبر (أنت)
+      - generic [ref=f1e192]:
+        - generic [ref=f1e193]:
+          - generic [ref=f1e194]: 👊
+          - generic [ref=f1e195]: "328"
+        - generic [ref=f1e196]:
+          - generic [ref=f1e197]: 💀
+          - generic [ref=f1e198]: "0"
+        - generic [ref=f1e199]:
+          - generic [ref=f1e200]: 💵
+          - generic [ref=f1e201]: "0"
+  - generic [ref=f1e205]: 🌪️ عاصفة رملية قطعت الاتصال... جاري إعادة الاتصال

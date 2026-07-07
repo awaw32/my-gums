@@ -1,0 +1,95 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e11]:
+    - banner [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - generic [ref=f1e14]: 🧙
+        - generic [ref=f1e15]:
+          - generic [ref=f1e16]: Lv.2
+          - generic [ref=f1e18]: 0/114
+      - generic [ref=f1e19]:
+        - generic [ref=f1e20]:
+          - generic [ref=f1e21]: 🪙
+          - generic [ref=f1e22]: 19.06K
+        - generic [ref=f1e23]:
+          - generic [ref=f1e24]: 💵
+          - generic [ref=f1e25]: ليس رقمًا
+        - generic [ref=f1e26]:
+          - generic [ref=f1e27]: 🌾
+          - generic [ref=f1e28]: "118"
+        - generic [ref=f1e29]:
+          - generic [ref=f1e30]: 👊
+          - generic [ref=f1e31]: "328"
+        - generic [ref=f1e32]:
+          - generic [ref=f1e33]: 💎
+          - generic [ref=f1e34]: 2.00K
+      - button "☰" [ref=f1e36] [cursor=pointer]
+    - main [ref=f1e37]:
+      - generic [ref=f1e38]:
+        - generic:
+          - button "🔒 مقفل خيمة القائد" [ref=f1e39] [cursor=pointer]:
+            - generic [ref=f1e40]:
+              - generic [ref=f1e41]:
+                - generic: 🔒
+              - generic [ref=f1e42]: مقفل
+            - generic [ref=f1e43]: خيمة القائد
+          - button "🔒 مقفل مخيم الجنود" [ref=f1e44] [cursor=pointer]:
+            - generic [ref=f1e45]:
+              - generic [ref=f1e46]:
+                - generic: 🔒
+              - generic [ref=f1e47]: مقفل
+            - generic [ref=f1e48]: مخيم الجنود
+          - button "🔒 مقفل مخزن الموارد" [ref=f1e49] [cursor=pointer]:
+            - generic [ref=f1e50]:
+              - generic [ref=f1e51]:
+                - generic: 🔒
+              - generic [ref=f1e52]: مقفل
+            - generic [ref=f1e53]: مخزن الموارد
+          - button "🔒 مقفل ساحة التدريب" [ref=f1e54] [cursor=pointer]:
+            - generic [ref=f1e55]:
+              - generic [ref=f1e56]:
+                - generic: 🔒
+              - generic [ref=f1e57]: مقفل
+            - generic [ref=f1e58]: ساحة التدريب
+          - button "🔒 مقفل مضخة الماء" [ref=f1e59] [cursor=pointer]:
+            - generic [ref=f1e60]:
+              - generic [ref=f1e61]:
+                - generic: 🔒
+              - generic [ref=f1e62]: مقفل
+            - generic [ref=f1e63]: مضخة الماء
+        - generic:
+          - generic: قرية الواحة
+          - generic: 0/5 مبنى
+    - generic [ref=f1e65] [cursor=pointer]:
+      - generic [ref=f1e66]: "[التحالف]"
+      - generic [ref=f1e67]: "لاعب:"
+      - generic [ref=f1e68]: مرحباً بالجميع!
+    - generic [ref=f1e70]:
+      - generic [ref=f1e71]: 🌙
+      - heading "مرحباً بعودتك!" [level=2] [ref=f1e72]
+      - paragraph [ref=f1e73]: لقد غبت لمدة 1 ساعة و 37 دقيقة
+      - generic [ref=f1e74]:
+        - generic [ref=f1e75]:
+          - generic [ref=f1e76]: 🪙
+          - generic [ref=f1e77]: ذهب الواحات
+          - generic [ref=f1e78]: +14,565
+        - generic [ref=f1e79]:
+          - generic [ref=f1e80]: 🌾
+          - generic [ref=f1e81]: استهلاك الجيش
+          - generic [ref=f1e82]: "-932"
+      - button "جمع المكافآت" [ref=f1e83] [cursor=pointer]
+  - navigation [ref=f1e84]:
+    - button "👑 التحالف" [ref=f1e85] [cursor=pointer]:
+      - generic [ref=f1e86]: 👑
+      - generic [ref=f1e87]: التحالف
+    - button "⚔️ حرب" [ref=f1e88] [cursor=pointer]:
+      - generic [ref=f1e89]: ⚔️
+      - generic [ref=f1e90]: حرب
+    - button "🗺️ أراضي" [ref=f1e91] [cursor=pointer]:
+      - generic [ref=f1e93]: 🗺️
+      - generic [ref=f1e94]: أراضي
+    - button "⭐ الترقية" [ref=f1e95] [cursor=pointer]:
+      - generic [ref=f1e96]: ⭐
+      - generic [ref=f1e97]: الترقية
+    - button "🏆 المرتبة" [ref=f1e98] [cursor=pointer]:
+      - generic [ref=f1e99]: 🏆
+      - generic [ref=f1e100]: المرتبة

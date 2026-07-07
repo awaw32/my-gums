@@ -2,7 +2,8 @@
 
 const fs = require("fs");
 const path = require("path");
-const { STATIC_EXTS } = require("../config");
+const { STATIC_EXTS, BUILD_DIR } = require("../config");
+const rootDir = path.resolve(__dirname, "../../", BUILD_DIR);
 
 function cachePolicy(ext) {
   if (ext === ".html") return "no-cache, must-revalidate";
@@ -20,13 +21,13 @@ function computeETag(filePath) {
 }
 
 function serveStatic(rawUrl, req, res) {
-  const url = rawUrl.split("?")[0];
+  const url = decodeURIComponent(rawUrl.split("?")[0]);
   const isRoot = url === "/";
   const ext = isRoot ? ".html" : path.extname(url).toLowerCase();
   if (!STATIC_EXTS[ext]) return false;
   const cleanPath = isRoot ? "index.html" : url.replace(/^\//, "");
-  const safePath = path.resolve(__dirname, "../../", cleanPath);
-  if (!safePath.startsWith(path.resolve(__dirname, "../../"))) {
+  const safePath = path.resolve(rootDir, cleanPath);
+  if (!safePath.startsWith(rootDir)) {
     res.writeHead(403); res.end("Forbidden"); return true;
   }
   let filePath = safePath;
@@ -34,8 +35,8 @@ function serveStatic(rawUrl, req, res) {
   try {
     content = fs.readFileSync(safePath);
   } catch {
-    const pubPath = path.resolve(__dirname, "../../public", cleanPath);
-    if (pubPath.startsWith(path.resolve(__dirname, "../../public"))) {
+    const pubPath = path.resolve(rootDir, "public", cleanPath);
+    if (pubPath.startsWith(rootDir)) {
       try { content = fs.readFileSync(pubPath); filePath = pubPath; } catch { return false; }
     } else {
       return false;

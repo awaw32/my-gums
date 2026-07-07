@@ -1,0 +1,94 @@
+- generic [ref=e1]:
+  - generic [ref=e29]:
+    - banner [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]: 🧙
+        - generic [ref=e33]:
+          - generic [ref=e34]: Lv.2
+          - generic [ref=e37]: 13/114
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - generic [ref=e40]: 🪙
+          - generic [ref=e41]: 7.59K
+        - generic [ref=e42]:
+          - generic [ref=e43]: 💵
+          - generic [ref=e44]: 2.03K
+        - generic [ref=e45]:
+          - generic [ref=e46]: 🌾
+          - generic [ref=e47]: 1.01K
+        - generic [ref=e48]:
+          - generic [ref=e49]: 👊
+          - generic [ref=e50]: "328"
+        - generic [ref=e51]:
+          - generic [ref=e52]: 💎
+          - generic [ref=e53]: 2.00K
+      - button "☰" [ref=e55] [cursor=pointer]
+    - main [ref=e56]:
+      - generic [ref=e102]:
+        - generic [ref=e103]: ⚔️ ساحات الحرب
+        - generic [ref=e104]:
+          - button "🌴 واحة الغنائم PvP — قاتل اللاعبين" [ref=e105] [cursor=pointer]:
+            - generic [ref=e106]: 🌴
+            - generic [ref=e107]: واحة الغنائم
+            - generic [ref=e108]: PvP — قاتل اللاعبين
+          - button "🐍 مغامرة PvE — وحوش الصحراء" [ref=e109] [cursor=pointer]:
+            - generic [ref=e110]: 🐍
+            - generic [ref=e111]: مغامرة
+            - generic [ref=e112]: PvE — وحوش الصحراء
+          - button "🗺️ حملة PvE — مراحل القصة" [ref=e113] [cursor=pointer]:
+            - generic [ref=e114]: 🗺️
+            - generic [ref=e115]: حملة
+            - generic [ref=e116]: PvE — مراحل القصة
+        - generic [ref=e117]:
+          - button "🪙 استخراج PvE — جمع الذهب والتسليم" [ref=e118] [cursor=pointer]:
+            - generic [ref=e119]: 🪙
+            - generic [ref=e120]: استخراج
+            - generic [ref=e121]: PvE — جمع الذهب والتسليم
+          - button "🌊 حشد PvE — وحوش تتضاعف" [ref=e122] [cursor=pointer]:
+            - generic [ref=e123]: 🌊
+            - generic [ref=e124]: حشد
+            - generic [ref=e125]: PvE — وحوش تتضاعف
+          - button "🕯️ كهف PvE — استكشاف وظلام" [ref=e126] [cursor=pointer]:
+            - generic [ref=e127]: 🕯️
+            - generic [ref=e128]: كهف
+            - generic [ref=e129]: PvE — استكشاف وظلام
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - generic [ref=e133]: 🌴
+            - generic [ref=e134]: واحة الغنائم
+          - generic [ref=e135]:
+            - paragraph [ref=e136]: ادخل عالم الصحراء وقاتل اللاعبين الآخرين في معارك PvP مباشرة. اجمع الغنائم واحترق أعداءك!
+            - generic [ref=e137]:
+              - generic [ref=e138]:
+                - generic [ref=e139]: ⚔️
+                - generic [ref=e140]: نوع القتال
+                - generic [ref=e141]: PvP + PvE
+              - generic [ref=e142]:
+                - generic [ref=e143]: 🏆
+                - generic [ref=e144]: المكافآت
+                - generic [ref=e145]: ذهب + غنائم
+              - generic [ref=e146]:
+                - generic [ref=e147]: 💀
+                - generic [ref=e148]: العقوبة
+                - generic [ref=e149]: خسارة جزء من المال
+            - button "🚀 ادخل واحة الغنائم" [ref=e150] [cursor=pointer]
+    - generic [ref=e84] [cursor=pointer]:
+      - generic [ref=e85]: "[التحالف]"
+      - generic [ref=e86]: "لاعب:"
+      - generic [ref=e87]: مرحباً بالجميع!
+  - navigation [ref=e12]:
+    - button "👑 التحالف" [ref=e13] [cursor=pointer]:
+      - generic [ref=e14]: 👑
+      - generic [ref=e15]: التحالف
+    - button "⚔️ حرب" [active] [ref=e16] [cursor=pointer]:
+      - generic [ref=e17]: ⚔️
+      - generic [ref=e18]: حرب
+    - button "🗺️ أراضي" [ref=e19] [cursor=pointer]:
+      - generic [ref=e21]: 🗺️
+      - generic [ref=e22]: أراضي
+    - button "⭐ الترقية" [ref=e23] [cursor=pointer]:
+      - generic [ref=e24]: ⭐
+      - generic [ref=e25]: الترقية
+    - button "🏆 المرتبة" [ref=e26] [cursor=pointer]:
+      - generic [ref=e27]: 🏆
+      - generic [ref=e28]: المرتبة

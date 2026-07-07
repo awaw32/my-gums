@@ -1,0 +1,49 @@
+- generic [ref=f1e4]:
+  - banner [ref=f1e5]:
+    - heading "شخصيات اللعبة" [level=1] [ref=f1e6]
+    - paragraph [ref=f1e7]: Improved Canvas Character Sprites
+  - generic [ref=f1e9]:
+    - generic [ref=f1e10]:
+      - generic [ref=f1e11]:
+        - heading "القائد" [level=2] [ref=f1e12]
+        - generic [ref=f1e13]: Leader
+      - generic [ref=f1e14]:
+        - generic [ref=f1e16]: قديم (48×48)
+        - generic [ref=f1e18]: VS
+        - generic [ref=f1e20]: جديد (64×64)
+      - generic [ref=f1e24]:
+        - generic [ref=f1e25]:
+          - button "⟳ تدوير" [ref=f1e26] [cursor=pointer]
+          - button "تشغيل تلقائي" [ref=f1e27] [cursor=pointer]
+        - generic [ref=f1e28]: جنوب
+        - generic [ref=f1e29]: الإطار 1 من ٤
+    - generic [ref=f1e30]:
+      - generic [ref=f1e31]:
+        - heading "الجندي" [level=2] [ref=f1e32]
+        - generic [ref=f1e33]: Soldier
+      - generic [ref=f1e34]:
+        - generic [ref=f1e36]: قديم (48×48)
+        - generic [ref=f1e38]: VS
+        - generic [ref=f1e40]: جديد (64×64)
+      - generic [ref=f1e44]:
+        - generic [ref=f1e45]:
+          - button "⟳ تدوير" [ref=f1e46] [cursor=pointer]
+          - button "تشغيل تلقائي" [ref=f1e47] [cursor=pointer]
+        - generic [ref=f1e48]: جنوب
+        - generic [ref=f1e49]: الإطار 1 من ٤
+    - generic [ref=f1e50]:
+      - generic [ref=f1e51]:
+        - heading "قطاع طرق" [level=2] [ref=f1e52]
+        - generic [ref=f1e53]: Bandit
+      - generic [ref=f1e54]:
+        - generic [ref=f1e56]: قديم (48×48)
+        - generic [ref=f1e58]: VS
+        - generic [ref=f1e60]: جديد (64×64)
+      - generic [ref=f1e64]:
+        - generic [ref=f1e65]:
+          - button "⟳ تدوير" [ref=f1e66] [cursor=pointer]
+          - button "تشغيل تلقائي" [ref=f1e67] [cursor=pointer]
+        - generic [ref=f1e68]: جنوب
+        - generic [ref=f1e69]: الإطار 1 من ٤
+  - contentinfo [ref=f1e70]:
+    - paragraph [ref=f1e71]: Canvas Pixel Art — 8 Directions × 4 Frames • 64×64 Resolution

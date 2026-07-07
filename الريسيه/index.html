@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تحكم شخصية دقيق - Isometric Controller</title>
+  <style>
+    body { margin:0; background:#0a0a14; overflow:hidden; }
+    #info {
+      position:absolute; top:10px; left:50%; transform:translateX(-50%);
+      color:#fff; font-family:sans-serif; background:rgba(0,0,0,0.6);
+      padding:10px 20px; border-radius:8px; z-index:10;
+      font-size:14px; white-space:nowrap;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="info">↑↓←→ / WASD = حركة isometric بتغيير اتجاه فوري</div>
+  <script type="module">
+    import { GameScene } from "./src/GameScene.js";
+    new Phaser.Game({
+      type: Phaser.AUTO,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: "#0a0a14",
+      scene: GameScene,
+      physics: { default: "arcade" },
+    });
+  </script>
+</body>
+</html>
