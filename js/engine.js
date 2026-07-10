@@ -167,9 +167,10 @@ class GameEngine {
     this._onDrag   = null;   // fn(dx, dy)
 
     // ─── Bind events ────────────────────────────────────────────
+    this._boundResize = () => this.resize();
     this._bindPointerEvents();
-    window.addEventListener("resize",            () => this.resize());
-    window.addEventListener("orientationchange", () => this.resize());
+    window.addEventListener("resize",            this._boundResize);
+    window.addEventListener("orientationchange", this._boundResize);
 
     this.resize();
     this._sendEvent("engine_init");
@@ -201,6 +202,13 @@ class GameEngine {
   stop() {
     this.running = false;
     if (this.animId) { cancelAnimationFrame(this.animId); this.animId = 0; }
+    if (this._boundResize) {
+      window.removeEventListener("resize",            this._boundResize);
+      window.removeEventListener("orientationchange", this._boundResize);
+    }
+    if (this.canvas) {
+      this._unbindPointerEvents();
+    }
     this._sendEvent("engine_stop");
   }
 
@@ -248,11 +256,25 @@ class GameEngine {
 
   _bindPointerEvents() {
     const c = this.canvas;
-    c.addEventListener("pointerdown",   (e) => this._onPointerDown(e));
-    c.addEventListener("pointermove",   (e) => this._onPointerMove(e));
-    c.addEventListener("pointerup",     (e) => this._onPointerUp(e));
-    c.addEventListener("pointercancel", (e) => this._onPointerCancel(e));
-    c.addEventListener("lostpointercapture", (e) => this._onPointerCancel(e));
+    if (!c) return;
+    this._boundPD = (e) => this._onPointerDown(e);
+    this._boundPM = (e) => this._onPointerMove(e);
+    this._boundPU = (e) => this._onPointerUp(e);
+    this._boundPC = (e) => this._onPointerCancel(e);
+    c.addEventListener("pointerdown",   this._boundPD);
+    c.addEventListener("pointermove",   this._boundPM);
+    c.addEventListener("pointerup",     this._boundPU);
+    c.addEventListener("pointercancel", this._boundPC);
+    c.addEventListener("lostpointercapture", this._boundPC);
+  }
+
+  _unbindPointerEvents() {
+    if (!this.canvas) return;
+    this.canvas.removeEventListener("pointerdown",   this._boundPD);
+    this.canvas.removeEventListener("pointermove",   this._boundPM);
+    this.canvas.removeEventListener("pointerup",     this._boundPU);
+    this.canvas.removeEventListener("pointercancel", this._boundPC);
+    this.canvas.removeEventListener("lostpointercapture", this._boundPC);
   }
 
   _onPointerDown(e) {

@@ -2034,6 +2034,8 @@ export class WorldMap {
     for (let i = this.drops.length - 1; i >= 0; i--) {
       const d = this.drops[i];
       if (d.collected) continue;
+      d.life = (d.life || 25) - dt;
+      if (d.life <= 0) { this.drops.splice(i, 1); continue; }
       if (Math.hypot(d.x - this.leader.x, d.y - this.leader.y) < 40 || this.armyUnits.some(u => Math.hypot(d.x - u.x, d.y - u.y) < 30)) {
         this.collectDrop(i);
       }
