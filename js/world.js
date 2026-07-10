@@ -137,6 +137,9 @@ export class WorldMap {
     this._comboThreshold = 3;
     this._poisonEffects = [];
     this._monsterAbilityTimers = {};
+    this._sandstormActive = false;
+    this._sandstormTimer = 0;
+    this._stompSlowTimer = 0;
 
     this._onBRKillFeed = null;
     this._onCashEarned = null;
@@ -471,8 +474,86 @@ export class WorldMap {
         this._monsterAbilityTimers[abKey] = now + 8000;
         return true;
       }
+      case "sandstorm": {
+        this._sandstormActive = true;
+        this._sandstormTimer = 3;
+        this.worldFx.push({ x: monster.x, y: monster.y, text: "🌪️ عاصفة!", color: "#f39c12", life: 1.5, maxLife: 1.5 });
+        if (this.engine) this.engine.shake(8, 0.3);
+        this._monsterAbilityTimers[abKey] = now + 8000;
+        return true;
+      }
+      case "phase": {
+        monster._phaseTimer = 1.5;
+        this.worldFx.push({ x: monster.x, y: monster.y, text: "👻 اختفى!", color: "#8e44ad", life: 1, maxLife: 1 });
+        this._monsterAbilityTimers[abKey] = now + 6000;
+        return true;
+      }
+      case "fire_breath": {
+        const fbMult = ab.chargeMultiplier || 3;
+        const fbDmg = Math.floor(monster.damage * fbMult);
+        this.worldFx.push({ x: monster.x, y: monster.y, text: `🔥 نفس النار ${fbDmg}!`, color: "#e74c3c", life: 1.5, maxLife: 1.5 });
+        this._aoeDamageAll(fbDmg, monster);
+        if (this.engine) this.engine.shake(10, 0.4);
+        this._monsterAbilityTimers[abKey] = now + 10000;
+        return true;
+      }
+      case "swoop": {
+        const swMult = ab.chargeMultiplier || 3;
+        const swDmg = Math.floor(monster.damage * swMult);
+        if (this.leader) this.damageHero(swDmg);
+        this.worldFx.push({ x: monster.x, y: monster.y, text: `🦅 انقضاض ${swDmg}!`, color: "#ff6b6b", life: 1, maxLife: 1 });
+        if (this.engine) this.engine.shake(8, 0.25);
+        this._monsterAbilityTimers[abKey] = now + 9000;
+        return true;
+      }
+      case "stomp": {
+        const stompDmg = Math.floor(monster.damage * 1.5);
+        this._stompSlowTimer = 2;
+        if (target === this.leader) {
+          this.damageHero(stompDmg);
+        } else if (target) {
+          target.hp = Math.max(0, target.hp - stompDmg);
+        }
+        this.worldFx.push({ x: monster.x, y: monster.y, text: `🗿 دكة ${stompDmg}!`, color: "#c4a35a", life: 1, maxLife: 1 });
+        if (this.engine) this.engine.shake(12, 0.35);
+        this._monsterAbilityTimers[abKey] = now + 7000;
+        return true;
+      }
+      case "aoe": {
+        const aoeDmg = ab.aoeDamage || Math.floor(monster.damage * 0.8);
+        this.worldFx.push({ x: monster.x, y: monster.y, text: `💫 هجوم شامل ${aoeDmg}!`, color: "#9b59b6", life: 1.2, maxLife: 1.2 });
+        this._aoeDamageAll(aoeDmg, monster);
+        if (this.engine) this.engine.shake(8, 0.2);
+        this._monsterAbilityTimers[abKey] = now + 8000;
+        return true;
+      }
       default:
         return false;
+    }
+  }
+
+  _aoeDamageAll(dmg, source) {
+    if (this.leader) this.damageHero(Math.floor(dmg * 0.5));
+    if (this.army && this.army.units) {
+      for (const u of this.army.units) {
+        if (u && u.alive !== false) u.hp = Math.max(0, (u.hp || 100) - Math.floor(dmg * 0.3));
+      }
+    }
+  }
+
+  _checkBossPhase(monster) {
+    if (!monster.isBoss || !monster._phases) return;
+    const hpPct = monster.hp / monster.maxHp;
+    for (const phase of monster._phases) {
+      if (hpPct <= phase.threshold && !phase.triggered) {
+        phase.triggered = true;
+        this.worldFx.push({ x: monster.x, y: monster.y, text: phase.message || "💢!", color: "#ff4444", life: 2, maxLife: 2 });
+        if (phase.enrage) {
+          monster.damage = Math.floor(monster.damage * (phase.enrage.damageMult || 1.5));
+          this.worldFx.push({ x: monster.x, y: monster.y, text: "🔥 طيران!", color: "#ff8800", life: 2, maxLife: 2 });
+        }
+        if (this.engine) this.engine.shake(14, 0.5);
+      }
     }
   }
 
@@ -870,6 +951,11 @@ export class WorldMap {
       ability: enemy.ability || null,
       isBoss: enemy.isBoss || false,
       _shieldTimer: 0,
+      _phaseTimer: 0,
+      _phases: enemy.isBoss ? [
+        { threshold: 0.5, triggered: false, message: "💢 المرحلة الثانية!", enrage: { damageMult: 1.4 } },
+        { threshold: 0.25, triggered: false, message: "🔥 المرحلة الثالثة — جنون!", enrage: { damageMult: 1.8 } },
+      ] : null,
     };
   }
 
@@ -1260,6 +1346,12 @@ export class WorldMap {
     this.updatePvPCombat(dt);
     this._updateComboTimer(dt);
     this._updatePoisonEffects(dt);
+    // تحديث timers القدرات
+    if (this._sandstormTimer > 0) {
+      this._sandstormTimer -= dt;
+      if (this._sandstormTimer <= 0) this._sandstormActive = false;
+    }
+    if (this._stompSlowTimer > 0) this._stompSlowTimer -= dt;
     this.checkWipe();
     // 🎁 إعادة ظهور صناديق الكنز بعد فتحها
     for (const c of this.treasureChests) {
@@ -1885,8 +1977,9 @@ export class WorldMap {
       const dist = Math.hypot(dx, dy);
 
       if (dist > h.attackRange) {
-        h.x += (dx / dist) * h.speed * dt;
-        h.y += (dy / dist) * h.speed * dt;
+        const slowMult = this._stompSlowTimer > 0 ? 0.5 : 1;
+        h.x += (dx / dist) * h.speed * dt * slowMult;
+        h.y += (dy / dist) * h.speed * dt * slowMult;
       } else {
         h.attackCD -= dt;
         if (h.attackCD <= 0) {
@@ -1920,8 +2013,9 @@ export class WorldMap {
     if (dist < 8) {
       h.pathIdx++;
     } else {
-      h.x += (dx / dist) * h.speed * dt;
-      h.y += (dy / dist) * h.speed * dt;
+      const slowMult = this._stompSlowTimer > 0 ? 0.5 : 1;
+      h.x += (dx / dist) * h.speed * dt * slowMult;
+      h.y += (dy / dist) * h.speed * dt * slowMult;
     }
   }
 
@@ -2039,8 +2133,9 @@ export class WorldMap {
         continue;
       }
 
-      // تقليل shield timer
+      // تقليل timers الوحوش
       if (m._shieldTimer > 0) m._shieldTimer -= dt;
+      if (m._phaseTimer > 0) m._phaseTimer -= dt;
 
       // إذا السيرفر متصل — لا نحرك الوحوش محلياً (السيرفر هو المسؤول)
       if (connected) continue;
@@ -2139,6 +2234,9 @@ export class WorldMap {
   damageMonster(monster, dmg, isCrit = false) {
     if (!monster || !monster.alive) return;
 
+    // فيز (تجنب تام للهجمات)
+    if (monster._phaseTimer > 0) return false;
+
     // شيلد الوحش
     if (monster._shieldTimer > 0) {
       dmg = Math.floor(dmg * 0.5);
@@ -2150,8 +2248,17 @@ export class WorldMap {
       return;
     }
 
+    // عاصفة رملية — تقلل الضرر 50%
+    if (this._sandstormActive) {
+      dmg = Math.floor(dmg * 0.5);
+      this.worldFx.push({ x: monster.x, y: monster.y, text: "🌪️ عاصفة!", color: "#f39c12", life: 0.4, maxLife: 0.4 });
+    }
+
     monster.hp -= dmg;
     const finalDmg = dmg;
+
+    // تحقق من مراحل الزعيم (Phases)
+    this._checkBossPhase(monster);
 
     // تأثيرات ضرب
     spawnHitEffect(this, monster.x, monster.y, isCrit, this._equippedWeapon);
