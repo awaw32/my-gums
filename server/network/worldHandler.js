@@ -8,7 +8,7 @@ function playerColor(username) {
   return PLAYER_COLORS[Math.abs(h) % PLAYER_COLORS.length];
 }
 
-function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade }) {
+function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager }) {
 
   function broadcastWorld(excludeWs = null) {
     const list = [];
@@ -208,6 +208,12 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
       } else if (msg.type === "chat" && username) {
         const chatMsg = JSON.stringify({ type: "broadcast_chat", username, message: String(msg.message || "").slice(0, 200) });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });
+      } else if (msg.type && msg.type.startsWith("war_") && warManager && username) {
+        // 🏜️ معالج رسائل الحرب القبلية
+        const result = warManager.handleMessage(msg, username, ws);
+        if (result && ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "war_response", requestType: msg.type, ...result }));
+        }
       } else if (msg.type === "br_match_start" && username) {
         const brMsg = JSON.stringify({ type: "br_match_start", mapSize: msg.mapSize, matchDuration: msg.matchDuration });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(brMsg); });

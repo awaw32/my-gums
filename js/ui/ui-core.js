@@ -4,7 +4,7 @@ import { injectGameplayMethods } from "./ui-gameplay.js";
 import { ALLIANCE_RAIDS } from "../alliance-manager.js";
 
 export class GameUI {
-  constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests) {
+  constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager) {
     this.village = village;
     this.army = army;
     this.economy = economy;
@@ -15,6 +15,7 @@ export class GameUI {
     this.upgradeTree = upgradeTree;
     this.researchTree = researchTree;
     this.allianceManager = allianceManager;
+    this.warManager = warManager;
     this.achievements = achievements;
     this.dailyLogin = dailyLogin;
     this.prestige = prestige;
@@ -42,6 +43,7 @@ export class GameUI {
     // لتجنب تعارض overlay القصة مع overlay التدريب
     this.initDailyCheck();
     this.initStory();
+    this.bindGlobalKeys();
   }
 
   bindUiToggle() {
@@ -74,6 +76,34 @@ export class GameUI {
         }
         toggleBtn.textContent = "👁️‍🗨️";
         toggleBtn.title = "إظهار الواجهة";
+      }
+    });
+  }
+
+  bindGlobalKeys() {
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const overlays = [
+          { id: "confirm-overlay", close: (el) => el.classList.add("hidden") },
+          { id: "modal-overlay", close: (el) => el.classList.add("hidden") },
+        ];
+        const wd = document.querySelector(".wd-overlay:not(.hidden)");
+        if (wd) { wd.classList.add("hidden"); return; }
+        const wl = document.querySelector(".wl-overlay:not(.hidden)");
+        if (wl) { wl.classList.add("hidden"); return; }
+        const wu = document.querySelector(".wu-overlay:not(.hidden)");
+        if (wu) { wu.classList.add("hidden"); return; }
+        const upgrade = document.querySelector(".upgrade-detail-modal:not(.hidden)");
+        if (upgrade) { upgrade.classList.add("hidden"); return; }
+        const hero = document.querySelector(".hero-panel:not(.hidden)");
+        if (hero) { hero.classList.add("hidden"); return; }
+        for (const o of overlays) {
+          const el = document.getElementById(o.id);
+          if (el && !el.classList.contains("hidden")) {
+            o.close(el);
+            return;
+          }
+        }
       }
     });
   }
@@ -349,7 +379,12 @@ export class GameUI {
     const el = document.createElement("div");
     el.className = "chat-msg";
     const isMe = username === this.world?.username;
-    el.innerHTML = `<span class="chat-author" style="color:${isMe ? '#4cd964' : '#FFD700'}">${username}</span>: ${msg}`;
+    const author = document.createElement("span");
+    author.className = "chat-author";
+    author.style.color = isMe ? '#4cd964' : '#FFD700';
+    author.textContent = `${username}: `;
+    el.appendChild(author);
+    el.appendChild(document.createTextNode(msg));
     this._chatMessages.appendChild(el);
     this._chatMessages.scrollTop = this._chatMessages.scrollHeight;
   }
@@ -382,25 +417,29 @@ export class GameUI {
         myExtra = this.world.sessionStats?.coinsEarned || 0;
         extraIcon = "💵";
       }
-      myItem.innerHTML = `
-        <div class="player-item-name" style="color:var(--gold)">⭐ ${this.world.username} (أنت)</div>
-        <div class="player-item-stats">
-          <span class="player-stat"><span class="player-stat-icon">👊</span><span class="player-stat-value">${formatNumber(myPower)}</span></span>
-          <span class="player-stat"><span class="player-stat-icon">💀</span><span class="player-stat-value">${myKills}</span></span>
-          <span class="player-stat"><span class="player-stat-icon">${extraIcon}</span><span class="player-stat-value">${formatNumber(myExtra)}</span></span>
-        </div>`;
+      const nameEl = document.createElement("div");
+      nameEl.className = "player-item-name";
+      nameEl.style.color = "var(--gold)";
+      nameEl.textContent = `⭐ ${this.world.username} (أنت)`;
+      myItem.appendChild(nameEl);
+      const statsEl = document.createElement("div");
+      statsEl.className = "player-item-stats";
+      statsEl.innerHTML = `<span class="player-stat"><span class="player-stat-icon">👊</span><span class="player-stat-value">${formatNumber(myPower)}</span></span><span class="player-stat"><span class="player-stat-icon">💀</span><span class="player-stat-value">${myKills}</span></span><span class="player-stat"><span class="player-stat-icon">${extraIcon}</span><span class="player-stat-value">${formatNumber(myExtra)}</span></span>`;
+      myItem.appendChild(statsEl);
       this._playerListEl.appendChild(myItem);
     }
     for (const p of filtered) {
       const item = document.createElement("div");
       item.className = "player-item";
-      item.innerHTML = `
-        <div class="player-item-name" title="${p.username}">${p.username}</div>
-        <div class="player-item-stats">
-          <span class="player-stat"><span class="player-stat-icon">⚔️</span><span class="player-stat-value">${p.kills || 0}</span></span>
-          <span class="player-stat"><span class="player-stat-icon">💵</span><span class="player-stat-value">${formatNumber(p.coinsEarned || 0)}</span></span>
-          <span class="player-stat"><span class="player-stat-icon">👊</span><span class="player-stat-value">${formatNumber(p.army_power || 0)}</span></span>
-        </div>`;
+      const nameEl = document.createElement("div");
+      nameEl.className = "player-item-name";
+      nameEl.title = p.username || "";
+      nameEl.textContent = p.username || "";
+      item.appendChild(nameEl);
+      const statsEl = document.createElement("div");
+      statsEl.className = "player-item-stats";
+      statsEl.innerHTML = `<span class="player-stat"><span class="player-stat-icon">⚔️</span><span class="player-stat-value">${p.kills || 0}</span></span><span class="player-stat"><span class="player-stat-icon">💵</span><span class="player-stat-value">${formatNumber(p.coinsEarned || 0)}</span></span><span class="player-stat"><span class="player-stat-icon">👊</span><span class="player-stat-value">${formatNumber(p.army_power || 0)}</span></span>`;
+      item.appendChild(statsEl);
       this._playerListEl.appendChild(item);
     }
   }
@@ -940,6 +979,7 @@ export class GameUI {
       return;
     }
     const am = this.allianceManager;
+    this._renderTribalAllianceSection();
     const state = am.getState();
     
     let html = `
@@ -957,7 +997,10 @@ export class GameUI {
         <div class="alliance-card bonus-card">💵 دخل ×${state.incomeMult.toFixed(1)}</div>
       </div>
     `;
-    
+
+    // قسم القبيلة — يُعبّأ بواسطة _renderTribalAllianceSection
+    html += `<div id="alliance-tribal-content"></div>`;
+
     // زر الترقية
     if (state.canUpgrade) {
       html += `<button class="action-btn upgrade-btn alliance-upgrade-btn" style="margin-bottom:10px">▲ ترقية (${formatNumber(state.upgradeCost)} 🪙)</button>`;

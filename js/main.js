@@ -10,6 +10,7 @@ import { QuestManager } from "./quests.js";
 import { OasisManager } from "./oasis-manager.js";
 import { UpgradeTree } from "./upgrade-tree.js";
 import { AllianceManager } from "./alliance-manager.js";
+import { WarManager } from "./war-manager.js";
 import { AchievementManager } from "./achievements.js";
 import { DailyLoginManager } from "./daily-login.js";
 import { PrestigeManager } from "./prestige.js";
@@ -195,13 +196,20 @@ async function init() {
   upgradeTree.setArmyRef(army);
   const researchTree = new ResearchTree(economy);
   const allianceManager = new AllianceManager(economy);
-  const quests = new QuestManager(economy, army, village); 
+  allianceManager.setMyName(PLAYER_USERNAME);
+  const quests = new QuestManager(economy, army, village);
   const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE, army);
   const store = new GameStore();
   const netSync = new NetworkSync(API_BASE, PLAYER_USERNAME);
   world.netSync = netSync;
   netSync.world = world;
   world.store = store;
+
+  // 🏜️ نظام الحرب القبلي
+  const warManager = new WarManager(allianceManager, economy, army, netSync);
+  warManager.attachToWorld(world);
+  window._warManager = warManager;
+
   new AssetManager();
   const audio = new AudioManager();
   const hero = new GameHero();
@@ -364,7 +372,7 @@ async function init() {
 
   let ui;
   try {
-    ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests);
+    ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager);
   } catch (err) {
     console.error("❌ [FATAL] GameUI constructor threw:", err);
     throw err;
@@ -1058,6 +1066,7 @@ async function init() {
       economy.refreshIncome(village);
       oasisManager.tick(dt);
       allianceManager.tickRaidCooldown(dt);
+      if (warManager) warManager.tick(dt);
       hero.tick(dt);
       
       // الأحداث

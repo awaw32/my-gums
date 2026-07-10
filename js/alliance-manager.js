@@ -24,7 +24,16 @@ export class AllianceManager {
     this._raidActive = false;
     this._raidBoss = null;
     this._onRaidStateChange = null;
+
+    // 🏜️ نظام القبيلة الجماعي
+    this._tribeName = "";
+    this._tribeBanner = "🏕️";
+    this._members = [];          // [{name, rank, contribution, power}]
+    this._treasury = 0;          // صندوق القبيلة (ذهب جماعي)
+    this._myName = "";           // اسم اللاعب الحالي (يُضبط من main.js)
   }
+
+  setMyName(name) { this._myName = name; this.addMember(name, "shaykh"); }
 
   get currentTier() {
     return ALLIANCE_TIERS[this.level] || null;
@@ -84,12 +93,19 @@ export class AllianceManager {
     return {
       level: this.level,
       tierName: this.tierName,
+      tribeName: this.tribeName,
+      tribeBanner: this.tribeBanner,
       damageBonus: this.damageBonus,
       defenseBonus: this.defenseBonus,
       incomeMult: this.incomeMult,
       upgradeCost: this.upgradeCost,
       maxLevel: this.maxLevel,
       canUpgrade: this.canUpgrade(),
+      treasury: this.treasury,
+      memberCount: this.getMemberCount(),
+      tribePower: this.tribePower,
+      myRank: this.getMyRank(),
+      members: this.members.map(m => ({ name: m.name, rank: m.rank, contribution: m.contribution, power: m.power })),
     };
   }
 
@@ -97,6 +113,126 @@ export class AllianceManager {
     if (typeof level === "number" && level >= 0 && level <= this.maxLevel) {
       this.level = level;
     }
+  }
+
+  // ==================== 🏜️ نظام القبيلة الجماعي ====================
+
+  get tribeName()  { return this._tribeName  || ""; }
+  get tribeBanner(){ return this._tribeBanner || "🏕️"; }
+  get members()    { return this._members     || []; }
+  get treasury()   { return this._treasury    || 0; }
+
+  setTribeName(name) {
+    if (typeof name !== "string") return false;
+    const clean = name.trim().slice(0, 30);
+    if (!clean) return false;
+    this._tribeName = clean;
+    if (this._onChanged) this._onChanged(this.level);
+    return true;
+  }
+
+  setTribeBanner(emoji) {
+    if (typeof emoji !== "string" || emoji.length > 4) return false;
+    this._tribeBanner = emoji;
+    if (this._onChanged) this._onChanged(this.level);
+    return true;
+  }
+
+  // مساهمة في صندوق القبيلة — تُسحب من الذهب
+  contribute(amount) {
+    if (!this._treasury) this._treasury = 0;
+    amount = Math.floor(amount);
+    if (amount <= 0) return false;
+    if (!this.economy.spend("gold", amount)) return false;
+    this._treasury += amount;
+    if (this._onChanged) this._onChanged(this.level);
+    return true;
+  }
+
+  upgradeFromTreasury(useTreasuryFirst = true) {
+    if (this.level >= this.maxLevel) return false;
+    const cost = this.upgradeCost;
+    if (useTreasuryFirst && this.treasury >= cost) {
+      this._treasury -= cost;
+      this.level++;
+      if (this._onChanged) this._onChanged(this.level);
+      return true;
+    }
+    // fallback: ادفع من ذهبك الشخصي
+    return this.upgrade();
+  }
+
+  // ==================== نظام الأعضاء والرتب ====================
+
+  get TRIBAL_RANKS() {
+    return [
+      { id: "shaykh",   name: "شيخ القبيلة", icon: "⚜️", authority: 3 },
+      { id: "warrior",  name: "محارب",       icon: "🗡️", authority: 2 },
+      { id: "member",   name: "عضو",         icon: "🤝",           authority: 1 },
+      { id: "novice",   name: "مستجِدّ",     icon: "🏜️",           authority: 0 },
+    ];
+  }
+
+  getRank(rankId) {
+    return this.TRIBAL_RANKS.find(r => r.id === rankId) || this.TRIBAL_RANKS[3];
+  }
+
+  getMyRank() {
+    const me = this.members.find(m => m.name === this._myName);
+    return me ? this.getRank(me.rank) : null;
+  }
+
+  addMember(name, rank = "novice") {
+    if (!this._members) this._members = [];
+    if (this._members.find(m => m.name === name)) return false;
+    this._members.push({ name, rank, contribution: 0, power: 0, joinedAt: Date.now() });
+    if (this._onChanged) this._onChanged(this.level);
+    return true;
+  }
+
+  removeMember(name) {
+    if (!this._members) return false;
+    const before = this._members.length;
+    this._members = this._members.filter(m => m.name !== name);
+    if (this._members.length !== before) {
+      if (this._onChanged) this._onChanged(this.level);
+      return true;
+    }
+    return false;
+  }
+
+  promoteMember(name) {
+    const m = this._members.find(m => m.name === name);
+    if (!m) return false;
+    const rankIds = this.TRIBAL_RANKS.map(r => r.id);
+    const idx = rankIds.indexOf(m.rank);
+    if (idx <= 0) return false;           // لا ترقية فوق شيخ القبيلة
+    m.rank = rankIds[idx - 1];            // نرقّيه لمستوى أعلى
+    if (this._onChanged) this._onChanged(this.level);
+    return true;
+  }
+
+  demoteMember(name) {
+    const m = this._members.find(m => m.name === name);
+    if (!m) return false;
+    const rankIds = this.TRIBAL_RANKS.map(r => r.id);
+    const idx = rankIds.indexOf(m.rank);
+    if (idx >= rankIds.length - 1) return false;
+    m.rank = rankIds[idx + 1];
+    if (this._onChanged) this._onChanged(this.level);
+    return true;
+  }
+
+  getMemberCount() { return this._members ? this._members.length : 0; }
+
+  getTotalMemberPower() {
+    return (this._members || []).reduce((sum, m) => sum + (m.power || 0), 0);
+  }
+
+  // ربط القبيلة بنظام الحرب — اجمع القوة القبلية الإجمالية
+  get tribePower() {
+    const myPower = this.economy ? this.economy.power || 0 : 0;
+    return myPower + this.getTotalMemberPower();
   }
 
   // ==================== 🎯 نظام غارات التحالف ====================

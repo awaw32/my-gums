@@ -440,6 +440,22 @@ export class NetworkSync {
           w.store.set('notification', { text: `❌ ${msg.reason}`, t: Date.now() });
         }
         break;
+      // ==================== 🏜️ رسائل الحرب القبلية ====================
+      case "war_declared":
+        if (w.store) w.store.set('notification', { text: `⚔️ ${msg.attacker} أعلنت الغزوة على ${msg.defender}!`, t: Date.now() });
+        if (w._onWarEvent) w._onWarEvent("war_declared", msg);
+        break;
+      case "war_battle_result":
+        if (w.store) w.store.set('notification', { text: `⚔️ ${msg.winner} انتصر على ${msg.loser} وغنم ${msg.loot} 🪙`, t: Date.now() });
+        if (w._onWarEvent) w._onWarEvent("war_battle_result", msg);
+        break;
+      case "war_ended":
+        if (w.store) w.store.set('notification', { text: msg.winner !== "تعادل" ? `🏆 ${msg.winner} انتصرت في الحرب القبلية!` : `🤝 الحرب انتهت بالتعادل`, t: Date.now() });
+        if (w._onWarEvent) w._onWarEvent("war_ended", msg);
+        break;
+      case "war_response":
+        if (w._onWarResponse) w._onWarResponse(msg.requestType, msg);
+        break;
     }
   }
 }

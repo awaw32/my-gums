@@ -59,7 +59,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 
 /* ====== شاشة التحميل ====== */
 #loading-screen {
-  position: fixed; inset: 0; z-index: 9999;
+  position: fixed; inset: 0; z-index: 99999;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   background: var(--bg-page);
@@ -665,7 +665,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--border-light);
-  z-index: 999999;
+  z-index: 9999;
   direction: rtl;
   box-shadow: 0 -1px 4px rgba(0,0,0,0.04);
 }
@@ -1820,6 +1820,190 @@ body.modal-open { overflow: hidden; }
   transition: opacity 0.2s;
 }
 .war-start-btn:active { opacity: 0.85; }
+
+/* ====== ساحات الحرب القبلية — Tribal War System ====== */
+.war-tribal-section {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(180,83,9,0.06), rgba(146,64,14,0.03));
+  border: 1px solid rgba(180,83,9,0.15);
+}
+
+.tribal-war-status {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+}
+.tribal-war-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.tribal-stat-label { font-size: 0.7rem; color: var(--text-secondary); }
+.tribal-stat-value { font-size: 0.95rem; font-weight: 700; color: var(--gold); }
+
+.tribal-war-list { display: flex; flex-direction: column; gap: 8px; }
+
+.tribal-war-card {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+}
+.tribal-war-card.war-attacker { border-left: 3px solid #e74c3c; }
+.tribal-war-card.war-defender { border-left: 3px solid #2ecc71; }
+.tribal-war-card.war-observer { border-left: 3px solid var(--border-light); }
+.tribal-war-card.tribal-locked {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.tribal-war-card.tribal-locked .tribal-war-icon { font-size: 2rem; }
+
+.tribal-war-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-bottom: 6px;
+}
+.war-tribe-name { font-weight: 700; font-size: 0.9rem; color: var(--text-primary); }
+.war-vs { font-size: 1.2rem; }
+
+.tribal-war-scores {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.war-score { font-weight: 600; }
+.war-timer { color: var(--accent-red); }
+
+.tribal-war-loot {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.tribal-war-empty {
+  text-align: center;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.tribal-war-declare-btn {
+  background: linear-gradient(135deg, #c0392b, #922b21);
+  color: #fff;
+  border: none;
+  flex: 1;
+}
+
+.tribal-war-action-btn {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--accent-red);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  width: 100%;
+}
+.tribal-war-action-btn:active { opacity: 0.85; }
+
+.tribal-rankings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.tribal-ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  font-size: 0.8rem;
+}
+.tribal-rank-medal { width: 22px; text-align: center; font-weight: 700; }
+.tribal-rank-name { flex: 1; font-weight: 600; color: var(--text-primary); }
+.tribal-rank-stats { font-size: 0.72rem; color: var(--text-secondary); }
+
+/* ====== واجهة القبيلة الجماعية ====== */
+.tribal-alliance-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px; margin-bottom: 8px;
+  background: linear-gradient(135deg, rgba(243,156,18,0.1), rgba(211,84,0,0.05));
+  border: 1px solid rgba(243,156,18,0.3);
+  border-radius: 12px;
+}
+.tribal-alliance-banner { font-size: 2rem; }
+.tribal-alliance-name { font-size: 1rem; font-weight: 700; color: var(--gold); flex: 1; }
+.tribal-alliance-info {
+  display: flex; gap: 6px; margin-bottom: 8px;
+}
+.tribal-info-item {
+  flex: 1; text-align: center;
+  padding: 6px 4px; border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--border-light);
+  font-size: 0.72rem; color: var(--text-secondary);
+}
+.tribal-info-item strong { display: block; font-size: 0.85rem; color: var(--text-primary); margin-top: 2px; }
+.tribal-treasury-box {
+  padding: 10px; margin-bottom: 8px;
+  border-radius: 10px; background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+}
+.tribal-treasury-bar-track {
+  height: 6px; background: rgba(0,0,0,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 8px;
+}
+.tribal-treasury-bar-fill {
+  height: 100%; background: linear-gradient(90deg, #f1c40f, #e67e22); border-radius: 3px; transition: width 0.3s;
+}
+.tribal-treasury-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.tribal-input {
+  width: 70px; padding: 4px 6px; border-radius: 6px;
+  border: 1px solid var(--border-light); background: var(--bg-surface);
+  color: var(--text-primary); font-size: 0.8rem; text-align: center;
+}
+.tribal-members-list {
+  display: flex; flex-direction: column; gap: 3px; margin-top: 4px;
+}
+.tribal-member-row {
+  display: flex; align-items: center; gap: 4px;
+  padding: 5px 8px; border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--border-light);
+  font-size: 0.75rem;
+}
+.tribal-member-rank-icon { font-size: 1rem; width: 20px; text-align: center; }
+.tribal-member-name { flex: 1; font-weight: 600; color: var(--text-primary); }
+.tribal-member-rank-name { font-size: 0.65rem; color: var(--text-secondary); width: 50px; text-align: center; }
+.tribal-member-contribution { font-size: 0.65rem; color: var(--gold); width: 55px; text-align: center; }
+.tribal-member-power { font-size: 0.65rem; color: #e74c3c; width: 45px; text-align: center; }
+.tribal-promote-btn, .tribal-demote-btn {
+  background: none; border: 1px solid var(--border-light);
+  border-radius: 4px; cursor: pointer; padding: 2px 5px;
+  font-size: 0.7rem; color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.tribal-promote-btn:hover { background: rgba(46,204,113,0.15); color: #2ecc71; border-color: #2ecc71; }
+.tribal-demote-btn:hover { background: rgba(231,76,60,0.15); color: #e74c3c; border-color: #e74c3c; }
 
 /* ====== تأثير قدرات البطل ====== */
 @keyframes abilityFlash {
@@ -3534,6 +3718,32 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .wu-sk-level { font-size: 0.7rem; color: var(--accent-red); }
 .wu-sk-desc { font-size: 0.7rem; color: var(--text-secondary); margin: 4px 0 6px; }
 .wu-academy-info { text-align: center; font-size: 0.78rem; color: var(--text-primary); padding: 6px; background: var(--bg-input); border-radius: 10px; border: 1px solid var(--border-light); }
+
+/* ====== Wipe/Death Overlay ====== */
+#wipe-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.88);
+  direction: rtl; text-align: center;
+  padding: 20px; box-sizing: border-box;
+}
+#wipe-overlay .wipe-icon { font-size: 3rem; margin-bottom: 8px; }
+#wipe-overlay .wipe-title { color: #ff4444; font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+#wipe-overlay .wipe-label { color: var(--accent-red); font-size: 0.85rem; margin-bottom: 6px; }
+#wipe-overlay .wipe-amount { color: var(--text-primary); font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+#wipe-overlay .wipe-sub { color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 16px; }
+#wipe-overlay .wipe-power { color: var(--accent-red); font-size: 0.85rem; margin-bottom: 16px; }
+#wipe-overlay .wipe-btn {
+  padding: 12px 32px; font-size: 1rem; font-weight: 700;
+  background: var(--accent-red); color: #fff; border: none; border-radius: 12px;
+  cursor: pointer; touch-action: manipulation; margin-bottom: 8px; width: 200px;
+}
+#wipe-overlay .wipe-btn-secondary {
+  padding: 12px 32px; font-size: 1rem; font-weight: 700;
+  background: #8a2020; color: #fff; border: none; border-radius: 12px;
+  cursor: pointer; touch-action: manipulation; width: 200px;
+}
 
 /* ====== Offline Rewards Popup ====== */
 .offline-rewards-popup {

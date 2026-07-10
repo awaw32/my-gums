@@ -1,73 +1,130 @@
-# State — My Gums
+# STATE — ملك الصحراء (Desert Kingdom)
 
-## Current Phase
-إصلاحات وتحسينات متعددة (2026-07-02)
+**Updated:** 2026-07-10
+**Branch:** main · HEAD: `3735116`
 
-## Completed Fixes (Batch 1)
-- `economy.power` كان دائماً 0 → أضيفت 5 powerSources في main.js
-- `army.totalArmyPower is not a function` → getter وليس دالة
-- Monsters: server-authoritative مع حركة دورية broadcast كل 1 ثانية
-- Online Players Panel: يظهر اللاعب نفسه + القوة + القتلى + الأرباح
-- Wipe Screen: أوفرلاي يُظهر المبلغ المفقود + خصم XP
-- Achievements: زر استلام (claim) لكل إنجاز
-- Chat Button: يمين 60px (لا يتداخل مع زر الخروج)
-- `recenterCamera` الدالة المفقودة في world.js
-- PvP التاب المزدوج
-- مزامنة الوحوش مع السيرفر
+---
 
-## Completed Fixes (Batch 2 — اليوم)
-### التوصيلات (Wiring)
-- **login_days**: إصلاح مسار الإنجاز — `_onClaim` لم يكن يستدعي `updateProgress` بسبب override
-- **upgrade_damage/defense/capacity/speed**: ربط إنجازات شجرة الترقيات (كانت غير مربوطة نهائياً)
-- **power achievement**: إصلاح التتبع — `lastPowerCheck` يبدأ من `economy.power` الحالي لا 0
-- **_onPvPWin/_onPvPLose**: ربط الاستدعاءات في `world.attackPlayer` (كانت غير مربوطة)
-- **cash_earned**: إضافة `_onCashEarned` إلى `economy.add()` + ربط من دخل المباني السلبي
-- **duplicate _onLevelUp**: دمج الاستدعائين المتكررين
-- **double cash_earned**: إزالة `+10` من كل kill (يتم التتبع عبر `_onCashEarned(reward)` مسبقاً)
-- **Building callbacks**: جعل `setBuildingCallbacks` يحفظ الـ callbacks ويعيد ربطها بعد `initVillage` (مهم لـ Prestige)
+## Project Identity
+- **Name:** ملك الصحراء / Desert Kingdom
+- **Type:** Multiplayer Strategy PWA (Isometric 2.5D)
+- **Stack:** Vanilla HTML/CSS/JS + Canvas + WebSocket
+- **Server:** Node.js custom HTTP + WebSocket (port 3000)
+- **DB:** SQLite + MongoDB (optional) + localStorage (backup)
+- **Character Controller:** Phaser 3 (isometric 8-dir)
 
-### آليات جديدة (Mechanics)
-- **استهلاك الطعام**: كل 15 ثانية يستهلك الجيش 0.5 طعام لكل جندي حيّ — إذا نفد الطعام يخسر الجيش 2 HP والزعيم 1 HP
-- **استخدام items**: زر "▶ استخدم" في شاشة المخزون — جرعات، سيوف، دروع، خوذ، جواهر، لفائف خبرة، تذاكر ساحة، مخططات أبراج
-- **بونص XP من Prestige**: كل مستوى Prestige يعطي +50% XP (`xpMult = 1 + level * 0.5`)
-- **مضاعفات الأحداث**: ربط `events.getMult()` بـ — `mult_xp` في addXp, `mult_gold` في addRaw, `mult_power` في power getter, `mult_pvp` في PvP, `mult_oasis` في oasisManager.tick
-- **حفظ BR stats**: `brWins` و `brKills` محفوظان في saveToDB الآن
-- **تجديد الجيش التلقائي**: 0.2 HP/ث للوحدات و 0.1 HP/ث للزعيم إذا لم يكونوا في قتال
-- **جوهرة القوة (power_gem)**: ×2 كل العملات لمدة 5 دقائق عبر `economy.multiplier`
+---
 
-### إصلاحات أخرى
-- **BR exit**: إعادة W/H من 2000 إلى 2400 عند الخروج من BR
+## Session: نظام الحرب القبلي (War System) — COMPLETED ✅
 
-## Open Issues
-- Village 2 (buildings v2) غير متاح — لا توجد طريقة للتبديل بين القريتين
-- Arena (غرفة المعركة القديمة server.js) كود قديم غير مستخدم
-- Campaign/Adventure/Arena في شاشة الحرب كلها تؤدي لنفس الشيء
-- Leaderboard يدعم sort=power فقط — ويحتاج فلترة إضافية
+### Architecture
+- **الخادم:** `server/logic/warManager.js` — محرك الحرب القبلي
+  - `createWarRecord()` — إنشاء سجل حرب جديد
+  - `declareWar()` — إعلان الغزوة بين قبيلتين (مع تحقق التبريد والتكرار)
+  - `deployArmy()` — إرسال الجيوش للحرب القبلية
+  - `resolveBattle()` — حل المعارك الفردية مع ±15% تباين عشوائي ونظام غنائم
+  - `endWar()` — إنهاء الحرب وتحديد الفائز بناءً على النقاط
+  - `getRankings()` — الترتيب القبلي (بالانتصارات ثم الغنائم)
+  - `handleMessage()` — معالجة رسائل WebSocket (war_declare/war_deploy/war_resolve_battle/war_end/war_get_*)
+  - `warTickInterval` — إنهاء الحروب المنتهية الصلاحية تلقائياً
+  - المتغيرات: WAR_DURATION_MS=30min, WAR_COOLDOWN_MS=10min, LOOT_CAP_RATIO=12%
 
-## Architecture
-- عالم 2400×2400 (يصير 2000×2000 في BR)
-- WebSocket (100ms update) + HTTP save (5s) + autosave (15s)
-- MongoDB عبر mongoose (collection: players_data)
-- Server-authoritative monsters (positions broadcast every 1s)
-- PvP عبر WS مع combat cooldown 3s
-- Battle Royale كطبقة فوقية (campaign mode أساسي)
-- Power من 5 مصادر: village, army, level, alliance, prestige
-- Prestige: 5 مستويات — كل مستوى ×1.5 ضرر + ×0.5 XP, يعيد تعيين الكل
+- **الربط بالخادم:**
+  - `server.js` — تم استيراد `createWarManager` وإنشاء `warManager` وتمريره لـ `createWorldHandler`
+  - `server/network/worldHandler.js` — تمت إضافة معالج رسائل `war_*` يمررها لـ `warManager.handleMessage()`
 
-## Key Files
-- `js/world.js` — WebSocket, monsters, PvP, HUD, BR, player sync, items use
-- `js/main.js` — init, powerSources, callbacks (كل التوصيلات), save (يشمل BR stats)
-- `js/ui.js` — screens, player panel, achievements, crafting, items usage UI, events display
-- `server.js` — WS server, monster AI, broadcast, MongoDB + Arena (legacy)
-- `js/economy.js` — power getter (مع مضاعف الأحداث), resources, level, _events, _prestige
-- `js/achievements.js` — 50 achievements with claim system
-- `js/oasis-manager.js` — 5 oases, gold payout (مع مضاعف oasis event)
-- `js/upgrade-tree.js` — 4 مسارات ترقية (damage, defense, capacity, speed)
-- `js/prestige.js` — Prestige system مع xpMult
-- `js/inventory.js` — 8 وصفات تصنيع + item effects system
-- `js/events.js` — 6 أحداث (gold rush, xp boost, power week, PvP tourney, oasis bonus, camel race)
-- `js/daily-login.js` — 7 أيام Streak
-- `js/tutorial.js` — 7 خطوات تعليمية
-- `js/village.js` — مبنيان (v1 + v2) — v2 غير متاح بعد
-- `js/alliance-manager.js` — 4 تحالفات
-- `css/style.css` — mobile-first RTL
+- **العميل:** `js/war-manager.js` — `WarManager` class
+  - `declareWar()` — إرسال إعلان الحرب عبر WebSocket
+  - `deployArmy()` — إرسال الجيش لحرب نشطة
+  - `resolveBattle()` — حل معركة فردية
+  - `requestActiveWars/History/Rankings()` — استعلام الحالات
+  - `attachToWorld(world)` — ربط الـ callbacks (`_onWarEvent`, `_onWarResponse`)
+  - `tick(dt)` — تحديث دوري
+
+- **الشبكة:** `js/network-sync.js` — تمت إضافة 4 حالات جديدة في `_handleMessage`:
+  - `war_declared`, `war_battle_result`, `war_ended`, `war_response`
+
+- **الربط بالعميل:** `js/main.js`
+  - استيراد `WarManager` وإنشاء `warManager` بعد `allianceManager`
+  - `warManager.attachToWorld(world)` — ربط بـ `worldMap`
+  - `warManager` ممرر إلى `GameUI` constructor
+  - `warManager.tick(dt)` في الـ game loop
+
+- **الواجهة:** `js/ui/ui-gameplay.js`
+  - `buildWarScreen()` — تمت إضافة قسم `<div id="war-tribal-content">`
+  - `renderWar()` — تمت إضافة استدعاء `_renderTribalWarSection()`
+  - `_renderTribalWarSection()` — عرض: حالة التحالف، الحروب الجارية، إعلان الحرب، الترتيب القبلي
+  - `_showWarDeclareModal()` — modal لإعلان الغزوة (اسم القبيلة + تقدير القوة)
+  - أزرار: إرسال الجيش للحروب الجارية، إعلان حرب جديدة
+
+- **الـ CSS:** `css/style.css` — تمت إضافة 60+ سطر لأنماط:
+  - `.war-tribal-section`, `.tribal-war-status`, `.tribal-war-card`, `.tribal-war-list`
+  - `.war-attacker` (أحمر), `.war-defender` (أخضر), `.war-observer` (رمادي)
+  - `.tribal-rankings`, `.tribal-ranking-row`, زر `tribal-war-declare-btn`
+
+- **Service Worker:** `sw.js` — تمت إضافة `/js/war-manager.js` للـ cache
+
+- **الاختبارات:** `tests/war-system.test.js` — 13 اختبار جديد
+  - إعلان الحرب (نجاح/رفض نفس القبيلة/رفض تكرار/رفض أثناء التبريد)
+  - حل المعارك (تحديد فائز/غنائم/رفض حرب غير موجودة)
+  - إنهاء الحرب (فائز/تعادل)
+  - الترتيب القبلي (تحديث/ترتيب حسب الغنائم)
+  - الحروب النشطة + السجل
+
+---
+
+## Session: تحسين واجهة الحلف الجماعي (Alliance Tribal UI) — COMPLETED ✅
+
+### التغييرات
+
+- **`js/ui/ui-core.js`**
+  - `renderAlliance()` — إضافة `<div id="alliance-tribal-content">` بعد بطاقة التحالف الأساسية
+  - استدعاء `this._renderTribalAllianceSection()` بعد `const am = this.allianceManager;` وقبل سحب `getState()`
+
+- **`js/ui/ui-gameplay.js`** — إضافة `GameUI.prototype._renderTribalAllianceSection`
+  - تعرض: شعار القبيلة (الاسم + الرمز)، شريط معلومات (عدد الأعضاء، قوة القبيلة، الخزينة)
+  - شريط تقدم الخزينة + حقل إدخال المساهمة + زر المساهمة
+  - زر ترقية القبيلة من الخزينة (للشيخ فقط)
+  - قائمة الأعضاء مع: أيقونة الرتبة، الاسم، الرتبة، المساهمة، القوة
+  - أزرار ترقية/تنزيل الأعضاء (للشيخ فقط — تظهر لكل عضو غير نفسه)
+  - ربط جميع الأزرار عبر `addEventListener` مع استدعاء `this.requestRender("alliance")` بعد كل عملية
+  - إذا لم يكن للاعب قبيلة (`!am.tribeName`) يخفي الـ container
+
+- **`css/style.css`** — إضافة 70+ سطر لأنماط القبيلة الجماعية:
+  - `.tribal-alliance-header` — رأس القبيلة (خلفية متدرجة ذهبية)
+  - `.tribal-alliance-info` — شريط المعلومات (3 أعمدة)
+  - `.tribal-treasury-box` — صندوق الخزينة (شريط تقدم + إدخال المبلغ)
+  - `.tribal-member-row` — صف العضو (أيقونة، اسم، رتبة، مساهمة، قوة)
+  - `.tribal-promote-btn` / `.tribal-demote-btn` — أزرار الترقية والتنزيل (أخضر/أحمر عند التحويم)
+
+### Tests: 227/227 passing
+
+---
+
+## Previous Session Fixes (موجود في الإصدار السابق)
+- XSS in chat + player list (innerHTML→textContent)
+- Global ESC key handler
+- PvE death screen (CSS classes)
+- Z-index fixes
+- Boss name mismatches
+- Achievement cap (15→25)
+- Missing SVG built states (4)
+- Death sound (sfxDeath)
+- Epilogue (Chapter 6)
+
+---
+
+## GSD Memory System Files
+- `.ai_context.json` — ملف السياق التلقائي (القواعد الثابتة + الأنظمة + قائمة المهام)
+- `.planning/STATE.md` — هذا الملف
+- `.planning/PROJECT.md` — نظرة عامة
+- `.planning/graphs/graph.json` — الـ knowledge graph
+- `.planning/config.json` — إعدادات
+
+---
+
+## الخطوة القادمة
+1. **اختبار Playwright عبر iPhone** — التحقق من استجابة الواجهة الجديدة على الشاشات الصغيرة
+2. نظام إشعارات عام
+3. آليات زعماء متقدمة (Epic Bosses)
+4. مراجعة الذاكرة والأداء

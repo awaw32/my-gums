@@ -71,6 +71,18 @@ const combatSystem = createCombatLoop({
   WORLD_W, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2,
 });
 
+const { createWarManager } = require("./server/logic/warManager");
+const warManager = createWarManager({
+  worldClients,
+  broadcastChat: (message) => {
+    const msg = JSON.stringify(message);
+    worldClients.forEach((c) => {
+      if (c.ws.readyState === 1) c.ws.send(msg);
+    });
+  },
+  memStore, getDefaultPlayer, markDirty,
+});
+
 const { createWorldHandler } = require("./server/network/worldHandler");
 const handleWorldConnection = createWorldHandler({
   rooms, worldMonsters, worldClients,
@@ -88,6 +100,7 @@ const handleWorldConnection = createWorldHandler({
   computeKnowledgeUpgradeCost, computeKnowledgeBonuses,
   claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades,
   applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, sanitizePlayerData,
+  warManager,
 });
 
 const { createArenaHandler } = require("./server/network/arenaHandler");

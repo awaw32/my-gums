@@ -1,0 +1,43 @@
+{
+  "project": "مملكة الصحراء — Desert Kingdom",
+  "type": "Multiplayer Strategy PWA (Isometric 2.5D)",
+  "stack": "Vanilla HTML/CSS/JS + Canvas + WebSocket + Node.js",
+
+  "fixedRules": {
+    "theme": "صحراوي قبلي ملحمي — بيئة صحراوية قاسية، نزاعات وتحالفات وحروب بين القبائل والجيوش البرية",
+    "naming_convention": "استخدم مسميات بدوية/قبلية: غزوات (raids)، غنائم (loot)، تحالفات قبيلة، زعماء صحراويين، عشائر، قبائل",
+    "no_modern_elements": "يمنع إدخال أي عناصر حديثة خارج الإطار البدوي الصحراوي",
+    "no_duplication": "افحص الأنظمة الحالية قبل أي كود جديد — وسّع وطوّر، لا تعيد اختراع العجلة",
+    "language": "واجهة المستخدم بالعربية، أسماء الدوال/المتغيرات بالإنجليزية، التعليقات بالعربية"
+  },
+
+  "existingSystems": {
+    "army": "js/army.js — GameArmy + Weapon (unitLevel, trainingLevel, weaponPower, totalArmyPower)",
+    "alliance": "js/alliance-manager.js — AllianceManager (4 tiers, PvE raids, damageBonus/defenseBonus/incomeMult) — SINGLE-PLAYER currently",
+    "war": "server/logic/warManager.js + js/war-manager.js — نظام الحرب القبلي (Alliance vs Alliance) — COMPLETED",
+    "pvp": "js/world.js + server/network/worldHandler.js — 1v1 proximity auto-combat on world map",
+    "combat_loop": "server/logic/combatLoop.js — pvpTick(), monster spawning, BR support",
+    "network": "js/network-sync.js (client) + server/network/worldHandler.js (server) — WebSocket protocol",
+    "modes": "js/modes/ — HordeMode, ExtractionMode, CaveMode (all PvE)",
+    "story": "js/story.js — 6 chapters, PvE bosses, epilogue",
+    "economy": "js/economy.js — resources, knowledge, power calculation",
+    "db": "server/db/databaseHelper.js — MongoDB + memStore, Player schema with allianceLevel field"
+  },
+
+  "progressFile": ".planning/STATE.md",
+  "projectFile": ".planning/PROJECT.md",
+  "graphFile": ".planning/graphs/graph.json",
+
+  "taskQueue": [
+    { "id": "war_system", "name": "نظام الحرب القبلي (War System)", "status": "completed", "priority": "high" },
+    { "id": "war_server", "file": "server/logic/warManager.js", "note": "محرك الحرب على الخادم" },
+    { "id": "war_client", "file": "js/war-manager.js", "note": "مدير الحرب على العميل" },
+    { "id": "war_ui", "file": "js/ui/ui-gameplay.js _renderTribalWarSection()", "note": "واجهة الحرب القبلية" },
+    { "id": "war_tests", "file": "tests/war-system.test.js", "note": "13 اختبار" },
+    { "id": "alliance_ui", "name": "تحسين واجهة الحلف (Alliance UI)", "status": "completed", "priority": "high" },
+    { "id": "notifications", "name": "نظام إشعارات عام (Notification System)", "status": "pending", "priority": "medium" },
+    { "id": "iphone_test", "name": "اختبار Playwright عبر iPhone", "status": "pending", "priority": "medium" },
+    { "id": "epic_bosses", "name": "آليات زعماء متقدمة (Epic Bosses)", "status": "pending", "priority": "medium" },
+    { "id": "memory_perf", "name": "مراجعة الذاكرة والأداء", "status": "pending", "priority": "low" }
+  ]
+}

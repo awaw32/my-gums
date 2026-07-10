@@ -101,6 +101,10 @@ GameUI.prototype.buildWarScreen = function() {
           <button class="war-start-btn" id="war-start-cave">🕯️ ادخل الكهف</button>
         </div>
       </div>
+      <div id="war-tribal-section" class="war-tribal-section">
+        <div class="panel-header" style="margin-top:16px;font-size:0.9rem">⚜️ ساحات الحرب القبلية</div>
+        <div id="war-tribal-content"></div>
+      </div>
     </div>
   `;
   return div;
@@ -412,7 +416,295 @@ GameUI.prototype.renderWar = function() {
   if (extractionBtn) extractionBtn.addEventListener('click', () => this.enterExtraction());
   if (hordeBtn) hordeBtn.addEventListener('click', () => this.enterHorde());
   if (caveBtn) caveBtn.addEventListener('click', () => this.enterCave());
+
+  // ==================== ⚜️ قسم الحرب القبلية ====================
+  this._renderTribalWarSection();
 };
+
+GameUI.prototype._renderTribalWarSection = function() {
+  const container = document.getElementById("war-tribal-content");
+  if (!container) return;
+  const wm = this.warManager;
+  if (!wm) {
+    container.innerHTML = `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:0.8rem">⚠️ نظام الحرب القبلي غير متاح</div>`;
+    return;
+  }
+
+  // حالة التحالف
+  const am = this.allianceManager;
+  if (!am || am.level === 0) {
+    container.innerHTML = `
+      <div class="tribal-war-card tribal-locked">
+        <div class="tribal-war-icon">🏜️</div>
+        <div class="tribal-war-text">
+          <div class="tribal-war-title">تحالفك غير نشط</div>
+          <div class="tribal-war-desc">ارقَ تحالفك أولاً للانضمام إلى الحروب القبلية</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const myPower = this.army ? this.army.totalArmyPower : 0;
+  let html = `
+    <div class="tribal-war-status">
+      <div class="tribal-war-stat">
+        <span class="tribal-stat-label">عشيرتك</span>
+        <span class="tribal-stat-value">${am.tierName}</span>
+      </div>
+      <div class="tribal-war-stat">
+        <span class="tribal-stat-label">قوة جيشك</span>
+        <span class="tribal-stat-value">${this._fmt(myPower)}</span>
+      </div>
+      <div class="tribal-war-stat">
+        <span class="tribal-stat-label">مستوى التحالف</span>
+        <span class="tribal-stat-value">${am.level}/${am.maxLevel}</span>
+      </div>
+    </div>
+  `;
+
+  // الحروب الجارية
+  const wars = wm.activeWars || [];
+  if (wars.length === 0) {
+    html += `<div class="tribal-war-empty">⚔️ لا توجد حروب قبلية نشطة حالياً</div>`;
+  } else {
+    html += `<div class="tribal-war-list">`;
+    for (const war of wars) {
+      const mySide = wm.getMySide(war);
+      const timeLeft = Math.max(0, Math.floor((war.endsAt - Date.now()) / 1000));
+      const mins = Math.floor(timeLeft / 60);
+      const secs = timeLeft % 60;
+      html += `
+        <div class="tribal-war-card ${mySide === 'attacker' ? 'war-attacker' : mySide === 'defender' ? 'war-defender' : 'war-observer'}">
+          <div class="tribal-war-header">
+            <span class="war-tribe-name">${war.attacker}</span>
+            <span class="war-vs">⚔️</span>
+            <span class="war-tribe-name">${war.defender}</span>
+          </div>
+          <div class="tribal-war-scores">
+            <span class="war-score">${war.attackerScore} نقطة</span>
+            <span class="war-timer">⏱️ ${mins}:${secs.toString().padStart(2, '0')}</span>
+            <span class="war-score">${war.defenderScore} نقطة</span>
+          </div>
+          <div class="tribal-war-loot">
+            🪙 غنائم ${war.attacker}: ${war.attackerLoot || 0} | 🪙 غنائم ${war.defender}: ${war.defenderLoot || 0}
+          </div>
+          ${mySide ? `<button class="tribal-war-action-btn" data-war-id="${war.id}" data-side="${mySide}">🗡️ أرسل جيشك للحرب</button>` : ''}
+        </div>
+      `;
+    }
+    html += `</div>`;
+  }
+
+  // زر إعلان الحرب
+  html += `
+    <div class="tribal-war-declare-section" style="margin-top:12px">
+      <button class="action-btn tribal-war-declare-btn" id="tribal-war-declare-btn">🗡️ أعلن الغزوة على قبيلة</button>
+    </div>
+  `;
+
+  // الترتيب القبلي
+  const rankings = wm.rankings || [];
+  if (rankings.length > 0) {
+    html += `<div class="panel-header" style="margin-top:12px;font-size:0.85rem">🏆 ترتيب القبائل</div>`;
+    html += `<div class="tribal-rankings">`;
+    rankings.slice(0, 10).forEach((r, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+      html += `
+        <div class="tribal-ranking-row">
+          <span class="tribal-rank-medal">${medal}</span>
+          <span class="tribal-rank-name">${r.name}</span>
+          <span class="tribal-rank-stats">🔥 ${r.wins} | 💔 ${r.losses} | 🪙 ${r.totalLoot}</span>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+
+  // ربط زر إعلان الحرب
+  const declareBtn = container.querySelector('.tribal-war-declare-btn');
+  if (declareBtn) {
+    declareBtn.addEventListener('click', () => this._showWarDeclareModal());
+  }
+
+  // أزرار إرسال الجيش للحروب الجارية
+  container.querySelectorAll('.tribal-war-action-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const warId = btn.dataset.warId;
+      const side  = btn.dataset.side;
+      const armyPower = this.army ? this.army.totalArmyPower : 0;
+      if (wm.deployArmy(warId, 1, armyPower, side)) {
+        if (this.world && this.world.store) {
+          this.world.store.set('notification', { text: `🗡️ أرسلت جيشك بقوة ${this._fmt(armyPower)} للحرب القبلية!`, t: Date.now() });
+        }
+        wm.requestActiveWars();
+      }
+    });
+  });
+};
+
+GameUI.prototype._renderTribalAllianceSection = function() {
+  const container = document.getElementById("alliance-tribal-content");
+  if (!container) return;
+  const am = this.allianceManager;
+  if (!am || !am.tribeName) {
+    container.style.display = "none";
+    return;
+  }
+  container.style.display = "";
+  const state = am.getState();
+  const myRank = state.myRank;
+  const isShaykh = myRank && myRank.id === "shaykh";
+  const myName = this.playerName || "???";
+
+  let html = `
+    <div class="tribal-alliance-header">
+      <span class="tribal-alliance-banner">${state.tribeBanner || "🏕️"}</span>
+      <span class="tribal-alliance-name">${state.tribeName}</span>
+    </div>
+  `;
+
+  // شريط معلومات القبيلة
+  html += `
+    <div class="tribal-alliance-info">
+      <div class="tribal-info-item">👥 الأعضاء <strong>${state.memberCount}</strong></div>
+      <div class="tribal-info-item">🔥 قوة القبيلة <strong>${this._fmt(state.tribePower)}</strong></div>
+      <div class="tribal-info-item">🪙 الخزينة <strong>${this._fmt(state.treasury)}</strong></div>
+    </div>
+  `;
+
+  // صندوق الخزينة — مساهمة
+  html += `
+    <div class="tribal-treasury-box">
+      <div class="tribal-treasury-bar-track">
+        <div class="tribal-treasury-bar-fill" style="width:${Math.min(100, (state.treasury / 5000) * 100)}%"></div>
+      </div>
+      <div class="tribal-treasury-row">
+        <input type="number" id="tribal-contribute-input" value="100" min="1" class="tribal-input" />
+        <button id="tribal-contribute-btn" class="action-btn" style="padding:4px 12px">💰 ساهم</button>
+        ${isShaykh ? `<button id="tribal-upgrade-from-treasury-btn" class="action-btn upgrade-btn" style="padding:4px 12px;margin-right:4px">▲ ترقية من الخزينة</button>` : ""}
+      </div>
+    </div>
+  `;
+
+  // قائمة الأعضاء
+  html += `<div class="panel-header" style="margin-top:10px;font-size:0.85rem">👥 أعضاء القبيلة</div>`;
+  html += `<div class="tribal-members-list">`;
+  for (const m of state.members) {
+    const rankInfo = am.getRank(m.rank);
+    const rankIcon = rankInfo ? rankInfo.icon : "🏜️";
+    const rankName = rankInfo ? rankInfo.name : m.rank;
+    const canPromote = isShaykh && m.name !== myName;
+    html += `
+      <div class="tribal-member-row">
+        <span class="tribal-member-rank-icon">${rankIcon}</span>
+        <span class="tribal-member-name">${m.name}</span>
+        <span class="tribal-member-rank-name">${rankName}</span>
+        <span class="tribal-member-contribution">🪙 ${this._fmt(m.contribution || 0)}</span>
+        <span class="tribal-member-power">🔥 ${this._fmt(m.power || 0)}</span>
+        ${canPromote ? `
+          <button class="tribal-promote-btn" data-name="${m.name}" title="ترقية">⬆</button>
+          <button class="tribal-demote-btn" data-name="${m.name}" title="تنزيل">⬇</button>
+        ` : ""}
+      </div>
+    `;
+  }
+  html += `</div>`;
+
+  container.innerHTML = html;
+
+  // ربط أزرار المساهمة
+  const contributeBtn = document.getElementById("tribal-contribute-btn");
+  const contributeInput = document.getElementById("tribal-contribute-input");
+  if (contributeBtn && contributeInput) {
+    contributeBtn.addEventListener("click", () => {
+      const val = parseInt(contributeInput.value, 10);
+      if (val > 0 && am.contribute(val)) {
+        this.requestRender("alliance");
+      }
+    });
+  }
+
+  // ربط زر الترقية من الخزينة
+  const upgradeTreasuryBtn = document.getElementById("tribal-upgrade-from-treasury-btn");
+  if (upgradeTreasuryBtn) {
+    upgradeTreasuryBtn.addEventListener("click", () => {
+      if (am.upgradeFromTreasury(true)) {
+        this.requestRender("alliance");
+      }
+    });
+  }
+
+  // ربط أزرار الترقية والتنزيل
+  container.querySelectorAll(".tribal-promote-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (am.promoteMember(btn.dataset.name)) {
+        this.requestRender("alliance");
+      }
+    });
+  });
+  container.querySelectorAll(".tribal-demote-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (am.demoteMember(btn.dataset.name)) {
+        this.requestRender("alliance");
+      }
+    });
+  });
+};
+
+GameUI.prototype._showWarDeclareModal = function() {
+  const overlay = document.getElementById("modal-overlay");
+  const card    = document.getElementById("modal-card");
+  if (!overlay || !card) return;
+
+  card.innerHTML = `
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-bold text-base" style="color:var(--accent-red);font-family:'Cairo',sans-serif">🗡️ إعلان الغزوة القبلية</h3>
+      <button id="war-modal-close-btn" class="text-xl leading-none" style="color:var(--text-secondary);background:none;border:none;cursor:pointer;font-family:inherit">&times;</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="color:var(--text-secondary);font-size:0.8rem;display:block;margin-bottom:4px">اسم القبيلة المستهدفة</label>
+      <input type="text" id="war-declare-input" placeholder="اكتب اسم القبيلة المستهدفة..." style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-surface);color:var(--text-primary);font-family:'Cairo',sans-serif;box-sizing:border-box" maxlength="30">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="color:var(--text-secondary);font-size:0.8rem;display:block;margin-bottom:4px">قوة الجيش المعادي (تقدير)</label>
+      <input type="number" id="war-declare-power" placeholder="0" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-surface);color:var(--text-primary);font-family:'Cairo',sans-serif;box-sizing:border-box" min="0">
+    </div>
+    <button id="war-declare-confirm" class="w-full py-3 rounded-xl font-bold text-base" style="background:var(--accent-red);color:#fff;border:none;cursor:pointer;font-family:inherit">⚔️ أعلن الغزوة!</button>
+    <div id="war-declare-error" style="text-align:center;color:var(--accent-red);font-size:0.8rem;margin-top:8px"></div>
+  `;
+  overlay.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+
+  document.getElementById("war-modal-close-btn").onclick = () => {
+    overlay.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+  };
+  document.getElementById("war-declare-confirm").onclick = () => {
+    const name  = document.getElementById("war-declare-input").value.trim();
+    const power = parseInt(document.getElementById("war-declare-power").value) || 0;
+    if (!name) {
+      document.getElementById("war-declare-error").textContent = "⚠️ اكتب اسم القبيلة المستهدفة";
+      return;
+    }
+    const wm = this.warManager;
+    if (!wm) return;
+    const ok = wm.declareWar(name, power);
+    if (!ok) {
+      document.getElementById("war-declare-error").textContent = "⚠️ لا يمكن الإرسال — تأكد من اتصالك بالخادم";
+      return;
+    }
+    overlay.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    if (this.world && this.world.store) {
+      this.world.store.set('notification', { text: `⚔️ أرسلت غزوتك القبلية على ${name}!`, t: Date.now() });
+    }
+  };
+};
+
+GameUI.prototype._fmt = function(n) { return formatNumber(n); };
 
 GameUI.prototype.enterArena = function() {
   document.getElementById("gameCanvas")?.classList.remove("hidden");
