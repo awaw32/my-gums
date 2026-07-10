@@ -1577,19 +1577,29 @@ body.modal-open { overflow: hidden; }
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--text-primary);
-  animation: toast-in 0.3s ease-out, toast-out 0.3s ease-in 2.7s forwards;
+  animation: toast-in 0.3s ease-out;
   text-align: center;
   pointer-events: auto;
   white-space: nowrap;
   box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: opacity 0.3s, transform 0.3s;
+  max-width: 90vw;
 }
+.notification-toast.notif-dismiss {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+.notif-success { border-color: #2ecc71; background: linear-gradient(135deg, rgba(46,204,113,0.1), var(--bg-card)); }
+.notif-error   { border-color: #e74c3c; background: linear-gradient(135deg, rgba(231,76,60,0.1), var(--bg-card)); }
+.notif-warning { border-color: #f39c12; background: linear-gradient(135deg, rgba(243,156,18,0.1), var(--bg-card)); }
+.notif-info    { border-color: var(--border-light); background: var(--bg-card); }
+.notif-battle  { border-color: #e74c3c; background: linear-gradient(135deg, rgba(231,76,60,0.15), rgba(192,57,43,0.05)); }
+.notif-system  { border-color: #3498db; background: linear-gradient(135deg, rgba(52,152,219,0.1), var(--bg-card)); }
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
-}
-@keyframes toast-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
 }
 
 /* ====== شاشات الصفحات ====== */

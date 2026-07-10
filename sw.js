@@ -42,6 +42,7 @@ const STATIC_ASSETS = [
   '/js/audio.js',
   '/js/alliance-manager.js',
   '/js/war-manager.js',
+  '/js/notification-manager.js',
   '/js/oasis-manager.js',
   '/js/upgrade-tree.js',
   '/js/game-store.js',

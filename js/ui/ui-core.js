@@ -4,7 +4,8 @@ import { injectGameplayMethods } from "./ui-gameplay.js";
 import { ALLIANCE_RAIDS } from "../alliance-manager.js";
 
 export class GameUI {
-  constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager) {
+  constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager) {
+    this.notifier = notificationManager;
     this.village = village;
     this.army = army;
     this.economy = economy;
@@ -354,7 +355,7 @@ export class GameUI {
         this.updatePlayerPanel(list);
       });
       this.store.on('notification', (data) => {
-        if (data && data.text) this.showNotification(data.text);
+        if (data && data.text) this.notifier.show(data.text);
       });
     }
     if (this.world) {
@@ -444,16 +445,8 @@ export class GameUI {
     }
   }
 
-  showNotification(msg) {
-    const container = document.getElementById("notification-container");
-    if (!container) return;
-    const toast = document.createElement("div");
-    toast.className = "notification-toast";
-    toast.textContent = msg;
-    container.appendChild(toast);
-    setTimeout(() => {
-      if (toast.parentNode) toast.parentNode.removeChild(toast);
-    }, 3000);
+  showNotification(msg, type, duration) {
+    this.notifier.show(msg, type, duration);
   }
 
   showConfirmDialog(opts) {

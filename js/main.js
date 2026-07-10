@@ -11,6 +11,7 @@ import { OasisManager } from "./oasis-manager.js";
 import { UpgradeTree } from "./upgrade-tree.js";
 import { AllianceManager } from "./alliance-manager.js";
 import { WarManager } from "./war-manager.js";
+import { NotificationManager } from "./notification-manager.js";
 import { AchievementManager } from "./achievements.js";
 import { DailyLoginManager } from "./daily-login.js";
 import { PrestigeManager } from "./prestige.js";
@@ -372,7 +373,8 @@ async function init() {
 
   let ui;
   try {
-    ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager);
+    const notificationManager = new NotificationManager();
+    ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager);
   } catch (err) {
     console.error("❌ [FATAL] GameUI constructor threw:", err);
     throw err;
@@ -985,7 +987,7 @@ async function init() {
 
     store.on('notification', (data) => {
       if (!data || !data.text) return;
-      ui.showNotification(data.text);
+      notificationManager.show(data.text);
       if (data.text.includes('المنطقة تتصغر') && brZoneWarningEl) {
         brZoneWarningEl.classList.remove('hidden');
         clearTimeout(brZoneWarningEl._hideTimer);
