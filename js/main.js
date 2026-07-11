@@ -3,6 +3,7 @@ import { GameVillage } from "./village.js";
 import { GameArmy } from "./army.js";
 import { GameUI } from "./ui.js";
 import { WorldMap } from "./world.js";
+import { spawnLevelUp, spawnGoldBurst, spawnXpGain } from "./particles.js";
 import { AssetManager } from "./asset-manager.js";
 import { AudioManager } from "./audio.js";
 import { saveGame, loadGame } from "./save.js";
@@ -631,16 +632,14 @@ async function init() {
     economy._onLevelUp = (lvl) => {
       ui.showNotification(`🎉 ترقيت إلى المستوى ${lvl}!`);
       audio.playSound('levelup');
+      spawnLevelUp(window.innerWidth / 2, window.innerHeight / 2);
       ui.updateTopBar();
       achievements.updateProgress('player_level', lvl);
       hero.addXp(30);
-      // فتح المباني المقفلة عند الوصول للمستوى المناسب
       ui.checkBuildingUnlocks(lvl);
     };
 
-    // توصيل الأصوات والإنجازات والمهام بأحداث اللعبة
     world._onMonsterKilled = () => {
-      // 🎵 صوت هجوم خاص حسب السلاح المجهز
       if (world._equippedWeapon) {
         audio.playWeaponSound(world._equippedWeapon, 'attack');
       } else {
@@ -650,22 +649,22 @@ async function init() {
       hero.addXp(15);
       economy.addXp(10);
       quests.updateProgress('kill', 1);
-      // cash_earned يُتبع في damageMonster عبر _onCashEarned(reward)
     };
     world._onDropCollected = () => {
       audio.playSound('collect');
+      spawnXpGain(window.innerWidth / 2, window.innerHeight / 2);
       economy.addXp(3);
-      // drop value يُتبع في collectDrop عبر _onCashEarned
     };
     world._onTreasureOpened = (reward) => {
       audio.playSound('treasure');
+      spawnGoldBurst(window.innerWidth / 2, window.innerHeight / 2);
       const gemText = reward.desertGem > 0 ? ` 💠x${reward.desertGem}` : '';
       ui.showNotification(`🎁 صندوق كنز! +${reward.artifacts} 🏺 +${reward.cash} 💵 +${reward.gold} 🪙${gemText}`);
       saveToDB();
     };
     world._onPvPWin = () => {
       audio.playSound('levelup');
-      // 🎵 صوت هجوم السلاح المجهز عند الانتصار في PvP
+      spawnGoldBurst(window.innerWidth / 2, window.innerHeight / 2, 8);
       if (world._equippedWeapon) {
         audio.playWeaponSound(world._equippedWeapon, 'attack');
       }
@@ -708,11 +707,13 @@ async function init() {
     achievements._onUnlock = (a) => {
       ui.showNotification(`🏆 إنجاز: ${a.title} — ${a.desc}`);
       audio.playSound('levelup');
+      spawnGoldBurst(window.innerWidth / 2, window.innerHeight / 2);
     };
 
     quests._onQuestCompleted = (q) => {
       ui.showNotification(`📜 اكتملت المهمة: ${q.title} — حصلت على المكافأة!`);
       audio.playSound('levelup');
+      spawnGoldBurst(window.innerWidth / 2, window.innerHeight / 2);
     };
 
     // توصيل القصة — عرض مشاهد الفصل التالي بعد إكمال الفصل الحالي

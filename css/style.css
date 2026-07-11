@@ -1610,6 +1610,11 @@ body.modal-open { overflow: hidden; }
 .screen-panel {
   padding: 12px;
   min-height: 100%;
+  animation: panelFadeIn 0.25s ease;
+}
+@keyframes panelFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .panel-header {
   text-align: center;
@@ -4679,6 +4684,14 @@ input[type="number"] { -moz-appearance: textfield; }
 .chat-tab { flex: 1; padding: 6px; background: rgba(255,255,255,0.05); border: none; border-radius: 6px; color: #8b7355; font-size: 0.7rem; font-family: inherit; cursor: pointer; transition: all 0.2s; }
 .chat-tab.active { background: rgba(255,215,0,0.15); color: #f5e6c8; }
 .chat-tab:hover { background: rgba(255,215,0,0.1); }
+
+/* ====== نظام الجسيمات (Particles) ====== */
+.particle-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99999; overflow: hidden; }
+.particle { position: absolute; font-size: 1.2rem; pointer-events: none; animation: particleFloat 1.2s ease-out forwards; }
+@keyframes particleFloat {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.5); }
+}
 
 /* ====== الخريطة المصغرة (Mini-Map) ====== */
 .mini-map {
