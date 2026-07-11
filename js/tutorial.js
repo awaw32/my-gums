@@ -60,4 +60,17 @@ export class TutorialManager {
   getSaveData() {
     return { completed: this.completed, currentStep: this.currentStep, dismissed: this.dismissed };
   }
+
+  saveToDisk() {
+    try {
+      localStorage.setItem("tutorial_progress", JSON.stringify(this.getSaveData()));
+    } catch {}
+  }
+
+  loadFromDisk() {
+    try {
+      const raw = localStorage.getItem("tutorial_progress");
+      if (raw) this.loadState(JSON.parse(raw));
+    } catch {}
+  }
 }

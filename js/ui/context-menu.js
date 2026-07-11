@@ -77,30 +77,15 @@ export function showWipeScreen(worldMap, lost, killed) {
   if (existing) existing.remove();
   const overlay = document.createElement("div");
   overlay.id = "wipe-overlay";
-  overlay.style.cssText = `
-    position: fixed; inset: 0; z-index: 9999;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.88);
-    direction: rtl; text-align: center;
-    padding: 20px; box-sizing: border-box;
-  `;
   overlay.innerHTML = `
-    <div style="font-size:3rem;margin-bottom:8px;">💀</div>
-    <div style="color:#ff4444;font-size:1.1rem;font-weight:700;margin-bottom:12px;">هُزم جيشك بالكامل!</div>
-    <div style="color:var(--accent-red);font-size:0.85rem;margin-bottom:6px;">الغنائم التي خسرتها:</div>
-    <div style="color:var(--text-primary);font-size:1.5rem;font-weight:700;margin-bottom:4px;">${lost} 💵</div>
-    <div style="color:var(--text-secondary);font-size:0.7rem;margin-bottom:16px;">الوحوش المقتولة: ${killed}</div>
-    <div style="color:var(--accent-red);font-size:0.85rem;margin-bottom:16px;">قوتك: ${worldMap.economy ? worldMap.economy.power : 0} 👊</div>
-    <button id="wipe-return-btn" style="
-      padding: 12px 32px; font-size:1rem; font-weight:700;
-      background:var(--accent-red); color:#fff; border:none; border-radius:12px;
-      cursor:pointer; touch-action:manipulation; margin-bottom:8px; width:200px;
-    ">🗺️ العودة للخريطة</button>
-    <button id="wipe-exit-btn" style="
-      padding: 12px 32px; font-size:1rem; font-weight:700;
-      background:#8a2020; color:#fff; border:none; border-radius:12px;
-      cursor:pointer; touch-action:manipulation; width:200px;
-    ">🚪 الخروج للقائمة</button>
+    <div class="wipe-icon">💀</div>
+    <div class="wipe-title">هُزم جيشك بالكامل!</div>
+    <div class="wipe-label">الغنائم التي خسرتها:</div>
+    <div class="wipe-amount">${lost} 💵</div>
+    <div class="wipe-sub">الوحوش المقتولة: ${killed}</div>
+    <div class="wipe-power">قوتك: ${worldMap.economy ? worldMap.economy.power : 0} 👊</div>
+    <button id="wipe-return-btn" class="wipe-btn">🗺️ العودة للخريطة</button>
+    <button id="wipe-exit-btn" class="wipe-btn-secondary">🚪 الخروج للقائمة</button>
   `;
   document.body.appendChild(overlay);
   document.getElementById("wipe-return-btn").onclick = () => overlay.remove();

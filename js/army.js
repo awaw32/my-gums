@@ -125,7 +125,8 @@ export class GameArmy {
   }
 
   get unitUpgradeCost() {
-    return Math.floor(15 * this.unitLevel * (1 + this.unitLevel * 0.05));
+    const base = 15 * this.unitLevel;
+    return Math.floor(base + this.unitLevel * 2);
   }
 
   upgradeTraining() {
@@ -137,6 +138,7 @@ export class GameArmy {
   }
 
   get trainingUpgradeCost() {
-    return Math.floor(50 * this.trainingLevel * (1 + this.trainingLevel * 0.1));
+    const base = 40 * this.trainingLevel;
+    return Math.floor(base + this.trainingLevel * 5);
   }
 }

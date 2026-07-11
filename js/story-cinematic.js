@@ -52,33 +52,33 @@ export const STORY_DIALOGUES = {
       { speaker: "راوي", text: "سافرت لأيام عبر الصحراء القاسية...", icon: "🏜️", effect: "sand" },
       { speaker: "راوي", text: "ماءك ينفد... وقوتك على وشك الانتهاء", icon: "💧", effect: "shake" },
       { speaker: "راوي", text: "وفجأة... رأيت خضرة في الأفق!", icon: "🌴", effect: "glow" },
-      { speaker: "راوي", text: "واحة! واحة صغيرة وسط بحر الرمال!", icon: "️", effect: "zoom" },
+      { speaker: "راوي", text: "واحة! واحة صغيرة وسط بحر الرمال!", icon: "🌴", effect: "zoom" },
       { speaker: "أنت", text: "هنا... سأبني بيتي هنا!", icon: "💪", effect: "fire" },
     ],
     danger: [
       { speaker: "راوي", text: "لكن ليلة الأولى... سمعت عواءً مرعباً", icon: "🌙", effect: "dark" },
-      { speaker: "راوي", text: "ذئاب! عشرات الذئاب تحيط بالواحة!", icon: "", effect: "shake" },
+      { speaker: "راوي", text: "ذئاب! عشرات الذئاب تحيط بالواحة!", icon: "🐺", effect: "shake" },
       { speaker: "راوي", text: "عيناها حمراء... وأسنانها تلمع في الظلام", icon: "👁️", effect: "glow" },
       { speaker: "أنت", text: "لن أخسر كل شيء بعد أن وصلت!", icon: "⚔️", effect: "fire" },
     ],
     boss: [
       { speaker: "راوي", text: "الأرض ترتجف تحت قدميك...", icon: "🌍", effect: "shake" },
-      { speaker: "راوي", text: "من خلف الكثبان... يظهر وحش لم ترَ مثله!", icon: "", effect: "zoom" },
+      { speaker: "راوي", text: "من خلف الكثبان... يظهر وحش لم ترَ مثله!", icon: "🐾", effect: "zoom" },
       { speaker: "راوي", text: "ذئب الواحة! حامي الصحراء منذ آلاف السنين!", icon: "⚡", effect: "fire" },
       { speaker: "ذئب الواحة", text: "غرررر... من أنت يا بشري لتدخل أرضي؟!", icon: "🐺", effect: "dark" },
-      { speaker: "أنت", text: "أنا من سيأخذ هذه الواحة! قاتل أو انسحب!", icon: "️", effect: "fire" },
+      { speaker: "أنت", text: "أنا من سيأخذ هذه الواحة! قاتل أو انسحب!", icon: "⚔️", effect: "fire" },
     ]
   },
   palace_ruins: {
     intro: [
       { speaker: "راوي", text: "بعد سنوات من البناء... أصبحت قوياً", icon: "💪", effect: "glow" },
       { speaker: "راوي", text: "لكنك سمعت همسات... عن قصر مدفون تحت الرمال", icon: "👻", effect: "dark" },
-      { speaker: "راوي", text: "قصر ملك قديم... مليء بالكنوز والأرواح!", icon: "️", effect: "zoom" },
+      { speaker: "راوي", text: "قصر ملك قديم... مليء بالكنوز والأرواح!", icon: "🏛️", effect: "zoom" },
       { speaker: "أنت", text: "الكنوز القديمة تنتظر من يستحقها!", icon: "⛏️", effect: "fire" },
     ],
     boss: [
       { speaker: "راوي", text: "في أعماق القصر... الهواء يصبح بارداً", icon: "❄️", effect: "dark" },
-      { speaker: "راوي", text: "أبواب قاعة العرش تنفتح بصرير مرعب...", icon: "", effect: "shake" },
+      { speaker: "راوي", text: "أبواب قاعة العرش تنفتح بصرير مرعب...", icon: "🚪", effect: "shake" },
       { speaker: "راوي", text: "ساحر الرمال! لم يمت! بل ينتظر منذ قرون!", icon: "🧙", effect: "fire" },
       { speaker: "ساحر الرمال", text: "أحمق! هذا القصر ملعون! كل من دخله... لم يخرج!", icon: "💀", effect: "dark" },
       { speaker: "أنت", text: "أنا لست كغيري! سأخرج ومعّي كنوزك!", icon: "⚔️", effect: "fire" },
@@ -88,13 +88,13 @@ export const STORY_DIALOGUES = {
     intro: [
       { speaker: "راوي", text: "أصبحت قوياً بما يكفي لتحدي الجبل نفسه", icon: "⛰️", effect: "zoom" },
       { speaker: "راوي", text: "قلعة على القمة... تطل على كل الصحراء", icon: "🏰", effect: "glow" },
-      { speaker: "راوي", text: "لكن الجبل ليس فارغاً... الغزاة قادمون!", icon: "️", effect: "shake" },
+      { speaker: "راوي", text: "لكن الجبل ليس فارغاً... الغزاة قادمون!", icon: "⚔️", effect: "shake" },
       { speaker: "أنت", text: "قلعتي لن تسقط! أبداً!", icon: "🛡️", effect: "fire" },
     ],
     boss: [
-      { speaker: "راوي", text: "السماء تظلم... رياح عاتية تضرب القلعة!", icon: "️", effect: "shake" },
+      { speaker: "راوي", text: "السماء تظلم... رياح عاتية تضرب القلعة!", icon: "🌪️", effect: "shake" },
       { speaker: "راوي", text: "من بين الغيوم... ينقض تنين أسطوري!", icon: "🐉", effect: "zoom" },
-      { speaker: "راوي", text: "تنين الجبل! آخر التنانين في الصحراء!", icon: "", effect: "fire" },
+      { speaker: "راوي", text: "تنين الجبل! آخر التنانين في الصحراء!", icon: "🐉", effect: "fire" },
       { speaker: "تنين الجبل", text: "هاهاها! بشري حقير! سأحرق قلعتك إلى رماد!", icon: "🐉", effect: "dark" },
       { speaker: "أنت", text: "جرب! قلعتي صُنعت من إرادة لا تنكسر!", icon: "⚔️", effect: "fire" },
     ]
@@ -117,7 +117,7 @@ export const STORY_DIALOGUES = {
     intro: [
       { speaker: "راوي", text: "وصلت إلى القصر الملكي... نهاية الرحلة", icon: "👑", effect: "glow" },
       { speaker: "راوي", text: "العرش ينتظر... لكن الطريق إليه ملوثة بالدماء", icon: "🩸", effect: "dark" },
-      { speaker: "راوي", text: "حراس العرش لا يرحمون...", icon: "️", effect: "shake" },
+      { speaker: "راوي", text: "حراس العرش لا يرحمون...", icon: "🛡️", effect: "shake" },
       { speaker: "أنت", text: "بعد كل ما مررت به... لن يتوقف شيء الآن!", icon: "👑", effect: "fire" },
     ],
     boss: [
@@ -130,9 +130,24 @@ export const STORY_DIALOGUES = {
   }
 };
 
+export const STORY_DIALOGUES_EPILOGUE = {
+  intro: [
+    { speaker: "راوي", text: "انتهت الرحلة... وبدأ العهد الجديد", icon: "👑", effect: "glow" },
+    { speaker: "راوي", text: "من فلاح فقير إلى ملك الصحراء...", icon: "🏜️", effect: "sand" },
+    { speaker: "راوي", text: "الآن... كيف ستُخلّد ذكراك؟", icon: "📜", effect: "zoom" },
+    { speaker: "الملك", text: "مملكتي... ستكون أعظم مملكة عرفتها الصحراء!", icon: "👑", effect: "fire" },
+  ],
+  coronation: [
+    { speaker: "راوي", text: "في اليوم التاريخي... تُتوّج سلطاناً على الصحراء", icon: "🌟", effect: "glow" },
+    { speaker: "راوي", text: "كل القبائل تبايعك... السماء تمطر نجوماً", icon: "✨", effect: "confetti" },
+    { speaker: "كبير الكهنة", text: "أيها السلطان الأعظم... الصحراء كلها تحت قدميك", icon: "👑", effect: "fire" },
+    { speaker: "الملك", text: "هذا ليس النهاية... هذه البداية فقط!", icon: "⚔️", effect: "fire" },
+  ]
+};
+
 export const VICTORY_MESSAGES = {
   wadi: {
-    title: "️ نجوت من الواحة!",
+    title: "🎉 نجوت من الواحة!",
     text: "هزمت ذئب الواحة! الواحة الآن ملكك. لكن هذه مجرد البداية...",
     icon: "🎉",
     effect: "confetti"
@@ -146,11 +161,11 @@ export const VICTORY_MESSAGES = {
   mountain: {
     title: "🏰 صمدت قلعة الجبل!",
     text: "التنين الأسطوري هُزم! اسمك يُكتب في تاريخ الجبال!",
-    icon: "",
+    icon: "🏆",
     effect: "confetti"
   },
   plains: {
-    title: " سيطرت على السهول!",
+    title: "⚔️ سيطرت على السهول!",
     text: "جيش الغزاة انهار! أنت الآن أقوى قوة في الصحراء!",
     icon: "🏆",
     effect: "confetti"
@@ -159,6 +174,12 @@ export const VICTORY_MESSAGES = {
     title: "👑 ملك الصحراء!",
     text: "صقر الصحراء سقط! العرش ملكك! اسمك سيُخلد للأبد في تاريخ الصحراء!",
     icon: "👑",
+    effect: "fireworks"
+  },
+  epilogue: {
+    title: "👑 السلطان الأعظم!",
+    text: "اكتملت قصتك! من فلاح فقير إلى سلطان أعظم للصحراء. اسمك خالد للأبد!",
+    icon: "🌟",
     effect: "fireworks"
   }
 };

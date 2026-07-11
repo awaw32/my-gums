@@ -405,6 +405,62 @@ export const STORY_CHAPTERS = [
         bossId: "final_boss"
       }
     ]
+  },
+  {
+    id: 6,
+    village: "throne",
+    title: "عهد المملكة — الخاتمة",
+    description: "أنت ملك الصحراء. الآن يبدأ عهدك الذهبي. كيف ستحكم مملكتك؟",
+    levelRequired: 100,
+    bossFightScene: false,
+    isEpilogue: true,
+    reward: {
+      cash: 1000000,
+      gold: 100000,
+      gems: 10000,
+      xp: 200000,
+      heroXp: 5000,
+      unitLevels: 10,
+      trainingLevel: 5,
+      knowledgeLevel: 5,
+      title: "السلطان الأعظم"
+    },
+    scenes: [
+      {
+        id: "epilogue_peace",
+        title: "عهد السلام",
+        text: "تتوج ملكاً على الصحراء. القبائل تبايعك والطرقة آمنة. الأمراء من كل مكان يأتون لتهنئتك. تبدأ في بناء عاصمة جديدة تليق بمملكتك.",
+        icon: "🕊️",
+        bg: "linear-gradient(135deg, #1a5276 0%, #2e86c1 50%, #aed6f1 100%)",
+        choices: [
+          { text: "🕊️ ابنِ عاصمة السلام", reward: { cash: 100000, gold: 10000, gems: 500 }, nextText: "العاصمة الجديدة تزدهر. العلم والثقافة ينشران في كل مكان." },
+          { text: "🏛️ ابنِ قلعة حربية عظمى", reward: { xp: 50000, unitLevels: 5, trainingLevel: 2 }, nextText: "القلعة الحربية تصبح درع الصحراء. لا عدو يجرؤ على الاقتراب." }
+        ]
+      },
+      {
+        id: "epilogue_legacy",
+        title: "الإرث العظيم",
+        text: "تمر السنين. مملكتك تزدهر. العلماء والمفكرون والفلاسفة يتوافدون من كل الأراضي. تفتتح أول جامعة في الصحراء وأول مكتبة عامة.",
+        icon: "📚",
+        bg: "linear-gradient(135deg, #4a235a 0%, #7d3c98 50%, #bb8fce 100%)",
+        choices: [
+          { text: "📚 افتح الجامعة الملكية", reward: { gems: 1000, scrolls: 1000, gold: 20000 }, nextText: "الجامعة تخرج أعظم العقول. الصحراء تصبح منارة للعلم." },
+          { text: "⚒️ ابنِ أعجوبة الصحراء", reward: { cash: 500000, gems: 2000, hammers: 500 }, nextText: "الأعجوبة تجذب السياح والتجار من كل العالم." }
+        ]
+      },
+      {
+        id: "epilogue_coronation",
+        title: "التتويج الأبدي",
+        text: "في حفل مهيب، يتوجك كبار الكهنة كسلطان أعظم للصحراء. اسمك يسطر في ذاكرة التاريخ. ستبقى قصتك خالدة للأبد.",
+        icon: "👑",
+        bg: "linear-gradient(135deg, #7d6608 0%, #daa520 50%, #f9e79f 100%)",
+        isEpilogue: true,
+        choices: [
+          { text: "👑 أحكم بالعدل والحكمة", reward: { gold: 50000, gems: 5000, alliancePower: 100 }, nextText: "الناس يدعون لك. مملكتك تصبح أقوى وأغنى." },
+          { text: "⚔️ وسع المملكة للعالم", reward: { cash: 1000000, xp: 100000, title: "الفاتح الأعظم" }, nextText: "جيوشك تفتح أراضٍ جديدة. امبراطوريتك تمتد عبر القارات." }
+        ]
+      }
+    ]
   }
 ];
 

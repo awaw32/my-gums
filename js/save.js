@@ -41,6 +41,26 @@ export function loadGame(economy, village, army) {
     if (data.xp !== undefined) economy.xp = data.xp;
     if (data.xpToNext !== undefined) economy.xpToNext = data.xpToNext;
 
+    // حساب الأرباح غير المتصلة (Offline earnings)
+    const lastSave = data.timestamp || 0;
+    if (lastSave > 0 && data.buildings) {
+      const elapsed = (Date.now() - lastSave) / 1000; // ثوانٍ
+      const maxOffline = 4 * 3600; // أقصى 4 ساعات
+      const seconds = Math.min(elapsed, maxOffline);
+      let totalFood = 0, totalCash = 0, totalGold = 0;
+      for (const bd of data.buildings) {
+        if (bd.state === "built" && bd.level > 0) {
+          const rate = 1 + bd.level * 0.5;
+          totalFood += rate * seconds * 0.1;
+          totalCash += rate * seconds * 0.05;
+          totalGold += rate * seconds * 0.02;
+        }
+      }
+      if (totalFood > 0) economy.resources.food = (economy.resources.food || 0) + Math.floor(totalFood);
+      if (totalCash > 0) economy.resources.cash = (economy.resources.cash || 0) + Math.floor(totalCash);
+      if (totalGold > 0) economy.resources.gold = (economy.resources.gold || 0) + Math.floor(totalGold);
+    }
+
     if (data.currentVillageId && data.currentVillageId !== village.currentVillageId) {
       village.initVillage(data.currentVillageId);
     }

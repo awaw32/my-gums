@@ -110,6 +110,8 @@ export class WorldMap {
     this.sandParticles = this._initSandParticles(60);
     this.miniMapSize = 100;
     this.miniMapMargin = 8;
+    this._newbieShieldTimer = 120; // 2 دقيقة حماية للمبتدئين
+    this._combatLog = [];
 
     // ==================== Battle Royale Mode ====================
     this.mode = "campaign";          // "campaign" | "battle_royale"
@@ -152,6 +154,10 @@ export class WorldMap {
     this._onSelfStatsChanged = null;
     this.treasureChests = [];
     this._activeMode = null;
+  }
+
+  _sendWS(data) {
+    if (this.netSync) this.netSync.send(data);
   }
 
   _preloadImages() {
@@ -273,6 +279,7 @@ export class WorldMap {
       }
       if (this._onPvPWin) this._onPvPWin();
       this.sessionStats.pvpWins++;
+      if (this._ui && this._ui.logCombat) this._ui.logCombat('win', `⚔️ انتصرت على ${tgt.username} | +${reward} 💵 +${Math.floor(reward * 0.2)} 🪙`);
     } else {
       this.worldFx.push({
         x: this.leader.x, y: this.leader.y,
@@ -288,9 +295,10 @@ export class WorldMap {
         this.economy.addRaw("cash", -cashLost);
       }
 
-      // خسارة 10% من القوة (مع حد أدنى 500)
-      const newPower = Math.max(500, Math.floor(myPower * 0.9));
-      if (this.economy) this.economy.power = newPower;
+      // خسارة 10% من القوة — نخفض الـ multiplier
+      if (this.economy) {
+        this.economy.multiplier = Math.max(0.1, (this.economy.multiplier || 1) * 0.9);
+      }
 
       // حماية لمدة 30 ثانية بعد الموت — لا يمكن مهاجمتك
       this._pvpProtectionTimer = 30;
@@ -305,6 +313,7 @@ export class WorldMap {
         enemyStats.damage
       );
       if (this._onPvPLose) this._onPvPLose();
+      if (this._ui && this._ui.logCombat) this._ui.logCombat('lose', `💥 هُزمت أمام ${tgt.username} | خسرت ${cashLost} 💵`);
     }
 
     if (this.netSync) {
@@ -1771,6 +1780,19 @@ export class WorldMap {
     const target = this._pvpAttackTarget;
     if (!target) return;
 
+    // درع المبتدئين — حماية من PvP لأول دقيقتين
+    if (this._newbieShieldTimer > 0) {
+      this._newbieShieldTimer -= dt;
+      if (this._newbieShieldTimer > 0) {
+        this.worldFx.push({ x: this.leader.x, y: this.leader.y - 30, text: "🛡️ أنت محمي!", color: "#4a90d9", life: 0.3, maxLife: 0.3 });
+        this._pvpResultSent = true;
+        this._isPvPEngaged = false;
+        this._pvpAttackTarget = null;
+        if (this.store) this.store.set('notification', { text: "🛡️ درع المبتدئين يحميك! عد بعد دقيقتين.", t: Date.now() });
+        return;
+      }
+    }
+
     const dist = Math.hypot(this.leader.x - target.x, this.leader.y - target.y);
     const inRange = dist <= this.engagementRadius;
 
@@ -2174,7 +2196,7 @@ export class WorldMap {
               // تأثير هجوم عادي
               spawnHitEffect(this, target.x || m.x, target.y || m.y, false);
             }
-            m.attackCD = m.ability?.type === "heal" ? 2.5 : 1.2;
+            m.attackCD = m.ability?.type === "heal" ? 2.5 : m.ability?.type === "berserk" ? 0.7 : 1.0;
           }
           // تباطؤ تدريجي عند الاقتراب (حركة ناعمة حول الهدف)
           m._patrolTarget = null;
@@ -2296,6 +2318,7 @@ export class WorldMap {
 
       this.sessionStats.kills++;
       if (this.netSync) this.netSync.send({ type: "monster_killed", id: monster.id });
+      if (this._ui && this._ui.logCombat) this._ui.logCombat('kill', `⚔️ قتلت ${monster.name || 'وحشاً'} | +${reward} 💵`);
       this.createDrop(monster.x, monster.y, reward, goldReward);
 
       // 🏺 القطع الأثرية من الـ Bosses

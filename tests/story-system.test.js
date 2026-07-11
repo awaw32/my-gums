@@ -16,8 +16,8 @@ describe('Story System', () => {
     story = new StoryManager(economy, village);
   });
 
-  it('should have 5 chapters', () => {
-    expect(STORY_CHAPTERS).toHaveLength(5);
+  it('should have 6 chapters', () => {
+    expect(STORY_CHAPTERS).toHaveLength(6);
   });
 
   it('should start at chapter 1', () => {

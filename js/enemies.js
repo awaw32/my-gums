@@ -53,7 +53,7 @@ export const ENEMY_TYPES = {
   // ── Boss فصل 1 ──
   wadi_boss: {
     id: "wadi_boss",
-    name: "زاوية الرمال",
+    name: "ذئب الواحة",
     icon: "🌪️",
     hp: 200,
     damage: 25,
@@ -98,7 +98,7 @@ export const ENEMY_TYPES = {
   },
   sand_sorcerer: {
     id: "sand_sorcerer",
-    name: "ساحر الرمال",
+    name: "ساحر متجول",
     icon: "🧙",
     hp: 250,
     damage: 40,
@@ -114,7 +114,7 @@ export const ENEMY_TYPES = {
   // ── Boss فصل 2 ──
   palace_boss: {
     id: "palace_boss",
-    name: "حارس القصر",
+    name: "ساحر الرمال",
     icon: "🏰",
     hp: 800,
     damage: 60,
@@ -414,13 +414,14 @@ export function getEnemiesForVillage(villageId) {
 }
 
 export function calculateEnemyPower(enemy, playerLevel) {
-  const scale = 1 + (playerLevel - enemy.level) * 0.05;
+  const diff = Math.max(0, playerLevel - enemy.level);
+  const scale = 1 + diff * 0.06 + (diff > 10 ? (diff - 10) * 0.04 : 0);
   return {
     hp: Math.floor(enemy.hp * scale),
     damage: Math.floor(enemy.damage * scale),
     reward: {
-      cash: Math.floor(enemy.reward.cash * scale),
-      gold: Math.floor(enemy.reward.gold * scale)
+      cash: Math.floor(Math.max(enemy.reward.cash, enemy.reward.cash * scale * 0.8)),
+      gold: Math.floor(Math.max(enemy.reward.gold, enemy.reward.gold * scale * 0.6))
     }
   };
 }

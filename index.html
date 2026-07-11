@@ -181,6 +181,10 @@
           <span class="csb-icon">⛶</span>
           <span class="csb-label">تكبير الشاشة</span>
         </button>
+        <button class="circular-sub-btn" type="button" data-sub="settings">
+          <span class="csb-icon">⚙️</span>
+          <span class="csb-label">الإعدادات</span>
+        </button>
       </div>
       <!-- شريط الترقية السريع -->
       <div id="quick-upgrade-bar">
@@ -441,6 +445,15 @@
     <div id="offline-indicator" class="hidden">
       <span id="offline-indicator-text">🌪️ عاصفة رملية قطعت الاتصال... جاري إعادة الاتصال</span>
       <span id="offline-indicator-dot"></span>
+    </div>
+
+    <!-- ====== سجل المعارك (Combat Log) ====== -->
+    <div id="combat-log-overlay" class="combat-log-overlay hidden">
+      <div class="combat-log-header">
+        <span>📋 سجل المعارك</span>
+        <button id="combat-log-close" class="combat-log-close-btn">✕</button>
+      </div>
+      <div id="combat-log-content" class="combat-log-content"></div>
     </div>
 
   </div><!-- نهاية app-shell -->

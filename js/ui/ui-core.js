@@ -44,6 +44,7 @@ export class GameUI {
     // لتجنب تعارض overlay القصة مع overlay التدريب
     this.initDailyCheck();
     this.initStory();
+    this.bindCombatLog();
     this.bindGlobalKeys();
   }
 
@@ -81,12 +82,28 @@ export class GameUI {
     });
   }
 
+  bindCombatLog() {
+    const closeBtn = document.getElementById("combat-log-close");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        const clog = document.getElementById("combat-log-overlay");
+        if (clog) clog.classList.add("hidden");
+      });
+    }
+  }
+
   bindGlobalKeys() {
     document.addEventListener("keydown", (e) => {
+      if (e.key === "l" || e.key === "L") {
+        const clog = document.getElementById("combat-log-overlay");
+        if (clog) clog.classList.toggle("hidden");
+        return;
+      }
       if (e.key === "Escape") {
         const overlays = [
           { id: "confirm-overlay", close: (el) => el.classList.add("hidden") },
           { id: "modal-overlay", close: (el) => el.classList.add("hidden") },
+          { id: "combat-log-overlay", close: (el) => el.classList.add("hidden") },
         ];
         const wd = document.querySelector(".wd-overlay:not(.hidden)");
         if (wd) { wd.classList.add("hidden"); return; }
@@ -320,6 +337,7 @@ export class GameUI {
     if (nextBtn) {
       nextBtn.onclick = () => {
         this.tutorial.next();
+        this.tutorial.saveToDisk();
         const nextStep = this.tutorial.current;
         if (nextStep) this.showTutorialStep();
         else overlay.style.display = "none";
@@ -328,6 +346,7 @@ export class GameUI {
     if (skipBtn) {
       skipBtn.onclick = () => {
         this.tutorial.skip();
+        this.tutorial.saveToDisk();
         overlay.style.display = "none";
       };
     }
@@ -537,6 +556,7 @@ export class GameUI {
     this.screens.oases = this.buildOasesScreen();
     this.screens.quests = this.buildQuestsScreen();
     this.screens.challenges = this.buildChallengesScreen();
+    this.screens.settings = this.buildSettingsScreen();
   }
 
   buildAllianceScreen() {
@@ -797,6 +817,107 @@ export class GameUI {
     }
   }
 
+  buildSettingsScreen() {
+    const div = document.createElement("div");
+    div.className = "screen-panel";
+    div.innerHTML = `
+      <div class="panel-header">⚙️ الإعدادات</div>
+      <div id="settings-content"></div>
+    `;
+    return div;
+  }
+
+  renderSettings() {
+    const container = document.getElementById("settings-content");
+    if (!container) return;
+    const settings = this.world?.settings || {};
+    container.innerHTML = `
+      <div class="settings-grid">
+        <div class="setting-row">
+          <span>🔊 المؤثرات الصوتية</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="sfx-toggle" ${settings.sfx !== false ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <span>🎵 الموسيقى</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="music-toggle" ${settings.music !== false ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <span>✨ جودة الرسوم (FPS)</span>
+          <select id="quality-select" class="setting-select">
+            <option value="60" ${settings.quality === '60' || !settings.quality ? 'selected' : ''}>60 FPS (عالي)</option>
+            <option value="30" ${settings.quality === '30' ? 'selected' : ''}>30 FPS (متوسط)</option>
+            <option value="15" ${settings.quality === '15' ? 'selected' : ''}>15 FPS (موفر للبطارية)</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>🖱️ تأكيد الإجراءات</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="confirm-toggle" ${settings.confirmActions !== false ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <span>📋 سجل المعارك</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="combat-log-toggle" ${settings.combatLog !== false ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <span>💾 حذف الحفظ</span>
+          <button class="action-btn danger-btn" id="reset-game-btn">🗑️ حذف كل شيء</button>
+        </div>
+      </div>
+    `;
+    // ربط الأحداث
+    container.querySelector('#sfx-toggle')?.addEventListener('change', e => {
+      if (this.world) this.world.settings.sfx = e.target.checked;
+      localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
+    });
+    container.querySelector('#music-toggle')?.addEventListener('change', e => {
+      if (this.world) this.world.settings.music = e.target.checked;
+      localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
+    });
+    container.querySelector('#quality-select')?.addEventListener('change', e => {
+      if (this.world) this.world.settings.quality = e.target.value;
+      localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
+    });
+    container.querySelector('#confirm-toggle')?.addEventListener('change', e => {
+      if (this.world) this.world.settings.confirmActions = e.target.checked;
+      localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
+    });
+    container.querySelector('#combat-log-toggle')?.addEventListener('change', e => {
+      if (this.world) this.world.settings.combatLog = e.target.checked;
+      localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
+    });
+    container.querySelector('#reset-game-btn')?.addEventListener('click', () => {
+      this.showConfirmDialog({ icon: '🗑️', title: 'حذف الحفظ', desc: 'سيتم حذف جميع التقدم! هل أنت متأكد؟', onConfirm: () => { localStorage.clear(); location.reload(); } });
+    });
+  }
+
+  logCombat(type, text) {
+    if (this.world && this.world.settings.combatLog === false) return;
+    if (!this.world) return;
+    this.world._combatLog.push({ type, text, time: Date.now() });
+    if (this.world._combatLog.length > 100) this.world._combatLog.shift();
+    const clogContent = document.getElementById("combat-log-content");
+    if (!clogContent) return;
+    const timeStr = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+    const entry = document.createElement("div");
+    entry.className = `combat-log-entry clog-${type}`;
+    entry.innerHTML = `<span class="combat-log-time">${timeStr}</span> ${text}`;
+    clogContent.appendChild(entry);
+    clogContent.scrollTop = clogContent.scrollHeight;
+  }
+
+  logCombat(type, text) {
+
   renderQuests() {
     const container = document.getElementById("quests-content");
     if (!container || !this.quests) {
@@ -961,6 +1082,7 @@ export class GameUI {
       case "oases": this.renderOases(); break;
       case "quests": this.renderQuests(); break;
       case "challenges": this.renderChallenges(); break;
+      case "settings": this.renderSettings(); break;
     }
   }
 

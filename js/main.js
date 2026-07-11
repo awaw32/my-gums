@@ -375,6 +375,7 @@ async function init() {
   try {
     const notificationManager = new NotificationManager();
     ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager);
+    world._ui = ui;
   } catch (err) {
     console.error("❌ [FATAL] GameUI constructor threw:", err);
     throw err;
@@ -1172,6 +1173,28 @@ async function init() {
       for (const id of _gameIntervals) { clearInterval(id); }
       _gameIntervals.length = 0;
     };
+
+    // اختصارات لوحة المفاتيح
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      switch (e.key) {
+        case 'm': case 'M': document.getElementById('mute-btn')?.click(); break;
+        case 'h': case 'H': document.getElementById('hero-toggle-btn')?.click(); break;
+        case 'b': case 'B': document.getElementById('br-enter-btn')?.click(); break;
+        case 'Escape': ui.closeQuickPanel(); ui.exitWorldMap?.(); break;
+        case 'i': case 'I': ui.showScreen('inventory'); break;
+        case 'q': case 'Q': ui.showScreen('quests'); break;
+        case 'a': case 'A': ui.showScreen('achievements'); break;
+        case 'p': case 'P': ui.showScreen('prestige_panel'); break;
+        case 'c': case 'C': ui.showScreen('challenges'); break;
+        case '1': document.getElementById('hero-ability-1')?.click(); break;
+        case '2': document.getElementById('hero-ability-2')?.click(); break;
+        case '3': document.getElementById('hero-ability-3')?.click(); break;
+        case '4': document.getElementById('hero-ability-4')?.click(); break;
+        case 'u': case 'U': document.getElementById('panel-toggle')?.click(); break;
+        case 'f': case 'F': document.getElementById('fullscreen-btn')?.click(); break;
+      }
+    });
 
     // تحقق من حالة قاعدة البيانات
     fetch(`${API_BASE}/health`).then(r => r.json()).then(h => {

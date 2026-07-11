@@ -367,7 +367,7 @@ describe('📖 إكمال الفصل الأول', () => {
 
   it('يجب أن يزيد levelRequired عبر الفصول', () => {
     const levelReqs = STORY_CHAPTERS.map(ch => ch.levelRequired);
-    expect(levelReqs).toEqual([1, 15, 30, 50, 75]);
+    expect(levelReqs).toEqual([1, 15, 30, 50, 75, 100]);
   });
 });
 
@@ -440,8 +440,8 @@ describe('💾 حفظ وتحميل القصة', () => {
 // 7. 📊 هيكل القصة كامل — التحقق من الفصول الخمسة
 // =====================================================================
 describe('📊 هيكل القصة كامل', () => {
-  it('يجب أن يكون هناك 5 فصول', () => {
-    expect(STORY_CHAPTERS).toHaveLength(5);
+  it('يجب أن يكون هناك 6 فصول', () => {
+    expect(STORY_CHAPTERS).toHaveLength(6);
   });
 
   it('يجب أن يكون لكل فصل عنوان ووصف', () => {
@@ -452,11 +452,15 @@ describe('📊 هيكل القصة كامل', () => {
     }
   });
 
-  it('يجب أن يكون لكل فصل 5 مشاهد (4 عادية + 1 Boss)', () => {
+  it('يجب أن يكون لكل فصل 5 مشاهد (4 عادية + 1 Boss) باستثناء الخاتمة', () => {
     for (const chapter of STORY_CHAPTERS) {
-      expect(chapter.scenes).toHaveLength(5);
-      const bossScene = chapter.scenes[4];
-      expect(bossScene.isBoss).toBe(true);
+      if (chapter.isEpilogue) {
+        expect(chapter.scenes.length).toBeGreaterThanOrEqual(1);
+      } else {
+        expect(chapter.scenes).toHaveLength(5);
+        const bossScene = chapter.scenes[4];
+        expect(bossScene.isBoss).toBe(true);
+      }
     }
   });
 
@@ -485,7 +489,9 @@ describe('📊 هيكل القصة كامل', () => {
 
   it('يجب أن يكون لكل مشهد Boss خلفية متدرجة (bg)', () => {
     for (const chapter of STORY_CHAPTERS) {
+      if (chapter.isEpilogue) continue;
       const bossScene = chapter.scenes.find(s => s.isBoss);
+      expect(bossScene).toBeTruthy();
       expect(bossScene.bg).toBeTruthy();
       expect(bossScene.bg).toContain('gradient');
     }
@@ -526,7 +532,7 @@ describe('📊 هيكل القصة كامل', () => {
   });
 
   it('يجب أن يكون لكل فصل مكافأة title محددة', () => {
-    const titles = ['المستوطن الجديد', 'باحث الآثار', 'حامي الجبل', 'سيد السهول', 'ملك الصحراء'];
+    const titles = ['المستوطن الجديد', 'باحث الآثار', 'حامي الجبل', 'سيد السهول', 'ملك الصحراء', 'السلطان الأعظم'];
     for (let i = 0; i < STORY_CHAPTERS.length; i++) {
       expect(STORY_CHAPTERS[i].reward.title).toBe(titles[i]);
     }

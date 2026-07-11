@@ -147,6 +147,14 @@ export class AudioManager {
     });
   }
 
+  sfxDeath() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    [200, 100, 50].forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 0.3, "sawtooth", this.sfxGain), i * 120);
+    });
+  }
+
   // ========== Weapon-specific sounds (oscillator synthesis) ==========
 
   /**
@@ -312,6 +320,7 @@ export class AudioManager {
       case 'hero_levelup': this.sfxHeroLevelup(); break;
       case 'offline': this.sfxOffline(); break;
       case 'treasure': this.sfxTreasureOpen(); break;
+      case 'death': this.sfxDeath(); break;
     }
   }
 
