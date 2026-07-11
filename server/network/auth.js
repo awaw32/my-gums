@@ -1,8 +1,10 @@
 "use strict";
 
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const JWT_SECRET = process.env.JWT_SECRET || "desert-kingdom-dev-secret-key-change-in-production";
 const JWT_EXPIRES = "24h";
+const BCRYPT_ROUNDS = 10;
 
 function generateToken(username) {
   return jwt.sign({ username: String(username).slice(0, 30) }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
@@ -15,6 +17,16 @@ function verifyToken(token) {
   } catch {
     return { valid: false, username: null };
   }
+}
+
+async function hashPassword(plain) {
+  if (!plain) return "";
+  return bcrypt.hash(plain, BCRYPT_ROUNDS);
+}
+
+async function comparePassword(plain, hashed) {
+  if (!hashed) return false;
+  return bcrypt.compare(plain, hashed);
 }
 
 function authMiddleware(req, res, next) {
@@ -42,4 +54,4 @@ function wsAuth(req) {
   return verifyToken(token);
 }
 
-module.exports = { generateToken, verifyToken, authMiddleware, wsAuth, JWT_SECRET };
+module.exports = { generateToken, verifyToken, hashPassword, comparePassword, authMiddleware, wsAuth, JWT_SECRET };

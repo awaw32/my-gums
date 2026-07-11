@@ -32,7 +32,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
         if (size > 4096) { req.destroy(); return; }
         body += chunk;
       });
-      req.on("end", () => {
+      req.on("end", async () => {
         try {
           const { username, password } = JSON.parse(body);
           if (!username || typeof username !== "string" || username.length < 2 || username.length > 30 || /[\/:;<>"']/.test(username)) {
@@ -40,21 +40,31 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             res.end(JSON.stringify({ error: "invalid username" }));
             return;
           }
-          const { generateToken, verifyToken } = require("../network/auth");
+          const { generateToken, hashPassword, comparePassword } = require("../network/auth");
           const sanitized = username.slice(0, 30);
-          // Simple password check (if player exists in memStore)
           const existing = memStore.get(sanitized);
           if (existing && existing.password) {
-            if (password !== existing.password) {
+            let pwOk = false;
+            if (existing.password.startsWith("$2")) {
+              pwOk = await comparePassword(password, existing.password);
+            } else {
+              // هجرة من plaintext → bcrypt
+              pwOk = password === existing.password;
+              if (pwOk) {
+                existing.password = await hashPassword(password);
+                memStore.set(sanitized, existing);
+                markDirty(sanitized);
+              }
+            }
+            if (!pwOk) {
               res.writeHead(401, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: "wrong password" }));
               return;
             }
           }
-          // If new player, save password
           if (!existing) {
             const pData = getDefaultPlayer(sanitized);
-            pData.password = password || "";
+            pData.password = await hashPassword(password || "");
             memStore.set(sanitized, pData);
             markDirty(sanitized);
           }
@@ -72,12 +82,18 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     if (req.url === "/api/players" || req.url.startsWith("/api/players?")) {
       if (req.method === "GET") {
         if (!mongoConnected) {
+          const safe = Array.from(memStore.values()).map(p => {
+            const rest = { ...p };
+            delete rest.password;
+            delete rest.token;
+            return rest;
+          });
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify(Array.from(memStore.values())));
+          res.end(JSON.stringify(safe));
           return true;
         }
         try {
-          const players = await Player.find({}, { _id: 0, __v: 0 }).lean();
+          const players = await Player.find({}, { _id: 0, __v: 0, password: 0, token: 0 }).lean();
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(players));
         } catch (err) {
@@ -100,7 +116,9 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
 
       if (req.method === "GET") {
         if (!mongoConnected) {
-          let data = memStore.get(username) || getDefaultPlayer(username);
+          let data = { ...(memStore.get(username) || getDefaultPlayer(username)) };
+          delete data.password;
+          delete data.token;
           if (data.weapons) {
             data.weapons = data.weapons.map(w => ({
               id: w.id,
@@ -117,6 +135,8 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
         try {
           let data = await Player.findOne({ username }).lean();
           if (!data) data = getDefaultPlayer(username);
+          delete data.password;
+          delete data.token;
           if (data.weapons) {
             data.weapons = data.weapons.map(w => ({
               id: w.id,
@@ -136,6 +156,20 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       }
 
       if (req.method === "POST") {
+        // Verify auth
+        const authHeader = req.headers["authorization"];
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          res.writeHead(401, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "auth required" }));
+          return true;
+        }
+        const { verifyToken } = require("../network/auth");
+        const auth = verifyToken(authHeader.slice(7));
+        if (!auth.valid || auth.username !== username) {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "forbidden" }));
+          return true;
+        }
         let body = "";
         let size = 0;
         req.on("data", chunk => {
@@ -149,7 +183,6 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             const data = sanitizePlayerData(rawData);
             const lastActive = data.last_active || Date.now();
             const existing = memStore.get(username) || getDefaultPlayer(username);
-            // دمج آمن — لا نمسح الحقول الغير مرسلة
             const merged = { ...existing };
             for (const [k, v] of Object.entries(data)) {
               if (v !== undefined) merged[k] = v;
