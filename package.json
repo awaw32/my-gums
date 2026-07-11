@@ -15,7 +15,7 @@
     "build": "vite build",
     "vite:dev": "vite",
     "audit": "npm audit --audit-level=high",
-    "prepare": "husky"
+    "prepare": "node -e \"try{require('child_process').execSync('husky',{stdio:'ignore'})}catch(e){}\""
   },
   "lint-staged": {
     "*.{js,mjs,mts,ts}": "eslint --fix",
