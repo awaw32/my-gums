@@ -16,10 +16,12 @@ if (!MONGO_URL) {
 }
 
 const WEAPON_DEFS = [
-  { id: "bedouin_sword",  name: "سيف بدوي",       baseDamage: 4,  damagePerLevel: 3,  range: "melee",  critChance: 0.05, critMultiplier: 1.5 },
-  { id: "long_bow",       name: "قوس طويل",       baseDamage: 3,  damagePerLevel: 2,  range: "ranged", critChance: 0.08, critMultiplier: 1.8 },
-  { id: "iron_spear",     name: "رمح حديدي",      baseDamage: 5,  damagePerLevel: 4,  range: "melee",  critChance: 0.12, critMultiplier: 2.0 },
-  { id: "damascus_sword", name: "سيف دمشقي",      baseDamage: 7,  damagePerLevel: 5,  range: "melee",  critChance: 0.15, critMultiplier: 2.5 },
+  { id: "w1", name: "سيف بدوي",       baseDamage: 4,  damagePerLevel: 3,  range: "melee",  critChance: 0.05, critMultiplier: 1.5, cashPrice: 100,  requireLevel: 1 },
+  { id: "w2", name: "قوس طويل",       baseDamage: 6,  damagePerLevel: 4,  range: "ranged", critChance: 0.08, critMultiplier: 1.8, cashPrice: 400,  requireLevel: 2 },
+  { id: "w3", name: "رمح حديدي",      baseDamage: 9,  damagePerLevel: 6,  range: "melee",  critChance: 0.10, critMultiplier: 2.0, cashPrice: 1200, requireLevel: 3 },
+  { id: "w4", name: "سيف دمشقي",      baseDamage: 13, damagePerLevel: 8,  range: "melee",  critChance: 0.12, critMultiplier: 2.2, cashPrice: 4000, requireLevel: 4 },
+  { id: "w5", name: "قوس ناري",       baseDamage: 18, damagePerLevel: 10, range: "ranged", critChance: 0.15, critMultiplier: 2.5, cashPrice: 12000, requireLevel: 5 },
+  { id: "w6", name: "فأس معركة",      baseDamage: 24, damagePerLevel: 14, range: "melee",  critChance: 0.18, critMultiplier: 3.0, cashPrice: 25000, requireLevel: 6 },
 ];
 
 const playerSchema = new mongoose.Schema({

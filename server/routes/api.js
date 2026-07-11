@@ -149,7 +149,13 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             const data = sanitizePlayerData(rawData);
             const lastActive = data.last_active || Date.now();
             const existing = memStore.get(username) || getDefaultPlayer(username);
-            memStore.set(username, { ...existing, ...data, last_active: lastActive });
+            // دمج آمن — لا نمسح الحقول الغير مرسلة
+            const merged = { ...existing };
+            for (const [k, v] of Object.entries(data)) {
+              if (v !== undefined) merged[k] = v;
+            }
+            merged.last_active = lastActive;
+            memStore.set(username, merged);
             markDirty(username);
             if (mongoConnected) {
               await Player.updateOne(

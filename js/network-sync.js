@@ -106,24 +106,9 @@ export class NetworkSync {
         method: "POST",
         headers: this._authHeaders(),
         body: JSON.stringify({
-          cash: w.economy?.cash || 0,
-          gems: w.economy?.gems || 0,
-          gold: w.economy?.gold || 0,
-          hammers: w.economy?.hammers || 0,
-          scrolls: w.economy?.scrolls || 0,
-          army_power: w.economy ? w.economy.power : 5000,
-          unitLevel: w.army?.unitLevel || 1,
-          weapons: w.army?.weapons?.map(ww => ({ id: ww.id, starLevel: ww.starLevel || 1, gemLevel: ww.gemLevel || 1 })) || [],
-          equippedWeapon: w._equippedWeapon || "",
-          armyYardLevel: w.economy?.armyYardLevel || 1,
-          knowledgeLevel: w.economy?.knowledgeLevel || 1,
-          knowledgeType: w.economy?.knowledgeType || "economic",
-          buildings: w.economy?.buildings || {},
-          research: w.economy?.research || {},
           x_position: Math.floor(w.leader.x),
           y_position: Math.floor(w.leader.y),
-          kills: w.sessionStats.kills,
-          coinsEarned: w.sessionStats.coinsEarned,
+          kills: w.sessionStats?.kills || 0,
           last_active: Date.now()
         })
       });

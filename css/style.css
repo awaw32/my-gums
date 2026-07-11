@@ -39,6 +39,10 @@
   --accent-red-hover: #E74C3C;
   --border-light: rgba(192, 57, 43, 0.12);
   --shadow-card: 0 2px 12px rgba(0,0,0,0.06);
+  --bg-input: rgba(245, 230, 208, 0.4);
+  --bg-primary: #FFF8F0;
+  --bg-header: rgba(232, 213, 183, 0.5);
+  --accent-red-dim: #7B2D26;
   --vh: 1vh;
 }
 
