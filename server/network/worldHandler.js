@@ -1,6 +1,7 @@
 "use strict";
 
 const { PLAYER_COLORS } = require("../config");
+const logger = require("../logger");
 
 function playerColor(username) {
   let h = 0;
@@ -53,7 +54,7 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
       }
     }, 300000);
     ws.on("close", () => clearInterval(_pvpCleanupInterval));
-    console.log(`[WorldWS] Connection from ${ip}`);
+    logger.info({ ip }, "[WorldWS] Connection");
 
     ws.on("message", (raw) => {
       const now = Date.now();
@@ -109,7 +110,7 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         worldClients.forEach((c) => {
           if (c.ws !== ws && c.ws.readyState === 1) c.ws.send(joinMsg);
         });
-        console.log(`[WorldWS] ${username} joined (color: ${color})`);
+        logger.info({ username, color }, "[WorldWS] joined");
       } else if (msg.type === "update" && username) {
         const c = worldClients.get(username);
         if (c) {
@@ -397,11 +398,11 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         worldClients.forEach((cl) => {
           if (cl.ws.readyState === 1) cl.ws.send(leaveMsg);
         });
-        console.log(`[WorldWS] ${username} left`);
+        logger.info({ username }, "[WorldWS] left");
       }
     });
 
-    ws.on("error", (err) => { console.warn(`[WorldWS] Connection error:`, err.message); });
+    ws.on("error", (err) => { logger.warn({ err: err.message }, "[WorldWS] Connection error"); });
 
     const list = [];
     worldClients.forEach((c) => {

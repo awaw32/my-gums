@@ -83,18 +83,17 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     if (req.url === "/api/players" || req.url.startsWith("/api/players?")) {
       if (req.method === "GET") {
         if (!mongoConnected) {
-          const safe = Array.from(memStore.values()).map(p => {
-            const rest = { ...p };
-            delete rest.password;
-            delete rest.token;
-            return rest;
-          });
+          const safe = Array.from(memStore.values()).map(p => ({
+            username: p.username,
+            army_power: p.army_power || 0,
+            level: p.level || 1,
+          }));
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(safe));
           return true;
         }
         try {
-          const players = await Player.find({}, { _id: 0, __v: 0, password: 0, token: 0 }).lean();
+          const players = await Player.find({}, { _id: 0, username: 1, army_power: 1, level: 1 }).lean();
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(players));
         } catch (err) {
@@ -378,6 +377,15 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
         res.writeHead(404, { "Content-Type": "text/plain" });
         res.end("Metrics disabled");
         return true;
+      }
+      const adminKey = process.env.ADMIN_KEY;
+      if (adminKey) {
+        const authHeader = req.headers["authorization"];
+        if (!authHeader || authHeader !== `Bearer ${adminKey}`) {
+          res.writeHead(401, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "admin key required" }));
+          return true;
+        }
       }
       res.writeHead(200, { "Content-Type": metrics.getContentType() });
       res.end(await metrics.getMetricsText());

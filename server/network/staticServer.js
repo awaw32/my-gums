@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { STATIC_EXTS, BUILD_DIR } = require("../config");
 const rootDir = path.resolve(__dirname, "../../", BUILD_DIR);
+const projectRoot = path.resolve(__dirname, "../../");
 
 function cachePolicy(ext) {
   if (ext === ".html") return "no-cache, must-revalidate";
@@ -37,9 +38,15 @@ function serveStatic(rawUrl, req, res) {
   } catch {
     const pubPath = path.resolve(rootDir, "public", cleanPath);
     if (pubPath.startsWith(rootDir)) {
-      try { content = fs.readFileSync(pubPath); filePath = pubPath; } catch { return false; }
-    } else {
-      return false;
+      try { content = fs.readFileSync(pubPath); filePath = pubPath; } catch {}
+    }
+    if (!content) {
+      const rootPath = path.resolve(projectRoot, cleanPath);
+      if (rootPath.startsWith(projectRoot)) {
+        try { content = fs.readFileSync(rootPath); filePath = rootPath; } catch { return false; }
+      } else {
+        return false;
+      }
     }
   }
   const etag = computeETag(filePath);

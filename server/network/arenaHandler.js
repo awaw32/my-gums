@@ -1,6 +1,7 @@
 "use strict";
 
 const { WORLD_W, WORLD_H, ADMIN_KEY } = require("../config");
+const logger = require("../logger");
 
 const MSG_SCHEMAS = {
   join: {
@@ -54,7 +55,7 @@ function createArenaHandler({ rooms, playerData }) {
     let msgCount = 0;
     let lastReset = Date.now();
 
-    console.log(`[ArenaWS] Connection from ${ip}`);
+    logger.info({ ip }, "[ArenaWS] Connection");
 
     ws.on("message", (raw) => {
       const now = Date.now();
@@ -106,7 +107,7 @@ function createArenaHandler({ rooms, playerData }) {
             admin: room.admin,
           });
 
-          console.log(`[Server] ${msg.name || playerId} joined ${roomCode} (${room.players.size} players)`);
+          logger.info({ playerId, name: msg.name, roomCode, players: room.players.size }, "[ArenaWS] joined");
           break;
 
         case "move":
@@ -150,7 +151,7 @@ function createArenaHandler({ rooms, playerData }) {
               playerId: msg.targetId,
               killedBy: playerId,
             });
-            console.log(`[Server] ${msg.targetId} killed by ${playerId}`);
+            logger.info({ targetId: msg.targetId, killer: playerId }, "[ArenaWS] player killed");
           }
           break;
 
@@ -163,7 +164,7 @@ function createArenaHandler({ rooms, playerData }) {
             mapSize: WORLD_W,
             matchTime: msg.matchTime || 600,
           });
-          console.log(`[Server] Match started in ${roomCode}`);
+          logger.info({ roomCode }, "[ArenaWS] match started");
           break;
 
         case "zone_shrink":
@@ -208,14 +209,14 @@ function createArenaHandler({ rooms, playerData }) {
         });
         if (room.players.size === 0) {
           rooms.delete(roomCode);
-          console.log(`[Server] Room ${roomCode} deleted`);
+          logger.info({ roomCode }, "[ArenaWS] room deleted");
         }
-        console.log(`[Server] ${playerId} left ${roomCode}`);
+        logger.info({ playerId, roomCode }, "[ArenaWS] left");
       }
     });
 
     ws.on("error", (err) => {
-      console.error(`[Server] WS error:`, err.message);
+      logger.error({ err: err.message }, "[ArenaWS] error");
     });
   };
 }

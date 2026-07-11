@@ -4,7 +4,10 @@ const PORT = parseInt(process.env.PORT) || 3000;
 const USE_HTTPS = process.env.HTTPS === "true" || process.env.HTTPS === "1";
 const CERT_DIR = process.env.CERT_DIR || "/etc/letsencrypt/live";
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
-const JWT_SECRET = process.env.JWT_SECRET || "desert-kingdom-dev-secret-change-in-production";
+const crypto = require("crypto");
+const isProd = process.env.NODE_ENV === "production";
+const JWT_SECRET = process.env.JWT_SECRET
+  || (isProd ? (() => { throw new Error("JWT_SECRET is REQUIRED in production. Set it in .env"); })() : crypto.randomBytes(32).toString("hex"));
 const JWT_EXPIRES = "24h";
 const BUILD_ID = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
 const DATA_DIR = process.env.DATA_DIR || "./data";

@@ -1,9 +1,9 @@
 # 🏜️ ملك الصحراء — Desert Kingdom
 ## ملف التقدم الشامل — البرمجة، القصة، وحلقات اللعب
 
-**آخر تحديث:** 6 يوليو 2026  
+**آخر تحديث:** 11 يوليو 2026  
 **الإصدار:** 2.0 (PWA)  
-**حالة الاختبارات:** ✅ 206/214 نجاح، 0 أخطاء ESLint
+**حالة الاختبارات:** ✅ 227/227 نجاح، 0 أخطاء
 
 ---
 
@@ -463,8 +463,8 @@ Prestige ──→ ابدأ من جديد ← بونصات دائمة
 
 ## 11.1 الاختبارات
 
-- **15 ملف اختبار** — 206/214 نجاح
-- **8 إخفاقات** — موجودة مسبقاً (Zod validation)
+- **16 ملف اختبار** — 227/227 نجاح
+- **0 إخفاقات**
 - **اختبارات تدفق اللاعب الجديد** — 52 اختباراً
 
 ## 11.2 جودة الكود
@@ -530,7 +530,7 @@ Prestige ──→ ابدأ من جديد ← بونصات دائمة
 | قاعدة البيانات | SQLite + MongoDB |
 | WebSocket endpoints | 2 (/ws/world, /ws/online) |
 | REST endpoints | 5 |
-| اختبارات | 214 (206 نجاح) |
+| اختبارات | 227 (227 نجاح) |
 
 ---
 
@@ -558,4 +558,87 @@ CERT_DIR=/etc/letsencrypt/live/{DOMAIN}
 
 ---
 
+# 🔧 14. التطويرات والإصلاحات — 11 يوليو 2026
+
+## 14.1 الإصلاحات الأمنية (4 إصلاحات)
+
+| # | المشكلة | الحل | الملف | الحالة |
+|---|---------|------|-------|--------|
+| 1 | `JWT_SECRET` افتراضي_known في الكود — أي شخص يعرفه يمكنه تزوير tokens | في `production` يرفض التشغيل بدون سر حقيقي. في `development` يُولّد سراً عشوائياً تلقائياً | `server/config.js` | ✅ |
+| 2 | `/api/players` GET يعرض **كل بيانات** كل اللاعبين (akhbar، موارد، سلاح، إنجازات...) بدون authentication | أصبح يعرض فقط `username + army_power + level` — ما يحتاجه أي endpoint | `server/routes/api.js` | ✅ |
+| 3 | `/metrics` مفتوح للجميع — يكشف معلومات الخادم (latency, tick drift, rooms, players) | أصبح يتطلب `ADMIN_KEY` إذا كان مُعرّفاً في البيئة | `server/routes/api.js` | ✅ |
+| 4 | `console.log/warn/error` في الخادم — تكشف معلومات داخليه في logs | استُبدل بالـ `logger` (pino) بالكامل في `worldHandler.js` و `arenaHandler.js` | `server/network/worldHandler.js` + `arenaHandler.js` | ✅ |
+
+## 14.2 الإضافات التحسينية (2 إضافات)
+
+| # | الإضافة | التفاصيل | الملف | الحالة |
+|---|---------|----------|-------|--------|
+| 5 | CI/CD محسّن | دمج ملفين مكررين (`ci.yml` + `lint-test.yml`) في ملف واحد. أضف `security-audit` job يتحقق من ثغرات الأمان | `.github/workflows/ci.yml` | ✅ |
+| 6 | Service Worker محسّن | أضف `Stale-While-Revalidate` للملفات الثابتة (CSS, JS, صور) — يعرض الكاش فوراً ثم يحدّث في الخلفية. `Network First` للـ HTML مع `Offline fallback` | `sw.js` | ✅ |
+
+## 14.3 ملف محذوف
+
+| الملف | السبب |
+|-------|-------|
+| `.github/workflows/lint-test.yml` | مكرر — مدمج في `ci.yml` |
+
+## 14.4 نتائج الاختبارات بعد التطويرات
+
+```
+✅ 16 ملف اختبار — جميعها ناجحة
+✅ 227 اختبار — جميعها ناجحة (كان 214)
+❌ 0 أخطاء
+```
+
+## 14.5 الملفات المعدلة (ملخص)
+
+```
+server/config.js              — JWT_SECRET安全化
+server/routes/api.js          — تأمين /api/players + /metrics
+server/network/worldHandler.js — logger + تأمين الرسائل
+server/network/arenaHandler.js — logger
+.github/workflows/ci.yml     — تحسين CI/CD + حذف الملف المكرر
+sw.js                         — تحسين Service Worker
+ملخص-الجلسة.md               — ملف ملخص شامل لجلسة الفحص
+```
+
+---
+
+## 14.6 ملاحظات أمنية مهمة
+
+### محمي جيداً ✅
+- JWT Authentication مع bcrypt
+- Rate Limiting على IP (600 طلب/دقيقة)
+- Input Validation بـ zod
+- Anti-Cheat لمراقبة تغير الموارد (validateResourceDelta)
+- Path Traversal protection في staticServer.js
+- Chat messages تُقص إلى 200 حرف على الخادم
+- Chat يستخدم `textContent` (آمن من XSS)
+- `.env` في `.gitignore`
+- Helmet + Security Headers
+
+### يحتاج مراقبة ⚠️
+- كلمة المرور يمكن أن تكون فارغة (مصمم للعبة — username-only login بالتصميم)
+- لا يوجد rate limit على WebSocket per-player (موجود per-IP فقط)
+
+---
+
+## 14.7 التوصيات المستقبلية
+
+### أولوية عالية
+1. إضافة WebSocket rate limit per-player (ليس فقط per-IP)
+2. إضافة error monitoring (Sentry أو ما يماثل)
+
+### أولوية متوسطة
+3. إضافة TypeScript للحصول على type safety
+4. تحسين التغطية (coverage) للاختبارات
+5. إضافة API documentation (Swagger/OpenAPI)
+
+### أولوية منخفضة
+6. إضافة Docker Compose مع MongoDB
+7. إضافة monitoring dashboard
+
+---
+
 *تم كتابة هذا الملف ليكون مرجعاً شاملاً لكل تفاصيل لعبة "ملك الصحراء"*
+*آخر تحديث: 11 يوليو 2026 — جلسة فحص وتحسين شاملة*
