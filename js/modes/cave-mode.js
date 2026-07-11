@@ -1,4 +1,4 @@
-import { ENEMY_TYPES, calculateEnemyPower } from "../enemies.js";
+import { calculateEnemyPower } from "../enemies.js";
 
 export class CaveMode {
   constructor(world) {

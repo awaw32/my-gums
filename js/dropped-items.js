@@ -26,7 +26,7 @@ export class DroppedItemsManager {
   // البحث عن أقرب عنصر قريب من لاعب
   findNearby(x, y, radius = 40) {
     const found = [];
-    for (const [id, item] of this.droppedItems) {
+    for (const [, item] of this.droppedItems) {
       const dist = Math.hypot(item.x - x, item.y - y);
       if (dist <= radius) {
         found.push({ ...item, dist });

@@ -540,7 +540,7 @@ export class GameUI {
     };
   }
 
-  setDbStatus(connected) {}
+  setDbStatus(_connected) {}
 
   createScreens() {
     this.screens.promotion = this.buildPromotionScreen();
@@ -799,7 +799,6 @@ export class GameUI {
 
   _giveChallengeReward(challenge) {
     // تحليل المكافأة وإعطاؤها
-    const rewardStr = challenge.reward;
     // يمكن تحليل النص أو إضافة نظام مكافآت منفصل
     // للتبسيط، سنعطي مكافآت ثابتة حسب النوع
     if (challenge.id === 'daily_kills') {

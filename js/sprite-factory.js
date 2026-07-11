@@ -110,9 +110,8 @@ class SpriteFactory {
 // ─── Character Configs ──────────────────────────────────────
 
 const LEADER_CONFIG = {
-  draw(ctx, dir, frame, bobY, walkSwing, size) {
+  draw(ctx, dir, frame, bobY, walkSwing, _size) {
     const isFront = dir === "S" || dir === "SE" || dir === "SW";
-    const isBack = dir === "N" || dir === "NE" || dir === "NW";
     const isLeft = dir === "W" || dir === "NW" || dir === "SW";
     const isRight = dir === "E" || dir === "NE" || dir === "SE";
 
@@ -224,7 +223,7 @@ const LEADER_CONFIG = {
 };
 
 const SOLDIER_CONFIG = {
-  draw(ctx, dir, frame, bobY, walkSwing, size) {
+  draw(ctx, dir, frame, bobY, walkSwing, _size) {
     const isFront = dir === "S" || dir === "SE" || dir === "SW";
 
     // Shadow
@@ -301,7 +300,7 @@ const SOLDIER_CONFIG = {
 };
 
 const WOLF_CONFIG = {
-  draw(ctx, dir, frame, bobY, walkSwing, size) {
+  draw(ctx, dir, frame, bobY, walkSwing, _size) {
     const isFront = dir === "S" || dir === "SE" || dir === "SW";
     const isSide = dir === "E" || dir === "W";
 
@@ -407,11 +406,11 @@ const WOLF_CONFIG = {
 };
 
 const SHADOW_CONFIG = {
-  draw(ctx, dir, frame, bobY, walkSwing, size) {
+  draw(ctx, dir, frame, bobY, walkSwing, _size) {
     const isFront = dir === "S" || dir === "SE" || dir === "SW";
 
     // Shadow
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
     ctx.beginPath();
     ctx.ellipse(0, 16, 10, 4, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -492,7 +491,7 @@ const SHADOW_CONFIG = {
 };
 
 const SANDLORD_CONFIG = {
-  draw(ctx, dir, frame, bobY, walkSwing, size) {
+  draw(ctx, dir, frame, bobY, _walkSwing, _size) {
     const isFront = dir === "S" || dir === "SE" || dir === "SW";
 
     // Sand whirlwind base
@@ -590,7 +589,7 @@ const SANDLORD_CONFIG = {
 };
 
 const BANDIT_CONFIG = {
-  draw(ctx, dir, frame, bobY, walkSwing, size) {
+  draw(ctx, dir, frame, bobY, walkSwing, _size) {
     const isFront = dir === "S" || dir === "SE" || dir === "SW";
 
     // Shadow

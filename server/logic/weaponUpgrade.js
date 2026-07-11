@@ -19,7 +19,7 @@ const UPGRADE_COSTS = [
 /**
  * التحقق من إمكانية ترقية سلاح
  */
-function canUpgradeWeapon(playerData, weaponId, houseLevel) {
+function canUpgradeWeapon(playerData, weaponId, _houseLevel) {
   const weapons = playerData.weapons || [];
   const w = weapons.find(x => x.id === weaponId);
   if (!w) return { allowed: false, reason: "سلاح غير مملوك" };

@@ -4,7 +4,7 @@
  * محرك السينماتيك والحوارات الدرامية
  */
 
-import { CINEMATIC_INTRO, STORY_DIALOGUES, VICTORY_MESSAGES, STORY_EFFECTS, getStoryDialogue } from './story-cinematic.js';
+import { CINEMATIC_INTRO, VICTORY_MESSAGES, STORY_EFFECTS, getStoryDialogue } from './story-cinematic.js';
 
 export class CinematicEngine {
   constructor(container) {

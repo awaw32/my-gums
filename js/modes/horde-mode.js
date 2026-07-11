@@ -178,7 +178,6 @@ export class HordeMode {
   }
 
   drawUI(ctx) {
-    const w = this.world;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const dpr = window.devicePixelRatio || 1;

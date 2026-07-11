@@ -12,7 +12,7 @@ export default [
         ImageResolver: 'readonly',
       }
     },
-    rules: { 'no-unused-vars': 'warn', 'no-undef': 'error', 'no-console': 'off' }
+    rules: { 'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }], 'no-undef': 'error', 'no-console': 'off' }
   },
   {
     files: ['server.js', 'server/**/*.js'],
@@ -23,7 +23,7 @@ export default [
         ...globals.node,
       }
     },
-    rules: { 'no-unused-vars': 'warn', 'no-undef': 'error', 'no-console': 'off' }
+    rules: { 'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }], 'no-undef': 'error', 'no-console': 'off' }
   },
   {
     files: ['config/**/*.js'],
@@ -34,7 +34,7 @@ export default [
         ...globals.browser,
       }
     },
-    rules: { 'no-unused-vars': 'warn', 'no-undef': 'error', 'no-console': 'off' }
+    rules: { 'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }], 'no-undef': 'error', 'no-console': 'off' }
   },
 
 ];

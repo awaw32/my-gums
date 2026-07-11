@@ -24,7 +24,7 @@ export function hidePvPMenu(worldMap) {
   worldMap._pvpTarget = null;
 }
 
-export function showPvPDefeat(worldMap, killerName, killerPower, lootTaken, powerLoss, enemyMaxHp, enemyDamage) {
+export function showPvPDefeat(worldMap, killerName, killerPower, lootTaken, powerLoss, _enemyMaxHp, _enemyDamage) {
   const modal = document.getElementById("pvp-defeat-modal");
   const killerEl = document.getElementById("pvp-defeat-killer");
   const powerEl = document.getElementById("pvp-defeat-power");

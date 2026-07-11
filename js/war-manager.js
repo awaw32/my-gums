@@ -154,7 +154,7 @@ export class WarManager {
   _getMyTribeInfo() {
     if (!this.alliance || this.alliance.level === 0) return null;
     const tiers = ["", "قبيلة", "عشيرة", "قبيلة عظمى", "إمبراطورية"];
-    const tierName = tiers[this.alliance.level] || "قبيلة";
+    const _tierName = tiers[this.alliance.level] || "قبيلة";
     const armyPower = this.army ? this.army.totalArmyPower : 0;
     return {
       name:  `عشيرة ${this.netSync?.username || "المحارب"}`,

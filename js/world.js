@@ -541,7 +541,7 @@ export class WorldMap {
     }
   }
 
-  _aoeDamageAll(dmg, source) {
+  _aoeDamageAll(dmg, _source) {
     if (this.leader) this.damageHero(Math.floor(dmg * 0.5));
     if (this.army && this.army.units) {
       for (const u of this.army.units) {

@@ -108,8 +108,8 @@ const DATA_DIR = process.env.DATA_DIR || "./data";
 
 // متغيرات عامة للـ dirty tracking — معرفة خارج الـ try عشان savePlayer يقدر يناديها
 let _dirtyUsernames = null;
-let markDirty = (username) => {};      // no-op افتراضي
-let flushToSQLite = (username) => {};  // no-op افتراضي
+let markDirty = (_username) => {};      // no-op افتراضي
+let flushToSQLite = (_username) => {};  // no-op افتراضي
 
 try {
   const path = require("path");
@@ -154,7 +154,7 @@ try {
   // حفظ دوري للبيانات المتسخة كل 30 ثانية
   _dirtyUsernames = new Set();
 
-  const flushDirtyInterval = setInterval(() => {
+  const _flushDirtyInterval = setInterval(() => {
     if (!_dirtyUsernames || _dirtyUsernames.size === 0) return;
     const usernames = Array.from(_dirtyUsernames);
     _dirtyUsernames.clear();
@@ -189,7 +189,7 @@ try {
     for (const uname of _dirtyUsernames) {
       const player = memStore.get(uname);
       if (player) {
-        try { stmt.run(uname, JSON.stringify(player), player.last_active || Date.now()); } catch (e) {}
+        try { stmt.run(uname, JSON.stringify(player), player.last_active || Date.now()); } catch {}
       }
     }
     _dirtyUsernames.clear();

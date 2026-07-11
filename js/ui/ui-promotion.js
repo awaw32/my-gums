@@ -1,4 +1,3 @@
-import { formatNumber } from "../economy.js";
 
 export function injectPromotionMethods(GameUI) {
 
@@ -1030,7 +1029,6 @@ GameUI.prototype._renderFullRewardsPage = function() {
   const ach = this.achievements;
   const dlState = dl ? dl.getState() : null;
   const allAchievements = ach ? ach.getAll() : [];
-  const unclaimed = allAchievements.filter(a => a.completed && !a.claimed);
   const completed = allAchievements.filter(a => a.completed).length;
   const total = allAchievements.length;
   let html = `<div class="rw-section"><div class="rw-section-title">📅 المكافأة اليومية</div><div class="rw-daily-grid">`;
@@ -1043,7 +1041,6 @@ GameUI.prototype._renderFullRewardsPage = function() {
   for (let i = 0; i < rewards.length; i++) {
     const r = rewards[i];
     const dayNum = i + 1;
-    const isUnlocked = dayNum <= currentDay + 1 || (dayNum === 1 && !lastClaim);
     const isClaimed = dayNum <= currentDay;
     const isToday = dayNum === currentDay + 1 && isNewDay;
     html += `<div class="rw-day-card ${isClaimed ? 'claimed' : (isToday ? 'today' : 'locked')}">

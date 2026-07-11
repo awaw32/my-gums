@@ -35,7 +35,7 @@ export class StoryManager {
       if (typeof document !== "undefined" && document.body) {
         this.cinematic = new CinematicEngine(document.body);
       }
-    } catch (e) {
+    } catch {
       this.cinematic = null;
     }
   }

@@ -15,14 +15,14 @@
 
 const WAR_DURATION_MS   = 30 * 60 * 1000;  // 30 دقيقة لكل حرب
 const WAR_COOLDOWN_MS    = 10 * 60 * 1000;  // 10 دقائق تبريد بين الحروب
-const TRUCE_DURATION_MS =  5 * 60 * 1000;   // 5 دقائق هدنة بعد الحرب
+const _TRUCE_DURATION_MS =  5 * 60 * 1000;   // 5 دقائق هدنة بعد الحرب
 const MAX_ACTIVE_WARS    = 20;               // أقصى عدد حروب نشطة متزامنة
 const LOOT_CAP_RATIO     = 0.12;             // 12% من قوة الخاسر كغنائم
 
 /**
  * حالة حرب واحدة بين قبيلتين
  */
-function createWarRecord(attackerAlliance, defenderAlliance, stats) {
+function createWarRecord(attackerAlliance, defenderAlliance, _stats) {
   return {
     id: `war_${Date.now()}_${Math.floor(Math.random() * 9999)}`,
     attacker: {                              // القبيلة المعتدية (الغازية)
@@ -53,7 +53,7 @@ function createWarRecord(attackerAlliance, defenderAlliance, stats) {
  * محرك الحرب الرئيسي
  */
 function createWarManager(deps) {
-  const { worldClients, broadcastChat, memStore, getDefaultPlayer, markDirty } = deps;
+  const { worldClients, broadcastChat } = deps;
 
   // الحروب النشطة: Map<warId, warRecord>
   const activeWars = new Map();
@@ -219,7 +219,7 @@ function createWarManager(deps) {
     // تحديث النقاط والغنائم
     const winnerSide = war.attacker.name === winnerName ? "attacker" : 
                        war.defender.name === winnerName ? "defender" : null;
-    const loserSide  = winnerSide === "attacker" ? "defender" : "attacker";
+    const _loserSide  = winnerSide === "attacker" ? "defender" : "attacker";
 
     if (winnerSide) {
       war[winnerSide].score += 1;
@@ -378,7 +378,7 @@ function createWarManager(deps) {
 
   // ==================== معالج الرسائل الواردة ====================
 
-  function handleMessage(msg, username, ws) {
+  function handleMessage(msg, username, _ws) {
     switch (msg.type) {
       case "war_declare": {
         if (!username) return { error: "auth_required" };

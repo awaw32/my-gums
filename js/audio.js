@@ -19,7 +19,7 @@ export class AudioManager {
       this.sfxGain = this.ctx.createGain();
       this.sfxGain.gain.value = 0.5;
       this.sfxGain.connect(this.ctx.destination);
-    } catch (e) {
+    } catch {
       console.warn("[Audio] Web Audio API unavailable");
     }
   }

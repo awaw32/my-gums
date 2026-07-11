@@ -15,7 +15,7 @@ class NetworkServer {
     this.world = new WorldState();
   }
 
-  handleConnection(ws, req) {
+  handleConnection(ws, _req) {
     const limiter = makeRateLimiter({ maxPerSec: 30 });
     let clientId = null;
     let currentRoom = null;

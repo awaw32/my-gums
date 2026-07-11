@@ -72,7 +72,7 @@ export class AchievementManager {
 
   getCompletedCount() { return this.achievements.filter(a => a.completed && a.claimed).length; }
 
-  getProgress(type) {
+  getProgress(_type) {
     let total = 0;
     for (const a of this.achievements) total += a.completed ? 1 : 0;
     return total;

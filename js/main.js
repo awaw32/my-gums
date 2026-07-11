@@ -695,7 +695,7 @@ async function init() {
       }
     };
 
-    inventory._onItemUsed = (itemId) => {
+    inventory._onItemUsed = (_itemId) => {
       achievements.updateProgress('items_used', 1);
     };
 
@@ -748,7 +748,7 @@ async function init() {
       ui.showStoryScene(callback);
     };
 
-    storyManager._onSceneWatched = (sceneId) => {
+    storyManager._onSceneWatched = (_sceneId) => {
       achievements.updateProgress('story_scenes', 1);
     };
 

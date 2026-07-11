@@ -369,7 +369,7 @@ class GameEngine {
     inp.moved = false;
   }
 
-  _onPointerCancel(e) {
+  _onPointerCancel(_e) {
     this.canvas.classList.remove("dragging");
     this._input.down = false;
     this._input.id   = null;
