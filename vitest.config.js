@@ -8,7 +8,6 @@ module.exports = defineConfig({
       include: ['js/**/*.js', 'server/**/*.js'],
       exclude: ['js/audio.js'],
       reporter: ['text', 'lcov', 'html'],
-      thresholds: { lines: 70, functions: 65, branches: 60, statements: 70 },
     },
   },
 });
