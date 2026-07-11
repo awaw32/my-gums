@@ -632,6 +632,7 @@ export class GameUI {
     this.screens.oases = this.buildOasesScreen();
     this.screens.quests = this.buildQuestsScreen();
     this.screens.challenges = this.buildChallengesScreen();
+    this.screens.mystats = this.buildMyStatsScreen();
     this.screens.settings = this.buildSettingsScreen();
   }
 
@@ -701,6 +702,16 @@ export class GameUI {
     div.innerHTML = `
       <div class="panel-header">⚔️ التحديات اليومية</div>
       <div id="challenges-content"></div>
+    `;
+    return div;
+  }
+
+  buildMyStatsScreen() {
+    const div = document.createElement("div");
+    div.className = "screen-panel";
+    div.innerHTML = `
+      <div class="panel-header">📊 إحصائياتي</div>
+      <div id="mystats-content"></div>
     `;
     return div;
   }
@@ -890,6 +901,42 @@ export class GameUI {
       this.economy.addRaw('cash', 300);
       this.economy.addRaw('gems', 20);
     }
+  }
+
+  renderMyStats() {
+    const container = document.getElementById("mystats-content");
+    if (!container) return;
+    const eco = this.economy;
+    const ach = this.achievements;
+    const q = this.quests;
+    const w = this.world;
+    const completedAch = ach ? ach.achievements.filter(a => a.completed).length : 0;
+    const totalAch = ach ? ach.achievements.length : 0;
+    const dailyDone = q ? q.dailyQuests.filter(d => d.progress >= d.target).length : 0;
+    const dailyTotal = q ? q.dailyQuests.length : 0;
+    const stats = [
+      { icon: '🏅', label: 'المستوى', value: eco?.level || 1 },
+      { icon: '✨', label: 'الخبرة', value: `${(eco?.xp || 0).toLocaleString()} / ${(eco?.xpToNext || 100).toLocaleString()}` },
+      { icon: '⚔️', label: 'القتل', value: (eco?.kills || 0).toLocaleString() },
+      { icon: '💵', label: 'إجمالي المال المكتسب', value: (eco?.totalEarned?.cash || 0).toLocaleString() },
+      { icon: '🪙', label: 'إجمالي الذهب', value: (eco?.totalEarned?.gold || 0).toLocaleString() },
+      { icon: '💎', label: 'إجمالي الجواهر', value: (eco?.totalEarned?.gems || 0).toLocaleString() },
+      { icon: '🏆', label: 'الإنجازات', value: `${completedAch} / ${totalAch}` },
+      { icon: '📜', label: 'المهام اليومية', value: `${dailyDone} / ${dailyTotal}` },
+      { icon: '🔨', label: 'التصنيعات', value: (ach?.achievements.find(a => a.type === 'crafts')?.progress || 0).toLocaleString() },
+      { icon: '👑', label: 'انتصارات PvP', value: (ach?.achievements.find(a => a.type === 'pvp_wins')?.progress || 0).toLocaleString() },
+      { icon: '🌴', label: 'الواحات المحتلة', value: (ach?.achievements.find(a => a.type === 'oases')?.progress || 0).toLocaleString() },
+      { icon: '💬', label: 'رسائل الشات', value: (ach?.achievements.find(a => a.type === 'chat_messages')?.progress || 0).toLocaleString() },
+      { icon: '📖', label: 'مشاهد القصة', value: (ach?.achievements.find(a => a.type === 'story_scenes')?.progress || 0).toLocaleString() },
+      { icon: '🗡️', label: 'السلاح المجهز', value: w?._equippedWeapon ? (this.army?.weapons?.find(x => x.id === w._equippedWeapon)?.name || '—') : 'لا يوجد' },
+    ];
+    container.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;padding:4px 0 80px">${
+      stats.map(s => `<div style="display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--border-light);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow-card)">
+        <span style="font-size:1.2rem;width:32px;text-align:center">${s.icon}</span>
+        <span style="flex:1;font-size:0.75rem;color:var(--text-secondary)">${s.label}</span>
+        <span style="font-size:0.8rem;font-weight:800;color:var(--accent-gold)">${s.value}</span>
+      </div>`).join('')
+    }</div>`;
   }
 
   buildSettingsScreen() {
@@ -1200,6 +1247,7 @@ export class GameUI {
       case "oases": this.renderOases(); break;
       case "quests": this.renderQuests(); break;
       case "challenges": this.renderChallenges(); break;
+      case "mystats": this.renderMyStats(); break;
       case "settings": this.renderSettings(); break;
     }
   }
