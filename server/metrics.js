@@ -1,5 +1,6 @@
 "use strict";
 
+const logger = require("./logger");
 const ENABLED = process.env.ENABLE_METRICS !== "false";
 
 let client, register, latencyHist, roomsGauge, tickDriftGauge;
@@ -29,9 +30,9 @@ if (ENABLED) {
       registers: [register],
     });
 
-    console.log("[Metrics] Prometheus metrics enabled");
+    logger.info("Prometheus metrics enabled");
   } catch (err) {
-    console.warn("[Metrics] Failed to initialize prom-client, metrics disabled:", err.message);
+    logger.warn({ err: err.message }, "Failed to initialize prom-client, metrics disabled");
   }
 }
 

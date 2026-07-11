@@ -1,17 +1,18 @@
 "use strict";
 
 const mongoose = require("mongoose");
+const logger = require("../logger");
 mongoose.set("bufferCommands", false);
 
 const MONGO_URL = process.env.MONGO_URL || process.env.MONGO_URI;
 let mongoConnected = false;
 
 if (!MONGO_URL) {
-  console.warn("[MongoDB] MONGO_URL/MONGO_URI غير مضبوط — اللعبة تشتغل بدون حفظ (in-memory only)");
+  logger.warn("MONGO_URL/MONGO_URI not set — running in-memory only");
 } else {
   mongoose.connect(MONGO_URL, { serverSelectionTimeoutMS: 3000 })
-    .then(() => { mongoConnected = true; console.log("[MongoDB] Connected ✅"); })
-    .catch(err => { mongoConnected = false; console.warn("[MongoDB] غير متاح — اللعبة تشتغل بدون حفظ:", err.message); });
+    .then(() => { mongoConnected = true; logger.info("MongoDB connected"); })
+    .catch(err => { mongoConnected = false; logger.warn({ err: err.message }, "MongoDB unavailable — running in-memory"); });
   mongoose.connection.on("disconnected", () => { mongoConnected = false; });
 }
 
@@ -146,10 +147,10 @@ try {
       playerData.last_active = row.last_active;
       memStore.set(row.username, playerData);
     } catch (e) {
-      console.warn(`[SQLite] خطأ في قراءة بيانات اللاعب ${row.username}:`, e.message);
+      logger.warn({ err: e.message, username: row.username }, "Failed to read player from SQLite");
     }
   }
-  console.log(`[SQLite] تم تحميل ${rows.length} لاعب/لاعبة من قاعدة البيانات المحلية ✅`);
+  logger.info({ count: rows.length }, "Loaded players from SQLite");
 
   // حفظ دوري للبيانات المتسخة كل 30 ثانية
   _dirtyUsernames = new Set();
@@ -176,7 +177,7 @@ try {
       }
       if (entries.length > 0) saveMany(entries);
     } catch (e) {
-      console.warn("[SQLite] خطأ في الحفظ الدوري:", e.message);
+      logger.warn({ err: e.message }, "SQLite periodic save error");
     }
   }, 30000);
 
@@ -213,12 +214,11 @@ try {
       ).run(username, JSON.stringify(player), player.last_active || Date.now());
       if (_dirtyUsernames) _dirtyUsernames.delete(username);
     } catch (e) {
-      console.warn(`[SQLite] فشل الحفظ الفوري لـ ${username}:`, e.message);
+      logger.warn({ err: e.message, username }, "SQLite immediate save failed");
     }
   };
 } catch (e) {
-  console.warn(`[SQLite] غير متاح (better-sqlite3 غير مثبت أو خطأ):`, e.message);
-  console.warn(`[SQLite] اللعبة ستشتغل بدون حفظ دائم — استخدم MongoDB أو ثبّت better-sqlite3`);
+  logger.warn({ err: e.message }, "SQLite unavailable — running without persistent storage");
   // markDirty و flushToSQLite تبقى no-op (معرفة في الأعلى)
 }
 

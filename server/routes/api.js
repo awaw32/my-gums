@@ -1,5 +1,6 @@
 "use strict";
 
+const logger = require("../logger");
 const { sanitizePlayerData } = require("../validation/player");
 const metrics = require("../metrics");
 
@@ -186,7 +187,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             // مكافحة الغش — تحقق من معدل تغير الموارد
             const deltaCheck = require("../validation/player").validateResourceDelta(existing, data);
             if (!deltaCheck.ok) {
-              console.warn(`[AntiCheat] ${username}: ${deltaCheck.reason}`);
+              logger.warn({ username, reason: deltaCheck.reason }, "AntiCheat rejection");
               res.writeHead(409, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: deltaCheck.reason }));
               return;
@@ -208,7 +209,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ ok: true }));
         } catch (err) {
-            console.warn("[API] Save validation error:", err.message);
+            logger.warn({ err: err.message }, "API save validation error");
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: err.message || "invalid json" }));
           }

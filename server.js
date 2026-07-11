@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const { WebSocketServer } = require("ws");
+const logger = require("./server/logger");
 
 const {
   PORT, USE_HTTPS, CERT_DIR, DATA_DIR,
@@ -18,7 +19,7 @@ if (USE_HTTPS) {
     key = fs.readFileSync(`${certPath}/privkey.pem`);
     cert = fs.readFileSync(`${certPath}/fullchain.pem`);
   } catch {
-    console.warn(`[Server] SSL certs not found at ${certPath}, falling back to HTTP`);
+    logger.warn({ certPath }, "SSL certs not found, falling back to HTTP");
   }
   if (key && cert) {
     server = https.createServer({ key, cert });
@@ -33,7 +34,7 @@ const wss = new WebSocketServer({ server });
 const rooms = new Map();
 const playerData = new Map();
 
-try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) { console.warn("[Server] Cannot create DATA_DIR:", e.message); }
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) { logger.warn({ err: e.message }, "Cannot create DATA_DIR"); }
 
 const {
   mongoConnected, memStore, Player, getDefaultPlayer, markDirty,
@@ -207,38 +208,32 @@ server.on("request", async (req, res) => {
 
 server.listen(PORT, () => {
   const mode = USE_HTTPS ? "HTTPS + WSS" : "HTTP + WS";
-  console.log(`\nDesert Kingdom Server`);
-  console.log(`  ${mode}`);
-  console.log(`  Port: ${PORT}`);
-  console.log(`  Tick: ${TICK_MS}ms (${1000 / TICK_MS}Hz)`);
-  console.log(`  Health: http://localhost:${PORT}/health\n`);
+  logger.info({ mode, port: PORT, tickMs: TICK_MS, tickHz: 1000 / TICK_MS }, "Server started");
 });
 
 // ==================== 🛡️ Global Error Handlers ====================
 process.on("uncaughtException", (err) => {
-  console.error("[FATAL] Uncaught Exception:", err.message);
-  console.error(err.stack);
+  logger.error({ err }, "Uncaught Exception");
   try { wss.clients.forEach((ws) => ws.close()); } catch {}
   try { server.close(); } catch {}
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-  console.error("[FATAL] Unhandled Rejection at:", promise);
-  console.error("  Reason:", reason?.message || reason);
+  logger.error({ promise, reason: reason?.message || reason }, "Unhandled Rejection");
   try { wss.clients.forEach((ws) => ws.close()); } catch {}
   try { server.close(); } catch {}
   process.exit(1);
 });
 
 process.on("SIGTERM", () => {
-  console.log("\nShutting down...");
+  logger.info("Shutting down...");
   wss.clients.forEach((ws) => ws.close());
   server.close(() => process.exit(0));
 });
 
 process.on("SIGINT", () => {
-  console.log("\nShutting down...");
+  logger.info("Shutting down...");
   wss.clients.forEach((ws) => ws.close());
   server.close(() => process.exit(0));
 });
