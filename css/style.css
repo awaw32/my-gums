@@ -4674,6 +4674,12 @@ input[type="number"] { -moz-appearance: textfield; }
 .combat-log-entry.clog-info { border-right: 3px solid #3b82f6; background: rgba(59,130,246,0.08); }
 .combat-log-time { color: #8b7355; font-size: 0.65rem; margin-left: 6px; }
 
+/* ====== قنوات الشات ====== */
+.chat-tabs { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.chat-tab { flex: 1; padding: 6px; background: rgba(255,255,255,0.05); border: none; border-radius: 6px; color: #8b7355; font-size: 0.7rem; font-family: inherit; cursor: pointer; transition: all 0.2s; }
+.chat-tab.active { background: rgba(255,215,0,0.15); color: #f5e6c8; }
+.chat-tab:hover { background: rgba(255,215,0,0.1); }
+
 /* ====== الخريطة المصغرة (Mini-Map) ====== */
 .mini-map {
   position: fixed;

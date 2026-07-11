@@ -127,13 +127,15 @@ export class GameUI {
   }
 
   initChat() {
+    this._chatChannel = "general";
+    this._chatMessageCache = [];
     const chatInput = document.getElementById("chat-input");
     const chatSend = document.getElementById("chat-send-btn");
     if (chatInput && chatSend) {
       chatSend.addEventListener("click", () => {
         const text = chatInput.value.trim();
         if (text && this.world) {
-          this.world._sendWS({ type: "chat", message: text });
+          this.world._sendWS({ type: "chat", message: text, channel: this._chatChannel });
           chatInput.value = "";
           if (this.achievements) this.achievements.updateProgress('chat_messages', 1);
         }
@@ -142,6 +144,14 @@ export class GameUI {
         if (e.key === "Enter") chatSend.click();
       });
     }
+    document.querySelectorAll(".chat-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".chat-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        this._chatChannel = tab.dataset.channel;
+        this._filterChatMessages();
+      });
+    });
   }
 
   initTutorial() {
@@ -381,8 +391,8 @@ export class GameUI {
       this.world._onSelfStatsChanged = () => {
         this.updatePlayerPanel(this._lastPlayerList);
       };
-      this.world._onChatMessage = (username, msg) => {
-        this.addChatMessage(username, msg);
+      this.world._onChatMessage = (username, msg, channel) => {
+        this.addChatMessage(username, msg, channel);
         this.addChatToOverlay(username, msg);
       };
     }
@@ -394,18 +404,37 @@ export class GameUI {
     }
   }
 
-  addChatMessage(username, msg) {
+  addChatMessage(username, msg, channel) {
+    channel = channel || "general";
+    this._chatMessageCache.push({ username, msg, channel });
+    if (this._chatMessageCache.length > 200) this._chatMessageCache.shift();
+    this._filterChatMessages();
+    if (this._chatChannel !== channel) {
+      const overlay = document.getElementById("chat-overlay-msg");
+      if (overlay) overlay.textContent = `${username}: ${msg}`;
+    }
+  }
+
+  _filterChatMessages() {
     if (!this._chatMessages) return;
-    const el = document.createElement("div");
-    el.className = "chat-msg";
-    const isMe = username === this.world?.username;
-    const author = document.createElement("span");
-    author.className = "chat-author";
-    author.style.color = isMe ? '#4cd964' : '#FFD700';
-    author.textContent = `${username}: `;
-    el.appendChild(author);
-    el.appendChild(document.createTextNode(msg));
-    this._chatMessages.appendChild(el);
+    const channel = this._chatChannel || "general";
+    const filtered = channel === "general"
+      ? this._chatMessageCache
+      : this._chatMessageCache.filter(m => m.channel === "alliance");
+    this._chatMessages.innerHTML = "";
+    for (const m of filtered) {
+      const el = document.createElement("div");
+      el.className = "chat-msg";
+      const isMe = m.username === this.world?.username;
+      if (m.channel === "alliance") el.style.borderRight = "2px solid #d97706";
+      const author = document.createElement("span");
+      author.className = "chat-author";
+      author.style.color = isMe ? '#4cd964' : '#FFD700';
+      author.textContent = `${m.username}: `;
+      el.appendChild(author);
+      el.appendChild(document.createTextNode(m.msg));
+      this._chatMessages.appendChild(el);
+    }
     this._chatMessages.scrollTop = this._chatMessages.scrollHeight;
   }
 
