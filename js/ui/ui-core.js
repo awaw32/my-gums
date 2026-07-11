@@ -916,8 +916,6 @@ export class GameUI {
     clogContent.scrollTop = clogContent.scrollHeight;
   }
 
-  logCombat(type, text) {
-
   renderQuests() {
     const container = document.getElementById("quests-content");
     if (!container || !this.quests) {

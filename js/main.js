@@ -988,7 +988,7 @@ async function init() {
 
     store.on('notification', (data) => {
       if (!data || !data.text) return;
-      notificationManager.show(data.text);
+      ui.notifier.show(data.text);
       if (data.text.includes('المنطقة تتصغر') && brZoneWarningEl) {
         brZoneWarningEl.classList.remove('hidden');
         clearTimeout(brZoneWarningEl._hideTimer);
