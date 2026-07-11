@@ -839,12 +839,22 @@ export class GameUI {
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div class="setting-slider-row">
+          <label>🔊 مستوى الصوت</label>
+          <input type="range" id="sfx-volume" min="0" max="100" value="${Math.round((settings.sfxVolume ?? 0.5) * 100)}">
+          <span class="slider-val" id="sfx-vol-label">${Math.round((settings.sfxVolume ?? 0.5) * 100)}</span>
+        </div>
         <div class="setting-row">
           <span>🎵 الموسيقى</span>
           <label class="toggle-switch">
             <input type="checkbox" id="music-toggle" ${settings.music !== false ? 'checked' : ''}>
             <span class="toggle-slider"></span>
           </label>
+        </div>
+        <div class="setting-slider-row">
+          <label>🎵 مستوى الموسيقى</label>
+          <input type="range" id="music-volume" min="0" max="100" value="${Math.round((settings.musicVolume ?? 0.3) * 100)}">
+          <span class="slider-val" id="music-vol-label">${Math.round((settings.musicVolume ?? 0.3) * 100)}</span>
         </div>
         <div class="setting-row">
           <span>✨ جودة الرسوم (FPS)</span>
@@ -869,6 +879,13 @@ export class GameUI {
           </label>
         </div>
         <div class="setting-row">
+          <span>🗺️ الخريطة المصغرة</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="minimap-toggle" ${settings.minimap !== false ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
           <span>💾 حذف الحفظ</span>
           <button class="action-btn danger-btn" id="reset-game-btn">🗑️ حذف كل شيء</button>
         </div>
@@ -883,6 +900,26 @@ export class GameUI {
       if (this.world) this.world.settings.music = e.target.checked;
       localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
     });
+    container.querySelector('#sfx-volume')?.addEventListener('input', e => {
+      const v = parseInt(e.target.value) / 100;
+      if (this.world) {
+        this.world.settings.sfxVolume = v;
+        if (window._audio) window._audio.setSfxVolume(v);
+      }
+      const label = document.getElementById('sfx-vol-label');
+      if (label) label.textContent = e.target.value;
+      localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
+    });
+    container.querySelector('#music-volume')?.addEventListener('input', e => {
+      const v = parseInt(e.target.value) / 100;
+      if (this.world) {
+        this.world.settings.musicVolume = v;
+        if (window._audio) window._audio.setMusicVolume(v);
+      }
+      const label = document.getElementById('music-vol-label');
+      if (label) label.textContent = e.target.value;
+      localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
+    });
     container.querySelector('#quality-select')?.addEventListener('change', e => {
       if (this.world) this.world.settings.quality = e.target.value;
       localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
@@ -893,6 +930,14 @@ export class GameUI {
     });
     container.querySelector('#combat-log-toggle')?.addEventListener('change', e => {
       if (this.world) this.world.settings.combatLog = e.target.checked;
+      localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
+    });
+    container.querySelector('#minimap-toggle')?.addEventListener('change', e => {
+      if (this.world) {
+        this.world.settings.minimap = e.target.checked;
+        const el = document.getElementById('mini-map');
+        if (el) el.classList.toggle('hidden', !e.target.checked);
+      }
       localStorage.setItem('desert_settings', JSON.stringify(this.world?.settings || {}));
     });
     container.querySelector('#reset-game-btn')?.addEventListener('click', () => {
@@ -1669,6 +1714,97 @@ export class GameUI {
 
   _scheduleSave() {
     if (this._onSave) this._onSave();
+  }
+
+  renderMiniMap() {
+    const canvas = document.getElementById("mini-map");
+    if (!canvas) return;
+    if (!this.world || this.world.settings.minimap === false) {
+      canvas.classList.add("hidden");
+      return;
+    }
+    canvas.classList.remove("hidden");
+    const ctx = canvas.getContext("2d");
+    const W = this.world._worldW || 2400;
+    const H = this.world._worldH || 2400;
+    const scaleX = 180 / W;
+    const scaleY = 180 / H;
+
+    ctx.clearRect(0, 0, 180, 180);
+    ctx.fillStyle = "rgba(210,180,140,0.3)";
+    ctx.fillRect(0, 0, 180, 180);
+
+    // رسم النقاط الساخنة (oases — b2, b3, b4, m1, m2)
+    const POI = [
+      { x: 600, y: 600, color: "#22c55e" }, { x: 1800, y: 600, color: "#22c55e" },
+      { x: 1200, y: 1200, color: "#22c55e" }, { x: 600, y: 1800, color: "#22c55e" },
+      { x: 1800, y: 1800, color: "#22c55e" }, { x: 1200, y: 400, color: "#f59e0b" },
+      { x: 400, y: 1200, color: "#f59e0b" }, { x: 2000, y: 1200, color: "#f59e0b" },
+    ];
+    for (const p of POI) {
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x * scaleX, p.y * scaleY, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // رسم الأعداء القريبين
+    if (this.world._enemies) {
+      for (const e of this.world._enemies) {
+        if (!e || e.hp <= 0) continue;
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(e.x * scaleX - 1, e.y * scaleY - 1, 3, 3);
+      }
+    }
+
+    // رسم اللاعبين الآخرين
+    if (this.world._otherPlayers) {
+      for (const p of this.world._otherPlayers) {
+        ctx.fillStyle = "#3b82f6";
+        ctx.beginPath();
+        ctx.arc(p.x * scaleX, p.y * scaleY, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // رسم موقع اللاعب
+    const player = this.world._player;
+    if (player) {
+      ctx.fillStyle = "#ffd700";
+      ctx.shadowColor = "#ffd700";
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(player.x * scaleX, player.y * scaleY, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // رسم الإطار
+    ctx.strokeStyle = "rgba(255,215,0,0.4)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, 180, 180);
+  }
+
+  startMiniMapLoop() {
+    this._mmInterval = setInterval(() => this.renderMiniMap(), 1000);
+    this.renderMiniMap();
+    // Click-to-navigate على الخريطة المصغرة
+    const canvas = document.getElementById("mini-map");
+    if (canvas) {
+      canvas.addEventListener("click", (e) => {
+        if (!this.world) return;
+        const rect = canvas.getBoundingClientRect();
+        const xRatio = (e.clientX - rect.left) / rect.width;
+        const yRatio = (e.clientY - rect.top) / rect.height;
+        const W = this.world._worldW || 2400;
+        const H = this.world._worldH || 2400;
+        this.world.movePlayerTo(Math.floor(xRatio * W), Math.floor(yRatio * H));
+      });
+    }
+  }
+
+  stopMiniMapLoop() {
+    if (this._mmInterval) { clearInterval(this._mmInterval); this._mmInterval = null; }
   }
 }
 

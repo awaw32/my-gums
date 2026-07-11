@@ -26,8 +26,20 @@ export class AudioManager {
 
   toggleMute() {
     this.muted = !this.muted;
-    if (this.sfxGain) this.sfxGain.gain.value = this.muted ? 0 : 0.5;
-    if (this.musicGain) this.musicGain.gain.value = this.muted ? 0 : 0.3;
+    const sfxVol = this.muted ? 0 : (this._sfxVolume ?? 0.5);
+    const musicVol = this.muted ? 0 : (this._musicVolume ?? 0.3);
+    if (this.sfxGain) this.sfxGain.gain.value = sfxVol;
+    if (this.musicGain) this.musicGain.gain.value = musicVol;
+  }
+
+  setSfxVolume(v) {
+    this._sfxVolume = Math.max(0, Math.min(1, v));
+    if (!this.muted && this.sfxGain) this.sfxGain.gain.value = this._sfxVolume;
+  }
+
+  setMusicVolume(v) {
+    this._musicVolume = Math.max(0, Math.min(1, v));
+    if (!this.muted && this.musicGain) this.musicGain.gain.value = this._musicVolume;
   }
 
   _ensure() { if (!this.ctx) this._init(); }

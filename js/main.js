@@ -213,6 +213,7 @@ async function init() {
 
   new AssetManager();
   const audio = new AudioManager();
+  window._audio = audio;
   const hero = new GameHero();
   const achievements = new AchievementManager(economy);
   const dailyLogin = new DailyLoginManager(economy);
@@ -393,6 +394,9 @@ async function init() {
     economy.powerSources.push(() => allianceManager.level * 10);
     economy.powerSources.push(() => prestige.level * 50);
     economy.powerSources.push(() => hero.powerContribution);
+
+    // تشغيل الخريطة المصغرة
+    ui.startMiniMapLoop();
 
     // ربط إنجازات المباني
     village.setBuildingCallbacks(
