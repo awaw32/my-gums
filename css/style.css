@@ -4693,6 +4693,30 @@ input[type="number"] { -moz-appearance: textfield; }
   100% { opacity: 0; transform: translateY(-60px) scale(0.5); }
 }
 
+/* ====== Tooltip تفصيلي ====== */
+.game-tooltip {
+  position: fixed;
+  z-index: 999999;
+  background: rgba(20, 12, 8, 0.96);
+  border: 1.5px solid var(--accent-gold);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  max-width: 220px;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  transition: opacity 0.15s ease;
+}
+.game-tooltip.hidden { display: none; }
+.game-tooltip .tt-name { font-weight: 700; font-size: 0.8rem; color: var(--accent-gold); margin-bottom: 4px; }
+.game-tooltip .tt-desc { color: var(--text-secondary); font-size: 0.65rem; margin-bottom: 6px; }
+.game-tooltip .tt-stat { display: flex; justify-content: space-between; padding: 1px 0; }
+.game-tooltip .tt-stat-label { color: var(--text-secondary); }
+.game-tooltip .tt-stat-value { color: var(--accent-gold); font-weight: 600; }
+.game-tooltip .tt-sep { border-top: 1px solid rgba(255,215,0,0.2); margin: 4px 0; }
+
 /* ====== الخريطة المصغرة (Mini-Map) ====== */
 .mini-map {
   position: fixed;

@@ -40,8 +40,7 @@ export class GameUI {
     this.startTopBarLoop();
     this.initPlayerPanel();
     this.initChat();
-    // تم إزالة this.initTutorial() من هنا — يتم استدعاؤها فقط بعد انتهاء القصة
-    // لتجنب تعارض overlay القصة مع overlay التدريب
+    this.initTooltip();
     this.initDailyCheck();
     this.initStory();
     this.bindCombatLog();
@@ -152,6 +151,54 @@ export class GameUI {
         this._filterChatMessages();
       });
     });
+  }
+
+  initTooltip() {
+    this._tooltipEl = document.getElementById("game-tooltip");
+    if (!this._tooltipEl) return;
+    document.addEventListener("mouseenter", (e) => {
+      const target = e.target.closest("[data-tooltip]");
+      if (target) this._showTooltip(target, e);
+    }, true);
+    document.addEventListener("mouseleave", (e) => {
+      const target = e.target.closest("[data-tooltip]");
+      if (target) this._hideTooltip();
+    }, true);
+    document.addEventListener("mousemove", (e) => {
+      if (this._tooltipEl && !this._tooltipEl.classList.contains("hidden")) {
+        this._positionTooltip(e.clientX, e.clientY);
+      }
+    });
+    document.addEventListener("touchstart", (e) => {
+      const target = e.target.closest("[data-tooltip]");
+      if (target) { e.preventDefault(); this._showTooltip(target, e.touches[0]); }
+    }, { passive: false });
+    document.addEventListener("touchend", () => this._hideTooltip());
+    document.addEventListener("touchmove", () => this._hideTooltip());
+  }
+
+  _showTooltip(el, ev) {
+    const html = el.getAttribute("data-tooltip");
+    if (!html || !this._tooltipEl) return;
+    this._tooltipEl.innerHTML = html;
+    this._tooltipEl.classList.remove("hidden");
+    this._positionTooltip(ev.clientX || ev.pageX, ev.clientY || ev.pageY);
+  }
+
+  _hideTooltip() {
+    if (this._tooltipEl) this._tooltipEl.classList.add("hidden");
+  }
+
+  _positionTooltip(x, y) {
+    const tt = this._tooltipEl;
+    if (!tt) return;
+    const pad = 12;
+    let left = x + pad;
+    let top = y + pad;
+    if (left + 220 > window.innerWidth) left = x - 220 - pad;
+    if (top + 150 > window.innerHeight) top = y - 150 - pad;
+    tt.style.left = left + "px";
+    tt.style.top = top + "px";
   }
 
   initTutorial() {
@@ -1352,14 +1399,27 @@ export class GameUI {
     if (!this.inventory) return;
     if (itemsEl) {
       const state = this.inventory.getState();
-      const usableItems = ['heal_potion', 'xp_scroll', 'arena_ticket', 'fire_sword', 'desert_shield', 'power_helmet', 'power_gem', 'tower_blueprint'];
-      const itemIcons = { heal_potion: '🧪', xp_scroll: '📜', arena_ticket: '🎫', fire_sword: '🗡️', desert_shield: '🛡️', power_helmet: '⛑️', power_gem: '💎', tower_blueprint: '📐' };
-      const itemLabels = { heal_potion: 'جرعة علاج (+50 HP)', xp_scroll: 'لفافة خبرة (+500 XP)', arena_ticket: 'تذكرة ساحة', fire_sword: 'سيف ناري (30ث)', desert_shield: 'درع صحراوي (60ث)', power_helmet: 'خوذة القوة (60ث)', power_gem: 'جوهرة القوة (×2 5د)', tower_blueprint: 'مخطط برج' };
+      const usableItems = ['heal_potion', 'xp_scroll', 'arena_ticket', 'fire_sword', 'desert_shield', 'power_helmet', 'power_gem', 'tower_blueprint', 'iron_sword'];
+      const itemIcons = { heal_potion: '🧪', xp_scroll: '📜', arena_ticket: '🎫', fire_sword: '🗡️', desert_shield: '🛡️', power_helmet: '⛑️', power_gem: '💎', tower_blueprint: '📐', iron_sword: '🗡️', bandage: '🩹' };
+      const itemLabels = { bandage: 'باندج', heal_potion: 'جرعة علاج', xp_scroll: 'لفافة خبرة', arena_ticket: 'تذكرة ساحة', fire_sword: 'سيف ناري', desert_shield: 'درع صحراوي', power_helmet: 'خوذة القوة', power_gem: 'جوهرة القوة', tower_blueprint: 'مخطط برج', iron_sword: 'سيف حديدي' };
+      const itemTooltips = {
+        bandage: '<div class="tt-name">🩹 باندج</div><div class="tt-desc">ضمادة بسيطة لمعالجة الجروح</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">العلاج</span><span class="tt-stat-value">+30 HP</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">علاج</span></div>',
+        heal_potion: '<div class="tt-name">🧪 جرعة علاج</div><div class="tt-desc">جرعة سحرية لاستعادة الصحة</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">العلاج</span><span class="tt-stat-value">+50 HP</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">علاج</span></div>',
+        fire_sword: '<div class="tt-name">🗡️ سيف ناري</div><div class="tt-desc">سيف مشتعل يسبب حرقاً إضافياً</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">الضرر</span><span class="tt-stat-value">+40%</span></div><div class="tt-stat"><span class="tt-stat-label">المدة</span><span class="tt-stat-value">30 ثانية</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">سلاح</span></div>',
+        desert_shield: '<div class="tt-name">🛡️ درع صحراوي</div><div class="tt-desc">درع بدوي يقاوم الرمال والرياح</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">الدفاع</span><span class="tt-stat-value">+50%</span></div><div class="tt-stat"><span class="tt-stat-label">المدة</span><span class="tt-stat-value">60 ثانية</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">دفاع</span></div>',
+        power_helmet: '<div class="tt-name">⛑️ خوذة القوة</div><div class="tt-desc">خوذة تعزز قوة المعركة</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">القوة</span><span class="tt-stat-value">+30%</span></div><div class="tt-stat"><span class="tt-stat-label">المدة</span><span class="tt-stat-value">60 ثانية</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">تعزيز</span></div>',
+        xp_scroll: '<div class="tt-name">📜 لفافة خبرة</div><div class="tt-desc">لفافة قديمة تحتوي على معرفة أجدادية</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">الخبرة</span><span class="tt-stat-value">+500 XP</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">مورد</span></div>',
+        power_gem: '<div class="tt-name">💎 جوهرة القوة</div><div class="tt-desc">جوهرة نادرة تضاعف ضرباتك</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">الضرر</span><span class="tt-stat-value">×2</span></div><div class="tt-stat"><span class="tt-stat-label">المدة</span><span class="tt-stat-value">5 دقائق</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">تعزيز</span></div>',
+        arena_ticket: '<div class="tt-name">🎫 تذكرة ساحة</div><div class="tt-desc">تذكرة دخول لساحة القتال</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">الاستخدام</span><span class="tt-stat-value">دخول الساحة</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">خاص</span></div>',
+        tower_blueprint: '<div class="tt-name">📐 مخطط برج</div><div class="tt-desc">رسمة هندسية لبناء أبراج دفاعية</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">الاستخدام</span><span class="tt-stat-value">بناء البرج</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">خاص</span></div>',
+        iron_sword: '<div class="tt-name">🗡️ سيف حديدي</div><div class="tt-desc">سيف صلب من الحديد المطاوع</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">الضرر الأساسي</span><span class="tt-stat-value">150</span></div><div class="tt-stat"><span class="tt-stat-label">المدة</span><span class="tt-stat-value">30 ثانية</span></div><div class="tt-stat"><span class="tt-stat-label">التحسين</span><span class="tt-stat-value">+150 ضرر/مستوى</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">سلاح</span></div>',
+      };
       itemsEl.innerHTML = Object.keys(state.items).length === 0
         ? '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-title">المخزون فارغ</div><div class="empty-state-desc">لم تصنع أي قطعة بعد. توجه إلى ورشة التصنيع لصنع أدواتك الأولى!</div></div>'
         : Object.entries(state.items).map(([id, count]) => {
             const isUsable = usableItems.includes(id);
-            return `<div class="inventory-item">
+            const tt = itemTooltips[id] || '';
+            return `<div class="inventory-item"${tt ? ` data-tooltip="${tt.replace(/"/g, '&quot;')}"` : ''}>
               <span class="inv-item-icon">${itemIcons[id] || '📦'}</span>
               <span class="inv-item-name">${itemLabels[id] || id}</span>
               <span class="inv-item-count">×${count}</span>

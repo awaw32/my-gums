@@ -1,4 +1,6 @@
 
+import { WEAPON_COMBAT_STATS } from "../combat/weapon-system.js";
+
 export function injectPromotionMethods(GameUI) {
 
 GameUI.prototype._bindCloseButtons = function() {
@@ -184,8 +186,13 @@ GameUI.prototype._renderWeaponsLibraryPage = function() {
     const costs = w.getUpgradeCosts ? w.getUpgradeCosts() : null;
     const upgradeCostStr = costs ? `💵${costs.cash} 💎${costs.gems}${costs.artifact > 0 ? ` 🏺${costs.artifact}` : ''}${costs.desertGem > 0 ? ` 💠${costs.desertGem}` : ''}` : '';
 
+    const combatStats = WEAPON_COMBAT_STATS[w.id] || {};
+    const rangeLabel = combatStats.range === 'ranged' ? 'بعيد 🔭' : 'قريب ⚔️';
+    const critPct = combatStats.critChance ? (combatStats.critChance * 100).toFixed(0) : '—';
+    const ttHtml = `<div class="tt-name">${icon} ${w.name}</div><div class="tt-desc">${w.desc || ''}</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">ضرر أساسي</span><span class="tt-stat-value">${combatStats.baseDamage || '—'}</span></div><div class="tt-stat"><span class="tt-stat-label">ضرر/مستوى</span><span class="tt-stat-value">+${combatStats.damagePerLevel || '—'}</span></div><div class="tt-stat"><span class="tt-stat-label">المدى</span><span class="tt-stat-value">${rangeLabel}</span></div><div class="tt-stat"><span class="tt-stat-label">ضربة حاسمة</span><span class="tt-stat-value">${critPct}%</span></div><div class="tt-stat"><span class="tt-stat-label">مضاعف الحاسمة</span><span class="tt-stat-value">×${combatStats.critMultiplier || '—'}</span></div>${isOwned ? `<div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">القوة الحالية</span><span class="tt-stat-value" style="color:${color}">${Math.round(w.power)}</span></div>` : ''}`;
+
     html += `
-      <div class="shop-weapon-card" style="background:var(--bg-card);border:2px solid ${isEquipped ? color : 'var(--border-light)'};border-radius:16px;padding:12px;box-shadow:${isEquipped ? '0 0 20px '+color+'33' : 'var(--shadow-card)'};transition:all 0.2s">
+      <div class="shop-weapon-card" data-tooltip="${ttHtml.replace(/"/g, '&quot;')}" style="background:var(--bg-card);border:2px solid ${isEquipped ? color : 'var(--border-light)'};border-radius:16px;padding:12px;box-shadow:${isEquipped ? '0 0 20px '+color+'33' : 'var(--shadow-card)'};transition:all 0.2s">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
           <div style="font-size:2rem;width:44px;text-align:center">${icon}</div>
           <div style="flex:1;min-width:0">
