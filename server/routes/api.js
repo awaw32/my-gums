@@ -183,6 +183,14 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             const data = sanitizePlayerData(rawData);
             const lastActive = data.last_active || Date.now();
             const existing = memStore.get(username) || getDefaultPlayer(username);
+            // مكافحة الغش — تحقق من معدل تغير الموارد
+            const deltaCheck = require("../validation/player").validateResourceDelta(existing, data);
+            if (!deltaCheck.ok) {
+              console.warn(`[AntiCheat] ${username}: ${deltaCheck.reason}`);
+              res.writeHead(409, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: deltaCheck.reason }));
+              return;
+            }
             const merged = { ...existing };
             for (const [k, v] of Object.entries(data)) {
               if (v !== undefined) merged[k] = v;

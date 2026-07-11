@@ -57,4 +57,28 @@ function sanitizePlayerData(data) {
   return result.data;
 }
 
-module.exports = { sanitizePlayerData, PlayerSaveSchema };
+// التحقق من معدل تغير الموارد — يمنع الغش بزيادة مفاجئة
+const RESOURCE_NAMES = ["cash", "gems", "gold", "hammers", "scrolls", "food"];
+const MAX_RESOURCE_GAIN_PER_SEC = {
+  cash: 5000, gems: 100, gold: 2000, hammers: 500, scrolls: 500, food: 5000,
+};
+
+function validateResourceDelta(existing, incoming) {
+  const now = Date.now();
+  const lastTime = existing.last_active || now;
+  const elapsedSec = Math.max(1, (now - lastTime) / 1000);
+  for (const res of RESOURCE_NAMES) {
+    if (incoming[res] === undefined) continue;
+    const oldVal = existing[res] || 0;
+    const newVal = incoming[res];
+    const gain = newVal - oldVal;
+    if (gain <= 0) continue;
+    const maxGain = MAX_RESOURCE_GAIN_PER_SEC[res] * elapsedSec * 1.5; // 50% تسامح
+    if (gain > maxGain) {
+      return { ok: false, reason: `${res} gain ${Math.floor(gain)} exceeds max ${Math.floor(maxGain)} in ${Math.floor(elapsedSec)}s` };
+    }
+  }
+  return { ok: true };
+}
+
+module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta };
