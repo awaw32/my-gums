@@ -2,7 +2,7 @@
 
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const JWT_SECRET = process.env.JWT_SECRET || "desert-kingdom-dev-secret-key-change-in-production";
+const { JWT_SECRET } = require("../config");
 const JWT_EXPIRES = "24h";
 const BCRYPT_ROUNDS = 10;
 

@@ -282,7 +282,7 @@ async function getLeaderboard(sortBy = "power") {
 //  التصدير — دائماً في نهاية الملف
 // ═══════════════════════════════════════════════════════════════════
 module.exports = {
-  mongoConnected,
+  get mongoConnected() { return mongoConnected; },
   memStore,
   Player,
   getDefaultPlayer,

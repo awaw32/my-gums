@@ -250,6 +250,19 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     const upgradeMatch = req.url.match(/^\/api\/upgrades\/([a-zA-Z0-9_\-\.%\u0600-\u06FF]+)$/);
     if (upgradeMatch && req.method === "POST") {
       const uname = decodeURIComponent(upgradeMatch[1]);
+      const authHeader = req.headers["authorization"];
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Authentication required" }));
+        return true;
+      }
+      const { verifyToken } = require("../network/auth");
+      const tokenResult = verifyToken(authHeader.slice(7));
+      if (!tokenResult.valid || tokenResult.username !== uname) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Forbidden" }));
+        return true;
+      }
       let body = "";
       let size = 0;
       req.on("data", chunk => {
@@ -297,6 +310,19 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     const rewardClaimMatch = req.url.match(/^\/api\/rewards\/claim\/([a-zA-Z0-9_\-\.%\u0600-\u06FF]+)$/);
     if (rewardClaimMatch && req.method === "POST") {
       const uname = decodeURIComponent(rewardClaimMatch[1]);
+      const authHeader = req.headers["authorization"];
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Authentication required" }));
+        return true;
+      }
+      const { verifyToken } = require("../network/auth");
+      const tokenResult = verifyToken(authHeader.slice(7));
+      if (!tokenResult.valid || tokenResult.username !== uname) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Forbidden" }));
+        return true;
+      }
       const pData = memStore.get(uname) || getDefaultPlayer(uname);
       const result = claimReward(pData);
       memStore.set(uname, pData);
