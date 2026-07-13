@@ -37,10 +37,14 @@ async function getOrPromptUsername() {
   if (saved && saved.trim()) {
     const name = sanitizeUsername(saved.trim());
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: name, password: "" }),
+        signal: controller.signal
       });
+      clearTimeout(timeout);
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("player_token", data.token);
@@ -74,10 +78,14 @@ async function getOrPromptUsername() {
     const name = sanitizeUsername(input.value);
     localStorage.setItem("player_username", name);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: name, password: "" }),
+        signal: controller.signal
       });
+      clearTimeout(timeout);
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("player_token", data.token);
@@ -1282,7 +1290,13 @@ async function init() {
 }
 
 
-init().catch(err => {
+const loadingTimer = setTimeout(() => {
+  console.warn("⚠️ [LOAD] تجاوزت 20 ثانية تحميل — نعرض شاشة الخطأ");
+  showLoadingError();
+}, 20000);
+
+init().then(() => clearTimeout(loadingTimer)).catch(err => {
+  clearTimeout(loadingTimer);
   console.error("❌ [FATAL] فشل تهيئة اللعبة:", err, err?.stack);
   showLoadingError();
 });

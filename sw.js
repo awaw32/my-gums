@@ -6,9 +6,7 @@ const STATIC_ASSETS = [
   '/index.html',
   '/sw.js',
   '/lands.html',
-  '/config/images.js',
-  '/assets/index.css',
-  '/assets/index.js'
+  '/config/images.js'
 ];
 
 self.addEventListener('install', (event) => {
