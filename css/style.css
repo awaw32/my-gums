@@ -47,6 +47,7 @@ input, textarea { user-select: text; -webkit-user-select: text; }
   --bg-primary: #FFF8F0;
   --bg-header: rgba(232, 213, 183, 0.5);
   --accent-red-dim: #7B2D26;
+  --accent-gold: #D4A017;
   --vh: 1vh;
 }
 
@@ -2108,6 +2109,12 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   .promo-card-new:nth-child(3),
   .promo-card-new:nth-child(4) { height: 130px; }
 }
+@media (max-width: 400px) {
+  .top-res .res-val { display: none; }
+  .top-res { padding: 2px 3px; gap: 1px; }
+  .top-resources { gap: 1px; }
+  .top-res .res-icon { font-size: 0.65rem; }
+}
 @media (max-width: 360px) {
   :root {
     --top-h: 50px;
@@ -2483,7 +2490,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 
 /* ====== Battle Royale ====== */
 #br-timer {
-  position: fixed; top: calc(var(--safe-t) + 8px); left: 50%;
+  position: fixed; top: calc(var(--top-h) + var(--safe-t) + 6px); left: 50%;
   transform: translateX(-50%); z-index: 100;
   font-size: 1.6rem; font-weight: 900;
   color: var(--accent-red); text-shadow: 0 0 10px rgba(0,0,0,0.9);
@@ -2492,21 +2499,21 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 }
 #br-timer.warning { color: #c0392b; animation: pulse-red 0.5s infinite alternate; }
 #br-players {
-  position: fixed; top: calc(var(--safe-t) + 10px); left: 10px;
+  position: fixed; top: calc(var(--top-h) + var(--safe-t) + 8px); left: 10px;
   z-index: 100; font-size: 0.95rem; color: var(--text-primary);
   background: var(--bg-card); padding: 4px 10px; border-radius: 12px;
   border: 1px solid var(--border-light);
   pointer-events: none;
 }
 #br-kills {
-  position: fixed; top: calc(var(--safe-t) + 10px); right: 10px;
+  position: fixed; top: calc(var(--top-h) + var(--safe-t) + 8px); right: 10px;
   z-index: 100; font-size: 0.95rem; color: #c0392b;
   background: var(--bg-card); padding: 4px 10px; border-radius: 12px;
   border: 1px solid var(--border-light);
   pointer-events: none;
 }
 #br-kill-feed {
-  position: fixed; top: calc(var(--safe-t) + 60px); left: 50%;
+  position: fixed; top: calc(var(--top-h) + var(--safe-t) + 56px); left: 50%;
   transform: translateX(-50%); z-index: 100;
   display: flex; flex-direction: column; gap: 4px;
   pointer-events: none;
@@ -4755,6 +4762,12 @@ input[type="number"] { -moz-appearance: textfield; }
 }
 .mini-map:hover { opacity: 1; border-color: rgba(255,215,0,0.6); }
 .mini-map.hidden { display: none; }
+@media (max-width: 480px) {
+  .mini-map { width: 100px; height: 100px; bottom: 70px; right: 6px; }
+}
+@media (max-width: 360px) {
+  .mini-map { width: 80px; height: 80px; bottom: 62px; right: 4px; border-radius: 8px; }
+}
 
 /* ====== شريط تمرير مستوى الصوت ====== */
 .setting-slider-row {
