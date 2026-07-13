@@ -1,4 +1,4 @@
-import { GameEconomy, getXpForLevel } from "./economy.js";
+﻿import { GameEconomy, getXpForLevel } from "./economy.js";
 import { GameVillage } from "./village.js";
 import { GameArmy } from "./army.js";
 import { GameUI } from "./ui.js";
@@ -393,6 +393,7 @@ async function init() {
     throw err;
   }
     world.onExit = () => ui.exitWorldMap();
+    world._onBeforeExit = () => saveToDB();
 
     // ربط العالم بأنظمة الترقيات والتحالف
     world._allianceManager = allianceManager;
@@ -1222,7 +1223,11 @@ async function init() {
       } else {
         console.warn("💾 [DB] قاعدة البيانات غير متصلة — الحفظ في الذاكرة مؤقتاً");
       }
-    }).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
+    
+    window.addEventListener("beforeunload", () => {
+      try { saveGame(economy, village, army); saveToDB(); } catch {}
+    });
+}).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
 }
 
 

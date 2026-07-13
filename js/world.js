@@ -2937,6 +2937,7 @@ export class WorldMap {
 
   async exitWorldMap() {
     this.exitCurrentMode();
+    if (this._onBeforeExit) { try { this._onBeforeExit(); } catch(e) {} }
     if (this.netSync) {
       this.netSync.sendWSUpdate();
       await this.netSync.sendPositionUpdate();
