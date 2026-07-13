@@ -48,7 +48,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
   <!-- ❌ أزيل Tailwind CDN — اللعبة تستخدم CSS مخصص بالكامل -->
-  <link rel="stylesheet" href="css/style.css?v=20260703" />
+  <link rel="stylesheet" href="css/style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%23FFF8F0' rx='32'/%3E%3Ctext x='96' y='140' font-size='120' text-anchor='middle'%3E👑%3C/text%3E%3C/svg%3E">
 </head>
@@ -185,6 +185,10 @@
           <span class="csb-icon">📊</span>
           <span class="csb-label">إحصائياتي</span>
         </button>
+        <button class="circular-sub-btn" type="button" data-sub="market">
+          <span class="csb-icon">🏪</span>
+          <span class="csb-label">السوق</span>
+        </button>
         <button class="circular-sub-btn" type="button" data-sub="settings">
           <span class="csb-icon">⚙️</span>
           <span class="csb-label">الإعدادات</span>
@@ -302,7 +306,7 @@
         <button id="br-defeat-btn" class="action-btn" style="margin-top:16px;padding:12px 30px;font-size:1rem">العودة للصالة</button>
       </div>
     </div>
-    <div id="br-evacuate-btn" class="hidden br-evacuate-btn" onclick="(() => { const w = window._world; if (w && w._doBRExtraction) w._doBRExtraction(); })()">🚁 إخلاء</div>
+    <div id="br-evacuate-btn" class="hidden br-evacuate-btn">🚁 إخلاء</div>
 
     <!-- Canvas -->
     <canvas id="gameCanvas" class="hidden"></canvas>

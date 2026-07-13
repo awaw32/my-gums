@@ -17,7 +17,7 @@ export class NetworkSync {
     if (this._ws) return;
     this._connectWS();
     this._wsInterval = setInterval(() => this.sendWSUpdate(), 200);
-    this._posInterval = setInterval(() => this.sendPositionUpdate(), 5000);
+    this._posInterval = setInterval(() => this.sendPositionUpdate(), 30000);
     this._boundUnload = () => this.stop();
     window.addEventListener("beforeunload", this._boundUnload);
   }
@@ -446,6 +446,13 @@ export class NetworkSync {
         break;
       case "war_response":
         if (w._onWarResponse) w._onWarResponse(msg.requestType, msg);
+        break;
+      // ==================== 🏪 رسائل السوق ====================
+      case "market_listing_new":
+      case "market_listing_sold":
+      case "market_listing_removed":
+      case "market_listings_sync":
+        if (window._tradeMarket) window._tradeMarket.handleNetMessage(msg);
         break;
     }
   }

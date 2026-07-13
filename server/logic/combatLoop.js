@@ -148,30 +148,34 @@ function createCombatLoop(deps) {
   const monsterInterval = setInterval(() => {
     for (const m of worldMonsters) {
       if (!m.alive) {
-        m.respawnTimer -= 1;
+        m.respawnTimer -= 0.3; // 300ms ticks
         if (m.respawnTimer <= 0) {
           m.alive = true; m.hp = m.maxHp;
           m.x = m.spawnX; m.y = m.spawnY;
         }
       } else {
-        if (!m._patrolTarget || Math.hypot(m.x - m._patrolTarget.x, m.y - m._patrolTarget.y) < 15) {
+        // حركة دورية سلسة
+        if (!m._patrolTarget || Math.hypot(m.x - m._patrolTarget.x, m.y - m._patrolTarget.y) < 12) {
           m._patrolTarget = {
-            x: m.spawnX + (Math.random() - 0.5) * 180,
-            y: m.spawnY + (Math.random() - 0.5) * 180,
+            x: m.spawnX + (Math.random() - 0.5) * 150,
+            y: m.spawnY + (Math.random() - 0.5) * 150,
           };
+          // سرعة متغيرة قليلاً
+          m._patrolSpeed = 12 + Math.random() * 8;
         }
         const dx = m._patrolTarget.x - m.x;
         const dy = m._patrolTarget.y - m.y;
         const dist = Math.hypot(dx, dy);
-        if (dist > 3) {
-          m.x += (dx / dist) * 18;
-          m.y += (dy / dist) * 18;
+        if (dist > 2) {
+          const step = (m._patrolSpeed || 16) * 0.3;
+          m.x += (dx / dist) * step;
+          m.y += (dy / dist) * step;
         }
       }
     }
     const msg = JSON.stringify({ type: "world_monsters", list: worldMonsters });
     worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
-  }, 1000);
+  }, 300); // 300ms ← أسرع 3× من 1000ms (حركة وحوش أكثر سلاسة)
 
   return {
     tickTimer,

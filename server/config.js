@@ -6,12 +6,39 @@ const CERT_DIR = process.env.CERT_DIR || "/etc/letsencrypt/live";
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
 const crypto = require("crypto");
 const isProd = process.env.NODE_ENV === "production";
-const JWT_SECRET = process.env.JWT_SECRET
-  || (isProd ? (() => { throw new Error("JWT_SECRET is REQUIRED in production. Set it in .env"); })() : crypto.randomBytes(32).toString("hex"));
-const JWT_EXPIRES = "24h";
-const BUILD_ID = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
+// ═══════════════════════════════════════════════════════════════
+//  🔐 JWT_SECRET — في التطوير: يُحفظ في ملف ليثبت بين جلسات التشغيل
+//  في الإنتاج: يجب تعيينه في .env وإلا يرفض التشغيل
+// ═══════════════════════════════════════════════════════════════
+const fs = require("fs");
+const path = require("path");
+
+function getOrCreateJwtSecret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (isProd) {
+    throw new Error("JWT_SECRET is REQUIRED in production. Set it in .env");
+  }
+  // في التطوير: احفظ السر في ملف .jwt_secret داخل DATA_DIR
+  const secretFile = path.resolve(DATA_DIR, ".jwt_secret");
+  try {
+    // محاولة قراءة السر من الملف
+    return fs.readFileSync(secretFile, "utf8").trim();
+  } catch {
+    // إنشاء سر جديد وحفظه
+    const newSecret = crypto.randomBytes(32).toString("hex");
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.writeFileSync(secretFile, newSecret, "utf8");
+    } catch { /* تجاهل — السيرفر سيبقى شغال بهذا السر */ }
+    return newSecret;
+  }
+}
+
 const DATA_DIR = process.env.DATA_DIR || "./data";
 const BUILD_DIR = process.env.BUILD_DIR || (process.env.NODE_ENV === "production" ? "./dist" : "./");
+const JWT_SECRET = getOrCreateJwtSecret();
+const JWT_EXPIRES = "24h";
+const BUILD_ID = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
 const WORLD_W = 3200;
 const WORLD_H = 3200;
 const TICK_MS = 50;

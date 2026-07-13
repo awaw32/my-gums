@@ -26,6 +26,8 @@ export class CaveMode {
       { id: "cave_magma_golem", name: "غول الماغما", icon: "🗿🔥", hp: 200, damage: 30, color: "#c0392b", radius: 22, speed: 60, level: 12, reward: { cash: 60, gold: 20 } },
       { id: "cave_fire_drake", name: "ثعبان النار", icon: "🐉🔥", hp: 350, damage: 45, color: "#d35400", radius: 20, speed: 85, level: 15, reward: { cash: 100, gold: 35 }, isBoss: true },
     ];
+    this._goDeeperTimer = 0;
+    this._tunnelCooldown = 0;
   }
 
   init() {
@@ -237,6 +239,18 @@ export class CaveMode {
       }
     }
 
+    // فحص timer للانتقال للعمق التالي
+    if (this._goDeeperTimer > 0) {
+      this._goDeeperTimer -= dt;
+      if (this._goDeeperTimer <= 0 && this._caveActive && this._caveDepth < 10) {
+        const alive = w.monsters.filter(m => m.alive !== false).length;
+        if (alive === 0) {
+          this._goDeeper();
+        }
+        this._goDeeperTimer = 0;
+      }
+    }
+
     // glow للوحوش الكهفية عند الرسم (سيتم رسمه في drawUI)
   }
 
@@ -257,9 +271,10 @@ export class CaveMode {
       });
     }
     // التقدم للعمق التالي عند قتل كل الوحوش
+    // نستخدم timer بدلاً من setTimeout لضمان الدقة
     const aliveMonsters = w.monsters.filter(m => m.alive !== false).length;
     if (aliveMonsters === 0 && this._caveActive && this._caveDepth < 10) {
-      setTimeout(() => this._goDeeper(), 1500);
+      this._goDeeperTimer = 1.5; // 1.5 ثانية تأخير
     }
   }
 
@@ -374,7 +389,7 @@ export class CaveMode {
     ctx.fillStyle = "#fdcb6e";
     ctx.fillText(`🏆 ${this._caveScore} نقطة`, 14, 88);
 
-    // إرشاد الخروج
+    // إرشاد الخروج — مرسوم على الخريطة أيضاً
     if (this._caveExit && this._rareItemsCollected > 0) {
       const dist = Math.hypot(w.leader.x - this._caveExit.x, w.leader.y - this._caveExit.y);
       if (dist > 100) {
@@ -390,6 +405,21 @@ export class CaveMode {
       }
     }
 
+    // إظهار مؤشر الخروج على الشاشة إذا كان بعيداً
+    if (this._caveExit && this._caveActive) {
+      const dist = Math.hypot(w.leader.x - this._caveExit.x, w.leader.y - this._caveExit.y);
+      if (dist > 150) {
+        const angle = Math.atan2(this._caveExit.y - w.leader.y, this._caveExit.x - w.leader.x);
+        const arrowX = cw / 2 + Math.cos(angle) * 60;
+        const arrowY = ctx.canvas.height / (dpr * 2) + Math.sin(angle) * 60;
+        ctx.fillStyle = `rgba(46, 204, 113, ${0.5 + Math.sin(Date.now() * 0.005) * 0.3})`;
+        ctx.font = "24px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("🚪", arrowX, arrowY);
+      }
+    }
+
     ctx.restore();
   }
 
@@ -401,5 +431,27 @@ export class CaveMode {
     w.drops = [];
     w.treasureChests = [];
     this._caveActive = false;
+  }
+
+  /** حفظ تقدم نمط الكهف */
+  getSaveData() {
+    return {
+      modeName: this.modeName,
+      caveLevel: this._caveLevel,
+      caveDepth: this._caveDepth,
+      rareItemsCollected: this._rareItemsCollected,
+      caveMonstersKilled: this._caveMonstersKilled,
+      caveScore: this._caveScore,
+    };
+  }
+
+  /** استعادة تقدم نمط الكهف */
+  loadState(data) {
+    if (!data) return;
+    this._caveLevel = data.caveLevel || 1;
+    this._caveDepth = data.caveDepth || 1;
+    this._rareItemsCollected = data.rareItemsCollected || 0;
+    this._caveMonstersKilled = data.caveMonstersKilled || 0;
+    this._caveScore = data.caveScore || 0;
   }
 }

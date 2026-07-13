@@ -1,4 +1,5 @@
 import { formatNumber } from "../economy.js";
+import { ITEM_DEFS } from "../inventory.js";
 
 export function injectGameplayMethods(GameUI) {
 
@@ -176,7 +177,7 @@ GameUI.prototype._initLandsPage = function() {
   const villageData = this.village.currentVillage;
   if (!villageData) return;
 
-  const bg = villageData.bg || (ImageResolver ? ImageResolver.src('landsBg') : 'assets/images/bg-village.jpg');
+  const bg = villageData.bg || (typeof ImageResolver !== 'undefined' ? ImageResolver.src('landsBg') : 'assets/images/bg-village.jpg');
   const bgEl = document.getElementById('lands-bg');
   if (bgEl) bgEl.style.backgroundImage = `url('${bg}')`;
 
@@ -778,7 +779,252 @@ GameUI.prototype.enterCampaign = function() {
   }
 };
 
-GameUI.prototype.enterExtraction = function() {
+// ═══════════════════════════════════════════════════════════════════
+//  🎒 واجهة اختيار العتاد (Loadout) قبل الدخول لأي نمط
+// ═══════════════════════════════════════════════════════════════════
+
+/** إظهار شاشة اختيار العتاد قبل الدخول للنمط */
+GameUI.prototype.showLoadoutScreen = function(modeName) {
+  const loadoutMgr = window._loadoutManager;
+  if (!loadoutMgr) {
+    // إذا لم يكن هناك نظام شنطة، ندخل النمط مباشرة
+    this._enterModeDirect(modeName);
+    return;
+  }
+
+  // تجهيز واجهة الشنطة
+  const modeNames = { extraction: 'استخراج الذهب', horde: 'الحشد', cave: 'الكهف' };
+  const modeIcons = { extraction: '🪙', horde: '🌊', cave: '🕯️' };
+  
+  const overlay = document.createElement("div");
+  overlay.id = "loadout-overlay";
+  overlay.className = "loadout-overlay";
+  
+  const hasBag = loadoutMgr.hasBag;
+  const stats = loadoutMgr.stats;
+  const ownedWeapons = loadoutMgr.getOwnedWeapons();
+  const availableItems = loadoutMgr.getAvailableItemsForMode(modeName);
+  
+  // الأيقونات العربية للأسلحة
+  const weaponIcons = {
+    'w1': '🗡️', 'w2': '🏹', 'w3': '🔱',
+    'w4': '🗡️', 'w5': '🏹🔥', 'w6': '🪓'
+  };
+  const itemIcons = {
+    bandage: '🩹', heal_potion: '🧪', fire_sword: '🗡️', desert_shield: '🛡️',
+    power_helmet: '⛑️', xp_scroll: '📜', power_gem: '💎', iron_sword: '🗡️'
+  };
+  
+  // بناء HTML للأسلحة المجهزة
+  let weaponsHtml = '<div class="loadout-weapons-grid">';
+  for (const w of ownedWeapons) {
+    const equipped = loadoutMgr.isWeaponEquipped(w.id);
+    const canEquip = loadoutMgr.canEquipWeapon(w.id) && !equipped;
+    weaponsHtml += `
+      <div class="loadout-weapon-card${equipped ? ' loadout-equipped' : ''}" data-wid="${w.id}">
+        <div class="lod-w-icon">${weaponIcons[w.id] || '🗡️'}</div>
+        <div class="lod-w-name">${w.name}</div>
+        <div class="lod-w-power">👊 ${w.power.toFixed(0)}</div>
+        <div class="lod-w-stars">${'⭐'.repeat(w.level)}${'☆'.repeat(Math.max(0, w.maxLevel - w.level))}</div>
+        ${equipped ? '<div class="lod-equipped-badge">✅ مجهز</div>' : (canEquip ? '<button class="lod-equip-btn" data-wid="'+w.id+'">تجهيز</button>' : '<div class="lod-locked-badge">🔒 ممتلئ</div>')}
+      </div>
+    `;
+  }
+  weaponsHtml += '</div>';
+  
+  // بناء HTML للعناصر المتاحة حسب النمط
+  let itemsHtml = '<div class="loadout-items-grid">';
+  if (availableItems.length === 0) {
+    itemsHtml += '<div class="loadout-no-items">لا توجد عناصر متاحة لهذا النمط في مخزونك</div>';
+  } else {
+    for (const item of availableItems) {
+      const equipped = loadoutMgr.isItemEquipped(item.id);
+      const canEquip = loadoutMgr.canEquipItem(item.id, modeName) && !equipped;
+      itemsHtml += `
+        <div class="loadout-item-card${equipped ? ' loadout-equipped' : ''}" data-iid="${item.id}">
+          <div class="lod-i-icon">${itemIcons[item.id] || '📦'}</div>
+          <div class="lod-i-info">
+            <div class="lod-i-name">${(ITEM_DEFS[item.id]?.name) || item.id}</div>
+            <div class="lod-i-count">×${item.count} (Lv.${item.level || 1})</div>
+          </div>
+          ${equipped ? '<div class="lod-equipped-badge">✅ في الشنطة</div>' : (canEquip ? '<button class="lod-equip-item-btn" data-iid="'+item.id+'">➕</button>' : '<div class="lod-locked-badge">🔒 ممتلئ</div>')}
+        </div>
+      `;
+    }
+  }
+  itemsHtml += '</div>';
+  
+  // شريط الحالة — الأسلحة والعناصر المجهزة حالياً
+  const eqWeapons = loadoutMgr.equippedWeapons.map(wid => {
+    const w = ownedWeapons.find(ww => ww.id === wid);
+    return w ? w.name : wid;
+  }).join('، ') || '—';
+  const eqItems = loadoutMgr.equippedItems.map(iid => {
+    const def = ITEM_DEFS[iid];
+    return def ? def.name : iid;
+  }).join('، ') || '—';
+  
+  // معلومات الترقية
+  const craftCostDesc = hasBag && !loadoutMgr.isMaxLevel 
+    ? loadoutMgr.getCraftCostDescription() 
+    : '';
+  const canCraftOrUpgrade = loadoutMgr.canCraftBag();
+  
+  overlay.innerHTML = `
+    <div class="loadout-bg" onclick="document.getElementById('loadout-overlay')?.remove()"></div>
+    <div class="loadout-panel">
+      <div class="loadout-header">
+        <span class="loadout-mode-icon">${modeIcons[modeName] || '⚔️'}</span>
+        <span class="loadout-title">تجهيز العتاد — ${modeNames[modeName] || modeName}</span>
+        <button class="loadout-close-btn" onclick="this.closest('#loadout-overlay').remove()">✕</button>
+      </div>
+      
+      {{BAG_INFO}}
+      
+      {{BAG_UPGRADE}}
+      
+      <div class="loadout-section">
+        <div class="loadout-section-title">🗡️ الأسلحة (${loadoutMgr.equippedWeapons.length}/${loadoutMgr.maxWeapons})</div>
+        <div class="loadout-equipped-summary">المجهز: ${eqWeapons}</div>
+        ${weaponsHtml}
+      </div>
+      
+      <div class="loadout-section">
+        <div class="loadout-section-title">📦 العناصر (${loadoutMgr.equippedItems.length}/${loadoutMgr.maxItems})</div>
+        <div class="loadout-equipped-summary">المجهز: ${eqItems}</div>
+        ${itemsHtml}
+      </div>
+      
+      <div class="loadout-footer">
+        <button class="loadout-auto-btn" id="loadout-auto-btn">🎲 تجهيز تلقائي</button>
+        <button class="loadout-enter-btn" id="loadout-enter-btn">${modeIcons[modeName] || '⚔️'} ابدأ ${modeNames[modeName] || modeName}!</button>
+      </div>
+    </div>
+  `;
+  
+  // تعبئة معلومات الشنطة
+  const bagInfoHtml = hasBag 
+    ? `<div class="loadout-bag-info">
+        <span class="lod-bag-icon">${loadoutMgr.bagIcon}</span>
+        <span class="lod-bag-name">${loadoutMgr.bagName} (Lv.${loadoutMgr.bagLevel})</span>
+        <span class="lod-bag-stats">🗡️ ${loadoutMgr.maxWeapons} أسلحة | 📦 ${loadoutMgr.maxItems} عناصر</span>
+      </div>`
+    : `<div class="loadout-no-bag">
+        <span>👜 ليس لديك شنطة بعد! اصنع واحدة لتحمل أسلحة وعناصر</span>
+      </div>`;
+  
+  const upgradeHtml = hasBag && !loadoutMgr.isMaxLevel 
+    ? `<div class="loadout-upgrade-row">
+        <span class="lod-upgrade-cost">⬆️ ${craftCostDesc}</span>
+        <button class="lod-craft-btn" id="loadout-craft-btn" ${canCraftOrUpgrade ? '' : 'disabled'}>ترقية</button>
+      </div>`
+    : (hasBag ? `<div class="loadout-upgrade-row loadout-maxed">👑 المستوى الأقصى!</div>` : '');
+  
+  overlay.innerHTML = overlay.innerHTML
+    .replace('{{BAG_INFO}}', bagInfoHtml)
+    .replace('{{BAG_UPGRADE}}', upgradeHtml);
+  
+  document.body.appendChild(overlay);
+  
+  // ── ربط الأحداث ──
+  
+  // تجهيز/إلغاء تجهيز الأسلحة
+  overlay.querySelectorAll('.lod-equip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.wid;
+      if (loadoutMgr.equipWeapon(wid)) {
+        this._markDirty?.();
+        this._onSave?.();
+        this.showNotification(`🗡️ تم تجهيز ${ownedWeapons.find(w => w.id === wid)?.name}`);
+        overlay.remove();
+        this.showLoadoutScreen(modeName);
+      }
+    });
+  });
+  overlay.querySelectorAll('.loadout-weapon-card.loadout-equipped').forEach(card => {
+    card.addEventListener('click', () => {
+      const wid = card.dataset.wid;
+      if (wid && loadoutMgr.unequipWeapon(wid)) {
+        this._markDirty?.();
+        this._onSave?.();
+        this.showNotification(`✕ إلغاء تجهيز السلاح`);
+        overlay.remove();
+        this.showLoadoutScreen(modeName);
+      }
+    });
+  });
+  
+  // تجهيز/إلغاء تجهيز العناصر
+  overlay.querySelectorAll('.lod-equip-item-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const iid = btn.dataset.iid;
+      if (loadoutMgr.equipItem(iid, modeName)) {
+        this._markDirty?.();
+        this._onSave?.();
+        this.showNotification(`📦 تم تجهيز العنصر`);
+        overlay.remove();
+        this.showLoadoutScreen(modeName);
+      }
+    });
+  });
+  overlay.querySelectorAll('.loadout-item-card.loadout-equipped').forEach(card => {
+    card.addEventListener('click', () => {
+      const iid = card.dataset.iid;
+      if (iid && loadoutMgr.unequipItem(iid)) {
+        this._markDirty?.();
+        this._onSave?.();
+        this.showNotification(`✕ إلغاء تجهيز العنصر`);
+        overlay.remove();
+        this.showLoadoutScreen(modeName);
+      }
+    });
+  });
+  
+  // زر التجهيز التلقائي
+  document.getElementById('loadout-auto-btn')?.addEventListener('click', () => {
+    loadoutMgr.autoEquip(modeName);
+    this._markDirty?.();
+    this._onSave?.();
+    this.showNotification('🎲 تم التجهيز التلقائي!');
+    overlay.remove();
+    this.showLoadoutScreen(modeName);
+  });
+  
+  // زر الترقية/الصناعة
+  document.getElementById('loadout-craft-btn')?.addEventListener('click', () => {
+    if (loadoutMgr.craftBag()) {
+      this._markDirty?.();
+      this._onSave?.();
+      this.showNotification(`⬆️ ${loadoutMgr.bagName} (Lv.${loadoutMgr.bagLevel})!`);
+      this.updateTopBar();
+      overlay.remove();
+      this.showLoadoutScreen(modeName);
+    } else {
+      this.showNotification('❌ الموارد غير كافية لترقية الشنطة');
+    }
+  });
+  
+  // زر الدخول للنمط
+  document.getElementById('loadout-enter-btn')?.addEventListener('click', () => {
+    overlay.remove();
+    this._enterModeDirect(modeName);
+  });
+};
+
+/** الدخول المباشر للنمط (بعد تطبيق العتاد) */
+GameUI.prototype._enterModeDirect = function(modeName) {
+  // تطبيق العتاد على العالم قبل الدخول
+  const loadoutMgr = window._loadoutManager;
+  if (loadoutMgr && this.world) {
+    loadoutMgr.applyToWorld(this.world);
+  }
+  
+  // إخفاء واجهة شاشة الحرب إذا كانت مفتوحة
+  const warOverlay = document.querySelector('.screen-panel');
+  if (warOverlay) {
+    // لا نحذف، فقط نخفي screens أخرى
+  }
+  
   document.getElementById("gameCanvas")?.classList.remove("hidden");
   const topBar = document.getElementById("top-bar");
   const bottomBar = document.getElementById("bottom-bar");
@@ -793,52 +1039,35 @@ GameUI.prototype.enterExtraction = function() {
   if (content) content.style.display = "none";
   if (worldButtons) worldButtons.classList.remove("hidden");
   this.showPlayerPanel();
+  
+  const modeNotifications = {
+    extraction: { text: '🪙 وضع الاستخراج — اذبح الوحوش المسالمة واجمع الذهب! سلمه قبل فوات الوقت!' },
+    horde: { text: '🌊 وضع الحشد — اصمد 20 موجة! كل موجة تجلب وحوشاً أقوى!' },
+    cave: { text: '🕯️ كهف الاستكشاف — ظلام وبراكين ووحوش نارية! ابحث عن الكنوز النادرة!' },
+  };
+  
   if (this.world) {
-    this.world.switchToMode("extraction");
+    this.world.switchToMode(modeName);
   }
-  this.showNotification("🪙 وضع الاستخراج — اذبح الوحوش المسالمة واجمع الذهب! سلمه قبل فوات الوقت!");
+  
+  const notif = modeNotifications[modeName];
+  if (notif) this.showNotification(notif.text);
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  🎯 تحديث دوال الدخول لإظهار شاشة العتاد أولاً
+// ═══════════════════════════════════════════════════════════════════
+
+GameUI.prototype.enterExtraction = function() {
+  this.showLoadoutScreen("extraction");
 };
 
 GameUI.prototype.enterHorde = function() {
-  document.getElementById("gameCanvas")?.classList.remove("hidden");
-  const topBar = document.getElementById("top-bar");
-  const bottomBar = document.getElementById("bottom-bar");
-  const subBar = document.getElementById("sub-bar");
-  const content = document.getElementById("screen-content");
-  const worldButtons = document.getElementById("world-buttons");
-  const quickPanel = document.getElementById("quick-panel");
-  if (topBar) topBar.style.display = "none";
-  if (subBar) subBar.style.display = "none";
-  if (quickPanel) quickPanel.style.display = "none";
-  if (bottomBar) bottomBar.style.display = "none";
-  if (content) content.style.display = "none";
-  if (worldButtons) worldButtons.classList.remove("hidden");
-  this.showPlayerPanel();
-  if (this.world) {
-    this.world.switchToMode("horde");
-  }
-  this.showNotification("🌊 وضع الحشد — كل وحش تقتله يتضاعف! كم موجة تصمد؟");
+  this.showLoadoutScreen("horde");
 };
 
 GameUI.prototype.enterCave = function() {
-  document.getElementById("gameCanvas")?.classList.remove("hidden");
-  const topBar = document.getElementById("top-bar");
-  const bottomBar = document.getElementById("bottom-bar");
-  const subBar = document.getElementById("sub-bar");
-  const content = document.getElementById("screen-content");
-  const worldButtons = document.getElementById("world-buttons");
-  const quickPanel = document.getElementById("quick-panel");
-  if (topBar) topBar.style.display = "none";
-  if (subBar) subBar.style.display = "none";
-  if (quickPanel) quickPanel.style.display = "none";
-  if (bottomBar) bottomBar.style.display = "none";
-  if (content) content.style.display = "none";
-  if (worldButtons) worldButtons.classList.remove("hidden");
-  this.showPlayerPanel();
-  if (this.world) {
-    this.world.switchToMode("cave");
-  }
-  this.showNotification("🕯️ كهف الاستكشاف — ظلام وبراكين ووحوش نارية! ابحث عن الكنوز النادرة!");
+  this.showLoadoutScreen("cave");
 };
 
 GameUI.prototype.getBuildingIcon = function(b) {

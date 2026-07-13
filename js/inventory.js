@@ -26,8 +26,8 @@ export const ITEM_DEFS = {
     ],
     upgradeCost: [
       null,
-      { gold: 50, food: 20 },
-      { gold: 150, food: 60, gems: 5 },
+      { gold: 25, food: 10 },
+      { gold: 80, food: 30, gems: 3 },
     ],
   },
   heal_potion: {
@@ -46,8 +46,8 @@ export const ITEM_DEFS = {
     ],
     upgradeCost: [
       null,
-      { gold: 80, food: 30, scrolls: 5 },
-      { gold: 200, food: 80, scrolls: 15, gems: 10 },
+      { gold: 40, food: 15, scrolls: 3 },
+      { gold: 100, food: 40, scrolls: 8, gems: 5 },
     ],
   },
 
@@ -68,8 +68,8 @@ export const ITEM_DEFS = {
     ],
     upgradeCost: [
       null,
-      { gold: 200, hammers: 40, scrolls: 20 },
-      { gold: 500, hammers: 100, scrolls: 50, gems: 20 },
+      { gold: 100, hammers: 20, scrolls: 10 },
+      { gold: 250, hammers: 50, scrolls: 25, gems: 10 },
     ],
   },
   desert_shield: {
@@ -88,8 +88,8 @@ export const ITEM_DEFS = {
     ],
     upgradeCost: [
       null,
-      { gold: 250, hammers: 50, gems: 15 },
-      { gold: 600, hammers: 120, gems: 40 },
+      { gold: 125, hammers: 25, gems: 8 },
+      { gold: 300, hammers: 60, gems: 20 },
     ],
   },
   power_helmet: {
@@ -108,8 +108,8 @@ export const ITEM_DEFS = {
     ],
     upgradeCost: [
       null,
-      { gold: 300, gems: 25, scrolls: 30 },
-      { gold: 700, gems: 60, scrolls: 70 },
+      { gold: 150, gems: 12, scrolls: 15 },
+      { gold: 350, gems: 30, scrolls: 35 },
     ],
   },
 
@@ -130,8 +130,8 @@ export const ITEM_DEFS = {
     ],
     upgradeCost: [
       null,
-      { gold: 120, scrolls: 10, food: 40 },
-      { gold: 300, scrolls: 30, food: 100 },
+      { gold: 60, scrolls: 5, food: 20 },
+      { gold: 150, scrolls: 15, food: 50 },
     ],
   },
   power_gem: {
@@ -150,8 +150,8 @@ export const ITEM_DEFS = {
     ],
     upgradeCost: [
       null,
-      { gold: 800, gems: 80, hammers: 60 },
-      { gold: 2000, gems: 200, hammers: 150 },
+      { gold: 400, gems: 40, hammers: 30 },
+      { gold: 1000, gems: 100, hammers: 75 },
     ],
   },
 
@@ -196,8 +196,8 @@ export const ITEM_DEFS = {
     ],
     upgradeCost: [
       null,
-      { gold: 300, hammers: 60, scrolls: 25 },
-      { gold: 700, hammers: 150, scrolls: 60, gems: 25 },
+      { gold: 150, hammers: 30, scrolls: 12 },
+      { gold: 350, hammers: 75, scrolls: 30, gems: 12 },
     ],
   },
 };
@@ -208,52 +208,52 @@ export const ITEM_DEFS = {
 export const RECIPES = [
   {
     id: "r1", name: "باندج", icon: "🩹", product: "bandage",
-    ingredients: { gold: 10, food: 5 },
+    ingredients: { gold: 5, food: 3 },
     description: "يعالج 30 HP — تقدر تعالج لاعب ثاني",
   },
   {
     id: "r2", name: "جرعة علاج", icon: "🧪", product: "heal_potion",
-    ingredients: { gold: 20, food: 10 },
+    ingredients: { gold: 10, food: 5 },
     description: "يعيد 50 HP للقائد",
   },
   {
     id: "r3", name: "سيف ناري", icon: "🗡️", product: "fire_sword",
-    ingredients: { gold: 100, hammers: 20, scrolls: 10 },
+    ingredients: { gold: 50, hammers: 10, scrolls: 5 },
     description: "سلاح مؤقت بقوة 100",
   },
   {
     id: "r4", name: "درع صحراوي", icon: "🛡️", product: "desert_shield",
-    ingredients: { gold: 150, hammers: 30, gems: 10 },
+    ingredients: { gold: 80, hammers: 15, gems: 5 },
     description: "درع يقلل الضرر 20%",
   },
   {
     id: "r5", name: "خوذة القوة", icon: "⛑️", product: "power_helmet",
-    ingredients: { gold: 200, gems: 15, scrolls: 25 },
+    ingredients: { gold: 100, gems: 8, scrolls: 12 },
     description: "قوة جيش +50",
   },
   {
     id: "r6", name: "لفافة خبرة", icon: "📜", product: "xp_scroll",
-    ingredients: { gold: 80, scrolls: 5, food: 20 },
+    ingredients: { gold: 40, scrolls: 3, food: 10 },
     description: "يعطي 500 XP فوراً",
   },
   {
     id: "r7", name: "جوهرة القوة", icon: "💎", product: "power_gem",
-    ingredients: { gold: 500, gems: 50, hammers: 40, scrolls: 20 },
+    ingredients: { gold: 250, gems: 25, hammers: 20, scrolls: 10 },
     description: "كل العملات ×2 لمدة 5 دقائق",
   },
   {
     id: "r8", name: "تذكرة ساحة", icon: "🎫", product: "arena_ticket",
-    ingredients: { gold: 50, food: 30 },
+    ingredients: { gold: 25, food: 15 },
     description: "دخول مجاني للساحة (PvP)",
   },
   {
     id: "r9", name: "مخطط برج", icon: "📐", product: "tower_blueprint",
-    ingredients: { gold: 300, hammers: 50, scrolls: 30, gems: 8 },
+    ingredients: { gold: 150, hammers: 25, scrolls: 15, gems: 4 },
     description: "يفتح برج دفاع جديد",
   },
   {
     id: "r10", name: "سيف حديدي", icon: "🗡️", product: "iron_sword",
-    ingredients: { gold: 250, hammers: 40, scrolls: 15, gems: 5 },
+    ingredients: { gold: 125, hammers: 20, scrolls: 8, gems: 3 },
     description: "سيف حديدي ثقيل بقوة 150",
   },
 ];
@@ -387,10 +387,12 @@ export class InventoryManager {
 
     switch (productId) {
       case 'bandage':
-        // الباندج يُستخدم على لاعب قريب — يستهلك أولاً ثم يرجع المعلومة
-        this.items[productId].count--;
-        if (this.items[productId].count <= 0) delete this.items[productId];
-        return { type: 'bandage', heal: stats.heal, target: 'nearby_player' };
+        // الباندج يُعالج القائد فوراً (يُستهلك في الـ switch ثم في النهاية)
+        if (world && world.leader) {
+          world.leader.hp = Math.min(world.leader.maxHp, world.leader.hp + stats.heal);
+          if (world.store) world.store.set('notification', { text: `🩹 ${stats.name}! +${stats.heal} HP`, t: Date.now() });
+        }
+        break;
 
       case 'heal_potion':
         if (world && world.leader) {
@@ -407,7 +409,10 @@ export class InventoryManager {
         break;
 
       case 'arena_ticket':
-        if (world) world._arenaTicket = true;
+        if (world) {
+          world._arenaTicket = true;
+          if (world.store) world.store.set('notification', { text: `🎫 تم فتح بوابة الساحة!`, t: Date.now() });
+        }
         break;
 
       case 'fire_sword':
@@ -455,7 +460,11 @@ export class InventoryManager {
         break;
 
       case 'tower_blueprint':
-        if (world && world.store) world.store.set('notification', { text: '📐 حصلت على مخطط برج!', t: Date.now() });
+        // مخطط البرج يعطي دفاع +20 دائماً
+        if (world && world.leader) {
+          world.leader.upgradeDef += 20;
+          if (world.store) world.store.set('notification', { text: '📐 مخطط برج! دفاع +20', t: Date.now() });
+        }
         break;
 
       default:

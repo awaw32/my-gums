@@ -106,6 +106,7 @@ function getDefaultPlayer(username) {
     researchTree: {},
     completedVillages: [],
     currentChapter: 1,
+    loadout: { bagLevel: 0, equippedWeapons: [], equippedItems: [] }, // 🆕 الشنطة (Loadout)
   };
 }
 

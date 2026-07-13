@@ -47,6 +47,7 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
     let worldMsgCount = 0;
     let worldLastReset = Date.now();
     const _pvpCooldowns = new Map();
+    const _monsterKillTimestamps = new Map(); // 🛡️ منع القتل المزدوج للوحوش
     const _pvpCleanupInterval = setInterval(() => {
       const cutoff = Date.now() - 300000;
       for (const [key, time] of _pvpCooldowns) {
@@ -144,6 +145,19 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
       } else if (msg.type === "monster_killed" && username) {
         const mon = worldMonsters.find(m => m.id === msg.id);
         if (mon && mon.alive) {
+          // 🛡️ تحقق من السباق (Race Condition) — نفس الوحش لا يُقتل مرتين
+          const killKey = `kill_${msg.id}`;
+          const now = Date.now();
+          const lastKill = _monsterKillTimestamps.get(killKey) || 0;
+          if (now - lastKill < 2000) {
+            // وحش قُتل قبل أقل من 2 ثانية — نرفض
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: "error", message: "هذا الوحش قد مات بالفعل" }));
+            }
+            return;
+          }
+          _monsterKillTimestamps.set(killKey, now);
+          
           mon.alive = false;
           mon.hp = 0;
           mon.respawnTimer = 25;

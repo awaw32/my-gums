@@ -11,6 +11,7 @@ import {
 import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles, spawnHitEffect, spawnMonsterDeathEffect, spawnComboEffect } from "./combat/combat-effects.js";
 import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/context-menu.js";
 import { computeWeaponDamage, computePlayerMaxHp, computePlayerDamage, applyRageMultiplier, computePvPDamage, rollCrit } from "./combat-engine.js";
+import { WeaponAbilityManager, WEAPON_ABILITIES } from "./combat/weapon-abilities.js";
 import { computeKnowledgeBonuses } from "./economy.js";
 import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.js";
 import { drawWeaponGlow, drawWeaponStarIcons, drawWeaponOnHero } from "./combat/weapon-visuals.js";
@@ -144,6 +145,9 @@ export class WorldMap {
     this._sandstormTimer = 0;
     this._stompSlowTimer = 0;
 
+    // ── Weapon Abilities System ──
+    this._weaponAbilities = new WeaponAbilityManager();
+
     this._onBRKillFeed = null;
     this._onCashEarned = null;
     this._events = null; // مرجع لـ EventManager
@@ -174,7 +178,7 @@ export class WorldMap {
       const img = new Image();
       img.onload = () => this.images.set(key, img);
       img.onerror = () => {};
-      const base = ImageResolver ? ImageResolver.src(key) : ("assets/images/" + key + ".png");
+      const base = typeof ImageResolver !== 'undefined' ? ImageResolver.src(key) : ("assets/images/" + key + ".png");
       img.src = base + '?v=' + v;
     }
   }
@@ -528,6 +532,20 @@ export class WorldMap {
     if (this.army && this.army.units) {
       for (const u of this.army.units) {
         if (u && u.alive !== false) u.hp = Math.max(0, (u.hp || 100) - Math.floor(dmg * 0.3));
+      }
+    }
+  }
+
+  /**
+   * إضرار كل الوحوش القريبة من نقطة معينة (لقدرات الأسلحة)
+   */
+  _aoeDamageNearby(x, y, radius, dmg) {
+    for (const m of this.monsters) {
+      if (!m.alive) continue;
+      const dist = Math.hypot(m.x - x, m.y - y);
+      if (dist <= radius) {
+        const falloff = 1 - (dist / radius) * 0.5; // ضرر يقل مع البعد
+        this.damageMonster(m, Math.floor(dmg * falloff), false);
       }
     }
   }
@@ -1365,6 +1383,41 @@ export class WorldMap {
     this.updatePvPCombat(dt);
     this._updateComboTimer(dt);
     this._updatePoisonEffects(dt);
+
+    // ── تحديث قدرات الأسلحة + تطبيق DOT على الوحوش ──
+    if (this._weaponAbilities) {
+      this._weaponAbilities.update(dt);
+      // تطبيق الضرر المستمر (DOT) على الوحوش
+      for (const m of this.monsters) {
+        if (!m.alive) continue;
+        const dotDmg = this._weaponAbilities.getDotDamage(m.id);
+        if (dotDmg > 0) {
+          m.hp -= dotDmg;
+          this.worldFx.push({ x: m.x, y: m.y - 10, text: `-${Math.floor(dotDmg)}`, color: "#af52de", life: 0.5, maxLife: 0.5 });
+          if (m.hp <= 0) {
+            m.hp = 0;
+            m.alive = false;
+            m.respawnTimer = 25;
+            if (this._onMonsterKilled) this._onMonsterKilled();
+            if (this._activeMode) this._activeMode.onMonsterKilled(m);
+            this.sessionStats.kills++;
+            this.createDrop(m.x, m.y, m.rewardMoney ?? 10, m.rewardGold ?? 5);
+            this.worldFx.push({ x: m.x, y: m.y, text: `💀 ${m.name}`, color: "#FFD700", life: 1.5, maxLife: 1.5 });
+          }
+        }
+        // تطبيق التأثيرات (stun/slow) على الوحوش
+        const mods = this._weaponAbilities.getDamageModifiers(m.id);
+        if (mods.stunned) {
+          m._stunTimer = (m._stunTimer || 0) + dt;
+        }
+        if (mods.speedMultiplier < 1) {
+          m._slowMult = mods.speedMultiplier;
+        } else {
+          m._slowMult = 1;
+        }
+      }
+    }
+
     // تحديث timers القدرات
     if (this._sandstormTimer > 0) {
       this._sandstormTimer -= dt;
@@ -2027,8 +2080,41 @@ export class WorldMap {
           });
           const rageResult = applyRageMultiplier(playerDmg.totalDamage, h.hp, h.maxHp);
           const critResult = rollCrit(playerDmg.weaponStats.critChance, playerDmg.weaponStats.critMultiplier);
-          const totalDmg = computePvPDamage(rageResult.damage, critResult, playerDmg.weaponStats.weaponDamage);
-          this.damageMonster(h.fighting, totalDmg, critResult.isCrit);
+          let totalDmg = computePvPDamage(rageResult.damage, critResult, playerDmg.weaponStats.weaponDamage);
+
+          // ── تطبيق قدرة السلاح السلبية ──
+          const passiveResult = this._weaponAbilities.tryPassive(this._equippedWeapon, h.fighting);
+          if (passiveResult) {
+            this.worldFx.push({ x: h.fighting.x, y: h.fighting.y - 20, text: passiveResult.text, color: "#af52de", life: 1.2, maxLife: 1.2 });
+            if (passiveResult.type === "crit_boost") {
+              totalDmg = Math.floor(totalDmg * (1 + passiveResult.bonusDamage));
+            }
+          }
+
+          // ── تطبيق قدرة السلاح النشطة ──
+          const activeResult = this._weaponAbilities.tryActive(this._equippedWeapon, h.fighting, totalDmg);
+          if (activeResult) {
+            this.worldFx.push({ x: h.fighting.x, y: h.fighting.y - 30, text: activeResult.text, color: "#ffd700", life: 1.5, maxLife: 1.5 });
+            if (activeResult.extraDamage) {
+              totalDmg += activeResult.extraDamage;
+            }
+            if (activeResult.damage) {
+              totalDmg += activeResult.damage;
+            }
+            if (activeResult.stunDuration && h.fighting) {
+              h.fighting._stunTimer = activeResult.stunDuration;
+            }
+            if (activeResult.selfDamagePercent && this.leader) {
+              const selfDmg = Math.floor(this.leader.hp * activeResult.selfDamagePercent);
+              this.leader.hp = Math.max(1, this.leader.hp - selfDmg);
+              this.worldFx.push({ x: h.x, y: h.y - 15, text: `-${selfDmg} HP`, color: "#ff6b6b", life: 0.8, maxLife: 0.8 });
+            }
+            if (activeResult.radius && h.fighting) {
+              this._aoeDamageNearby(h.fighting.x, h.fighting.y, activeResult.radius, activeResult.damage || totalDmg);
+            }
+          }
+
+          this.damageMonster(h.fighting, totalDmg, critResult.isCrit || (passiveResult?.type === "crit_boost"));
           if (rageResult.rageActive) {
             this.worldFx.push({ x: h.x, y: h.y - 20, text: "🔥 غضب!", color: "#ff4444", life: 0.5, maxLife: 0.5 });
           }
@@ -2241,6 +2327,15 @@ export class WorldMap {
 
       if (minDist < CHASE_RANGE) {
         // ===== مطاردة سلسة (Chase) =====
+        // فحص التثبيت — الوحش المثبّت لا يتحرك ولا يهاجم
+        if (m._stunTimer > 0) {
+          m._stunTimer -= dt;
+          continue; // الوحش مثبّت — انتقل للوحش التالي
+        }
+
+        // تطبيق التباطؤ من قدرات الأسلحة
+        const slowMult = m._slowMult || 1;
+
         if (minDist < 30) {
           m.attackCD -= dt;
           if (m.attackCD <= 0) {
@@ -2261,8 +2356,8 @@ export class WorldMap {
           m._patrolTarget = null;
           m._idleTimer = 0;
         } else {
-          // سير باتجاه الهدف مع سموث
-          const speed = 35 + (300 - minDist) / 300 * 20; // أسرع كلما اقترب
+          // سير باتجاه الهدف مع سموث + تطبيق التباطؤ
+          const speed = (35 + (300 - minDist) / 300 * 20) * slowMult;
           if (!m._chaseTarget || Math.hypot(m._chaseTarget.x - target.x, m._chaseTarget.y - target.y) > 30) {
             m._chaseTarget = { x: target.x, y: target.y };
           } else if (!m._chaseTarget) {

@@ -1,98 +1,136 @@
-# 🏜️ Desert Kingdom - إمبراطورية الصحراء
+# 🏜️ ملك الصحراء — Desert Kingdom
 
-Multiplayer desert-themed RTS game with WebSocket real-time combat, economy, village building, PvP, and Battle Royale.
+لعبة استراتيجية عربية متعددة اللاعبين (MMO RTS) بنظام isometric، تعمل عبر الويب.
 
-## Requirements
+## الميزات الرئيسية
 
-- **Node.js** >= 18.17 < 23 (LTS recommended)
-- **npm** (included with Node)
-- **MongoDB** (optional — runs with in-memory fallback)
+### 🎮 أنظمة اللعب
+- **5 أوضاع لعب**: Campaign, Battle Royale, Extraction, Horde, Cave
+- **نظام قتال غني**: PvP + PvE مع rage, crit, combo, DOT
+- **قدرات أسلحة فريدة**: كل سلاح له قدرة سلبية + نشطة (نزيف، حرق، تثبيت، AOE)
+- **نظام شنطه (Loadout)**: تجهيز أسلحة وعناصر قبل الدخول لكل وضع
+- **سوق الصحراء**: بيع/شراء عناصر نادرة + تبادل موارد
 
-## Quick Start
+### 🏗️ أنظمة البناء والترقيات
+- **5 قرى**: الواحة → أطلال القصر → قلعة الجبل → سهول الريف → عرش الملك
+- **شجرة ترقيات**: 4 مسارات (جيش، دفاع، تجارة، معرفة)
+- **شجرة بحوث**: بحوث عسكرية واقتصادية
+- **نظام تحالفات**: 5 مستويات + قبيلة + غارات جماعية
+- **حروب قبلية**: حروب بين التحالفات عبر WebSocket
+
+### 📊 أنظمة التقدم
+- **110 مستوى** للاعب
+- **50 مستوى** للبطل مع 4 قدرات خاصة
+- **5 مستويات Prestige** مع مكافآت دائمة حقيقية
+- **60 إنجاز**
+- **مهام يومية**
+- **أحداث مؤقتة** بمضاعفات
+
+### 🎨 الرسم والصوت
+- **Canvas 2D** مع نظام isometric 2.5D
+- ** شخصيات مولّدة إجرائياً** (Sprite Factory)
+- **تصميم صحراوي** متكامل بالعربية (RTL)
+- **صوت م合成** عبر Web Audio API (28 صوت)
+
+### 🌐 الملتيكاملة
+- **WebSocket** للمزامنة الفورية
+- **API** للمصادقة والحفظ
+- **MongoDB + SQLite** للبيانات
+- **PWA** مع Service Worker
+
+## المتطلبات
+
+- **Node.js** >= 18.17 < 23
+- **npm**
+- **MongoDB** (اختياري — يعمل بـ in-memory fallback)
+
+## التشغيل السريع
 
 ```bash
-# Copy environment file
+# نسخ ملف البيئة
 cp .env.example .env
 
-# Install dependencies
+# تثبيت الاعتماديات
 npm ci
 
-# Start development server
+# تشغيل خادم التطوير
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser.
+افتح `http://localhost:3000` في المتصفح.
 
-## Available Scripts
+## الأوامر المتاحة
 
-| Script | Description |
-|--------|-------------|
-| `npm start` | Production start |
-| `npm run dev` | Development mode |
-| `npm run lint` | Run ESLint on all files |
-| `npm test` | Run Vitest test suite |
-| `npm run audit` | Security audit (high severity) |
-| `npm run build` | Build placeholder (static front-end) |
+| الأمر | الوصف |
+|-------|-------|
+| `npm start` | تشغيل الإنتاج |
+| `npm run dev` | وضع التطوير |
+| `npm run lint` | فحص الكود |
+| `npm test` | اختبارات Vitest |
+| `npm run audit` | فحص أمني |
+| `npm run build` | بناء الواجهة |
 
-## Health Check
-
-```bash
-curl http://localhost:3000/health
-# {"status":"ok","mongo":"connected|unavailable","rooms":0,"players":0,"uptime":...,"tickRate":20}
-```
-
-## Docker
-
-```bash
-# Build
-docker build -t my-gums .
-
-# Run
-docker run -p 3000:3000 my-gums
-```
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | HTTP/WS port |
-| `MONGO_URL` / `MONGO_URI` | — | MongoDB connection string |
-| `CORS_ORIGIN` | `*` | Allowed CORS origin |
-| `RATE_LIMIT_MAX` | `120` | Max requests per minute per IP |
-| `HTTPS` | `false` | Enable HTTPS |
-| `CERT_DIR` | `/etc/letsencrypt/live` | SSL certificate directory |
-| `DATA_DIR` | `./data` | Data directory |
-
-## Project Structure
+## بنية المشروع
 
 ```
-├── .github/workflows/   CI pipeline
-├── assets/              Game assets (images, icons, monsters)
-├── css/                 Stylesheets
-├── docs/                Documentation
-├── js/                  Client-side game logic
-├── logs/                Server logs
-├── server/              Server-side logic (DB, combat, formulas)
-│   ├── network/         Online core (protocol, state, rooms, rate limiter, combat, network server)
-│   ├── systems/         Game systems (movement, progression)
-├── tests/               Test suites (Vitest)
-├── Dockerfile           Container image
-├── server.js            Entry point
-└── package.json         Dependencies & scripts
+├── js/                    # كود العميل (48 ملف)
+│   ├── main.js            # نقطة الدخول الرئيسية
+│   ├── engine.js          # محرك اللعبة (60 FPS)
+│   ├── world.js           # العالم الرئيسي (3100+ سطر)
+│   ├── economy.js         # النظام الاقتصادي (14 مورد)
+│   ├── army.js            # الجيش والأسلحة
+│   ├── village.js         # القرى والمباني
+│   ├── combat-engine.js   # حسابات القتال
+│   ├── enemies.js         # الأعداء (15 نوع + 5 bosses)
+│   ├── hero.js            # البطل (50 مستوى)
+│   ├── loadout-manager.js # نظام الشنطه
+│   ├── trade-market.js    # سوق الصحراء
+│   ├── ui/                # واجهة المستخدم
+│   │   ├── ui-core.js     # النواحة الرئيسية
+│   │   ├── ui-gameplay.js # شاشات اللعب
+│   │   ├── ui-promotion.js# شاشة الترقيات
+│   │   └── ui-market.js   # واجهة السوق
+│   ├── combat/            # أنظمة القتال
+│   │   ├── weapon-abilities.js # قدرات الأسلحة
+│   │   ├── weapon-system.js    # نظام الأسلحة
+│   │   └── combat-effects.js   # تأثيرات القتال
+│   └── modes/             # أوضاع اللعب
+│       ├── extraction-mode.js  # استخراج الذهب
+│       ├── horde-mode.js       # حشد الوحوش
+│       └── cave-mode.js        # كهف الاستكشاف
+├── server/                # الخادم (27 ملف)
+│   ├── routes/api.js      # نقاط النهاية HTTP
+│   ├── network/           # WebSocket + المصادقة
+│   ├── db/                # قاعدة البيانات
+│   └── logic/             # منطق الخادم
+├── css/style.css          # الأنماط (~5000 سطر)
+├── server.js              # نقطة دخول الخادم
+└── index.html             # الواجهة الرئيسية
 ```
 
-## Player ID System
+## أنظمة اللعبة
 
-Pass `?playerId=your_unique_id` in the URL to persist progress via MongoDB:
+### الاقتصاد (14 مورد)
+💵 المال | 🪙 الذهب | 💎 الجواهر | 🔨 المطارق | 📜 المخطوطات | 🌾 الطعام
+🏺 القطع الأثرية | 💠 جوهرة الصحراء | 💧 الماء | 🧂 الملح | 🟫 الجلود | 🪙 النحاس | 🌿 الأعشاب
 
-```
-https://yourdomain.com/?playerId=player123
-```
+### الأسلحة (6 أسلحة × قدرتين)
+| السلاح | سلبية | نشطة |
+|--------|-------|------|
+| 🗡️ سيف بدوي | 🩸 نزيف | ⚡ ضربة مزدوجة |
+| 🏹 قوس طويل | ☠️ تقويض دفاع | 🏹 سهم مزدوج |
+| 🔱 رمح حديدي | 💫 تثبيت | 🎯 رمي 2x |
+| ⚔️ سيف دمشقى | 💀 حرجة | 🩸 قطع 3x |
+| 🔥 قوس ناري | 🔥 حرق | 💥 AOE |
+| 🪓 فأس معركة | 🧊 تباطؤ | 🌋 ضربة مدمرة |
 
-## Docs
+### الأوضاع
+1. **Campaign** — القصة الرئيسية (5 فصول)
+2. **Battle Royale** — 10 دقائق، منطقة تتقلص
+3. **Extraction** — جمع الذهب والتسليم
+4. **Horde** — 20 موجة وحوش
+5. **Cave** — استكشاف كهف مظلم
 
-Additional documentation in the [docs/](docs/) directory.
+## الترخيص
 
----
-
-**Version**: 1.0.0 — July 2026
+مشروع مفتوح المصدر — ملك الصحراء © 2026

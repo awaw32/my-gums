@@ -395,6 +395,22 @@ class GameEngine {
     this.camera.zoom = Math.max(this.camera.minZoom, Math.min(this.camera.maxZoom, level));
   }
 
+  setTargetFPS(fps) {
+    // يُستخدم لتوفير الطاقة عند تصغير التبويب (visibilitychange)
+    // ذلك بإيقاف/تقليل دقة الحلقة الرئيسية
+    this._targetFPS = Math.max(1, Math.min(120, fps));
+    if (fps < 10) {
+      // عند التصغير: إيقاف الحلقة مؤقتاً
+      this.running = false;
+      if (this.animId) { cancelAnimationFrame(this.animId); this.animId = 0; }
+    } else if (!this.running && this._onUpdate) {
+      // عند العودة: إعادة تشغيل الحلقة
+      this.running = true;
+      this.lastTime = performance.now();
+      this._loop(performance.now());
+    }
+  }
+
   async _sendEvent(eventName, payload = {}) {
     if (!this.n8nUrl) return null;
     try {

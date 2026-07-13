@@ -9,7 +9,7 @@ export class ExtractionMode {
     this._peacefulRadius = 80;
     this._totalDeposited = 0;
     this._extractionTimer = 0;
-    this._extractionTimeLimit = 300; // 5 min
+    this._extractionTimeLimit = 360; // 6 دقائق (وقت كافٍ للاستخراج)
     this._extractionActive = true;
     this._extractionKills = 0;
     this._currentUpgrades = {
@@ -18,9 +18,9 @@ export class ExtractionMode {
       depositReward: 1,
     };
     this._upgradeCosts = {
-      bagSize: (l) => 100 * l,
-      speed: (l) => 150 * l,
-      depositReward: (l) => 200 * l,
+      bagSize: (l) => 80 * l,      // أرخص قليلاً
+      speed: (l) => 120 * l,
+      depositReward: (l) => 160 * l,
     };
     this._extractionLevel = 1;
     this._extractionXp = 0;
@@ -89,12 +89,69 @@ export class ExtractionMode {
   _updateDepositZoneVisual() {
     const z = this._depositZone;
     if (z) {
+      // إضافة مؤشر مرئي دائم للمنطقة
+      this._depositZonePulse = 0;
       this.world.worldFx.push({
         x: z.x, y: z.y - 30,
         text: "📍 نقطة التسليم",
-        color: "#4cd964", life: 3, maxLife: 3
+        color: "#4cd964", life: 4, maxLife: 4
       });
     }
+  }
+
+  // رسم نقطة التسليم على الخريطة
+  drawDepositZone(ctx) {
+    const z = this._depositZone;
+    if (!z) return;
+    const time = Date.now() * 0.002;
+    this._depositZonePulse = (this._depositZonePulse || 0) + 0.02;
+
+    ctx.save();
+    ctx.translate(z.x, z.y);
+
+    // دائرة خارجية متوهجة
+    const pulse = 0.6 + Math.sin(time) * 0.3;
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, z.radius);
+    grad.addColorStop(0, `rgba(76, 217, 100, ${pulse * 0.3})`);
+    grad.addColorStop(0.5, `rgba(76, 217, 100, ${pulse * 0.15})`);
+    grad.addColorStop(1, `rgba(76, 217, 100, 0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // دائرة الحدود
+    ctx.strokeStyle = `rgba(76, 217, 100, ${pulse * 0.7})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // أيقونة العلم في المنتصف
+    ctx.fillStyle = `rgba(76, 217, 100, ${0.7 + Math.sin(time * 1.5) * 0.3})`;
+    ctx.font = "24px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("📍", 0, 0);
+
+    // علامة المسار (للإشارة للاعب إلى وجود نقطة تسليم)
+    const w = this.world;
+    const dist = Math.hypot(w.leader.x - z.x, w.leader.y - z.y);
+    if (dist > 200) {
+      ctx.strokeStyle = `rgba(76, 217, 100, ${0.2 + Math.sin(time * 2) * 0.1})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      const angle = Math.atan2(w.leader.y - z.y, w.leader.x - z.x);
+      ctx.lineTo(Math.cos(angle) * z.radius * 0.6, Math.sin(angle) * z.radius * 0.6);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.restore();
   }
 
   update(dt) {
@@ -138,16 +195,23 @@ export class ExtractionMode {
       }
     }
 
-    // إظهار مؤشر لنقطة التسليم إذا بعيدة
+    // تحديث نبض نقطة التسليم
+    this._depositZonePulse = (this._depositZonePulse || 0) + dt;
+
+    // سهم إرشادي لنقطة التسليم (مرسوم مباشرة)
     if (this._depositZone && this._carryingGold > 0) {
       const dz = this._depositZone;
       const dist = Math.hypot(w.leader.x - dz.x, w.leader.y - dz.y);
-      if (dist > 300) {
+      if (dist > 200) {
         const angle = Math.atan2(dz.y - w.leader.y, dz.x - w.leader.x);
         const indicatorX = w.leader.x + Math.cos(angle) * 80;
         const indicatorY = w.leader.y + Math.sin(angle) * 80;
-        if (Math.random() < 0.05) {
-          w.worldFx.push({ x: indicatorX, y: indicatorY, text: "📍", color: "#4cd964", life: 0.8, maxLife: 0.8 });
+        if (Math.random() < 0.03) {
+          w.worldFx.push({
+            x: indicatorX, y: indicatorY,
+            text: "📍", color: "#4cd964",
+            life: 1.2, maxLife: 1.2
+          });
         }
       }
     }
@@ -165,7 +229,18 @@ export class ExtractionMode {
       w.economy.addXp(xpGain);
       this._extractionXp += xpGain;
     }
-    w.worldFx.push({ x: w.leader.x, y: w.leader.y, text: `✅ سلمت ${deposited} 🪙!`, color: "#4cd964", life: 2, maxLife: 2 });
+    // تأثير تسليم احترافي
+    for (let i = 0; i < 5; i++) {
+      setTimeout(() => {
+        w.worldFx.push({
+          x: w.leader.x + (Math.random() - 0.5) * 40,
+          y: w.leader.y + (Math.random() - 0.5) * 40,
+          text: "🪙", color: "#FFD700",
+          life: 0.3 + Math.random() * 0.3, maxLife: 0.6
+        });
+      }, i * 100);
+    }
+    w.worldFx.push({ x: w.leader.x, y: w.leader.y, text: `✅ سلمت ${deposited} 🪙!`, color: "#4cd964", life: 2.5, maxLife: 2.5 });
     w.sessionStats.coinsEarned += deposited;
     this._carryingGold = 0;
     if (w._onSelfStatsChanged) w._onSelfStatsChanged();
@@ -194,10 +269,15 @@ export class ExtractionMode {
     if (!this._extractionActive) return;
     this._extractionKills++;
     if (this.world._onSelfStatsChanged) this.world._onSelfStatsChanged();
+    
+    // 🟢 ملاحظة: الذهب يُضاف تلقائياً إلى المحمول عند التقاط الـ drop
+    // (collectDrop في world.js يتعامل مع التحميل في نمط الاستخراج)
+    // هذه الدالة تتعامل مع العدادات والتأثيرات فقط
+    
     this.world.worldFx.push({
       x: monster.x, y: monster.y - 20,
       text: `💀 قتل!`,
-      color: "#ff6b6b", life: 1, maxLife: 1
+      color: "#ff6b6b", life: 0.8, maxLife: 0.8
     });
   }
 
@@ -280,6 +360,15 @@ export class ExtractionMode {
     ctx.fillStyle = "#a29bfe";
     ctx.fillRect(xpX, xpY, xpW * Math.min(1, xpRatio), xpH);
 
+    // شريط الوزن (تأثير الوزن على السرعة)
+    const weightRatio = this._carryingGold / this._getMaxBag();
+    if (weightRatio > 0.5) {
+      ctx.fillStyle = `rgba(255, 107, 107, ${(weightRatio - 0.5) * 0.5})`;
+      ctx.font = "bold 10px Cairo, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(`⚖️ ${Math.floor(weightRatio * 100)}%`, cw - 14, 138);
+    }
+
     ctx.restore();
   }
 
@@ -291,6 +380,40 @@ export class ExtractionMode {
     w.monsters = [];
     w.drops = [];
     w.treasureChests = [];
+    // حفظ الذهب الذي تم تسليمه قبل الخروج
+    if (this._totalDeposited > 0 && w.economy) {
+      w.economy.addRaw("gold", Math.floor(this._totalDeposited * 0.1));
+    }
     this._carryingGold = 0;
+    this._totalDeposited = 0;
+    this._extractionActive = false;
+  }
+
+  /** حفظ تقدم نمط الاستخراج */
+  getSaveData() {
+    return {
+      modeName: this.modeName,
+      totalDeposited: this._totalDeposited,
+      extractionLevel: this._extractionLevel,
+      extractionXp: this._extractionXp,
+      extractionKills: this._extractionKills,
+      currentUpgrades: { ...this._currentUpgrades },
+      extractionTimeLimit: this._extractionTimeLimit,
+    };
+  }
+
+  /** استعادة تقدم نمط الاستخراج */
+  loadState(data) {
+    if (!data) return;
+    this._totalDeposited = data.totalDeposited || 0;
+    this._extractionLevel = data.extractionLevel || 1;
+    this._extractionXp = data.extractionXp || 0;
+    this._extractionKills = data.extractionKills || 0;
+    if (data.currentUpgrades) {
+      this._currentUpgrades = { ...this._currentUpgrades, ...data.currentUpgrades };
+    }
+    if (data.extractionTimeLimit) {
+      this._extractionTimeLimit = data.extractionTimeLimit;
+    }
   }
 }

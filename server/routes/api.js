@@ -9,10 +9,11 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
   return async function handleApiRequest(req, res) {
     if (req.headers.upgrade === "websocket") return false;
 
-    const corsOrigin = process.env.CORS_ORIGIN || false;
+    const isProd = process.env.NODE_ENV === "production";
+    const corsOrigin = process.env.CORS_ORIGIN || (isProd ? false : "*");
     if (corsOrigin) {
       res.setHeader("Access-Control-Allow-Origin", corsOrigin);
-    } else {
+    } else if (!isProd) {
       res.setHeader("Access-Control-Allow-Origin", "*");
     }
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -25,6 +26,13 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       res.writeHead(204); res.end(); return true;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    //  🛡️ تسجيل الدخول + إنشاء حساب (مع كلمة مرور حقيقية)
+    //  ═══════════════════════════════════════════════════════════════
+    //    - الحسابات القديمة (بدون كلمة مرور) تُرقى تلقائياً
+    //    - الحسابات الجديدة تتطلب كلمة مرور (4 أحرف كحد أدنى)
+    //    - السيرفر يُرجع passwordUpgraded: true عند ترقية حساب قديم
+    // ═══════════════════════════════════════════════════════════════
     if (req.url === "/api/auth/login" && req.method === "POST") {
       let body = "";
       let size = 0;
@@ -44,34 +52,79 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
           const { generateToken, hashPassword, comparePassword } = require("../network/auth");
           const sanitized = username.slice(0, 30);
           const existing = memStore.get(sanitized);
+
           if (existing && existing.password) {
+            // ── حساب موجود — تحقق من كلمة المرور ──
             let pwOk = false;
+            let isLegacyEmpty = false;
+
             if (existing.password.startsWith("$2")) {
+              // كلمة المرور بصيغة bcrypt → تحقق عادي
               pwOk = await comparePassword(password, existing.password);
+
+              // إذا لم تطابق كلمة المرور، تحقق إذا كان هذا حساباً قديماً (كلمة مرور فارغة)
+              if (!pwOk && password && password.length > 0) {
+                // هل كلمة المرور المخزنة هي bcrypt("")؟
+                const emptyMatch = await comparePassword("", existing.password);
+                if (emptyMatch) {
+                  // حساب قديم بكلمة مرور فارغة → ترقية
+                  isLegacyEmpty = true;
+                  pwOk = true;
+                }
+              }
             } else {
-              // هجرة من plaintext → bcrypt
-              pwOk = password === existing.password;
-              if (pwOk) {
-                existing.password = await hashPassword(password);
-                memStore.set(sanitized, existing);
-                markDirty(sanitized);
+              // هجرة من plaintext → bcrypt (للحسابات القديمة جداً)
+              const isPlainMatch = password === existing.password;
+              const isEmptyPlain = existing.password === "";
+              if (isPlainMatch) {
+                pwOk = true;
+              } else if (isEmptyPlain && password && password.length > 0) {
+                // حساب قديم بكلمة مرور فارغة (plaintext) → ترقية
+                isLegacyEmpty = true;
+                pwOk = true;
               }
             }
+
             if (!pwOk) {
               res.writeHead(401, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ error: "wrong password" }));
+              res.end(JSON.stringify({ error: "كلمة المرور خاطئة" }));
               return;
             }
+
+            // ترقية كلمة المرور للحسابات القديمة
+            if (isLegacyEmpty && password && password.length > 0) {
+              existing.password = await hashPassword(password);
+              memStore.set(sanitized, existing);
+              markDirty(sanitized);
+            }
+
+            const token = generateToken(sanitized);
+            const response = { token, username: sanitized };
+            if (isLegacyEmpty) {
+              response.passwordUpgraded = true;
+            }
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(response));
+            return;
           }
+
+          // ── حساب جديد — يتطلب كلمة مرور ──
           if (!existing) {
+            if (!password || password.length < 4) {
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "كلمة المرور يجب أن تكون 4 أحرف على الأقل" }));
+              return;
+            }
             const pData = getDefaultPlayer(sanitized);
-            pData.password = await hashPassword(password || "");
+            pData._legacyEmpty = false;
+            pData.password = await hashPassword(password);
             memStore.set(sanitized, pData);
             markDirty(sanitized);
+            const token = generateToken(sanitized);
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ token, username: sanitized, isNew: true }));
+            return;
           }
-          const token = generateToken(sanitized);
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ token, username: sanitized }));
         } catch {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "invalid json" }));
@@ -201,7 +254,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             if (mongoConnected) {
               await Player.updateOne(
                 { username },
-                { $set: { ...data, last_active: lastActive } },
+                { $set: merged },
                 { upsert: true }
               );
             }

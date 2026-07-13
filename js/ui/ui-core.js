@@ -1,6 +1,7 @@
 import { formatNumber } from "../economy.js";
 import { injectPromotionMethods } from "./ui-promotion.js";
 import { injectGameplayMethods } from "./ui-gameplay.js";
+import { injectMarketMethods } from "./ui-market.js";
 import { ALLIANCE_RAIDS } from "../alliance-manager.js";
 
 export class GameUI {
@@ -634,6 +635,7 @@ export class GameUI {
     this.screens.challenges = this.buildChallengesScreen();
     this.screens.mystats = this.buildMyStatsScreen();
     this.screens.settings = this.buildSettingsScreen();
+    this.screens.market = this.buildMarketScreen();
   }
 
   buildAllianceScreen() {
@@ -1068,6 +1070,24 @@ export class GameUI {
     });
   }
 
+  renderMarket() {
+    // ربط زر فتح السوق
+    const openBtn = document.getElementById('market-open-btn');
+    if (openBtn) {
+      openBtn.addEventListener('click', () => this.openMarket());
+    }
+    // تحديث الإحصائيات
+    if (this._tradeMarket) {
+      const stats = this._tradeMarket.getMarketStats();
+      const totalEl = document.getElementById('market-total-listings');
+      const valueEl = document.getElementById('market-total-value');
+      const avgEl = document.getElementById('market-avg-price');
+      if (totalEl) totalEl.textContent = stats.totalListings;
+      if (valueEl) valueEl.textContent = stats.totalValue.toLocaleString();
+      if (avgEl) avgEl.textContent = stats.avgPrice.toLocaleString();
+    }
+  }
+
   logCombat(type, text) {
     if (this.world && this.world.settings.combatLog === false) return;
     if (!this.world) return;
@@ -1249,6 +1269,7 @@ export class GameUI {
       case "challenges": this.renderChallenges(); break;
       case "mystats": this.renderMyStats(); break;
       case "settings": this.renderSettings(); break;
+      case "market": this.renderMarket(); break;
     }
   }
 
@@ -1947,3 +1968,4 @@ export class GameUI {
 
 injectPromotionMethods(GameUI);
 injectGameplayMethods(GameUI);
+injectMarketMethods(GameUI);

@@ -1,10 +1,31 @@
 const SAVE_KEY = "wick_save";
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 4; // ارتفع الإصدار لدعم الشنطة (Loadout)
 
 let _saveTimer = null;
 
+function _getLoadoutManager() {
+  return typeof window !== "undefined" && window._loadoutManager;
+}
+
 export function saveGame(economy, village, army) {
   const sm = typeof window !== "undefined" && window._storyManager;
+  const w = typeof window !== "undefined" && window._world;
+  
+  // حفظ تقدم الأنماط من الكائنات الحية
+  let modeData = {};
+  if (w && w._activeMode && typeof w._activeMode.getSaveData === 'function') {
+    modeData = {
+      currentMode: w._activeMode.modeName,
+      extraction: w._activeMode.modeName === 'extraction' ? w._activeMode.getSaveData() : undefined,
+      horde: w._activeMode.modeName === 'horde' ? w._activeMode.getSaveData() : undefined,
+      cave: w._activeMode.modeName === 'cave' ? w._activeMode.getSaveData() : undefined,
+    };
+  }
+  
+  // حفظ بيانات الشنطة
+  const loadoutMgr = _getLoadoutManager();
+  const loadoutData = loadoutMgr ? loadoutMgr.getSaveData() : {};
+  
   const data = {
     _version: SAVE_VERSION,
     resources: { ...economy.resources },
@@ -28,6 +49,8 @@ export function saveGame(economy, village, army) {
       productionAccum: b.productionAccum,
     })),
     storyState: sm ? sm.getSaveData() : undefined,
+    modeData: modeData,
+    loadout: loadoutData, // 🆕 حفظ بيانات الشنطة
     timestamp: Date.now(),
   };
   try {
@@ -82,6 +105,11 @@ export function loadGame(economy, village, army) {
 
     if (data.storyState && typeof window !== "undefined" && window._storyManager) {
       window._storyManager.loadState(data.storyState);
+    }
+    // استعادة بيانات الشنطة
+    if (data.loadout) {
+      const loadoutMgr = _getLoadoutManager();
+      if (loadoutMgr) loadoutMgr.loadState(data.loadout);
     }
     if (data.currentVillageId && data.currentVillageId !== village.currentVillageId) {
       village.initVillage(data.currentVillageId);

@@ -14,12 +14,13 @@ export const WEAPON_DATA = [
 ];
 
 // تكاليف الترقية لكل مستوى نجمي (0→1, 1→2, 2→3, 3→4, 4→5)
+// منحنى تدريجي: كل قفزة ~2.5-3x (ليس 4x كما كان سابقاً)
 const UPGRADE_COSTS = [
-  { cash: 500,  gems: 10,  artifact: 0,  desertGem: 0, label: "1⭐" },
-  { cash: 2000, gems: 30,  artifact: 1,  desertGem: 0, label: "2⭐" },
-  { cash: 8000, gems: 80,  artifact: 2,  desertGem: 0, label: "3⭐" },
-  { cash: 25000, gems: 200, artifact: 4, desertGem: 1, label: "4⭐" },
-  { cash: 80000, gems: 500, artifact: 8, desertGem: 3, label: "5⭐" },
+  { cash: 300,   gems: 8,   artifact: 0,  desertGem: 0, label: "1⭐" },
+  { cash: 800,   gems: 20,  artifact: 1,  desertGem: 0, label: "2⭐" },
+  { cash: 2000,  gems: 50,  artifact: 2,  desertGem: 0, label: "3⭐" },
+  { cash: 5000,  gems: 120, artifact: 4,  desertGem: 1, label: "4⭐" },
+  { cash: 12000, gems: 300, artifact: 8,  desertGem: 3, label: "5⭐" },
 ];
 
 export class Weapon {
@@ -124,7 +125,8 @@ export class GameArmy {
   }
 
   get _unitUpgradeCostRaw() {
-    return Math.floor(15 * this.unitLevel * (1 + this.unitLevel * 0.05));
+    // منحنى تدريجي: يبدأ منخفض ويتصاعد ببطء
+    return Math.floor(20 * Math.pow(1.08, this.unitLevel));
   }
 
   get unitUpgradeCost() {
@@ -132,7 +134,8 @@ export class GameArmy {
   }
 
   get _trainingUpgradeCostRaw() {
-    return Math.floor(50 * this.trainingLevel * (1 + this.trainingLevel * 0.1));
+    // منحنى تدريجي: أبطأ من ترقية الوحدات
+    return Math.floor(40 * Math.pow(1.1, this.trainingLevel));
   }
 
   get trainingUpgradeCost() {

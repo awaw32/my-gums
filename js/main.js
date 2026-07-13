@@ -1,4 +1,4 @@
-﻿import { GameEconomy, getXpForLevel } from "./economy.js";
+import { GameEconomy, getXpForLevel } from "./economy.js";
 import { GameVillage } from "./village.js";
 import { GameArmy } from "./army.js";
 import { GameUI } from "./ui.js";
@@ -25,6 +25,8 @@ import { NetworkSync } from "./network-sync.js";
 import { ResearchTree } from "./research-tree.js";
 import { GameHero } from "./hero.js";
 import { StoryManager } from "./story-manager.js";
+import { LoadoutManager } from "./loadout-manager.js";
+import { TradeMarket } from "./trade-market.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
@@ -32,29 +34,57 @@ function sanitizeUsername(name) {
   return name.replace(/[^\w\s\u0600-\u06FF-]/g, '').trim().slice(0, 20) || 'بطل الصحراء';
 }
 
+function sanitizePassword(pw) {
+  return typeof pw === 'string' ? pw.slice(0, 128) : '';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  🛡️ نظام تسجيل الدخول الجديد (2026-07-13)
+//  - يدعم التوافق العكسي للحسابات القديمة (بدون كلمة مرور)
+//  - الحسابات الجديدة تتطلب كلمة مرور (4 أحرف كحد أدنى)
+//  - يتم تخزين كلمة المرور في localStorage لإعادة الدخول التلقائي
+// ═══════════════════════════════════════════════════════════════════
+async function tryLogin(username, password) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem("player_token", data.token);
+      return { ok: true, isNew: !!data.isNew, passwordUpgraded: !!data.passwordUpgraded, username: data.username };
+    }
+    return { ok: false, error: data.error || 'فشل تسجيل الدخول', status: res.status };
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') return { ok: false, error: 'تعذر الاتصال بالخادم', status: 0 };
+    return { ok: false, error: err.message || 'خطأ في الشبكة', status: 0 };
+  }
+}
+
 async function getOrPromptUsername() {
-  const saved = localStorage.getItem("player_username");
-  if (saved && saved.trim()) {
-    const name = sanitizeUsername(saved.trim());
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: name, password: "" }),
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem("player_token", data.token);
-      }
-    } catch {}
-    return name;
+  // ── محاولة الدخول التلقائي (إذا وجد اسم مستخدم وكلمة مرور مخزنين) ──
+  const savedUser = localStorage.getItem("player_username");
+  const savedToken = localStorage.getItem("player_token");
+
+  if (savedUser && savedUser.trim() && savedToken) {
+    const name = sanitizeUsername(savedUser.trim());
+    const result = await tryLogin(name, '');
+    if (result.ok) {
+      return name;
+    }
+    // إذا فشل التوكن، نزيله ونطلب تسجيل دخول من جديد
+    localStorage.removeItem("player_token");
   }
 
+  // ── إظهار واجهة تسجيل الدخول ──
   const loadingPctEl = document.getElementById("loading-pct");
-  if (loadingPctEl) loadingPctEl.textContent = "👤 أدخل اسمك";
+  if (loadingPctEl) loadingPctEl.textContent = "👤 تسجيل الدخول";
 
   const overlay = document.createElement("div");
   overlay.id = "name-overlay";
@@ -62,9 +92,17 @@ async function getOrPromptUsername() {
     <div class="name-overlay-content">
       <div class="name-overlay-crown">👑</div>
       <h1 class="name-overlay-title">ملك الصحراء</h1>
-      <p class="name-overlay-sub">أدخل اسمك لتبدأ المغامرة</p>
-      <input type="text" id="name-input" class="name-input" placeholder="اسمك في اللعبة..." maxlength="20" dir="rtl" autofocus />
-      <button id="name-submit-btn" class="name-submit-btn">🚀 ابدأ المغامرة</button>
+      <p class="name-overlay-sub" id="login-subtitle">سجل الدخول أو أنشئ حساباً جديداً</p>
+      <input type="text" id="name-input" class="name-input" placeholder="اسم المستخدم..." maxlength="20" dir="rtl" autofocus />
+      <input type="password" id="password-input" class="name-input" placeholder="كلمة المرور (4 أحرف على الأقل)..." maxlength="128" dir="rtl" />
+      <div id="login-error" class="login-error-msg"></div>
+      <div style="display:flex;gap:8px;width:100%;margin-top:8px">
+        <button id="login-btn" class="name-submit-btn" style="flex:1">🔑 تسجيل دخول</button>
+        <button id="register-btn" class="name-submit-btn" style="flex:1;background:var(--green,#27ae60)">✨ إنشاء حساب</button>
+      </div>
+      <p style="font-size:0.6rem;color:var(--text-secondary);margin-top:8px">
+        الحسابات القديمة: أدخل كلمة مرور جديدة لترقية حسابك
+      </p>
     </div>
   `;
   Object.assign(overlay.style, {
@@ -74,34 +112,99 @@ async function getOrPromptUsername() {
   });
   document.body.appendChild(overlay);
 
-  const input = overlay.querySelector("#name-input");
-  const btn = overlay.querySelector("#name-submit-btn");
+  const nameInput = overlay.querySelector("#name-input");
+  const passInput = overlay.querySelector("#password-input");
+  const loginBtn = overlay.querySelector("#login-btn");
+  const registerBtn = overlay.querySelector("#register-btn");
+  const errorEl = overlay.querySelector("#login-error");
+  const subtitleEl = overlay.querySelector("#login-subtitle");
 
-  const submit = async () => {
-    const name = sanitizeUsername(input.value);
-    localStorage.setItem("player_username", name);
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: name, password: "" }),
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem("player_token", data.token);
+  // تعبئة اسم المستخدم المحفوظ إن وجد
+  if (savedUser) nameInput.value = savedUser;
+
+  const showError = (msg) => {
+    errorEl.textContent = msg || '';
+  };
+
+  const doLogin = async (isRegister) => {
+    const name = sanitizeUsername(nameInput.value);
+    const pass = sanitizePassword(passInput.value);
+
+    if (!name || name.length < 2) {
+      showError('الاسم يجب أن يكون حرفين على الأقل');
+      return;
+    }
+
+    if (isRegister && (!pass || pass.length < 4)) {
+      showError('كلمة المرور يجب أن تكون 4 أحرف على الأقل');
+      return;
+    }
+
+    if (!isRegister && !pass) {
+      showError('الرجاء إدخال كلمة المرور');
+      return;
+    }
+
+    showError('⏳ جاري الاتصال...');
+
+    const result = await tryLogin(name, pass);
+
+    if (result.ok) {
+      localStorage.setItem("player_username", name);
+      overlay.remove();
+      // إذا تم ترقية حساب قديم، نعرض رسالة تأكيد
+      if (result.passwordUpgraded) {
+        setTimeout(() => {
+          const toast = document.getElementById('notification-container');
+          if (toast) {
+            const el = document.createElement('div');
+            el.className = 'notification-toast notif-success';
+            el.textContent = '✅ تم ترقية حسابك القديم! يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة 🔐';
+            toast.appendChild(el);
+            setTimeout(() => { el.classList.add('notif-dismiss'); setTimeout(() => el.remove(), 300); }, 4000);
+          }
+        }, 500);
       }
-    } catch {}
-    overlay.remove();
-    return name;
+      return name;
+    }
+
+    // معالجة الأخطاء
+    if (result.status === 401) {
+      showError('❌ ' + (result.error || 'كلمة المرور خاطئة'));
+    } else if (result.status === 400) {
+      showError('⚠️ ' + (result.error || 'بيانات غير صحيحة'));
+    } else if (result.status === 0) {
+      showError('🌐 لا يمكن الاتصال بالخادم');
+    } else {
+      showError('❌ ' + (result.error || 'حدث خطأ'));
+    }
+
+    return null; // فشل
   };
 
   return new Promise(resolve => {
-    btn.onclick = () => { submit().then(resolve); };
-    input.onkeydown = e => { if (e.key === "Enter") btn.click(); };
-    setTimeout(() => input?.focus(), 200);
+    loginBtn.onclick = async () => {
+      const name = await doLogin(false);
+      if (name) resolve(name);
+    };
+    registerBtn.onclick = async () => {
+      const name = await doLogin(true);
+      if (name) resolve(name);
+    };
+    const handleKey = (e) => {
+      if (e.key === "Enter") {
+        // إذا كان حقل كلمة المرور فيه نص → تسجيل دخول
+        // وإلا → إذا حقل الاسم فقط، ركز على كلمة المرور
+        if (passInput.value) {
+          loginBtn.click();
+        } else {
+          passInput.focus();
+        }
+      }
+    };
+    nameInput.onkeydown = handleKey;
+    passInput.onkeydown = handleKey;
+    setTimeout(() => nameInput?.focus(), 200);
   });
 }
 
@@ -116,11 +219,12 @@ async function loadFromDatabase(economy, army, village, username) {
     clearTimeout(t1);
     if (response.status === 401 || response.status === 403) {
       localStorage.removeItem("player_token");
+      // ── إعادة تسجيل الدخول بكلمة مرور فارغة للحسابات القديمة ──
       const c2 = new AbortController();
       const t2 = setTimeout(() => c2.abort(), 8000);
       const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password: "" }),
+        body: JSON.stringify({ username, password: '' }),
         signal: c2.signal
       });
       clearTimeout(t2);
@@ -184,6 +288,8 @@ async function loadFromDatabase(economy, army, village, username) {
       window._loadedDailyLogin = data.dailyLogin || null;
       window._loadedPrestige = data.prestigeLevel ?? 0;
       window._loadedInventory = data.inventory || null;
+      window._loadedLoadout = data.loadout || null;
+      window._loadedMarket = data.market || null;
       window._loadedEvents = data.events || null;
       window._loadedTutorial = data.tutorial || null;
       window._loadedStory = data.story || null;
@@ -277,9 +383,17 @@ async function init() {
   const inventory = new InventoryManager(economy);
   const droppedItems = new DroppedItemsManager();
   window._inventory = inventory;
+  
+  // 🎒 نظام الشنطة (Loadout)
+  const loadoutManager = new LoadoutManager(economy, inventory, army);
+  window._loadoutManager = loadoutManager;
   window._droppedItems = droppedItems;
   const events = new EventManager();
   const tutorial = new TutorialManager();
+
+  // 🏪 سوق الصحراء (Trade Market)
+  const tradeMarket = new TradeMarket(economy, inventory, netSync, PLAYER_USERNAME);
+  window._tradeMarket = tradeMarket;
   
   setProgress(80);
 
@@ -292,6 +406,16 @@ async function init() {
   if (window._loadedDailyLogin) dailyLogin.loadState(window._loadedDailyLogin);
   if (window._loadedPrestige !== 0 && window._loadedPrestige !== undefined) prestige.loadState(window._loadedPrestige);
   if (window._loadedInventory) inventory.loadState(window._loadedInventory);
+  // 🆕 استعادة بيانات الشنطة من قاعدة البيانات (إذا كانت محفوظة)
+  if (window._loadedLoadout) {
+    loadoutManager.loadState(window._loadedLoadout);
+    delete window._loadedLoadout;
+  }
+  // 🏪 استعادة بيانات السوق
+  if (window._loadedMarket) {
+    tradeMarket.loadState(window._loadedMarket);
+    delete window._loadedMarket;
+  }
   if (window._loadedEvents) events.loadState(window._loadedEvents);
   if (window._loadedTutorial) tutorial.loadState(window._loadedTutorial);
   if (window._loadedStory) {
@@ -365,8 +489,8 @@ async function init() {
     if (offlineSeconds > 60) {
       const incomeRate = village.getIncomeRate();
       const oasisIncome = oasisManager.totalIncome;
-      const villageCash = Math.floor(incomeRate * offlineSeconds * 0.5);
-      const oasisGold = Math.floor(oasisIncome * offlineSeconds * 0.5);
+      const villageCash = Math.floor((incomeRate.cash || 0) * offlineSeconds * 0.5);
+      const oasisGold = Math.floor((oasisIncome || 0) * offlineSeconds * 0.5);
       const armyFood = Math.floor(8 * offlineSeconds * 0.02);
 
       if (villageCash > 0 || oasisGold > 0) {
@@ -440,6 +564,7 @@ async function init() {
   try {
     const notificationManager = new NotificationManager();
     ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager);
+    ui._tradeMarket = tradeMarket;
     world._ui = ui;
   } catch (err) {
     console.error("❌ [FATAL] GameUI constructor threw:", err);
@@ -582,6 +707,8 @@ async function init() {
           brKills: window._brKillsGlobal || 0,
           landsState: landsState,
           hero: hero.getSaveData(),
+          loadout: loadoutManager.getSaveData(),
+          market: tradeMarket.getSaveData(),
           completedVillages: village.completedVillages,
           currentChapter: village.currentChapter,
           last_active: Date.now()
@@ -723,6 +850,32 @@ async function init() {
       hero.addXp(15);
       economy.addXp(10);
       quests.updateProgress('kill', 1);
+
+      // 🎁 إسقاط عناصر عشوائية من الوحوش (فرصة 15%)
+      if (Math.random() < 0.15) {
+        const dropTable = [
+          { id: "bandage", chance: 0.40, name: "باندج" },
+          { id: "heal_potion", chance: 0.25, name: "جرعة علاج" },
+          { id: "xp_scroll", chance: 0.15, name: "لفافة خبرة" },
+          { id: "fire_sword", chance: 0.08, name: "سيف ناري" },
+          { id: "desert_shield", chance: 0.06, name: "درع صحراوي" },
+          { id: "arena_ticket", chance: 0.04, name: "تذكرة ساحة" },
+          { id: "iron_sword", chance: 0.02, name: "سيف حديدي" },
+        ];
+        const roll = Math.random();
+        let cumulative = 0;
+        for (const item of dropTable) {
+          cumulative += item.chance;
+          if (roll <= cumulative) {
+            if (inventory.canCarry(item.id, 1)) {
+              inventory._addItem(item.id, 1);
+              ui.showNotification(`🎁 حصلت على ${item.name}!`);
+              audio.playSound('collect');
+            }
+            break;
+          }
+        }
+      }
     };
     world._onDropCollected = () => {
       audio.playSound('collect');
@@ -779,8 +932,11 @@ async function init() {
     // تخزين مؤقت لتنظيف الفواصل لاحقاً
     const _gameIntervals = [];
 
-    // تنظيف الأدوات القديمة كل دقيقة
-    _gameIntervals.push(setInterval(() => droppedItems.cleanup(), 60000));
+    // تنظيف الأدوات القديمة + السوق كل دقيقة
+    _gameIntervals.push(setInterval(() => {
+      droppedItems.cleanup();
+      tradeMarket.cleanup();
+    }, 60000));
     achievements._onUnlock = (a) => {
       ui.showNotification(`🏆 إنجاز: ${a.title} — ${a.desc}`);
       audio.playSound('levelup');
@@ -1009,6 +1165,13 @@ async function init() {
     const brTotalCount = document.getElementById('br-total-count');
     const brVictoryStats = document.getElementById('br-victory-stats');
     const brDefeatStats = document.getElementById('br-defeat-stats');
+    const brEvacuateBtn = document.getElementById('br-evacuate-btn');
+
+    if (brEvacuateBtn) {
+      brEvacuateBtn.addEventListener('click', () => {
+        if (world && world._doBRExtraction) world._doBRExtraction();
+      });
+    }
 
     if (brBtn) {
       brBtn.addEventListener('click', () => {
@@ -1061,9 +1224,12 @@ async function init() {
         economy.addRaw('gems', (result.bonusGems || 0) + 100 + (result.kills || 0) * 10);
         economy.addRaw('gold', (result.bonusGold || 0) + 50 + (result.kills || 0) * 5);
         saveToDB(); persistGameSession(economy, village, army);
+        const brHeaders = { "Content-Type": "application/json" };
+        const brToken = localStorage.getItem("player_token");
+        if (brToken) brHeaders.Authorization = `Bearer ${brToken}`;
         fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: brHeaders,
           body: JSON.stringify({ brWins, brKills: brKillsTotal, last_active: Date.now() })
         }).catch(e => console.warn("[Save] BR match save:", e.message));
         ui.updateTopBar();
