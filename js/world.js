@@ -29,6 +29,7 @@ export class WorldMap {
     this.H = 2400;
     this.engine = null;
     this.running = false;
+    this.settings = {};
 
     // ==================== الملتيكاملة (WebSocket عبر NetworkSync) ====================
     this.netSync = null; // يُضبط من main.js بعد الإنشاء

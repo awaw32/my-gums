@@ -157,11 +157,11 @@ export class GameUI {
     this._tooltipEl = document.getElementById("game-tooltip");
     if (!this._tooltipEl) return;
     document.addEventListener("mouseenter", (e) => {
-      const target = e.target.closest("[data-tooltip]");
+      const target = e.target?.closest?.("[data-tooltip]");
       if (target) this._showTooltip(target, e);
     }, true);
     document.addEventListener("mouseleave", (e) => {
-      const target = e.target.closest("[data-tooltip]");
+      const target = e.target?.closest?.("[data-tooltip]");
       if (target) this._hideTooltip();
     }, true);
     document.addEventListener("mousemove", (e) => {
@@ -170,7 +170,7 @@ export class GameUI {
       }
     });
     document.addEventListener("touchstart", (e) => {
-      const target = e.target.closest("[data-tooltip]");
+      const target = e.target?.closest?.("[data-tooltip]");
       if (target) { e.preventDefault(); this._showTooltip(target, e.touches[0]); }
     }, { passive: false });
     document.addEventListener("touchend", () => this._hideTooltip());
@@ -1856,7 +1856,7 @@ export class GameUI {
   renderMiniMap() {
     const canvas = document.getElementById("mini-map");
     if (!canvas) return;
-    if (!this.world || this.world.settings.minimap === false) {
+    if (!this.world || this.world.settings?.minimap === false) {
       canvas.classList.add("hidden");
       return;
     }

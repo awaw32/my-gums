@@ -102,6 +102,18 @@ async function loadFromDatabase(economy, army, village, username) {
     const token = localStorage.getItem("player_token");
     if (token) headers["Authorization"] = `Bearer ${token}`;
     const response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers });
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem("player_token");
+      const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password: "" }),
+      });
+      if (loginRes.ok) {
+        const loginData = await loginRes.json();
+        if (loginData.token) localStorage.setItem("player_token", loginData.token);
+      }
+      return;
+    }
     const data = await response.json();
     if (data && data.cash !== undefined) {
       economy.cash = data.cash;

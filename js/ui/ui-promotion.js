@@ -428,7 +428,7 @@ GameUI.prototype._renderUpgradeTree = function() {
       </div>
     `;
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.ug-btn')) return;
+      if (e.target?.closest?.('.ug-btn')) return;
       this._openUpgradeDetail(p.id);
     });
     const btn = card.querySelector('.ug-btn');
