@@ -302,6 +302,7 @@
         <button id="br-defeat-btn" class="action-btn" style="margin-top:16px;padding:12px 30px;font-size:1rem">العودة للصالة</button>
       </div>
     </div>
+    <div id="br-evacuate-btn" class="hidden br-evacuate-btn" onclick="(() => { const w = window._world; if (w && w._doBRExtraction) w._doBRExtraction(); })()">🚁 إخلاء</div>
 
     <!-- Canvas -->
     <canvas id="gameCanvas" class="hidden"></canvas>

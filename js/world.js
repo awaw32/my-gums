@@ -1137,6 +1137,18 @@ export class WorldMap {
     if (this.netSync) this.netSync.sendWSUpdate();
   }
 
+  movePlayerTo(x, y) {
+    if (!this.leader) return;
+    this.leader.fighting = null;
+    this.armyUnits.forEach(u => u.fighting = null);
+    const path = aStar(this.leader.x, this.leader.y, x, y, this.W, this.H);
+    this.leader.path = simplifyPath(path);
+    this.leader.pathIdx = 0;
+    this._moveTargetX = x;
+    this._moveTargetY = y;
+    if (this.netSync) this.netSync.sendWSUpdate();
+  }
+
   _startPvPPursuit(target) {
     this._isPvPEngaged = false;
     this._pvpResultSent = false;
@@ -2681,6 +2693,8 @@ export class WorldMap {
     this.matchStarted = false;
     this.matchEnded = false;
     this.matchTimer = this.matchDuration;
+    this._brNearExtraction = false;
+    this._brExtractionCooldown = 0;
     // إعادة تعيين موقع اللاعب
     if (this.leader) {
       this.leader.x = this.brMapSize / 2 + (Math.random() - 0.5) * this.brMapSize * 0.3;
@@ -2690,6 +2704,18 @@ export class WorldMap {
       this.leader.fighting = null;
       this.leader.path = null;
     }
+    this._placeBRExtractionZone();
+  }
+
+  _placeBRExtractionZone() {
+    const edge = Math.floor(Math.random() * 4);
+    const margin = 120;
+    let x, y;
+    if (edge === 0) { x = this.brMapSize / 2 + (Math.random() - 0.5) * this.brMapSize * 0.5; y = margin; }
+    else if (edge === 1) { x = this.brMapSize - margin; y = this.brMapSize / 2 + (Math.random() - 0.5) * this.brMapSize * 0.5; }
+    else if (edge === 2) { x = this.brMapSize / 2 + (Math.random() - 0.5) * this.brMapSize * 0.5; y = this.brMapSize - margin; }
+    else { x = margin; y = this.brMapSize / 2 + (Math.random() - 0.5) * this.brMapSize * 0.5; }
+    this.brExtractionZone = { x, y, radius: 70 };
   }
 
   startBRMatch() {
@@ -2748,10 +2774,49 @@ export class WorldMap {
     }
     // تحديث قطاع الطرق
     this._updateBRBandits(dt);
+    // التحقق من نقطة الإخلاء
+    this._brExtractionCooldown = Math.max(0, this._brExtractionCooldown - dt);
+    if (this.brExtractionZone && this.leader && !this.matchEnded) {
+      const dist = Math.hypot(this.leader.x - this.brExtractionZone.x, this.leader.y - this.brExtractionZone.y);
+      const wasNear = this._brNearExtraction;
+      this._brNearExtraction = dist < this.brExtractionZone.radius;
+      if (this._brNearExtraction && !wasNear) {
+        if (this.store) this.store.set('notification', { text: "🚁 أنت في منطقة الإخلاء! اضغط زر الإخلاء للخروج بالمال", t: Date.now() });
+      }
+    }
+    // إظهار/إخفاء زر الإخلاء
+    const evacBtn = document.getElementById("br-evacuate-btn");
+    if (evacBtn) evacBtn.classList.toggle("hidden", !this._brNearExtraction || this.matchEnded);
     // تحديث DOM
     this._updateBRDom(dt);
     // التحقق من الفائز
     if (this._onBRKillFeed) this._onBRKillFeed(this.killFeed);
+  }
+
+  _doBRExtraction() {
+    if (this.matchEnded || !this._brNearExtraction) return;
+    if (this._brExtractionCooldown > 0) return;
+    this._brExtractionCooldown = 3;
+    this.matchEnded = true;
+    this.matchStarted = false;
+    const kills = this.brKills;
+    const survived = this.matchDuration - this.matchTimer;
+    const bonusGems = 50 + kills * 25;
+    const bonusGold = 100 + kills * 30;
+    if (this.economy) {
+      this.economy.addRaw("gems", bonusGems);
+      this.economy.addRaw("gold", bonusGold);
+    }
+    if (this._onBRMatchEnd) {
+      this._onBRMatchEnd({ winner: true, kills, reason: "extraction", bonusGems, bonusGold });
+    }
+    this.netSync.send({ type: "br_match_end", winner: this.username, kills, reason: "extraction" });
+    if (this.store) {
+      this.store.set('notification', {
+        text: `🚁 إخلاء ناجح! +${bonusGems} 💎 +${bonusGold} 🪙 مع ${kills} قتل!`,
+        t: Date.now()
+      });
+    }
   }
 
   _updateBRDom(dt) {
@@ -2913,6 +2978,35 @@ export class WorldMap {
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
+    // رسم نقطة الإخلاء (هليكوبتر)
+    if (this.brExtractionZone) {
+      const ez = this.brExtractionZone;
+      ctx.save();
+      // دائرة خضراء متوهجة
+      const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 500);
+      ctx.beginPath();
+      ctx.arc(ez.x, ez.y, ez.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(76, 217, 100, ${0.15 * pulse})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(76, 217, 100, ${0.6 * pulse})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // أيقونة المروحية
+      ctx.font = "24px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🚁", ez.x, ez.y - 26);
+      // نص نقطة الأمان
+      ctx.font = "bold 13px Cairo, sans-serif";
+      ctx.fillStyle = "#4cd964";
+      ctx.shadowColor = "rgba(0,0,0,0.8)";
+      ctx.shadowBlur = 4;
+      ctx.fillText("نقطة الأمان", ez.x, ez.y + ez.radius + 18);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
   }
 
   drawBRBandits(ctx) {
@@ -3008,6 +3102,9 @@ export class WorldMap {
       document.getElementById("br-kills")?.classList.add("hidden");
       document.getElementById("br-kill-feed")?.classList.add("hidden");
       document.getElementById("br-zone-warning")?.classList.add("hidden");
+      document.getElementById("br-evacuate-btn")?.classList.add("hidden");
+      this.brExtractionZone = null;
+      this._brNearExtraction = false;
     }
     this.stop();
     const canvas = document.getElementById("gameCanvas");

@@ -271,6 +271,7 @@ async function init() {
   window._storyManager = storyManager;
   window._army = army;
   window._economy = economy;
+  window._world = world;
   window._allianceManager = allianceManager;
   const prestige = new PrestigeManager(economy, village, army, storyManager);
   const inventory = new InventoryManager(economy);
@@ -337,16 +338,22 @@ async function init() {
     console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!");
     // حفظ فوري في قاعدة البيانات عشان ما يضيع البونص
     try {
+      const _h = { "Content-Type": "application/json" };
+      const _tok = localStorage.getItem("player_token");
+      if (_tok) _h.Authorization = `Bearer ${_tok}`;
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: _h,
         body: JSON.stringify({ cash: economy.cash, gems: economy.gems, gold: economy.gold, hammers: economy.hammers, scrolls: economy.scrolls, food: economy.food, army_power: economy.power, unitLevel: 1, weapons: [], last_active: Date.now() })
       }).catch(e => console.warn("[Save] welcome bonus save:", e.message));
     } catch (e) { console.warn("[Save] welcome bonus error:", e.message); }
   } else {
     // حفظ حالة الدخول
     try {
+      const _h = { "Content-Type": "application/json" };
+      const _tok = localStorage.getItem("player_token");
+      if (_tok) _h.Authorization = `Bearer ${_tok}`;
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: _h,
         body: JSON.stringify({ last_active: Date.now() })
       }).catch(e => console.warn("[Save] login ping save:", e.message));
     } catch (e) { console.warn("[Save] login ping error:", e.message); }
@@ -1037,9 +1044,22 @@ async function init() {
         brWins++;
         brKillsTotal += result.kills || 0;
         if (brVictoryScreen) brVictoryScreen.classList.remove('hidden');
-        if (brVictoryStats) brVictoryStats.textContent = `🏆 قضيت على ${result.kills || 0} أعداء`;
-        economy.addRaw('gems', 100 + (result.kills || 0) * 10);
-        economy.addRaw('gold', 50 + (result.kills || 0) * 5);
+        const isExtraction = result.reason === "extraction";
+        const icon = isExtraction ? "🚁" : "👑";
+        const titleText = isExtraction ? "إخلاء ناجح!" : "أنت الفائز!";
+        const bonusDisplay = result.bonusGems ? ` +${result.bonusGems} 💎` : '';
+        const bonusDisplay2 = result.bonusGold ? ` +${result.bonusGold} 🪙` : '';
+        if (brVictoryStats) {
+          brVictoryStats.textContent = isExtraction
+            ? `🚁 هربت مع ${result.kills || 0} قتل!${bonusDisplay}${bonusDisplay2}`
+            : `🏆 قضيت على ${result.kills || 0} أعداء`;
+        }
+        const titleEl = brVictoryScreen?.querySelector('h2');
+        if (titleEl) titleEl.textContent = titleText;
+        const iconEl = brVictoryScreen?.querySelector('.victory-icon');
+        if (iconEl) iconEl.textContent = icon;
+        economy.addRaw('gems', (result.bonusGems || 0) + 100 + (result.kills || 0) * 10);
+        economy.addRaw('gold', (result.bonusGold || 0) + 50 + (result.kills || 0) * 5);
         saveToDB(); persistGameSession(economy, village, army);
         fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
           method: "POST",
@@ -1275,6 +1295,7 @@ async function init() {
         case '4': document.getElementById('hero-ability-4')?.click(); break;
         case 'u': case 'U': document.getElementById('panel-toggle')?.click(); break;
         case 'f': case 'F': document.getElementById('fullscreen-btn')?.click(); break;
+        case 'e': case 'E': document.getElementById('br-evacuate-btn')?.click(); break;
       }
     };
     document.addEventListener('keydown', _keydownHandler);

@@ -2523,6 +2523,22 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   color: #ff4444; text-shadow: 0 0 20px rgba(255,0,0,0.5);
   animation: pulse-red 0.3s; pointer-events: none;
 }
+.br-evacuate-btn {
+  position: fixed; bottom: calc(var(--safe-b) + 100px); left: 50%;
+  transform: translateX(-50%); z-index: 200;
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  color: #fff; font-size: 1.1rem; font-weight: 700;
+  padding: 14px 36px; border: none; border-radius: 16px;
+  cursor: pointer; box-shadow: 0 4px 20px rgba(46,204,113,0.4);
+  animation: pulse-extract 1s infinite alternate;
+  font-family: inherit; min-height: 52px;
+}
+.br-evacuate-btn:hover { background: linear-gradient(135deg, #27ae60, #1e8449); }
+.br-evacuate-btn.hidden { display: none; }
+@keyframes pulse-extract {
+  from { transform: translateX(-50%) scale(1); box-shadow: 0 4px 20px rgba(46,204,113,0.4); }
+  to { transform: translateX(-50%) scale(1.05); box-shadow: 0 6px 30px rgba(46,204,113,0.6); }
+}
 #br-victory-screen, #br-defeat-screen {
   position: fixed; inset: 0; z-index: 500;
   background: rgba(0,0,0,0.7);

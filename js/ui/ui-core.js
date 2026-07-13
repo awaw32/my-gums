@@ -1856,7 +1856,7 @@ export class GameUI {
   renderMiniMap() {
     const canvas = document.getElementById("mini-map");
     if (!canvas) return;
-    if (!this.world || this.world.settings?.minimap === false) {
+    if (!this.world || this.world.settings?.minimap === false || !this.world.running) {
       canvas.classList.add("hidden");
       return;
     }
