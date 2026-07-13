@@ -769,6 +769,9 @@ async function init() {
       achievements.updateProgress('items_used', 1);
     };
 
+    // تخزين مؤقت لتنظيف الفواصل لاحقاً
+    const _gameIntervals = [];
+
     // تنظيف الأدوات القديمة كل دقيقة
     _gameIntervals.push(setInterval(() => droppedItems.cleanup(), 60000));
     achievements._onUnlock = (a) => {
@@ -949,9 +952,6 @@ async function init() {
         };
       }
     }
-
-    // تخزين مؤقت لتنظيف الفواصل لاحقاً
-    const _gameIntervals = [];
 
     // تحديث واجهة البطل كل ثانية
     const heroInterval = setInterval(() => {

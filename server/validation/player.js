@@ -64,8 +64,10 @@ const MAX_RESOURCE_GAIN_PER_SEC = {
 };
 
 function validateResourceDelta(existing, incoming) {
+  // تخطي التحقق لأول حفظ (لاعب جديد — لا توجد بيانات سابقة)
+  if (!existing.last_active) return { ok: true };
   const now = Date.now();
-  const lastTime = existing.last_active || now;
+  const lastTime = existing.last_active;
   const elapsedSec = Math.max(1, (now - lastTime) / 1000);
   for (const res of RESOURCE_NAMES) {
     if (incoming[res] === undefined) continue;
