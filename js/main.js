@@ -53,6 +53,9 @@ async function getOrPromptUsername() {
     return name;
   }
 
+  const loadingPctEl = document.getElementById("loading-pct");
+  if (loadingPctEl) loadingPctEl.textContent = "👤 أدخل اسمك";
+
   const overlay = document.createElement("div");
   overlay.id = "name-overlay";
   overlay.innerHTML = `
@@ -65,7 +68,7 @@ async function getOrPromptUsername() {
     </div>
   `;
   Object.assign(overlay.style, {
-    position: "fixed", inset: "0", zIndex: "10000",
+    position: "fixed", inset: "0", zIndex: "100000",
     display: "flex", alignItems: "center", justifyContent: "center",
     background: "var(--bg-page)",
   });
@@ -107,20 +110,30 @@ async function loadFromDatabase(economy, army, village, username) {
     const headers = { "Content-Type": "application/json" };
     const token = localStorage.getItem("player_token");
     if (token) headers["Authorization"] = `Bearer ${token}`;
-    let response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers });
+    const c1 = new AbortController();
+    const t1 = setTimeout(() => c1.abort(), 10000);
+    let response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers, signal: c1.signal });
+    clearTimeout(t1);
     if (response.status === 401 || response.status === 403) {
       localStorage.removeItem("player_token");
+      const c2 = new AbortController();
+      const t2 = setTimeout(() => c2.abort(), 8000);
       const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password: "" }),
+        signal: c2.signal
       });
+      clearTimeout(t2);
       if (loginRes.ok) {
         const loginData = await loginRes.json();
         if (loginData.token) {
           localStorage.setItem("player_token", loginData.token);
           const retryHeaders = { "Content-Type": "application/json" };
           retryHeaders["Authorization"] = `Bearer ${loginData.token}`;
-          response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers: retryHeaders });
+          const c3 = new AbortController();
+          const t3 = setTimeout(() => c3.abort(), 10000);
+          response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers: retryHeaders, signal: c3.signal });
+          clearTimeout(t3);
         }
       }
     }
