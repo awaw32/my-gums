@@ -250,6 +250,7 @@ export class NetworkSync {
     this._setOfflineIndicator(false);
 
     this._ws.onopen = () => {
+      this._wsReconnectCount = 0;
       const w = this.world;
       this.send({
         type: "join", username: this.username,
@@ -286,6 +287,11 @@ export class NetworkSync {
       console.warn("[WS] قطع الاتصال، إعادة محاولة...");
       this._setOfflineIndicator(true);
       this._ws = null;
+      this._wsReconnectCount = (this._wsReconnectCount || 0) + 1;
+      if (this._wsReconnectCount > 10) {
+        console.warn("[WS] فشل 10 محاولات — توقف");
+        return;
+      }
       this._wsReconnectTimer = setTimeout(() => this._connectWS(), 2000);
     };
 

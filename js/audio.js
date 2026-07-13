@@ -7,20 +7,31 @@ export class AudioManager {
     this._initOnInteraction = () => this._init();
     document.addEventListener("pointerdown", this._initOnInteraction, { once: true });
     document.addEventListener("keydown", this._initOnInteraction, { once: true });
+    document.addEventListener("pointerdown", () => {
+      if (this.ctx && this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
+    });
+    document.addEventListener("keydown", () => {
+      if (this.ctx && this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
+    });
   }
 
   _init() {
-    if (this.ctx) return;
-    try {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      this.musicGain = this.ctx.createGain();
-      this.musicGain.gain.value = 0.3;
-      this.musicGain.connect(this.ctx.destination);
-      this.sfxGain = this.ctx.createGain();
-      this.sfxGain.gain.value = 0.5;
-      this.sfxGain.connect(this.ctx.destination);
-    } catch {
-      console.warn("[Audio] Web Audio API unavailable");
+    if (!this.ctx) {
+      try {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.value = 0.3;
+        this.musicGain.connect(this.ctx.destination);
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = 0.5;
+        this.sfxGain.connect(this.ctx.destination);
+      } catch {
+        console.warn("[Audio] Web Audio API unavailable");
+        return;
+      }
+    }
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume().catch(() => {});
     }
   }
 
