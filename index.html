@@ -526,14 +526,16 @@
     window.addEventListener('unhandledrejection', function(e) {
       console.error('🔥 [Client] Unhandled Promise Rejection:', e.reason);
     });
-    // ===== تسجيل Service Worker للـ PWA =====
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(reg => {
-        console.log('✅ [SW] Service Worker registered:', reg.scope);
-      }).catch(err => {
-        console.warn('⚠️ [SW] Service Worker registration failed:', err);
-      });
-    }
+    // ===== تسجيل Service Worker للـ PWA (بعد تحميل الصفحة كاملة، لا يعلق التحميل) =====
+    window.addEventListener('load', function() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          console.log('✅ [SW] Service Worker registered:', reg.scope);
+        }).catch(err => {
+          console.warn('⚠️ [SW] Service Worker registration failed:', err);
+        });
+      }
+    });
   </script>
   <script>
     // Fullscreen toggle
