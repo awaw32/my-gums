@@ -108,24 +108,23 @@ describe("LoadoutManager - 🎒 نظام الشنطة", () => {
   // ════════════════════════════════════════════
 
   it("يمكن صناعة الشنطة Lv1 عند توفر الموارد", () => {
-    economy.resources.gold = 100;
-    economy.resources.food = 50;
-    economy.resources.leather = 10;
+    economy.resources.gold = 50;
+    economy.resources.food = 30;
+    economy.resources.leather = 5;
 
     expect(loadout.canCraftBag()).toBe(true);
     expect(loadout.craftBag()).toBe(true);
     expect(loadout.bagLevel).toBe(1);
     expect(loadout.hasBag).toBe(true);
-    // الموارد خُصمت
     expect(economy.resources.gold).toBe(0);
     expect(economy.resources.food).toBe(0);
     expect(economy.resources.leather).toBe(0);
   });
 
   it("لا يمكن صناعة الشنطة بدون موارد كافية", () => {
-    economy.resources.gold = 50; // تحتاج 100
-    economy.resources.food = 50;
-    economy.resources.leather = 10;
+    economy.resources.gold = 40;
+    economy.resources.food = 30;
+    economy.resources.leather = 5;
 
     expect(loadout.canCraftBag()).toBe(false);
     expect(loadout.craftBag()).toBe(false);
@@ -156,9 +155,9 @@ describe("LoadoutManager - 🎒 نظام الشنطة", () => {
   it("getCraftCostDescription يعيد النص الصحيح", () => {
     const desc = loadout.getCraftCostDescription(1);
     expect(desc).toContain("🪙");
-    expect(desc).toContain("100");
-    expect(desc).toContain("🌾");
     expect(desc).toContain("50");
+    expect(desc).toContain("🌾");
+    expect(desc).toContain("30");
   });
 
   // ════════════════════════════════════════════
@@ -374,8 +373,8 @@ describe("LoadoutManager - 🎒 نظام الشنطة", () => {
   // ════════════════════════════════════════════
 
   it("تكاليف الصناعة تتدرج حسب المستوى", () => {
-    expect(LoadoutManager.BAG_CRAFT_COSTS[1]).toEqual({ gold: 100, food: 50, leather: 10 });
-    expect(LoadoutManager.BAG_CRAFT_COSTS[3]).toEqual({ gold: 600, food: 200, leather: 60, copper: 25, herbs: 10 });
-    expect(LoadoutManager.BAG_CRAFT_COSTS[5]).toEqual({ gold: 2500, food: 800, leather: 200, copper: 100, herbs: 50, gems: 30 });
+    expect(LoadoutManager.BAG_CRAFT_COSTS[1]).toEqual({ gold: 50, food: 30, leather: 5 });
+    expect(LoadoutManager.BAG_CRAFT_COSTS[3]).toEqual({ gold: 400, food: 120, leather: 30, copper: 15, herbs: 5 });
+    expect(LoadoutManager.BAG_CRAFT_COSTS[5]).toEqual({ gold: 1500, food: 500, leather: 120, copper: 60, herbs: 30, gems: 20 });
   });
 });

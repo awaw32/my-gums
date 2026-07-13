@@ -29,7 +29,7 @@ import { LoadoutManager } from "./loadout-manager.js";
 import { TradeMarket } from "./trade-market.js";
 import { ReputationManager } from "./reputation-manager.js";
 
-const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
+const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ
 
 function sanitizeUsername(name) {
   return name.replace(/[^\w\s\u0600-\u06FF-]/g, '').trim().slice(0, 20) || 'بطل الصحراء';
@@ -308,7 +308,7 @@ async function loadFromDatabase(economy, army, village, username) {
       if (data.x_position != null && data.y_position != null) {
         window._loadedPosition = { x: data.x_position, y: data.y_position };
       }
-      console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!");
+      if (import.meta.env.DEV) { console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!"); }
     }
   } catch (err) {
     console.warn("⚠️ [API] لم يتم العثور على بيانات سابقة، سنبدأ من الصفر:", err.message);
@@ -470,7 +470,7 @@ async function init() {
     economy.addRaw("hammers", 1000);
     economy.addRaw("scrolls", 1000);
     economy.addRaw("food", 500);
-    console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!");
+    if (import.meta.env.DEV) { console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!"); }
     // حفظ فوري في قاعدة البيانات عشان ما يضيع البونص
     try {
       const _h = { "Content-Type": "application/json" };
@@ -1485,7 +1485,7 @@ async function init() {
     // تحقق من حالة قاعدة البيانات
     fetch(`${API_BASE}/health`).then(r => r.json()).then(h => {
       if (h.mongo === "connected") {
-        console.log("💾 [DB] قاعدة البيانات متصلة ✅");
+        if (import.meta.env.DEV) { console.log("💾 [DB] قاعدة البيانات متصلة ✅"); }
         ui.setDbStatus(true);
       } else {
         console.warn("💾 [DB] قاعدة البيانات غير متصلة — الحفظ في الذاكرة مؤقتاً");

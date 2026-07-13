@@ -75,7 +75,7 @@ export class GameEconomy {
     this.maxLevel = 110;
     this.xp = 0;
     this.xpToNext = getXpForLevel(1);
-    this.incomeRate = 0;
+    this.incomeRate = { cash: 0, gold: 0, food: 0 };
     this.lastTick = Date.now();
     this.powerSources = [];
     this.kills = 0;
@@ -208,7 +208,7 @@ export class GameEconomy {
   }
 
   getVillageIncome(village) {
-    if (!village) return 0;
+    if (!village) return { cash: 0, gold: 0, food: 0 };
     return village.getIncomeRate();
   }
 

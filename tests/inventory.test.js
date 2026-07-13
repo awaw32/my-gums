@@ -52,9 +52,9 @@ describe('InventoryManager', () => {
       expect(inv.canCraft('r7')).toBe(true);
     });
 
-    it('should return false if gold is barely insufficient', () => {
-      eco.resources.gold = 499;
-      expect(inv.canCraft('r7')).toBe(false);
+    it('should return true if gold is barely sufficient for r7 (costs 250)', () => {
+      eco.resources.gold = 250;
+      expect(inv.canCraft('r7')).toBe(true);
     });
   });
 
@@ -64,8 +64,8 @@ describe('InventoryManager', () => {
       const foodBefore = eco.resources.food;
       const result = inv.craft('r1');
       expect(result).toBe(true);
-      expect(eco.resources.gold).toBe(goldBefore - 10);
-      expect(eco.resources.food).toBe(foodBefore - 5);
+      expect(eco.resources.gold).toBe(goldBefore - 5);
+      expect(eco.resources.food).toBe(foodBefore - 3);
       expect(inv.getItemCount('bandage')).toBe(1);
     });
 

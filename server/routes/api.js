@@ -3,6 +3,8 @@
 const logger = require("../logger");
 const { sanitizePlayerData } = require("../validation/player");
 const metrics = require("../metrics");
+const { makeRateLimiter } = require("../network/rateLimiter");
+const loginLimiters = new Map();
 
 function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, markDirty, rooms, BUILDING_DEFS, TICK_MS, claimReward }) {
 
@@ -34,6 +36,23 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     //    - السيرفر يُرجع passwordUpgraded: true عند ترقية حساب قديم
     // ═══════════════════════════════════════════════════════════════
     if (req.url === "/api/auth/login" && req.method === "POST") {
+      const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress;
+      let limiter = loginLimiters.get(ip);
+      if (!limiter) { limiter = makeRateLimiter({ maxPerSec: 999 }); loginLimiters.set(ip, limiter); }
+      if (!loginLimiters.has(ip + "_count")) loginLimiters.set(ip + "_count", 0);
+      if (!loginLimiters.has(ip + "_time")) loginLimiters.set(ip + "_time", Date.now());
+      const loginCount = loginLimiters.get(ip + "_count") + 1;
+      const loginTime = loginLimiters.get(ip + "_time");
+      if (Date.now() - loginTime > 60000) {
+        loginLimiters.set(ip + "_count", 1);
+        loginLimiters.set(ip + "_time", Date.now());
+      } else if (loginCount > 5) {
+        res.writeHead(429, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "محاولات كثيرة جداً. انتظر دقيقة." }));
+        return;
+      } else {
+        loginLimiters.set(ip + "_count", loginCount);
+      }
       let body = "";
       let size = 0;
       req.on("data", chunk => {

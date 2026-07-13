@@ -1,4 +1,10 @@
 export class ExtractionMode {
+  // Extraction mode constants:
+  // Map: 2400x2400, monster spawn margin 150px, deposit zone min distance 400px
+  // Monsters: 15-24 count, reward 15-34 cash + 5-14 gold, peaceful
+  // Deposit zone radius 60px, safe zone radius 80px
+  // Time limit: 360s (6 min), max carry: 500 gold
+  // Upgrades: bagSize 80/lvl, speed 120/lvl, depositReward 160/lvl
   constructor(world) {
     this.world = world;
     this.modeName = "extraction";

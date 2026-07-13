@@ -2766,6 +2766,8 @@ export class WorldMap {
   }
 
   // ==================== Battle Royale Methods ====================
+  // BR constants: map size 2000px, zone starts at 45% of map, min zone 100px,
+  // shrink every 30s, extraction zone radius 70px, spawn margin 120px
   initBR(mapSize, matchDuration) {
     this.mode = "battle_royale";
     this.brMapSize = mapSize || 2000;
@@ -2836,7 +2838,7 @@ export class WorldMap {
       this.leader.hp = 120;
       this.leader.maxHp = 120;
     }
-    this.netSync.send({ type: "br_match_start", mapSize: this.brMapSize, matchDuration: this.matchDuration });
+      this._sendWS({ type: "br_match_start", mapSize: this.brMapSize, matchDuration: this.matchDuration });
     if (this.store) this.store.set('notification', { text: "🚀 بدأت المعركة الملكية! كن آخر من يبقى!", t: Date.now() });
   }
 
@@ -2853,7 +2855,7 @@ export class WorldMap {
     if (this.zone.nextShrink <= 0) {
       this.zone.nextShrink = 30;
       this.zone.radius = Math.max(this.zone.minRadius, this.zone.radius - 80);
-      this.netSync.send({ type: "br_zone_shrink", radius: this.zone.radius, centerX: this.zone.x, centerY: this.zone.y });
+      this._sendWS({ type: "br_zone_shrink", radius: this.zone.radius, centerX: this.zone.x, centerY: this.zone.y });
       if (this.store) this.store.set('notification', { text: "⚠️ المنطقة تتصغر! تحرك إلى الداخل!", t: Date.now() });
     }
     // ضرر للاعب خارج المنطقة
@@ -2905,7 +2907,7 @@ export class WorldMap {
     if (this._onBRMatchEnd) {
       this._onBRMatchEnd({ winner: true, kills, reason: "extraction", bonusGems, bonusGold });
     }
-    this.netSync.send({ type: "br_match_end", winner: this.username, kills, reason: "extraction" });
+    this._sendWS({ type: "br_match_end", winner: this.username, kills, reason: "extraction" });
     if (this.store) {
       this.store.set('notification', {
         text: `🚁 إخلاء ناجح! +${bonusGems} 💎 +${bonusGold} 🪙 مع ${kills} قتل!`,
@@ -2947,6 +2949,9 @@ export class WorldMap {
     return pts;
   }
 
+  // BR bandit stats: base hp 40, hp per level 3, base dmg 10, dmg per level 2,
+  // base speed 70-100, edge spawn margin 50px, min bandits on map 3, aggro range 400px,
+  // chase range 25px, attack cooldown 1.0s, xp reward 15
   spawnBandit() {
     const edge = Math.floor(Math.random() * 4);
     let x, y;
@@ -2967,7 +2972,7 @@ export class WorldMap {
       _isBandit: true,
     };
     this.bandits.push(bandit);
-    this.netSync.send({ type: "br_bandit_spawn", bandit });
+    this._sendWS({ type: "br_bandit_spawn", bandit });
     return bandit;
   }
 
@@ -3031,7 +3036,7 @@ export class WorldMap {
     const msg = isMe ? `💀 ${by} قتلك!` : `💀 ${playerId} قُتل بواسطة ${by}`;
     this.killFeed.push({ text: msg, time: 3 });
     if (this.store) this.store.set('notification', { text: msg, t: Date.now() });
-    this.netSync.send({ type: "br_player_eliminated", playerId, by });
+    this._sendWS({ type: "br_player_eliminated", playerId, by });
     this._checkBRWinner();
   }
 
@@ -3052,7 +3057,7 @@ export class WorldMap {
     this.matchStarted = false;
     const isWinner = reason === "winner" || (reason === "last" && this.leader && this.leader.hp > 0);
     if (this._onBRMatchEnd) this._onBRMatchEnd({ winner: isWinner, kills: this.brKills, reason });
-    this.netSync.send({ type: "br_match_end", winner: isWinner ? this.username : null, kills: this.brKills });
+    this._sendWS({ type: "br_match_end", winner: isWinner ? this.username : null, kills: this.brKills });
   }
 
   drawBRZone(ctx) {

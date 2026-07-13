@@ -3,6 +3,8 @@
 const { PLAYER_COLORS } = require("../config");
 const logger = require("../logger");
 
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c] || c); }
+
 function playerColor(username) {
   let h = 0;
   for (let i = 0; i < username.length; i++) h = username.charCodeAt(i) + ((h << 5) - h);
@@ -169,7 +171,7 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         const attacker = username;
         const tc = worldClients.get(target);
         if (tc && tc.ws.readyState === 1) {
-          tc.ws.send(JSON.stringify({ type: "pvp_notify", attacker, power: msg.myPower || 0 }));
+          tc.ws.send(JSON.stringify({ type: "pvp_notify", attacker: esc(attacker), power: msg.myPower || 0 }));
         }
       } else if (msg.type === "pvp_result" && username) {
         const targetName = msg.target;
@@ -221,7 +223,7 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(pvpMsg); });
       } else if (msg.type === "chat" && username) {
-        const chatMsg = JSON.stringify({ type: "broadcast_chat", username, message: String(msg.message || "").slice(0, 200) });
+        const chatMsg = JSON.stringify({ type: "broadcast_chat", username: esc(username), message: esc(String(msg.message || "").slice(0, 200)) });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });
       } else if (msg.type && msg.type.startsWith("war_") && warManager && username) {
         // 🏜️ معالج رسائل الحرب القبلية

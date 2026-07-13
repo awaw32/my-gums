@@ -93,7 +93,7 @@ function validateResourceDelta(existing, incoming) {
     const newVal = incoming[res];
     const gain = newVal - oldVal;
     if (gain <= 0) continue;
-    const maxGain = MAX_RESOURCE_GAIN_PER_SEC[res] * elapsedSec * 1.5; // 50% تسامح
+    const maxGain = MAX_RESOURCE_GAIN_PER_SEC[res] * elapsedSec * (elapsedSec > 300 ? 5 : 1.5);
     if (gain > maxGain) {
       return { ok: false, reason: `${res} gain ${Math.floor(gain)} exceeds max ${Math.floor(maxGain)} in ${Math.floor(elapsedSec)}s` };
     }

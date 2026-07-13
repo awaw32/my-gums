@@ -888,21 +888,24 @@ export class GameUI {
   }
 
   _giveChallengeReward(challenge) {
-    // تحليل المكافأة وإعطاؤها
-    // يمكن تحليل النص أو إضافة نظام مكافآت منفصل
-    // للتبسيط، سنعطي مكافآت ثابتة حسب النوع
-    if (challenge.id === 'daily_kills') {
-      this.economy.addRaw('gold', 500);
-      this.economy.addRaw('gems', 50);
-    } else if (challenge.id === 'daily_pvp') {
-      this.economy.addRaw('cash', 1000);
-      this.economy.addRaw('gems', 30);
-    } else if (challenge.id === 'daily_gold') {
-      this.economy.addRaw('hammers', 500);
-      this.economy.addRaw('scrolls', 100);
-    } else if (challenge.id === 'daily_buildings') {
-      this.economy.addRaw('cash', 300);
-      this.economy.addRaw('gems', 20);
+    // تحليل المكافأة من حقل reward في تعريف التحدي
+    // تنسيق reward: "500 🪙 + 50 💎" — الأرقام متبوعة بأيقونة المورد
+    const iconToResource = {
+      '🪙': 'gold', '💰': 'cash', '💎': 'gems',
+      '🔨': 'hammers', '📜': 'scrolls', '🌾': 'food',
+    };
+    const rewardText = challenge.reward || '';
+    const parts = rewardText.split('+').map(s => s.trim());
+    for (const part of parts) {
+      const match = part.match(/(\d+)\s*(.+)/);
+      if (match) {
+        const amount = parseInt(match[1], 10);
+        const icon = match[2].trim();
+        const resource = iconToResource[icon];
+        if (resource && amount > 0) {
+          this.economy.addRaw(resource, amount);
+        }
+      }
     }
   }
 
@@ -1102,7 +1105,11 @@ export class GameUI {
     const timeStr = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
     const entry = document.createElement("div");
     entry.className = `combat-log-entry clog-${type}`;
-    entry.innerHTML = `<span class="combat-log-time">${timeStr}</span> ${text}`;
+    const timeSpan = document.createElement("span");
+    timeSpan.className = "combat-log-time";
+    timeSpan.textContent = timeStr;
+    entry.appendChild(timeSpan);
+    entry.appendChild(document.createTextNode(" " + text));
     clogContent.appendChild(entry);
     clogContent.scrollTop = clogContent.scrollHeight;
   }
