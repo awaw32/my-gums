@@ -34,10 +34,8 @@ function sanitizeUsername(name) {
 
 async function getOrPromptUsername() {
   const saved = localStorage.getItem("player_username");
-  const savedToken = localStorage.getItem("player_token");
   if (saved && saved.trim()) {
     const name = sanitizeUsername(saved.trim());
-    if (savedToken) return name;
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -480,9 +478,12 @@ async function init() {
       const landsState = ui._landsState || {};
       // نسخة احتياطية محلية دائماً
       saveGame(economy, village, army);
+      const saveHeaders = { "Content-Type": "application/json" };
+      const saveToken = localStorage.getItem("player_token");
+      if (saveToken) saveHeaders["Authorization"] = `Bearer ${saveToken}`;
       fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: saveHeaders,
         body: JSON.stringify({
           cash: economy.cash,
           gems: economy.gems,
