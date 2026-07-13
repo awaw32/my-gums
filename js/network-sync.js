@@ -264,7 +264,7 @@ export class NetworkSync {
         hp: Math.floor(w?.leader?.hp || 120),
         maxHp: Math.floor(w?.leader?.maxHp || 120),
         level: w?.economy?.level || 1,
-        trainingLevel: w?.economy?.trainingLevel || 1,
+        trainingLevel: w?.army?.trainingLevel || 1,
         prestigeLevel: w?.economy?.prestigeLevel || 0,
         armyYardLevel: w?.economy?.armyYardLevel || 1,
         knowledgeLevel: w?.economy?.knowledgeLevel || 1,

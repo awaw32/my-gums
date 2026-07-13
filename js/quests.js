@@ -116,6 +116,7 @@ export class QuestManager {
   claimReward(quest) {
     if (quest.reward.gold) this.economy.addRaw('gold', quest.reward.gold);
     if (quest.reward.gems) this.economy.addRaw('gems', quest.reward.gems);
+    if (quest.reward.food) this.economy.addRaw('food', quest.reward.food);
     if (quest.reward.armyPower) this.army.unitPowerBase += quest.reward.armyPower;
     
     if (this._onQuestCompleted) this._onQuestCompleted(quest);

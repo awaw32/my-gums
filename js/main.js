@@ -99,7 +99,7 @@ async function loadFromDatabase(economy, army, village, username) {
     const headers = { "Content-Type": "application/json" };
     const token = localStorage.getItem("player_token");
     if (token) headers["Authorization"] = `Bearer ${token}`;
-    const response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers });
+    let response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers });
     if (response.status === 401 || response.status === 403) {
       localStorage.removeItem("player_token");
       const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
@@ -108,20 +108,29 @@ async function loadFromDatabase(economy, army, village, username) {
       });
       if (loginRes.ok) {
         const loginData = await loginRes.json();
-        if (loginData.token) localStorage.setItem("player_token", loginData.token);
+        if (loginData.token) {
+          localStorage.setItem("player_token", loginData.token);
+          const retryHeaders = { "Content-Type": "application/json" };
+          retryHeaders["Authorization"] = `Bearer ${loginData.token}`;
+          response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers: retryHeaders });
+        }
       }
-      return;
     }
     const data = await response.json();
     if (data && data.cash !== undefined) {
-      economy.cash = data.cash;
-      economy.gems = data.gems || 0;
-      economy.gold = data.gold || 0;
-      economy.hammers = data.hammers || 0;
-      economy.scrolls = data.scrolls || 0;
-      economy.resources.food = data.food ?? 50;
-      economy.resources.artifacts = data.artifacts ?? 0;
-      economy.resources.desertGem = data.desertGem ?? 0;
+      economy.cash = Math.max(economy.cash, data.cash);
+      economy.gems = Math.max(economy.gems, data.gems || 0);
+      economy.gold = Math.max(economy.gold, data.gold || 0);
+      economy.hammers = Math.max(economy.hammers, data.hammers || 0);
+      economy.scrolls = Math.max(economy.scrolls, data.scrolls || 0);
+      economy.resources.food = Math.max(economy.resources.food, data.food ?? 50);
+      economy.resources.artifacts = Math.max(economy.resources.artifacts, data.artifacts ?? 0);
+      economy.resources.desertGem = Math.max(economy.resources.desertGem, data.desertGem ?? 0);
+      economy.resources.water = Math.max(economy.resources.water, data.water ?? 0);
+      economy.resources.salt = Math.max(economy.resources.salt, data.salt ?? 0);
+      economy.resources.leather = Math.max(economy.resources.leather, data.leather ?? 0);
+      economy.resources.copper = Math.max(economy.resources.copper, data.copper ?? 0);
+      economy.resources.herbs = Math.max(economy.resources.herbs, data.herbs ?? 0);
       economy.level = data.level || 1;
       economy.xp = data.xp || 0;
       economy.xpToNext = getXpForLevel(economy.level);
@@ -161,6 +170,15 @@ async function loadFromDatabase(economy, army, village, username) {
       window._brWins = data.brWins ?? 0;
       window._brKills = data.brKills ?? 0;
       window._loadedHero = data.hero || null;
+      if (data.multiplier) economy.multiplier = data.multiplier;
+      if (data.knowledgeLevel) economy.knowledgeLevel = data.knowledgeLevel;
+      if (data.knowledgeType) economy.knowledgeType = data.knowledgeType;
+      if (data.armyYardLevel) economy.armyYardLevel = data.armyYardLevel;
+      if (data.completedVillages) village.completedVillages = data.completedVillages;
+      if (data.currentChapter) village.currentChapter = data.currentChapter;
+      if (data.x_position != null && data.y_position != null) {
+        window._loadedPosition = { x: data.x_position, y: data.y_position };
+      }
       console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!");
     }
   } catch (err) {
@@ -228,7 +246,7 @@ async function init() {
   const hero = new GameHero();
   const achievements = new AchievementManager(economy);
   const dailyLogin = new DailyLoginManager(economy);
-  const storyManager = new StoryManager(economy, village);
+  const storyManager = new StoryManager(economy, village, army, allianceManager, hero);
   window._storyManager = storyManager;
   window._army = army;
   window._economy = economy;
@@ -254,7 +272,14 @@ async function init() {
   if (window._loadedInventory) inventory.loadState(window._loadedInventory);
   if (window._loadedEvents) events.loadState(window._loadedEvents);
   if (window._loadedTutorial) tutorial.loadState(window._loadedTutorial);
-  if (window._loadedStory) storyManager.loadState(window._loadedStory);
+  if (window._loadedStory) {
+    storyManager.loadState(window._loadedStory);
+    // storyManager.currentChapter هو المرجع الرسمي
+    village.currentChapter = storyManager.currentChapter;
+  } else if (village.currentChapter > 1) {
+    // توافق عكسي: saves القديمة التي ليس لديها storyManager في DB
+    storyManager.currentChapter = village.currentChapter;
+  }
   if (window._loadedHero) hero.loadState(window._loadedHero);
   delete window._loadedAllianceLevel;
   delete window._loadedUpgrades;
@@ -393,7 +418,7 @@ async function init() {
     throw err;
   }
     world.onExit = () => ui.exitWorldMap();
-    world._onBeforeExit = () => saveToDB(); persistGameSession(economy, village, army);
+    world._onBeforeExit = () => { saveToDB(); persistGameSession(economy, village, army); };
 
     // ربط العالم بأنظمة الترقيات والتحالف
     world._allianceManager = allianceManager;
@@ -401,7 +426,7 @@ async function init() {
 
     // تسجيل مصادر القوة (powerSources) — بدونه يكون power = 0 دائماً
     economy.powerSources.push(() => village.getPower());
-    economy.powerSources.push(() => army.totalArmyPower || army.unitLevel * 10);
+    economy.powerSources.push(() => (army.unitPower + army.getEquippedWeaponPower(world._equippedWeapon)) || army.unitLevel * 10);
     economy.powerSources.push(() => Math.floor(economy.level * 5));
     economy.powerSources.push(() => allianceManager.level * 10);
     economy.powerSources.push(() => prestige.level * 50);
@@ -494,6 +519,11 @@ async function init() {
           food: economy.food,
           artifacts: economy.resources.artifacts || 0,
           desertGem: economy.resources.desertGem || 0,
+          water: economy.resources.water || 0,
+          salt: economy.resources.salt || 0,
+          leather: economy.resources.leather || 0,
+          copper: economy.resources.copper || 0,
+          herbs: economy.resources.herbs || 0,
           army_power: economy.power,
           unitLevel: army.unitLevel,
           trainingLevel: army.trainingLevel,
@@ -506,6 +536,7 @@ async function init() {
           research: economy.research || {},
           x_position: world.leader ? Math.floor(world.leader.x) : 0,
           y_position: world.leader ? Math.floor(world.leader.y) : 0,
+          multiplier: economy.multiplier,
           xp: economy.xp,
           level: economy.level,
           allianceLevel: allianceManager.level,
@@ -523,6 +554,8 @@ async function init() {
           brKills: window._brKillsGlobal || 0,
           landsState: landsState,
           hero: hero.getSaveData(),
+          completedVillages: village.completedVillages,
+          currentChapter: village.currentChapter,
           last_active: Date.now()
         })
       }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || r.statusText); }); return r.json(); }).catch(e => console.warn("[Save] saveToDB:", e.message));
@@ -600,16 +633,11 @@ async function init() {
 
       switch (item) {
         case "unit":
-            if (army.unitLevel < army.maxUnitLevel) {
-            const cost = army.unitUpgradeCost;
-            if (economy.spend("cash", cost)) {
-              army.unitLevel++;
-              achievements.updateProgress('army_level', army.unitLevel);
+            if (army.upgradeUnits(economy)) {
               audio.playSound('upgrade');
               saveToDB(); persistGameSession(economy, village, army);
               ui.updateTopBar();
             }
-          }
           break;
 
         case "heal":
@@ -630,6 +658,7 @@ async function init() {
             if (weapon.upgrade(economy, houseLevel)) {
               achievements.updateProgress('weapon_max', weapon.level);
               audio.playSound('upgrade');
+              world.syncWeaponVisuals();
               // إرسال الترقية عبر WebSocket للمزامنة مع الخادم
               if (world.netSync && world.netSync.isConnected) {
                 world.netSync.send({ type: "weapon_upgrade", weaponId: weapon.id });
@@ -720,7 +749,7 @@ async function init() {
     };
 
     // تنظيف الأدوات القديمة كل دقيقة
-    setInterval(() => droppedItems.cleanup(), 60000);
+    _gameIntervals.push(setInterval(() => droppedItems.cleanup(), 60000));
     achievements._onUnlock = (a) => {
       ui.showNotification(`🏆 إنجاز: ${a.title} — ${a.desc}`);
       audio.playSound('levelup');
@@ -989,6 +1018,7 @@ async function init() {
         if (brVictoryScreen) brVictoryScreen.classList.remove('hidden');
         if (brVictoryStats) brVictoryStats.textContent = `🏆 قضيت على ${result.kills || 0} أعداء`;
         economy.addRaw('gems', 100 + (result.kills || 0) * 10);
+        economy.addRaw('gold', 50 + (result.kills || 0) * 5);
         saveToDB(); persistGameSession(economy, village, army);
         fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
           method: "POST",
@@ -999,6 +1029,7 @@ async function init() {
       } else {
         if (brDefeatScreen) brDefeatScreen.classList.remove('hidden');
         if (brDefeatStats) brDefeatStats.textContent = `💀 قُتلت — قتلت ${result.kills || 0} أعداء`;
+        saveToDB(); persistGameSession(economy, village, army);
       }
     };
     world._onBRMatchEnd = onBRMatchEnd;
@@ -1085,6 +1116,11 @@ async function init() {
       const dt = (now - lastTickTime) / 1000; // الوقت الفعلي بالثواني
       lastTickTime = now;
       
+      // استرداد تدريجي لمضاعف القوة بعد خسائر PvP
+      if (economy.multiplier < 1) {
+        economy.multiplier = Math.min(1, economy.multiplier + 0.01);
+      }
+
       // تحديث الاقتصاد والقرية والواحات
       economy.tick();
       village.update(dt);
@@ -1163,7 +1199,7 @@ async function init() {
       // استهلاك الطعام للجيش
       if (world.leader && world.running) {
         const aliveUnits = world.armyUnits.filter(u => u.hp > 0).length;
-        const foodCost = aliveUnits * 0.5;
+        const foodCost = Math.ceil(aliveUnits * 0.5);
         if (economy.food >= foodCost) {
           economy.addRaw("food", -foodCost);
         } else {
@@ -1191,19 +1227,22 @@ async function init() {
     }, 60000);
 
     // إتاحة تنظيف الفواصل من خارج الدالة
+    let _keydownHandler;
     window._cleanupGameIntervals = () => {
       for (const id of _gameIntervals) { clearInterval(id); }
       _gameIntervals.length = 0;
+      if (tickTimer) { clearTimeout(tickTimer); tickTimer = null; }
+      if (_keydownHandler) { document.removeEventListener('keydown', _keydownHandler); _keydownHandler = null; }
     };
 
     // اختصارات لوحة المفاتيح
-    document.addEventListener('keydown', (e) => {
+    _keydownHandler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       switch (e.key) {
         case 'm': case 'M': document.getElementById('mute-btn')?.click(); break;
         case 'h': case 'H': document.getElementById('hero-toggle-btn')?.click(); break;
         case 'b': case 'B': document.getElementById('br-enter-btn')?.click(); break;
-        case 'Escape': ui.closeQuickPanel(); ui.exitWorldMap?.(); break;
+        case 'Escape': ui.closeQuickPanel(); if (world && world.exitWorldMap) world.exitWorldMap(); else ui.exitWorldMap?.(); break;
         case 'i': case 'I': ui.showScreen('inventory'); break;
         case 'q': case 'Q': ui.showScreen('quests'); break;
         case 'a': case 'A': ui.showScreen('achievements'); break;
@@ -1216,7 +1255,8 @@ async function init() {
         case 'u': case 'U': document.getElementById('panel-toggle')?.click(); break;
         case 'f': case 'F': document.getElementById('fullscreen-btn')?.click(); break;
       }
-    });
+    };
+    document.addEventListener('keydown', _keydownHandler);
 
     // تحقق من حالة قاعدة البيانات
     fetch(`${API_BASE}/health`).then(r => r.json()).then(h => {
@@ -1226,11 +1266,11 @@ async function init() {
       } else {
         console.warn("💾 [DB] قاعدة البيانات غير متصلة — الحفظ في الذاكرة مؤقتاً");
       }
-    
+    }).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
+
     window.addEventListener("beforeunload", () => {
       try { saveGame(economy, village, army); saveToDB(); persistGameSession(economy, village, army); } catch {}
     });
-}).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
 }
 
 

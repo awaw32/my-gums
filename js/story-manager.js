@@ -9,9 +9,12 @@ import { STORY_CHAPTERS, STORY_VILLAGES, STORY_REWARDS } from './story.js';
 import { CinematicEngine } from './cinematic-engine.js';
 
 export class StoryManager {
-  constructor(economy, village) {
+  constructor(economy, village, army, allianceManager, hero) {
     this.economy = economy;
     this.village = village;
+    this.army = army;
+    this.allianceManager = allianceManager;
+    this.hero = hero;
     this.currentChapter = 1;
     this.completedChapters = [];
     this.currentScene = 0;
@@ -93,6 +96,7 @@ export class StoryManager {
   canCompleteChapter() {
     const chapter = this.currentChapterData;
     if (!chapter) return false;
+    if (this.completedChapters.includes(chapter.id)) return false;
     return this.village.isVillageComplete();
   }
 
@@ -142,6 +146,9 @@ export class StoryManager {
       this.currentScene = 0;
     }
 
+    // مزامنة currentChapter مع village
+    if (this.village) this.village.currentChapter = this.currentChapter;
+
     if (this._onChapterComplete) {
       this._onChapterComplete(chapter);
     }
@@ -168,21 +175,21 @@ export class StoryManager {
         if (res === 'xp') {
           this.economy.addXp(amt);
         } else if (res === 'alliancePower') {
-          if (window._allianceManager) window._allianceManager.addPower(amt);
+          if (this.allianceManager) this.allianceManager.addPower(amt);
         } else if (res === 'unitLevels') {
-          if (window._army) {
+          if (this.army) {
             for (let i = 0; i < amt; i++) {
-              if (window._army.unitLevel < window._army.maxUnitLevel) window._army.unitLevel++;
+              if (this.army.unitLevel < this.army.maxUnitLevel) this.army.unitLevel++;
             }
           }
         } else if (res === 'trainingLevel') {
-          if (window._army) {
+          if (this.army) {
             for (let i = 0; i < amt; i++) {
-              if (window._army.trainingLevel < window._army.maxTrainingLevel) window._army.trainingLevel++;
+              if (this.army.trainingLevel < this.army.maxTrainingLevel) this.army.trainingLevel++;
             }
           }
         } else if (res === 'defense') {
-          if (window._economy) window._economy.defense = (window._economy.defense || 0) + amt;
+          if (this.hero) this.hero.baseDef += amt;
         } else if (res === 'title') {
           this._playerTitle = amt;
         } else if (this.economy.resources[res] !== undefined) {

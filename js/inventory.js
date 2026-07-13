@@ -402,7 +402,6 @@ export class InventoryManager {
       case 'xp_scroll':
         if (this.economy) {
           this.economy.addXp(stats.xp);
-          if (this.economy._onLevelUp) this.economy._onLevelUp(this.economy.level);
           if (world && world.store) world.store.set('notification', { text: `📜 ${stats.name}! +${stats.xp} XP`, t: Date.now() });
         }
         break;

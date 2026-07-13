@@ -4,6 +4,7 @@ const SAVE_VERSION = 2;
 let _saveTimer = null;
 
 export function saveGame(economy, village, army) {
+  const sm = typeof window !== "undefined" && window._storyManager;
   const data = {
     _version: SAVE_VERSION,
     resources: { ...economy.resources },
@@ -12,7 +13,10 @@ export function saveGame(economy, village, army) {
     xp: economy.xp,
     xpToNext: economy.xpToNext,
     currentVillageId: village.currentVillageId,
+    completedVillages: village.completedVillages,
+    currentChapter: village.currentChapter,
     unitLevel: army.unitLevel,
+    trainingLevel: army.trainingLevel,
     unitPowerBase: army.unitPowerBase,
     weapons: army.weapons.map(w => ({
       id: w.id, level: w.level, upgradeLevel: w.upgradeLevel,
@@ -23,6 +27,7 @@ export function saveGame(economy, village, army) {
       constructTimer: b.constructTimer,
       productionAccum: b.productionAccum,
     })),
+    storyState: sm ? sm.getSaveData() : undefined,
     timestamp: Date.now(),
   };
   try {
@@ -75,11 +80,17 @@ export function loadGame(economy, village, army) {
       if (totalGold > 0) economy.resources.gold = (economy.resources.gold || 0) + Math.floor(totalGold);
     }
 
+    if (data.storyState && typeof window !== "undefined" && window._storyManager) {
+      window._storyManager.loadState(data.storyState);
+    }
     if (data.currentVillageId && data.currentVillageId !== village.currentVillageId) {
       village.initVillage(data.currentVillageId);
     }
+    if (data.completedVillages) village.completedVillages = data.completedVillages;
+    if (data.currentChapter) village.currentChapter = data.currentChapter;
 
     army.unitLevel = data.unitLevel ?? 1;
+    army.trainingLevel = data.trainingLevel ?? 1;
     if (data.unitPowerBase !== undefined) army.unitPowerBase = data.unitPowerBase;
     if (data.weapons) {
       for (const wd of data.weapons) {

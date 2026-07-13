@@ -119,6 +119,7 @@ export class GameHero {
       xpToNext: this.xpToNext,
       hp: this.hp,
       maxHp: this.maxHp,
+      baseDef: this.baseDef,
       abilities: Object.fromEntries(
         Object.entries(this.abilities).map(([k, v]) => [k, {
           unlocked: v.unlocked,
@@ -135,6 +136,7 @@ export class GameHero {
     this.xpToNext = data.xpToNext ?? getHeroXpForLevel(this.level);
     this.hp = data.hp !== undefined ? data.hp : this.maxHp;
     this.maxHp = data.maxHp ?? 120;
+    this.baseDef = data.baseDef ?? 0;
     if (data.abilities) {
       for (const [k, v] of Object.entries(data.abilities)) {
         if (this.abilities[k]) {

@@ -43,6 +43,7 @@ export class Weapon {
     if (!economy.canAfford('cash', this.cashPrice)) return false;
     economy.spend('cash', this.cashPrice);
     this.owned = true;
+    this.level = 1;
     this.upgradeLevel = 1;
     return true;
   }

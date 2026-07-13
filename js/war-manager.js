@@ -35,6 +35,7 @@ export class WarManager {
 
     // علامة التحميل
     this._initialized = false;
+    this._warCooldown = 0;
   }
 
   // ==================== ربط مع NetworkSync ====================

@@ -4,7 +4,7 @@ const EVENT_TEMPLATES = [
   { id: "power_week", title: "💪 أسبوع القوة", desc: "قوة الجيش +50%", type: "mult_power", value: 1.5, duration: 86400, icon: "🔥" },
   { id: "pvp_tournament", title: "⚔️ بطولة PvP", desc: "مكافآت PvP ×3", type: "mult_pvp", value: 3, duration: 7200, icon: "🏟️" },
   { id: "oasis_bonus", title: "🌴 ازدهار الواحات", desc: "دخل الواحات ×3", type: "mult_oasis", value: 3, duration: 3600, icon: "🌴" },
-  { id: "camel_race", title: "🐪 سباق الإبل", desc: "سباق الإبل — جوائز ضخمة!", type: "camel_race", value: 1, duration: 86400, icon: "🐪" },
+  { id: "camel_race", title: "🐪 سباق الإبل", desc: "قوة الجيش ×2 لمدة 24 ساعة!", type: "mult_power", value: 2, duration: 86400, icon: "🐪" },
 ];
 
 export class EventManager {

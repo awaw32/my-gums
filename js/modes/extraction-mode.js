@@ -288,6 +288,9 @@ export class ExtractionMode {
     w.mode = "campaign";
     w._pvpDisabled = false;
     w.leader.speed = 140;
+    w.monsters = [];
+    w.drops = [];
+    w.treasureChests = [];
     this._carryingGold = 0;
   }
 }

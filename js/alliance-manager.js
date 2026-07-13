@@ -44,7 +44,7 @@ export class AllianceManager {
   }
 
   get nextTier() {
-    return ALLIANCE_TIERS[this.level] || null;
+    return ALLIANCE_TIERS[this.level + 1] || null;
   }
 
   get upgradeCost() {

@@ -60,15 +60,7 @@ const worldClients = new Map();
 
 const { createCombatLoop } = require("./server/logic/combatLoop");
 const combatSystem = createCombatLoop({
-  rooms, broadcast: (roomCode, message, excludeId) => {
-    const room = rooms.get(roomCode);
-    if (!room) return;
-    const data = JSON.stringify(message);
-    room.players.forEach((player, id) => {
-      if (id === excludeId) return;
-      if (player.ws.readyState === 1) player.ws.send(data);
-    });
-  },
+  rooms, broadcast,
   WORLD_W, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2,
 });
 
@@ -87,15 +79,7 @@ const warManager = createWarManager({
 const { createWorldHandler } = require("./server/network/worldHandler");
 const handleWorldConnection = createWorldHandler({
   rooms, worldMonsters, worldClients,
-  broadcast: (roomCode, message, excludeId) => {
-    const room = rooms.get(roomCode);
-    if (!room) return;
-    const data = JSON.stringify(message);
-    room.players.forEach((player, id) => {
-      if (id === excludeId) return;
-      if (player.ws.readyState === 1) player.ws.send(data);
-    });
-  },
+  broadcast,
   combatSystem, memStore, getDefaultPlayer, markDirty,
   computeArmyYardUpgradeCost, computeArmyYardStats,
   computeKnowledgeUpgradeCost, computeKnowledgeBonuses,
@@ -163,6 +147,24 @@ const HEARTBEAT_INTERVAL = setInterval(() => {
 wss.on("close", () => clearInterval(HEARTBEAT_INTERVAL));
 
 const reqCounts = new Map();
+const SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "X-XSS-Protection": "1; mode=block",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; script-src 'self'; media-src 'self'",
+};
+
+function broadcast(roomCode, message, excludeId) {
+  const room = rooms.get(roomCode);
+  if (!room) return;
+  const data = JSON.stringify(message);
+  room.players.forEach((player, id) => {
+    if (id === excludeId) return;
+    if (player.ws.readyState === 1) player.ws.send(data);
+  });
+}
+
 function rateLimiter(ip) {
   const now = Date.now();
   let entry = reqCounts.get(ip);
@@ -198,6 +200,13 @@ server.on("request", async (req, res) => {
 
   const handled = await handleApiRequest(req, res);
   if (handled) return;
+
+  // أمن: إضافة ترويسات CSP و Security headers لكل الاستجابات
+  const origWriteHead = res.writeHead.bind(res);
+  res.writeHead = (statusCode, headers) => {
+    const finalHeaders = { ...SECURITY_HEADERS, ...(headers || {}) };
+    return origWriteHead(statusCode, finalHeaders);
+  };
 
   const urlPath = req.url === "/" ? "/index.html" : req.url;
   if (!serveStatic(urlPath, req, res)) {

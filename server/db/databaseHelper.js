@@ -63,6 +63,17 @@ const playerSchema = new mongoose.Schema({
   buildings:      { type: Object, default: {} },
   research:       { type: Object, default: {} },
   hero:           { type: Object, default: {} },
+  artifacts:      { type: Number, default: 0 },
+  desertGem:      { type: Number, default: 0 },
+  water:          { type: Number, default: 0 },
+  salt:           { type: Number, default: 0 },
+  leather:        { type: Number, default: 0 },
+  copper:         { type: Number, default: 0 },
+  herbs:          { type: Number, default: 0 },
+  multiplier:     { type: Number, default: 1 },
+  researchTree:   { type: Object, default: {} },
+  completedVillages: { type: Array, default: [] },
+  currentChapter: { type: Number, default: 1 },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);
@@ -90,6 +101,11 @@ function getDefaultPlayer(username) {
     buildings: {},
     research: {},
     hero: {},
+    artifacts: 0, desertGem: 0, water: 0, salt: 0, leather: 0, copper: 0, herbs: 0,
+    multiplier: 1,
+    researchTree: {},
+    completedVillages: [],
+    currentChapter: 1,
   };
 }
 

@@ -10,7 +10,7 @@ import {
 } from "./pathfinding.js";
 import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles, spawnHitEffect, spawnMonsterDeathEffect, spawnComboEffect } from "./combat/combat-effects.js";
 import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/context-menu.js";
-import { computeWeaponDamage, computePlayerMaxHp, computePlayerDamage, applyRageMultiplier, computePvPDamage, computeMonsterDamage } from "./combat-engine.js";
+import { computeWeaponDamage, computePlayerMaxHp, computePlayerDamage, applyRageMultiplier, computePvPDamage, rollCrit } from "./combat-engine.js";
 import { computeKnowledgeBonuses } from "./economy.js";
 import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.js";
 import { drawWeaponGlow, drawWeaponStarIcons, drawWeaponOnHero } from "./combat/weapon-visuals.js";
@@ -155,6 +155,7 @@ export class WorldMap {
     this._onSelfStatsChanged = null;
     this.treasureChests = [];
     this._activeMode = null;
+    this._invulnerableTimer = 0;
   }
 
   _sendWS(data) {
@@ -367,7 +368,7 @@ export class WorldMap {
     const e = this.economy;
     const playerLevel = e?.level || 1;
     const unitLevel = this.army?.unitLevel || 1;
-    const trainingLevel = e?.trainingLevel || 1;
+    const trainingLevel = this.army?.trainingLevel || 1;
     const prestigeLevel = e?.prestigeLevel || 0;
     const armyPower = e?.power || 5000;
     const armyYardLevel = e?.armyYardLevel || 1;
@@ -416,12 +417,8 @@ export class WorldMap {
 
   _rollCrit() {
     const stats = this._getWeaponCritStats();
-    const isCrit = Math.random() < stats.critChance;
-    return {
-      isCrit,
-      multiplier: isCrit ? stats.critMultiplier : 1,
-      weaponDmg: stats.weaponDamage,
-    };
+    const crit = rollCrit(stats.critChance, stats.critMultiplier);
+    return { ...crit, weaponDmg: stats.weaponDamage };
   }
 
   _applyMonsterAbility(monster, target) {
@@ -696,6 +693,11 @@ export class WorldMap {
   start() {
     if (this.running) return;
     this.running = true;
+    if (window._loadedPosition) {
+      this.leader.x = window._loadedPosition.x;
+      this.leader.y = window._loadedPosition.y;
+      delete window._loadedPosition;
+    }
 
     const canvas = document.getElementById("gameCanvas");
     if (!canvas) return;
@@ -1259,10 +1261,16 @@ export class WorldMap {
   }
 
   onWipe() {
-    if (this._activeMode) this._activeMode.onWipe();
+    this._invulnerableTimer = 3;
+    if (this._activeMode && typeof this._activeMode.onWipe === 'function') this._activeMode.onWipe();
     this._cancelPvPAttack();
     this._pvpDefeatShown = false;
-    document.getElementById("pvp-defeat-modal")?.classList.add("hidden");
+    const pvpModal = document.getElementById("pvp-defeat-modal");
+    if (pvpModal) {
+      pvpModal.classList.add("hidden");
+      const returnBtn = document.getElementById("pvp-defeat-return-btn");
+      if (returnBtn && returnBtn._pvpCountdown) { clearInterval(returnBtn._pvpCountdown); returnBtn._pvpCountdown = null; }
+    }
     const lost = this.sessionStats.coinsEarned;
     const killed = this.sessionStats.kills;
     if (this.economy && lost > 0) {
@@ -1320,6 +1328,11 @@ export class WorldMap {
 
   update(dt, ctx, cam) {
     this._glowTime = (this._glowTime || 0) + dt;
+
+    if (this._invulnerableTimer > 0) {
+      this._invulnerableTimer -= dt;
+      if (this._invulnerableTimer <= 0) this._invulnerableTimer = 0;
+    }
 
     // ── تحديث إطار الأنيميشن ──
     this._spriteFrameTimer += dt;
@@ -1817,7 +1830,7 @@ export class WorldMap {
       const theirDmg = enemyStats.damage;
 
       target._hp = (target._hp ?? enemyStats.maxHp) - myDmg;
-      this.leader.hp -= theirDmg * 0.6;
+      this.damageHero(theirDmg * 0.6);
 
       if (target._hp <= 0) target._hp = 0;
       if (this.leader.hp <= 0) this.leader.hp = 0;
@@ -1936,7 +1949,7 @@ export class WorldMap {
       // ضرر السم
       if (p.timer % 1 < dt || p.timer >= p.duration - dt) {
         if (p.target === this.leader) {
-          this.leader.hp = Math.max(0, this.leader.hp - p.dps * dt);
+          this.damageHero(p.dps * dt);
         } else {
           p.target.hp = Math.max(0, p.target.hp - p.dps * dt);
         }
@@ -1990,13 +2003,21 @@ export class WorldMap {
       } else {
         h.attackCD -= dt;
         if (h.attackCD <= 0) {
-          const crit = this._rollCrit();
-          const hpRatio = Math.max(0.1, h.hp / h.maxHp);
-          const rageMult = 1 + (1 - hpRatio) * 0.5;
-          const totalDmg = computeMonsterDamage(h.baseDmg, h.upgradeDmg, crit.weaponDmg, crit.multiplier, rageMult);
-          this.damageMonster(h.fighting, totalDmg, crit.isCrit);
-          // إظهار Rage إذا نشط
-          if (hpRatio < 0.3) {
+          const playerDmg = computePlayerDamage({
+            equippedWeapon: this._equippedWeapon,
+            weapons: this.army?.weapons || [],
+            playerLevel: this.economy?.level || 1,
+            unitLevel: this.army?.unitLevel || 1,
+            prestigeLevel: this.economy?.prestigeLevel || 0,
+            armyPower: this.economy?.power || 5000,
+            upgradeTree: this._upgradeTree,
+            allianceManager: this._allianceManager,
+          });
+          const rageResult = applyRageMultiplier(playerDmg.totalDamage, h.hp, h.maxHp);
+          const critResult = rollCrit(playerDmg.weaponStats.critChance, playerDmg.weaponStats.critMultiplier);
+          const totalDmg = computePvPDamage(rageResult.damage, critResult, playerDmg.weaponStats.weaponDamage);
+          this.damageMonster(h.fighting, totalDmg, critResult.isCrit);
+          if (rageResult.rageActive) {
             this.worldFx.push({ x: h.x, y: h.y - 20, text: "🔥 غضب!", color: "#ff4444", life: 0.5, maxLife: 0.5 });
           }
           h.attackCD = h.attackInterval;
@@ -2060,8 +2081,50 @@ export class WorldMap {
     const len = history.length;
     const time = Date.now();
 
+    // ── في BR: الجيش يهاجم قطاع الطرق ──
+    if (this.mode === "battle_royale") {
+      for (const b of this.bandits) {
+        if (!b.alive) continue;
+        for (const u of this.armyUnits) {
+          if (u.fighting && u.fighting.alive) continue;
+          const d = Math.hypot(u.x - b.x, u.y - b.y);
+          if (d < (u.attackRange || 25) + b.radius) {
+            u.fighting = b;
+          }
+        }
+      }
+    }
+
     for (let i = 0; i < this.armyUnits.length; i++) {
       const unit = this.armyUnits[i];
+
+      // ── اشتباك مع قطاع الطرق ──
+      if (this.mode === "battle_royale" && unit.fighting && unit.fighting._isBandit !== undefined) {
+        const b = unit.fighting;
+        if (!b.alive) { unit.fighting = null; continue; }
+        const dx = b.x - unit.x;
+        const dy = b.y - unit.y;
+        const dist = Math.hypot(dx, dy);
+        const atkRange = unit.attackRange || 25;
+        if (dist > atkRange + 5) {
+          unit.facing = dx >= 0 ? 1 : -1;
+          unit.x += (dx / dist) * unit.speed * dt;
+          unit.y += (dy / dist) * unit.speed * dt;
+        } else {
+          unit.attackCD -= dt;
+          if (unit.attackCD <= 0) {
+            b.hp -= Math.max(1, Math.floor((unit.baseDmg + unit.dmgBonus) * 0.8));
+            if (b.hp <= 0) {
+              b.alive = false;
+              this.createDrop(b.x, b.y, 15, 5);
+              this.worldFx.push({ x: b.x, y: b.y, text: "💀 قطاع طرق!", color: "#ff6600", life: 1, maxLife: 1 });
+              if (this.brKills !== undefined) this.brKills = (this.brKills || 0) + 1;
+            }
+            unit.attackCD = 0.8;
+          }
+        }
+        continue;
+      }
 
       // ── اشتباك مع الوحوش (مع crit + أدوار) ──
       if (unit.fighting && unit.fighting.alive) {
@@ -2285,8 +2348,8 @@ export class WorldMap {
       if (this._activeMode) this._activeMode.onMonsterKilled(monster);
       monster.alive = false;
       monster.respawnTimer = 25;
-      const reward = monster.rewardMoney || 10;
-      const goldReward = monster.rewardGold || Math.floor(reward * 0.3);
+      const reward = monster.rewardMoney ?? 10;
+      const goldReward = monster.rewardGold ?? Math.floor(reward * 0.3);
 
       // ── Combo ──
       this._comboCount++;
@@ -2330,6 +2393,7 @@ export class WorldMap {
   }
 
   damageHero(dmg) {
+    if (this._invulnerableTimer > 0) return;
     this.leader.hp = Math.max(0, this.leader.hp - dmg);
   }
 
@@ -2608,6 +2672,9 @@ export class WorldMap {
       minRadius: 100,
       nextShrink: 30,
     };
+    this.monsters = [];
+    this.drops = [];
+    this.treasureChests = [];
     this.bandits = [];
     this.killFeed = [];
     this.brKills = 0;
@@ -2672,7 +2739,7 @@ export class WorldMap {
     if (this.leader) {
       const dist = Math.hypot(this.leader.x - this.zone.x, this.leader.y - this.zone.y);
       if (dist > this.zone.radius) {
-        this.leader.hp -= 5 * dt;
+        this.damageHero(5 * dt);
         if (this.leader.hp <= 0) {
           this.leader.hp = 0;
           this._eliminatePlayer(this.username, "zone");
@@ -2737,6 +2804,7 @@ export class WorldMap {
       alive: true, facing: 1, attackTimer: 0,
       radius: 14, color: "#4a4a3a",
       patrolTarget: null, targetId: null,
+      _isBandit: true,
     };
     this.bandits.push(bandit);
     this.netSync.send({ type: "br_bandit_spawn", bandit });
@@ -2776,7 +2844,7 @@ export class WorldMap {
           if (b.attackTimer <= 0) {
             b.attackTimer = 1.0;
             if (nearest.isLeader) {
-              this.leader.hp -= b.damage;
+              this.damageHero(b.damage);
               if (this.leader.hp <= 0) this._eliminatePlayer(this.username, "bandit");
             }
           }

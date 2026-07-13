@@ -124,11 +124,6 @@ export class CinematicEngine {
       overlay.addEventListener("click", () => {
         this._fadeOutDialogue(200).then(resolve);
       }, { once: true });
-      setTimeout(() => {
-        overlay.addEventListener("click", () => {
-          this._fadeOutDialogue(200).then(resolve);
-        }, { once: true });
-      }, 1500);
     });
   }
 
@@ -191,6 +186,7 @@ export class CinematicEngine {
     if (effect.type === "darken") this._darken(effect);
     if (effect.type === "confetti") this._spawnConfetti(effect);
     if (effect.type === "fireworks") this._spawnFireworks(effect);
+    if (effect.type === "zoom") this._addZoom(effect);
   }
 
   _screenShake(effect) {
@@ -384,6 +380,19 @@ export class CinematicEngine {
       dark.style.opacity = "0";
       setTimeout(() => dark.remove(), 500);
     }, effect.duration || 1500);
+  }
+
+  _addZoom(effect) {
+    const zoom = document.createElement("div");
+    zoom.style.cssText = `
+      position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+      transform: scale(${effect.scale || 1.2}); opacity: 0;
+      transition: transform ${effect.duration || 1000}ms ease, opacity ${effect.duration || 1000}ms ease;
+      background: rgba(0,0,0,0);
+    `;
+    this.container.appendChild(zoom);
+    requestAnimationFrame(() => { zoom.style.opacity = "1"; zoom.style.transform = "scale(1)"; });
+    setTimeout(() => { zoom.remove(); }, effect.duration || 1000);
   }
 
   _wait(ms) {

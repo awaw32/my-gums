@@ -256,6 +256,27 @@ export class CaveMode {
         color: "#9b59b6", life: 2, maxLife: 2
       });
     }
+    // التقدم للعمق التالي عند قتل كل الوحوش
+    const aliveMonsters = w.monsters.filter(m => m.alive !== false).length;
+    if (aliveMonsters === 0 && this._caveActive && this._caveDepth < 10) {
+      setTimeout(() => this._goDeeper(), 1500);
+    }
+  }
+
+  _goDeeper() {
+    this._caveDepth++;
+    const w = this.world;
+    w.leader.x = w.W / 2;
+    w.leader.y = w.H - 200;
+    w.leader.hp = w.leader.maxHp;
+    w.monsters = [];
+    w.drops = [];
+    this._spawnCaveMonsters();
+    w.worldFx.push({
+      x: w.leader.x, y: w.leader.y - 30,
+      text: `⬇️ العمق ${this._caveDepth}! الوحوش أقوى!`,
+      color: "#ff4444", life: 2, maxLife: 2
+    });
   }
 
   _exitCave() {
@@ -376,6 +397,9 @@ export class CaveMode {
     const w = this.world;
     w.mode = "campaign";
     w._pvpDisabled = false;
+    w.monsters = [];
+    w.drops = [];
+    w.treasureChests = [];
     this._caveActive = false;
   }
 }

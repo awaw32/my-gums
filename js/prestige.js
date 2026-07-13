@@ -46,7 +46,7 @@ export class PrestigeManager {
     this.economy.resources.gold = 100;
     this.economy.resources.gems = Math.max(50, this.economy.gems);
     this.army.unitLevel = 1;
-    this.army.weapons.forEach(w => { w.level = 0; w.upgradeLevel = 0; });
+    this.army.weapons.forEach(w => { w.level = 0; w.upgradeLevel = 0; w.owned = false; });
     this.village.initVillage("wadi");
     this.village.completedVillages = [];
     this.village.currentChapter = 1;

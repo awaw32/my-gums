@@ -179,6 +179,7 @@ export class GameEconomy {
         if (mult > 1) finalAmt = Math.floor(finalAmt * mult);
       }
       this.resources[type] += finalAmt;
+      if (this.resources[type] < 0) this.resources[type] = 0;
       if (type === "gold" && amt > 0 && this._onGoldEarned) {
         this._onGoldEarned(amt); // نبعت المبلغ الأصلي للإنجاز (بدون مضاعف)
       }

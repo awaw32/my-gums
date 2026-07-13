@@ -304,6 +304,23 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
           if (c.ws.readyState === 1) c.ws.send(reply);
           broadcastWorld(ws);
         }
+      } else if (msg.type === "item_dropped" && username) {
+        const c = worldClients.get(username);
+        if (c && msg.item) {
+          const dropMsg = JSON.stringify({
+            type: "item_dropped",
+            username,
+            item: {
+              x: msg.item.x || c.x,
+              y: msg.item.y || c.y,
+              name: msg.item.name || "",
+              icon: msg.item.icon || "",
+            }
+          });
+          worldClients.forEach((cl) => {
+            if (cl.ws !== ws && cl.ws.readyState === 1) cl.ws.send(dropMsg);
+          });
+        }
       } else if (msg.type === "claim_gift" && username) {
         const c = worldClients.get(username);
         if (c) {

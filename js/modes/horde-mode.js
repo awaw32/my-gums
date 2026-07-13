@@ -221,6 +221,9 @@ export class HordeMode {
     const w = this.world;
     w.mode = "campaign";
     w._pvpDisabled = false;
+    w.monsters = [];
+    w.drops = [];
+    w.treasureChests = [];
     this._hordeActive = false;
     this._hordeOver = false;
   }

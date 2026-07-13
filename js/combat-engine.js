@@ -103,8 +103,4 @@ export function computePvPDamage(myDmg, crit, weaponDamage) {
   return total;
 }
 
-export function computeMonsterDamage(leaderBaseDmg, leaderUpgradeDmg, critWeaponDmg, critMultiplier, rageMult) {
-  return Math.floor(
-    (leaderBaseDmg + leaderUpgradeDmg + critWeaponDmg) * critMultiplier * rageMult
-  );
-}
+
