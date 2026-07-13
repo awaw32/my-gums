@@ -1268,6 +1268,14 @@ async function init() {
       }
     }).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
 
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && world?.engine) {
+        world.engine.setTargetFPS(4);
+      } else if (world?.engine) {
+        world.engine.setTargetFPS(60);
+      }
+    });
+
     window.addEventListener("beforeunload", () => {
       try { saveGame(economy, village, army); saveToDB(); persistGameSession(economy, village, army); } catch {}
     });
