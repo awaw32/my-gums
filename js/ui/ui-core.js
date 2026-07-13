@@ -5,7 +5,7 @@ import { injectMarketMethods } from "./ui-market.js";
 import { ALLIANCE_RAIDS } from "../alliance-manager.js";
 
 export class GameUI {
-  constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager) {
+  constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager, reputation) {
     this.notifier = notificationManager;
     this.village = village;
     this.army = army;
@@ -24,6 +24,7 @@ export class GameUI {
     this.inventory = inventory;
     this.events = events;
     this.tutorial = tutorial;
+    this.reputation = reputation;
     this.currentScreen = "territories";
     this.screens = {};
     this.fightOverlayEl = null;
@@ -916,7 +917,10 @@ export class GameUI {
     const totalAch = ach ? ach.achievements.length : 0;
     const dailyDone = q ? q.dailyQuests.filter(d => d.progress >= d.target).length : 0;
     const dailyTotal = q ? q.dailyQuests.length : 0;
+    const rep = this.reputation;
+    const repTitle = rep ? rep.getTitle() : { icon: '😐', name: 'محايد' };
     const stats = [
+      { icon: repTitle.icon, label: `السمعة (${repTitle.name})`, value: rep ? (rep.score > 0 ? '+' : '') + rep.score : '0' },
       { icon: '🏅', label: 'المستوى', value: eco?.level || 1 },
       { icon: '✨', label: 'الخبرة', value: `${(eco?.xp || 0).toLocaleString()} / ${(eco?.xpToNext || 100).toLocaleString()}` },
       { icon: '⚔️', label: 'القتل', value: (eco?.kills || 0).toLocaleString() },
@@ -1293,6 +1297,17 @@ export class GameUI {
           <div class="alliance-tier-bar-fill" style="width:${(state.level / state.maxLevel) * 100}%"></div>
         </div>
       </div>
+      <div class="alliance-card reputation-card">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:1.5rem">${this.reputation ? this.reputation.getTitle().icon : "😐"}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:0.8rem">السمعة</div>
+            <div style="font-size:0.6rem;color:var(--text-secondary)">${this.reputation ? this.reputation.getTitle().name : "محايد"}</div>
+          </div>
+          <div style="font-size:0.85rem;font-weight:800;color:${(this.reputation?.score||0) >= 0 ? 'var(--green)' : 'var(--accent-red)'}">${this.reputation ? (this.reputation.score > 0 ? '+' : '') + this.reputation.score : 0}</div>
+        </div>
+        ${this.reputation ? this._renderReputationBonuses() : ''}
+      </div>
       <div class="alliance-bonuses">
         <div class="alliance-card bonus-card">⚔️ ضرر +${state.damageBonus}</div>
         <div class="alliance-card bonus-card">🛡️ دفاع +${state.defenseBonus}</div>
@@ -1406,6 +1421,10 @@ export class GameUI {
           this.showNotification(`⚔️ ضربت الزعيم بـ ${dmg} ضرر!`);
           if (!am.isRaidActive) {
             this.showNotification(`🎉 انتصرت في الغارة! تحقق من المكافآت!`);
+            if (this.reputation) {
+              const result = this.reputation.addScore(50, "raid_win");
+              if (result.changed) this.showNotification(`${this.reputation.getTitle().icon} أصبحت ${result.newTitle}!`);
+            }
           }
           this.renderAlliance();
           this.updateTopBar();
@@ -1619,6 +1638,10 @@ export class GameUI {
         if (this.dailyLogin.claim()) {
           this.renderDailyLogin();
           this.updateTopBar();
+          if (this.reputation) {
+            const r = this.reputation.addScore(5, "daily_login");
+            if (r.changed) this.showNotification(`${this.reputation.getTitle().icon} أصبحت ${r.newTitle}!`);
+          }
         }
       });
       container.appendChild(btn);
@@ -1959,6 +1982,21 @@ export class GameUI {
         this.world.movePlayerTo(Math.floor(xRatio * W), Math.floor(yRatio * H));
       });
     }
+  }
+
+  _renderReputationBonuses() {
+    const rep = this.reputation;
+    if (!rep) return '';
+    const t = rep.tradeModifier;
+    const r = rep.raidDamageBonus;
+    const i = rep.incomeBonus;
+    return `
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <span style="font-size:0.55rem;background:var(--bg-input);padding:2px 8px;border-radius:6px">🏪 تجارة ×${t.toFixed(2)}</span>
+        ${r ? `<span style="font-size:0.55rem;background:var(--bg-input);padding:2px 8px;border-radius:6px">⚔️ غارات +${r}%</span>` : ''}
+        ${i ? `<span style="font-size:0.55rem;background:var(--bg-input);padding:2px 8px;border-radius:6px">💵 دخل +${i.toFixed(1)}%</span>` : ''}
+      </div>
+    `;
   }
 
   stopMiniMapLoop() {

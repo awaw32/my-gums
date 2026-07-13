@@ -8,7 +8,13 @@ const WeaponSchema = z.object({
   upgradeLevel: z.number().int().min(0).optional(),
   starLevel: z.number().int().min(1).max(10).optional(),
   gemLevel: z.number().int().min(1).max(10).optional(),
-}).passthrough();
+  name: z.string().max(100).optional(),
+  icon: z.string().max(10).optional(),
+  rarity: z.string().max(20).optional(),
+  damage: z.number().min(0).optional(),
+  speed: z.number().min(0).optional(),
+  range: z.number().min(0).optional(),
+});
 
 const PlayerSaveSchema = z.object({
   cash: z.number().min(0).max(1e15).optional(),
@@ -17,6 +23,13 @@ const PlayerSaveSchema = z.object({
   hammers: z.number().min(0).max(1e15).optional(),
   scrolls: z.number().min(0).max(1e15).optional(),
   food: z.number().min(0).max(1e15).optional(),
+  water: z.number().min(0).max(1e15).optional(),
+  salt: z.number().min(0).max(1e15).optional(),
+  leather: z.number().min(0).max(1e15).optional(),
+  copper: z.number().min(0).max(1e15).optional(),
+  herbs: z.number().min(0).max(1e15).optional(),
+  artifacts: z.number().min(0).max(1e15).optional(),
+  desertGem: z.number().min(0).max(1e15).optional(),
   army_power: z.number().min(0).max(1e15).optional(),
   x_position: z.number().min(0).max(10000).optional(),
   y_position: z.number().min(0).max(10000).optional(),
@@ -46,7 +59,10 @@ const PlayerSaveSchema = z.object({
   brKills: z.number().int().min(0).optional(),
   landsState: z.record(z.any()).optional(),
   hero: z.record(z.any()).optional(),
-}).passthrough();
+  loadout: z.record(z.any()).optional(),
+  market: z.record(z.any()).optional(),
+  reputation: z.number().int().min(-10000).max(10000).optional(),
+}).strict();
 
 function sanitizePlayerData(data) {
   const result = PlayerSaveSchema.safeParse(data);
@@ -58,9 +74,11 @@ function sanitizePlayerData(data) {
 }
 
 // التحقق من معدل تغير الموارد — يمنع الغش بزيادة مفاجئة
-const RESOURCE_NAMES = ["cash", "gems", "gold", "hammers", "scrolls", "food"];
+const RESOURCE_NAMES = ["cash", "gems", "gold", "hammers", "scrolls", "food", "water", "salt", "leather", "copper", "herbs", "artifacts", "desertGem"];
 const MAX_RESOURCE_GAIN_PER_SEC = {
   cash: 5000, gems: 100, gold: 2000, hammers: 500, scrolls: 500, food: 5000,
+  water: 1000, salt: 500, leather: 300, copper: 200, herbs: 200,
+  artifacts: 50, desertGem: 10,
 };
 
 function validateResourceDelta(existing, incoming) {

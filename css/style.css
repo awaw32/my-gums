@@ -674,7 +674,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--border-light);
-  z-index: 9999;
+  z-index: 100;
   direction: rtl;
   box-shadow: 0 -1px 4px rgba(0,0,0,0.04);
 }
@@ -4749,7 +4749,7 @@ input[type="number"] { -moz-appearance: textfield; }
   border: 2px solid rgba(255,215,0,0.3);
   background: rgba(30,20,10,0.85);
   backdrop-filter: blur(4px);
-  z-index: 9999;
+  z-index: 90;
   cursor: pointer;
   transition: opacity 0.3s ease;
 }

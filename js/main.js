@@ -27,6 +27,7 @@ import { GameHero } from "./hero.js";
 import { StoryManager } from "./story-manager.js";
 import { LoadoutManager } from "./loadout-manager.js";
 import { TradeMarket } from "./trade-market.js";
+import { ReputationManager } from "./reputation-manager.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ 
 
@@ -290,6 +291,7 @@ async function loadFromDatabase(economy, army, village, username) {
       window._loadedInventory = data.inventory || null;
       window._loadedLoadout = data.loadout || null;
       window._loadedMarket = data.market || null;
+      window._loadedReputation = data.reputation || null;
       window._loadedEvents = data.events || null;
       window._loadedTutorial = data.tutorial || null;
       window._loadedStory = data.story || null;
@@ -394,6 +396,11 @@ async function init() {
   // 🏪 سوق الصحراء (Trade Market)
   const tradeMarket = new TradeMarket(economy, inventory, netSync, PLAYER_USERNAME);
   window._tradeMarket = tradeMarket;
+
+  const reputation = new ReputationManager();
+  tradeMarket._priceModifier = () => reputation.tradeModifier;
+  window._reputation = reputation;
+  window._reputation = reputation;
   
   setProgress(80);
 
@@ -415,6 +422,10 @@ async function init() {
   if (window._loadedMarket) {
     tradeMarket.loadState(window._loadedMarket);
     delete window._loadedMarket;
+  }
+  if (window._loadedReputation) {
+    reputation.loadState(window._loadedReputation);
+    delete window._loadedReputation;
   }
   if (window._loadedEvents) events.loadState(window._loadedEvents);
   if (window._loadedTutorial) tutorial.loadState(window._loadedTutorial);
@@ -563,7 +574,7 @@ async function init() {
   let ui;
   try {
     const notificationManager = new NotificationManager();
-    ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager);
+    ui = new GameUI(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager, reputation);
     ui._tradeMarket = tradeMarket;
     world._ui = ui;
   } catch (err) {
@@ -709,6 +720,7 @@ async function init() {
           hero: hero.getSaveData(),
           loadout: loadoutManager.getSaveData(),
           market: tradeMarket.getSaveData(),
+          reputation: reputation.getSaveData(),
           completedVillages: village.completedVillages,
           currentChapter: village.currentChapter,
           last_active: Date.now()
@@ -1223,6 +1235,10 @@ async function init() {
         if (iconEl) iconEl.textContent = icon;
         economy.addRaw('gems', (result.bonusGems || 0) + 100 + (result.kills || 0) * 10);
         economy.addRaw('gold', (result.bonusGold || 0) + 50 + (result.kills || 0) * 5);
+        if (reputation) {
+          const r = reputation.addScore(10 + (result.kills || 0) * 2, "br_win");
+          if (r.changed) ui.showNotification(`${reputation.getTitle().icon} أصبحت ${r.newTitle}!`);
+        }
         saveToDB(); persistGameSession(economy, village, army);
         const brHeaders = { "Content-Type": "application/json" };
         const brToken = localStorage.getItem("player_token");

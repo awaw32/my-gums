@@ -69,6 +69,9 @@ export class TradeMarket {
     this.netSync = netSync;
     this.username = username;
 
+    // معامل السعر من السمعة (يُضبط من main.js)
+    this._priceModifier = 1;
+
     // قائمة العناصر المعروضة للبيع
     this.listings = [];
 
