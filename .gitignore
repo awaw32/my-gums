@@ -43,3 +43,9 @@ server-err.txt
 
 # MCP tools
 .mimocode/
+
+# Test temp data
+data-inttest-*
+data-final
+data-test-mongo
+

@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
-    "build": "vite build && node -e \"const fs=require('fs');fs.cpSync('config','dist/config',{recursive:true,force:true});fs.cpSync('sw.js','dist/sw.js');fs.cpSync('lands.html','dist/lands.html');\"",
+    "build": "vite build && node -e \"const fs=require('fs');fs.cpSync('config','dist/config',{recursive:true,force:true});fs.cpSync('sw.js','dist/sw.js');fs.cpSync('lands.html','dist/lands.html');fs.cpSync('assets/images','dist/assets/images',{recursive:true,force:true});\"",
     "vite:dev": "vite",
     "audit": "npm audit --audit-level=high",
     "prepare": "node -e \"try{require('child_process').execSync('husky',{stdio:'ignore'})}catch(e){}\""

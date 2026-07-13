@@ -51,7 +51,8 @@ function wsAuth(req) {
   const params = new URL(req.url, "http://localhost").searchParams;
   const token = params.get("token");
   if (!token) return { authenticated: false, username: null };
-  return verifyToken(token);
+  const result = verifyToken(token);
+  return { authenticated: result.valid, username: result.username };
 }
 
 module.exports = { generateToken, verifyToken, hashPassword, comparePassword, authMiddleware, wsAuth, JWT_SECRET };
