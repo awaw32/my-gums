@@ -28,6 +28,10 @@
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
 
+* { -webkit-tap-highlight-color: transparent; }
+button, .btn, [role="button"], a, select, input, textarea { touch-action: manipulation; }
+input, textarea { user-select: text; -webkit-user-select: text; }
+
   --bg-page: #FFF8F0;
   --bg-card: #FFFFFF;
   --bg-surface: #FFFDF5;

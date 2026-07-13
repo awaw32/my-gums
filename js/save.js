@@ -1,7 +1,11 @@
 const SAVE_KEY = "wick_save";
+const SAVE_VERSION = 2;
+
+let _saveTimer = null;
 
 export function saveGame(economy, village, army) {
   const data = {
+    _version: SAVE_VERSION,
     resources: { ...economy.resources },
     multiplier: economy.multiplier,
     level: economy.level,
@@ -10,7 +14,10 @@ export function saveGame(economy, village, army) {
     currentVillageId: village.currentVillageId,
     unitLevel: army.unitLevel,
     unitPowerBase: army.unitPowerBase,
-    weapons: army.weapons.map(w => ({ id: w.id, level: w.level, upgradeLevel: w.upgradeLevel, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })),
+    weapons: army.weapons.map(w => ({
+      id: w.id, level: w.level, upgradeLevel: w.upgradeLevel,
+      starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1, owned: w.owned,
+    })),
     buildings: village.buildings.map(b => ({
       id: b.id, level: b.level, state: b.state,
       constructTimer: b.constructTimer,
@@ -23,6 +30,14 @@ export function saveGame(economy, village, army) {
   } catch {
     console.warn("[Save] localStorage full or unavailable");
   }
+}
+
+export function persistGameSession(economy, village, army) {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    saveGame(economy, village, army);
+    _saveTimer = null;
+  }, 300);
 }
 
 export function loadGame(economy, village, army) {
@@ -41,11 +56,10 @@ export function loadGame(economy, village, army) {
     if (data.xp !== undefined) economy.xp = data.xp;
     if (data.xpToNext !== undefined) economy.xpToNext = data.xpToNext;
 
-    // حساب الأرباح غير المتصلة (Offline earnings)
     const lastSave = data.timestamp || 0;
     if (lastSave > 0 && data.buildings) {
-      const elapsed = (Date.now() - lastSave) / 1000; // ثوانٍ
-      const maxOffline = 4 * 3600; // أقصى 4 ساعات
+      const elapsed = (Date.now() - lastSave) / 1000;
+      const maxOffline = 4 * 3600;
       const seconds = Math.min(elapsed, maxOffline);
       let totalFood = 0, totalCash = 0, totalGold = 0;
       for (const bd of data.buildings) {
@@ -75,6 +89,7 @@ export function loadGame(economy, village, army) {
           w.upgradeLevel = wd.upgradeLevel ?? (wd.level > 0 ? wd.level * 8 : 0);
           if (wd.starLevel) w.starLevel = wd.starLevel;
           if (wd.gemLevel) w.gemLevel = wd.gemLevel;
+          w.owned = !!(wd.owned || w.upgradeLevel > 0);
         }
       }
     }
@@ -99,5 +114,6 @@ export function loadGame(economy, village, army) {
 }
 
 export function clearSave() {
+  if (_saveTimer) clearTimeout(_saveTimer);
   localStorage.removeItem(SAVE_KEY);
 }

@@ -112,33 +112,45 @@ export class GameArmy {
     return this.weapons.reduce((sum, w) => sum + w.power, 0);
   }
 
+  getEquippedWeaponPower(equippedId) {
+    if (!equippedId) return 0;
+    const w = this.weapons.find(w => w.id === equippedId);
+    return w ? w.power : 0;
+  }
+
   get totalArmyPower() {
     return this.unitPower + this.weaponPower;
   }
 
+  get _unitUpgradeCostRaw() {
+    return Math.floor(15 * this.unitLevel * (1 + this.unitLevel * 0.05));
+  }
+
+  get unitUpgradeCost() {
+    return this._unitUpgradeCostRaw;
+  }
+
+  get _trainingUpgradeCostRaw() {
+    return Math.floor(50 * this.trainingLevel * (1 + this.trainingLevel * 0.1));
+  }
+
+  get trainingUpgradeCost() {
+    return this._trainingUpgradeCostRaw;
+  }
+
   upgradeUnits() {
     if (this.unitLevel >= this.maxUnitLevel) return false;
-    const cost = Math.floor(15 * this.unitLevel * (1 + this.unitLevel * 0.05));
+    const cost = this._unitUpgradeCostRaw;
     if (!this.economy.spend('cash', cost)) return false;
     this.unitLevel++;
     return true;
   }
 
-  get unitUpgradeCost() {
-    const base = 15 * this.unitLevel;
-    return Math.floor(base + this.unitLevel * 2);
-  }
-
   upgradeTraining() {
     if (this.trainingLevel >= this.maxTrainingLevel) return false;
-    const cost = Math.floor(50 * this.trainingLevel * (1 + this.trainingLevel * 0.1));
+    const cost = this._trainingUpgradeCostRaw;
     if (!this.economy.spend('gold', cost)) return false;
     this.trainingLevel++;
     return true;
-  }
-
-  get trainingUpgradeCost() {
-    const base = 40 * this.trainingLevel;
-    return Math.floor(base + this.trainingLevel * 5);
   }
 }

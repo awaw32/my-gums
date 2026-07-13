@@ -10,7 +10,7 @@ import {
 } from "./pathfinding.js";
 import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles, spawnHitEffect, spawnMonsterDeathEffect, spawnComboEffect } from "./combat/combat-effects.js";
 import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/context-menu.js";
-import { computeWeaponDamage } from "./combat/weapon-system.js";
+import { computeWeaponDamage, computePlayerMaxHp, computePlayerDamage, applyRageMultiplier, computePvPDamage, computeMonsterDamage } from "./combat-engine.js";
 import { computeKnowledgeBonuses } from "./economy.js";
 import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.js";
 import { drawWeaponGlow, drawWeaponStarIcons, drawWeaponOnHero } from "./combat/weapon-visuals.js";
@@ -372,50 +372,34 @@ export class WorldMap {
     const armyPower = e?.power || 5000;
     const armyYardLevel = e?.armyYardLevel || 1;
 
-    const baseHP = 120;
-    const baseDMG = 12;
+    const maxHp = computePlayerMaxHp({ playerLevel, unitLevel, trainingLevel, prestigeLevel, armyYardLevel });
 
-    const armyYardHpBonus = armyYardLevel * 6;
-    const maxHp = baseHP
-      + playerLevel * 2
-      + unitLevel * 3
-      + trainingLevel * 2
-      + prestigeLevel * 5
-      + armyYardHpBonus;
+    const weaponStats = computeWeaponDamage(this._equippedWeapon || "", this.army?.weapons || []);
 
-    const weaponStats = computeWeaponDamage({
+    const { totalDamage } = computePlayerDamage({
       equippedWeapon: this._equippedWeapon || "",
       weapons: this.army?.weapons || [],
+      playerLevel, unitLevel, prestigeLevel,
+      armyPower,
+      upgradeTree: this._upgradeTree,
+      allianceManager: this._allianceManager,
     });
 
-    let totalDamage = baseDMG
-      + Math.floor(armyPower / 10)
-      + playerLevel
-      + unitLevel * 2
-      + prestigeLevel * 3
-      + weaponStats.weaponDamage;
-
-    if (this._upgradeTree) {
-      totalDamage += this._upgradeTree.getEffect("army") || 0;
-    }
-    if (this._allianceManager) {
-      totalDamage += this._allianceManager.damageBonus || 0;
-    }
+    const rageResult = applyRageMultiplier(totalDamage, this.leader?.hp, maxHp);
 
     const knowledgeBonuses = computeKnowledgeBonuses({
       knowledgeLevel: e?.knowledgeLevel || 1,
       knowledgeType: e?.knowledgeType || "economic",
     });
 
-    const defenseBuffPercent = knowledgeBonuses.defensePercent;
-    const moveSpeedBuffPercent = knowledgeBonuses.moveSpeedPercent;
-
-    // Rage: كلما قل HP زاد الضرر (حتى ×1.5 عند 10% HP)
-    const hpRatio = Math.max(0.1, (this.leader?.hp || maxHp) / maxHp);
-    const rageMultiplier = 1 + (1 - hpRatio) * 0.5;
-    const rageDamage = Math.floor(totalDamage * rageMultiplier);
-
-    return { maxHp, totalDamage: rageDamage, weaponStats, defenseBuffPercent, moveSpeedBuffPercent, rageActive: hpRatio < 0.3 };
+    return {
+      maxHp,
+      totalDamage: rageResult.damage,
+      weaponStats,
+      defenseBuffPercent: knowledgeBonuses.defensePercent,
+      moveSpeedBuffPercent: knowledgeBonuses.moveSpeedPercent,
+      rageActive: rageResult.rageActive,
+    };
   }
 
   _getWeaponCritStats() {
@@ -1829,7 +1813,7 @@ export class WorldMap {
       const enemyStats = this.estimateEnemyStats(target);
       const crit = this._rollCrit();
 
-      const myDmg = Math.floor(myStats.totalDamage * crit.multiplier) + (crit.isCrit ? crit.weaponDmg : 0);
+      const myDmg = computePvPDamage(myStats.totalDamage, crit, myStats.weaponStats.weaponDamage);
       const theirDmg = enemyStats.damage;
 
       target._hp = (target._hp ?? enemyStats.maxHp) - myDmg;
@@ -2007,10 +1991,9 @@ export class WorldMap {
         h.attackCD -= dt;
         if (h.attackCD <= 0) {
           const crit = this._rollCrit();
-          // Rage bonus
           const hpRatio = Math.max(0.1, h.hp / h.maxHp);
           const rageMult = 1 + (1 - hpRatio) * 0.5;
-          const totalDmg = Math.floor((h.baseDmg + h.upgradeDmg + crit.weaponDmg) * crit.multiplier * rageMult);
+          const totalDmg = computeMonsterDamage(h.baseDmg, h.upgradeDmg, crit.weaponDmg, crit.multiplier, rageMult);
           this.damageMonster(h.fighting, totalDmg, crit.isCrit);
           // إظهار Rage إذا نشط
           if (hpRatio < 0.3) {
@@ -2937,7 +2920,7 @@ export class WorldMap {
 
   async exitWorldMap() {
     this.exitCurrentMode();
-    if (this._onBeforeExit) { try { this._onBeforeExit(); } catch(e) {} }
+    if (this._onBeforeExit) { try { this._onBeforeExit(); } catch {} }
     if (this.netSync) {
       this.netSync.sendWSUpdate();
       await this.netSync.sendPositionUpdate();

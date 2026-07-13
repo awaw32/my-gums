@@ -6,7 +6,7 @@ import { WorldMap } from "./world.js";
 import { spawnLevelUp, spawnGoldBurst, spawnXpGain } from "./particles.js";
 import { AssetManager } from "./asset-manager.js";
 import { AudioManager } from "./audio.js";
-import { saveGame, loadGame } from "./save.js";
+import { saveGame, loadGame, persistGameSession } from "./save.js";
 import { QuestManager } from "./quests.js";
 import { OasisManager } from "./oasis-manager.js";
 import { UpgradeTree } from "./upgrade-tree.js";
@@ -393,7 +393,7 @@ async function init() {
     throw err;
   }
     world.onExit = () => ui.exitWorldMap();
-    world._onBeforeExit = () => saveToDB();
+    world._onBeforeExit = () => saveToDB(); persistGameSession(economy, village, army);
 
     // ربط العالم بأنظمة الترقيات والتحالف
     world._allianceManager = allianceManager;
@@ -528,22 +528,25 @@ async function init() {
       }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || r.statusText); }); return r.json(); }).catch(e => console.warn("[Save] saveToDB:", e.message));
     };
 
-    // أي تغيير في الاقتصاد أو الجيش أو القرية = علامة متسخ
+    // أي تغيير في الاقتصاد أو الجيش أو القرية = علامة متسخ + حفظ خلفي
     const _origAddRaw = economy.addRaw.bind(economy);
     economy.addRaw = function(...args) {
       _origAddRaw(...args);
       markDirty();
+      persistGameSession(economy, village, army);
     };
     const _origSpend = economy.spend.bind(economy);
     economy.spend = function(...args) {
       const ok = _origSpend(...args);
       if (ok) markDirty();
+      if (ok) persistGameSession(economy, village, army);
       return ok;
     };
     const _origAddXp = economy.addXp.bind(economy);
     economy.addXp = function(...args) {
       _origAddXp(...args);
       markDirty();
+      persistGameSession(economy, village, army);
     };
 
     ui._onSave = saveToDB;
@@ -560,7 +563,7 @@ async function init() {
             world.syncWeaponVisuals();
             audio.playWeaponSound(wid, 'equip');
             ui.showNotification(`🔓 تم شراء ${weapon.name}! 🗡️ مجهز تلقائياً`);
-            saveToDB();
+            saveToDB(); persistGameSession(economy, village, army);
             ui.updateTopBar();
           } else {
             ui.showNotification(`❌ المال غير كافٍ لشراء ${weapon.name}`);
@@ -578,7 +581,7 @@ async function init() {
           world.syncWeaponVisuals();
           audio.playWeaponSound(wid, 'equip');
           ui.showNotification(`🗡️ تم تجهيز ${weapon.name}`);
-          saveToDB();
+          saveToDB(); persistGameSession(economy, village, army);
           ui.updateTopBar();
         }
         return;
@@ -590,7 +593,7 @@ async function init() {
         world.syncWeaponVisuals();
         audio.playSound('click');
         ui.showNotification('✕ تم إلغاء تجهيز السلاح');
-        saveToDB();
+        saveToDB(); persistGameSession(economy, village, army);
         ui.updateTopBar();
         return;
       }
@@ -603,7 +606,7 @@ async function init() {
               army.unitLevel++;
               achievements.updateProgress('army_level', army.unitLevel);
               audio.playSound('upgrade');
-              saveToDB();
+              saveToDB(); persistGameSession(economy, village, army);
               ui.updateTopBar();
             }
           }
@@ -615,7 +618,7 @@ async function init() {
               world.leader.hp = Math.min(world.leader.maxHp, world.leader.hp + 30);
             }
             audio.playSound('heal');
-            saveToDB();
+            saveToDB(); persistGameSession(economy, village, army);
             ui.updateTopBar();
           }
           break;
@@ -631,7 +634,7 @@ async function init() {
               if (world.netSync && world.netSync.isConnected) {
                 world.netSync.send({ type: "weapon_upgrade", weaponId: weapon.id });
               }
-              saveToDB();
+              saveToDB(); persistGameSession(economy, village, army);
               ui.updateTopBar();
               ui.showNotification(`⬆️ ${weapon.name} → المستوى ${weapon.level}/5 ⭐`);
             } else {
@@ -674,7 +677,7 @@ async function init() {
       spawnGoldBurst(window.innerWidth / 2, window.innerHeight / 2);
       const gemText = reward.desertGem > 0 ? ` 💠x${reward.desertGem}` : '';
       ui.showNotification(`🎁 صندوق كنز! +${reward.artifacts} 🏺 +${reward.cash} 💵 +${reward.gold} 🪙${gemText}`);
-      saveToDB();
+      saveToDB(); persistGameSession(economy, village, army);
     };
     world._onPvPWin = () => {
       audio.playSound('levelup');
@@ -747,7 +750,7 @@ async function init() {
       if (chapter.reward.knowledgeLevel && economy.knowledgeLevel < chapter.reward.knowledgeLevel) {
         economy.knowledgeLevel = chapter.reward.knowledgeLevel;
       }
-      saveToDB();
+      saveToDB(); persistGameSession(economy, village, army);
       
       // تشغيل مشهد النصر
       storyManager.playVictoryScene().then(() => {
@@ -817,7 +820,7 @@ async function init() {
     prestige._onPrestige = (lvl) => {
       ui.showNotification(`🔄 Prestige ${lvl}! القوة تتضاعف!`);
       achievements.updateProgress('prestige', 1);
-      saveToDB();
+      saveToDB(); persistGameSession(economy, village, army);
       if (world.leader) world.leader.maxHp = 100 + lvl * 20;
       if (world.leader) world.leader.hp = world.leader.maxHp;
     };
@@ -986,7 +989,7 @@ async function init() {
         if (brVictoryScreen) brVictoryScreen.classList.remove('hidden');
         if (brVictoryStats) brVictoryStats.textContent = `🏆 قضيت على ${result.kills || 0} أعداء`;
         economy.addRaw('gems', 100 + (result.kills || 0) * 10);
-        saveToDB();
+        saveToDB(); persistGameSession(economy, village, army);
         fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1172,7 +1175,7 @@ async function init() {
         }
       }
       
-      saveToDB(); // يحفظ فقط إذا كان هناك تغيير (dirty flag)
+      saveToDB(); persistGameSession(economy, village, army); // يحفظ فقط إذا كان هناك تغيير (dirty flag)
       
       // جدولة الـ tick التالي
       scheduleNextTick();
@@ -1225,7 +1228,7 @@ async function init() {
       }
     
     window.addEventListener("beforeunload", () => {
-      try { saveGame(economy, village, army); saveToDB(); } catch {}
+      try { saveGame(economy, village, army); saveToDB(); persistGameSession(economy, village, army); } catch {}
     });
 }).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
 }
