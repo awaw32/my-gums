@@ -34,3 +34,12 @@ temp/
 lint-report.txt
 server-out.txt
 server-err.txt
+
+# MCP generation scripts
+*.txt
+
+# Session summaries
+ملخص-الجلسة.md
+
+# MCP tools
+.mimocode/
