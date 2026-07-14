@@ -806,7 +806,6 @@ GameUI.prototype.showLoadoutScreen = function(modeName) {
   overlay.className = "loadout-overlay";
   
   const hasBag = loadoutMgr.hasBag;
-  const stats = loadoutMgr.stats;
   const ownedWeapons = loadoutMgr.getOwnedWeapons();
   const availableItems = loadoutMgr.getAvailableItemsForMode(modeName);
   

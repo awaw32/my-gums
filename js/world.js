@@ -11,7 +11,7 @@ import {
 import { drawPathLine, spawnPvPParticles, updatePvPParticles, drawPvPParticles, spawnHitEffect, spawnMonsterDeathEffect, spawnComboEffect } from "./combat/combat-effects.js";
 import { showPvPMenu, hidePvPMenu, showPvPDefeat, showWipeScreen } from "./ui/context-menu.js";
 import { computeWeaponDamage, computePlayerMaxHp, computePlayerDamage, applyRageMultiplier, computePvPDamage, rollCrit } from "./combat-engine.js";
-import { WeaponAbilityManager, WEAPON_ABILITIES } from "./combat/weapon-abilities.js";
+import { WeaponAbilityManager } from "./combat/weapon-abilities.js";
 import { computeKnowledgeBonuses } from "./economy.js";
 import { getVisualTroopCount, getTroopFormation } from "./combat/troop-visuals.js";
 import { drawWeaponGlow, drawWeaponStarIcons, drawWeaponOnHero } from "./combat/weapon-visuals.js";
@@ -903,7 +903,7 @@ export class WorldMap {
 
   exitCurrentMode() {
     if (this._activeMode) {
-      this._activeMode.exit();
+      if (typeof this._activeMode.exit === 'function') this._activeMode.exit();
       this._activeMode = null;
     }
   }
@@ -2943,7 +2943,6 @@ export class WorldMap {
     this.matchEnded = true;
     this.matchStarted = false;
     const kills = this.brKills;
-    const survived = this.matchDuration - this.matchTimer;
     const bonusGems = 50 + kills * 25;
     const bonusGold = 100 + kills * 30;
     if (this.economy) {
@@ -3229,6 +3228,12 @@ export class WorldMap {
   async exitWorldMap() {
     this.exitCurrentMode();
     if (this._onBeforeExit) { try { this._onBeforeExit(); } catch {} }
+    const pvpModal = document.getElementById("pvp-defeat-modal");
+    if (pvpModal) {
+      pvpModal.classList.add("hidden");
+      const returnBtn = document.getElementById("pvp-defeat-return-btn");
+      if (returnBtn && returnBtn._pvpCountdown) { clearInterval(returnBtn._pvpCountdown); returnBtn._pvpCountdown = null; }
+    }
     if (this.netSync) {
       this.netSync.sendWSUpdate();
       await this.netSync.sendPositionUpdate();

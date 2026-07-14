@@ -62,6 +62,7 @@ function createArenaHandler({ rooms, playerData }) {
       if (now - lastReset > 1000) { msgCount = 0; lastReset = now; }
       if (++msgCount > 30) { ws.close(1008, "Rate limit"); return; }
 
+      if (raw.length > 10240) { ws.close(1009, "Message too large"); return; }
       let msg;
       try { msg = JSON.parse(raw); } catch { return; }
 
@@ -197,6 +198,7 @@ function createArenaHandler({ rooms, playerData }) {
       if (roomCode && rooms.has(roomCode)) {
         const room = rooms.get(roomCode);
         room.players.delete(playerId);
+        playerData.delete(playerId);
         if (room.admin === playerId && room.players.size > 0) {
           room.admin = room.players.keys().next().value;
         }

@@ -82,6 +82,9 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
       for (const [key, time] of _pvpCooldowns) {
         if (time < cutoff) _pvpCooldowns.delete(key);
       }
+      for (const [key, time] of _monsterKillTimestamps) {
+        if (time < cutoff) _monsterKillTimestamps.delete(key);
+      }
     }, 300000);
     ws.on("close", () => clearInterval(_pvpCleanupInterval));
     logger.info({ ip }, "[WorldWS] Connection");
@@ -91,6 +94,7 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
       if (now - worldLastReset > 1000) { worldMsgCount = 0; worldLastReset = now; }
       if (++worldMsgCount > 60) { ws.close(1008, "Rate limit"); return; }
 
+      if (raw.length > 10240) { ws.close(1009, "Message too large"); return; }
       let msg;
       try { msg = JSON.parse(raw); } catch { return; }
 
@@ -338,18 +342,28 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           ws.send(JSON.stringify({ type: "war_response", requestType: msg.type, ...result }));
         }
       } else if (msg.type === "br_match_start" && username) {
+        const brClient = worldClients.get(username);
+        if (!brClient || !brClient.br_alive) return;
         const brMsg = JSON.stringify({ type: "br_match_start", mapSize: msg.mapSize, matchDuration: msg.matchDuration });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(brMsg); });
       } else if (msg.type === "br_zone_shrink" && username) {
+        const brClient = worldClients.get(username);
+        if (!brClient || !brClient.br_alive) return;
         const zMsg = JSON.stringify({ type: "br_zone_shrink", radius: msg.radius, centerX: msg.centerX, centerY: msg.centerY });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(zMsg); });
       } else if (msg.type === "br_bandit_spawn" && username) {
+        const brClient = worldClients.get(username);
+        if (!brClient || !brClient.br_alive) return;
         const bMsg = JSON.stringify({ type: "br_bandit_spawn", bandit: msg.bandit });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(bMsg); });
       } else if (msg.type === "br_player_eliminated" && username) {
+        const brClient = worldClients.get(username);
+        if (!brClient || !brClient.br_alive) return;
         const eMsg = JSON.stringify({ type: "br_player_eliminated", playerId: msg.playerId, by: msg.by });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(eMsg); });
       } else if (msg.type === "br_match_end" && username) {
+        const brClient = worldClients.get(username);
+        if (!brClient || !brClient.br_alive) return;
         const endMsg = JSON.stringify({ type: "br_match_end", winner: msg.winner, kills: msg.kills });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(endMsg); });
       } else if (msg.type === "equip_weapon" && username) {

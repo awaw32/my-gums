@@ -1,5 +1,7 @@
 "use strict";
 
+import { performanceMonitor } from "./performance-monitor.js";
+
 /**
  * =============================================================================
  *  🏜️ GameEngine v2 — Desert Kingdom RTS
@@ -214,6 +216,7 @@ class GameEngine {
 
   _loop(now) {
     if (!this.running) return;
+    const _pf = performanceMonitor.startFrame();
     this.deltaTime = Math.min((now - this.lastTime) / 1000, 0.05);
     this.lastTime = now;
 
@@ -251,6 +254,7 @@ class GameEngine {
     }
 
     this.ctx.restore();
+    performanceMonitor.endFrame(_pf);
     this.animId = requestAnimationFrame((t) => this._loop(t));
   }
 

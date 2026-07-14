@@ -414,7 +414,7 @@ export class WeaponAbilityManager {
     };
   }
 
-  _activateThrow(active, baseDamage, target) {
+  _activateThrow(active, baseDamage, _target) {
     return {
       type: "throw",
       text: `${active.icon} رمح رميق!`,

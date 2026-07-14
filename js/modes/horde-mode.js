@@ -210,7 +210,6 @@ export class HordeMode {
       w.economy.addXp(Math.floor(this._hordeScore * 0.5));
     }
     
-    const resultText = won ? '🎉' : '💀';
     const resultMsg = won 
       ? `🎉 انتصرت في الحشد! كل ${this._maxWave} موجة` 
       : `💀 انتهت الحشد! وصلت للموجة ${this._wave}`;

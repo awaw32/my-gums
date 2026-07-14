@@ -1260,6 +1260,11 @@ export class GameUI {
     document.querySelectorAll("#bottom-bar .nav-btn").forEach(b => {
       b.classList.toggle("active", b.dataset.screen === name);
     });
+    this._warListenersAttached = false;
+    this.renderScreen(name);
+  }
+
+  requestRender(name) {
     this.renderScreen(name);
   }
 
@@ -1292,7 +1297,6 @@ export class GameUI {
       return;
     }
     const am = this.allianceManager;
-    this._renderTribalAllianceSection();
     const state = am.getState();
     
     let html = `
@@ -1396,6 +1400,8 @@ export class GameUI {
     }
     
     container.innerHTML = html;
+    
+    this._renderTribalAllianceSection();
     
     // ربط الأزرار
     const upgradeBtn = container.querySelector('.alliance-upgrade-btn');

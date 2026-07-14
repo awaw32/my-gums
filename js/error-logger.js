@@ -218,7 +218,7 @@ export class ErrorLogger {
         // Silently fail if logging service is unavailable
         if (import.meta.env.DEV) console.warn('Logging service unavailable:', e.message);
       });
-    } catch (e) {
+    } catch {
       // Prevent logging errors from breaking the app
     }
   }
@@ -268,6 +268,6 @@ export class ErrorLogger {
 export const errorLogger = new ErrorLogger();
 
 // Expose to window for debugging
-if (import.meta.env.DEV) {
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   window.__errorLogger = errorLogger;
 }

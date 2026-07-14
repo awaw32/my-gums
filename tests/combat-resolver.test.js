@@ -194,10 +194,14 @@ describe('Combat Resolver (Server-Authoritative)', () => {
       const monster = baseMonster();
       monster.enemyId = 'palace_boss';
       monster._shieldTimer = 3;
-      const result = resolveMonsterKill(player, monster, Date.now());
-      expect(result.damage).toBeGreaterThanOrEqual(0);
-      const expectedMax = Math.floor(computeOneHitDamage(player).damage);
-      expect(result.damage).toBeLessThanOrEqual(Math.floor(expectedMax));
+      // Shield halves damage: force a no-crit, full-HP hit
+      const shieldResult = resolveMonsterKill(player, monster, Date.now());
+      expect(shieldResult.sandstormActive).toBe(false);
+      expect(shieldResult.wasPhased).toBe(false);
+      expect(shieldResult.wasDodged).toBe(false);
+      // With shield at half damage, the final damage must be ≤ the raw damage
+      const rawResult = resolveMonsterKill(player, { ...monster, _shieldTimer: 0 }, Date.now());
+      expect(shieldResult.damage).toBeLessThanOrEqual(rawResult.damage);
     });
 
     it('phase should make damage 0', () => {

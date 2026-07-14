@@ -1,7 +1,7 @@
 "use strict";
 
 const { computePlayerStats } = require("./formulas");
-const { ENEMY_TYPES, calculateEnemyPower } = require("../data/enemies");
+const { ENEMY_TYPES } = require("../data/enemies");
 
 const WEAPON_COMBAT_STATS = {
   w1: { baseDamage: 4,  damagePerLevel: 3,  range: "melee",  critChance: 0.05, critMultiplier: 1.5 },
@@ -191,7 +191,6 @@ function simulatePvPFull(attacker, defender) {
   }
 
   const attackerWon = bCur <= 0 && aCur > 0;
-  const defenderWon = aCur <= 0;
 
   return {
     attackerWon,

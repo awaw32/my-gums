@@ -120,7 +120,7 @@ const PHASE_MINIONS = {
   },
 };
 
-function triggerBossSpecial(world, monster, special, bossId) {
+function triggerBossSpecial(world, monster, special, _bossId) {
   const fx = world.worldFx || [];
 
   switch (special) {
@@ -228,7 +228,7 @@ export function updateBossEnrage(world, monster, bossConfig, dt) {
   }
 }
 
-export function getEpicBossLoot(bossId, world) {
+export function getEpicBossLoot(bossId, _world) {
   const config = getBossPhaseConfig(bossId);
   if (!config) return { cash: 0, gold: 0, gems: 0, scrolls: 0, artifacts: 0, desertGem: 0, cashBonus: 0 };
   const table = config.lootTable;

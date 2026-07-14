@@ -22,8 +22,9 @@ class NetworkServer {
     let player = null;
 
     ws.on("message", (raw) => {
+      if (raw.length > 10240) { ws.close(1009, "Message too large"); return; }
       if (!limiter()) {
-        ws.send(JSON.stringify({ t: "error", code: "RATE_LIMIT", msg: "Too fast" }));
+        ws.close(1008, "Rate limit");
         return;
       }
       let msg;

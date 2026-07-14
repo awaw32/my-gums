@@ -47,8 +47,6 @@ export class NetworkManager {
     const {
       timeout = this.requestTimeout.load,
       retries = this.maxRetries,
-      tag = null,
-      priority = 'normal',
     } = options;
 
     let lastError;
@@ -64,8 +62,7 @@ export class NetworkManager {
           method,
           endpoint,
           data,
-          timeout,
-          tag
+          timeout
         );
 
         return response;
@@ -92,7 +89,7 @@ export class NetworkManager {
    * Execute a single request
    * @private
    */
-  async _executeRequest(method, endpoint, data, timeout, tag) {
+  async _executeRequest(method, endpoint, data, timeout) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 

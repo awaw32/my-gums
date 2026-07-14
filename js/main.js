@@ -28,6 +28,8 @@ import { StoryManager } from "./story-manager.js";
 import { LoadoutManager } from "./loadout-manager.js";
 import { TradeMarket } from "./trade-market.js";
 import { ReputationManager } from "./reputation-manager.js";
+import { errorLogger } from "./error-logger.js";
+import { networkManager } from "./network-manager.js";
 
 const API_BASE = ""; // سيرفر اللعبة يخدم الـ API والواجهة من نفس المنفذ
 
@@ -46,25 +48,13 @@ function sanitizePassword(pw) {
 //  - يتم تخزين كلمة المرور في localStorage لإعادة الدخول التلقائي
 // ═══════════════════════════════════════════════════════════════════
 async function tryLogin(username, password) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(`${API_BASE}/api/auth/login`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-    const data = await res.json();
-    if (res.ok) {
-      localStorage.setItem("player_token", data.token);
-      return { ok: true, isNew: !!data.isNew, passwordUpgraded: !!data.passwordUpgraded, username: data.username };
-    }
-    return { ok: false, error: data.error || 'فشل تسجيل الدخول', status: res.status };
+    const data = await networkManager.post('/api/auth/login', { username, password }, { timeout: 8000 });
+    localStorage.setItem("player_token", data.token);
+    return { ok: true, isNew: !!data.isNew, passwordUpgraded: !!data.passwordUpgraded, username: data.username };
   } catch (err) {
-    clearTimeout(timeout);
-    if (err.name === 'AbortError') return { ok: false, error: 'تعذر الاتصال بالخادم', status: 0 };
-    return { ok: false, error: err.message || 'خطأ في الشبكة', status: 0 };
+    if (err?.name === 'AbortError') return { ok: false, error: 'تعذر الاتصال بالخادم', status: 0 };
+    return { ok: false, error: err?.message || 'خطأ في الشبكة', status: err?.status || 0 };
   }
 }
 
@@ -118,7 +108,6 @@ async function getOrPromptUsername() {
   const loginBtn = overlay.querySelector("#login-btn");
   const registerBtn = overlay.querySelector("#register-btn");
   const errorEl = overlay.querySelector("#login-error");
-  const subtitleEl = overlay.querySelector("#login-subtitle");
 
   // تعبئة اسم المستخدم المحفوظ إن وجد
   if (savedUser) nameInput.value = savedUser;
@@ -210,39 +199,23 @@ async function getOrPromptUsername() {
 }
 
 async function loadFromDatabase(economy, army, village, username) {
+  let data;
   try {
-    const headers = { "Content-Type": "application/json" };
-    const token = localStorage.getItem("player_token");
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    const c1 = new AbortController();
-    const t1 = setTimeout(() => c1.abort(), 10000);
-    let response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers, signal: c1.signal });
-    clearTimeout(t1);
-    if (response.status === 401 || response.status === 403) {
+    data = await networkManager.loadFromDatabase(username);
+  } catch (err) {
+    if (err?.status === 401 || err?.status === 403) {
       localStorage.removeItem("player_token");
-      // ── إعادة تسجيل الدخول بكلمة مرور فارغة للحسابات القديمة ──
-      const c2 = new AbortController();
-      const t2 = setTimeout(() => c2.abort(), 8000);
-      const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password: '' }),
-        signal: c2.signal
-      });
-      clearTimeout(t2);
-      if (loginRes.ok) {
-        const loginData = await loginRes.json();
-        if (loginData.token) {
+      try {
+        const loginData = await networkManager.post('/api/auth/login', { username, password: '' }, { timeout: 8000 });
+        if (loginData?.token) {
           localStorage.setItem("player_token", loginData.token);
-          const retryHeaders = { "Content-Type": "application/json" };
-          retryHeaders["Authorization"] = `Bearer ${loginData.token}`;
-          const c3 = new AbortController();
-          const t3 = setTimeout(() => c3.abort(), 10000);
-          response = await fetch(`${API_BASE}/api/players/${encodeURIComponent(username)}`, { headers: retryHeaders, signal: c3.signal });
-          clearTimeout(t3);
+          data = await networkManager.loadFromDatabase(username);
         }
-      }
+      } catch { /* old account fallback failed */ }
     }
-    const data = await response.json();
+  }
+  if (!data) return;
+  try {
     if (data && data.cash !== undefined) {
       economy.cash = Math.max(economy.cash, data.cash);
       economy.gems = Math.max(economy.gems, data.gems || 0);
@@ -335,6 +308,10 @@ async function init() {
 
   setProgress(10);
   const PLAYER_USERNAME = await getOrPromptUsername();
+  setProgress(15);
+  
+  networkManager.apiBase = API_BASE;
+  
   setProgress(20);
   
   const economy = new GameEconomy();
@@ -410,7 +387,6 @@ async function init() {
   const reputation = new ReputationManager();
   tradeMarket._priceModifier = () => reputation.tradeModifier;
   window._reputation = reputation;
-  window._reputation = reputation;
   
   setProgress(80);
 
@@ -482,26 +458,16 @@ async function init() {
     economy.addRaw("food", 500);
     if (import.meta.env.DEV) { console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!"); }
     // حفظ فوري في قاعدة البيانات عشان ما يضيع البونص
-    try {
-      const _h = { "Content-Type": "application/json" };
-      const _tok = localStorage.getItem("player_token");
-      if (_tok) _h.Authorization = `Bearer ${_tok}`;
-      fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
-        method: "POST", headers: _h,
-        body: JSON.stringify({ cash: economy.cash, gems: economy.gems, gold: economy.gold, hammers: economy.hammers, scrolls: economy.scrolls, food: economy.food, army_power: economy.power, unitLevel: 1, weapons: [], last_active: Date.now() })
-      }).catch(e => console.warn("[Save] welcome bonus save:", e.message));
-    } catch (e) { console.warn("[Save] welcome bonus error:", e.message); }
+    networkManager.post(`/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
+      cash: economy.cash, gems: economy.gems, gold: economy.gold,
+      hammers: economy.hammers, scrolls: economy.scrolls, food: economy.food,
+      army_power: economy.power, unitLevel: 1, weapons: [], last_active: Date.now()
+    }, { timeout: 5000, retries: 1 }).catch(() => {});
   } else {
     // حفظ حالة الدخول
-    try {
-      const _h = { "Content-Type": "application/json" };
-      const _tok = localStorage.getItem("player_token");
-      if (_tok) _h.Authorization = `Bearer ${_tok}`;
-      fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
-        method: "POST", headers: _h,
-        body: JSON.stringify({ last_active: Date.now() })
-      }).catch(e => console.warn("[Save] login ping save:", e.message));
-    } catch (e) { console.warn("[Save] login ping error:", e.message); }
+    networkManager.post(`/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
+      last_active: Date.now()
+    }, { timeout: 5000, retries: 1 }).catch(() => {});
   }
 
   // حساب المكافآت غير المتصلة (Offline Rewards)
@@ -588,7 +554,7 @@ async function init() {
     ui._tradeMarket = tradeMarket;
     world._ui = ui;
   } catch (err) {
-    console.error("❌ [FATAL] GameUI constructor threw:", err);
+    errorLogger.logError({ type: 'gameInit', message: 'GameUI constructor threw', stack: err?.stack, original: err?.message });
     throw err;
   }
     world.onExit = () => ui.exitWorldMap();
@@ -678,64 +644,57 @@ async function init() {
       const landsState = ui._landsState || {};
       // نسخة احتياطية محلية دائماً
       saveGame(economy, village, army);
-      const saveHeaders = { "Content-Type": "application/json" };
-      const saveToken = localStorage.getItem("player_token");
-      if (saveToken) saveHeaders["Authorization"] = `Bearer ${saveToken}`;
-      fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
-        method: "POST",
-        headers: saveHeaders,
-        body: JSON.stringify({
-          cash: economy.cash,
-          gems: economy.gems,
-          gold: economy.gold,
-          hammers: economy.hammers,
-          scrolls: economy.scrolls,
-          food: economy.food,
-          artifacts: economy.resources.artifacts || 0,
-          desertGem: economy.resources.desertGem || 0,
-          water: economy.resources.water || 0,
-          salt: economy.resources.salt || 0,
-          leather: economy.resources.leather || 0,
-          copper: economy.resources.copper || 0,
-          herbs: economy.resources.herbs || 0,
-          army_power: economy.power,
-          unitLevel: army.unitLevel,
-          trainingLevel: army.trainingLevel,
-          weapons: army.weapons.map(w => ({ id: w.id, level: w.level || 0, upgradeLevel: w.upgradeLevel || 0, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })),
-          equippedWeapon: world._equippedWeapon || "",
-          armyYardLevel: economy.armyYardLevel || 1,
-          knowledgeLevel: economy.knowledgeLevel || 1,
-          knowledgeType: economy.knowledgeType || "economic",
-          buildings: economy.buildings || {},
-          research: economy.research || {},
-          x_position: world.leader ? Math.floor(world.leader.x) : 0,
-          y_position: world.leader ? Math.floor(world.leader.y) : 0,
-          multiplier: economy.multiplier,
-          xp: economy.xp,
-          level: economy.level,
-          allianceLevel: allianceManager.level,
-          upgrades: upgradeTree.levels,
-          researchTree: researchTree ? researchTree.getSaveData() : {},
-          oases: oasisManager.getState().map(o => ({ id: o.id, captured: o.captured })),
-          prestigeLevel: prestige.level,
-          achievements: achievements.getSaveData(),
-          dailyLogin: dailyLogin.getSaveData(),
-          inventory: inventory.getSaveData(),
-          events: events.getSaveData(),
-          tutorial: tutorial.getSaveData(),
-          story: storyManager.getSaveData(),
-          brWins: window._brWinsGlobal || 0,
-          brKills: window._brKillsGlobal || 0,
-          landsState: landsState,
-          hero: hero.getSaveData(),
-          loadout: loadoutManager.getSaveData(),
-          market: tradeMarket.getSaveData(),
-          reputation: reputation.getSaveData(),
-          completedVillages: village.completedVillages,
-          currentChapter: village.currentChapter,
-          last_active: Date.now()
-        })
-      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || r.statusText); }); return r.json(); }).catch(e => console.warn("[Save] saveToDB:", e.message));
+      networkManager.saveToDatabase(PLAYER_USERNAME, {
+        cash: economy.cash,
+        gems: economy.gems,
+        gold: economy.gold,
+        hammers: economy.hammers,
+        scrolls: economy.scrolls,
+        food: economy.food,
+        artifacts: economy.resources.artifacts || 0,
+        desertGem: economy.resources.desertGem || 0,
+        water: economy.resources.water || 0,
+        salt: economy.resources.salt || 0,
+        leather: economy.resources.leather || 0,
+        copper: economy.resources.copper || 0,
+        herbs: economy.resources.herbs || 0,
+        army_power: economy.power,
+        unitLevel: army.unitLevel,
+        trainingLevel: army.trainingLevel,
+        weapons: army.weapons.map(w => ({ id: w.id, level: w.level || 0, upgradeLevel: w.upgradeLevel || 0, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })),
+        equippedWeapon: world._equippedWeapon || "",
+        armyYardLevel: economy.armyYardLevel || 1,
+        knowledgeLevel: economy.knowledgeLevel || 1,
+        knowledgeType: economy.knowledgeType || "economic",
+        buildings: economy.buildings || {},
+        research: economy.research || {},
+        x_position: world.leader ? Math.floor(world.leader.x) : 0,
+        y_position: world.leader ? Math.floor(world.leader.y) : 0,
+        multiplier: economy.multiplier,
+        xp: economy.xp,
+        level: economy.level,
+        allianceLevel: allianceManager.level,
+        upgrades: upgradeTree.levels,
+        researchTree: researchTree ? researchTree.getSaveData() : {},
+        oases: oasisManager.getState().map(o => ({ id: o.id, captured: o.captured })),
+        prestigeLevel: prestige.level,
+        achievements: achievements.getSaveData(),
+        dailyLogin: dailyLogin.getSaveData(),
+        inventory: inventory.getSaveData(),
+        events: events.getSaveData(),
+        tutorial: tutorial.getSaveData(),
+        story: storyManager.getSaveData(),
+        brWins: window._brWinsGlobal || 0,
+        brKills: window._brKillsGlobal || 0,
+        landsState: landsState,
+        hero: hero.getSaveData(),
+        loadout: loadoutManager.getSaveData(),
+        market: tradeMarket.getSaveData(),
+        reputation: reputation.getSaveData(),
+        completedVillages: village.completedVillages,
+        currentChapter: village.currentChapter,
+        last_active: Date.now()
+      }).catch(e => console.warn("[Save] saveToDB:", e.message));
     };
 
     // أي تغيير في الاقتصاد أو الجيش أو القرية = علامة متسخ + حفظ خلفي
@@ -1250,14 +1209,9 @@ async function init() {
           if (r.changed) ui.showNotification(`${reputation.getTitle().icon} أصبحت ${r.newTitle}!`);
         }
         saveToDB(); persistGameSession(economy, village, army);
-        const brHeaders = { "Content-Type": "application/json" };
-        const brToken = localStorage.getItem("player_token");
-        if (brToken) brHeaders.Authorization = `Bearer ${brToken}`;
-        fetch(`${API_BASE}/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
-          method: "POST",
-          headers: brHeaders,
-          body: JSON.stringify({ brWins, brKills: brKillsTotal, last_active: Date.now() })
-        }).catch(e => console.warn("[Save] BR match save:", e.message));
+        networkManager.post(`/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
+          brWins, brKills: brKillsTotal, last_active: Date.now()
+        }, { timeout: 5000, retries: 1 }).catch(() => {});
         ui.updateTopBar();
       } else {
         if (brDefeatScreen) brDefeatScreen.classList.remove('hidden');
@@ -1341,7 +1295,6 @@ async function init() {
       const nextDelay = Math.max(0, TICK_INTERVAL - drift);
       expectedTickTime += TICK_INTERVAL;
       tickTimer = setTimeout(runGameTick, nextDelay);
-      _gameIntervals.push(tickTimer);
     }
     
     function runGameTick() {
@@ -1466,6 +1419,11 @@ async function init() {
       _gameIntervals.length = 0;
       if (tickTimer) { clearTimeout(tickTimer); tickTimer = null; }
       if (_keydownHandler) { document.removeEventListener('keydown', _keydownHandler); _keydownHandler = null; }
+      const pvpModal = document.getElementById("pvp-defeat-modal");
+      if (pvpModal) {
+        const returnBtn = document.getElementById("pvp-defeat-return-btn");
+        if (returnBtn && returnBtn._pvpCountdown) { clearInterval(returnBtn._pvpCountdown); returnBtn._pvpCountdown = null; }
+      }
     };
 
     // اختصارات لوحة المفاتيح
@@ -1493,14 +1451,14 @@ async function init() {
     document.addEventListener('keydown', _keydownHandler);
 
     // تحقق من حالة قاعدة البيانات
-    fetch(`${API_BASE}/health`).then(r => r.json()).then(h => {
-      if (h.mongo === "connected") {
+    networkManager.checkHealth().then(h => {
+      if (h?.mongo === "connected") {
         if (import.meta.env.DEV) { console.log("💾 [DB] قاعدة البيانات متصلة ✅"); }
         ui.setDbStatus(true);
       } else {
         console.warn("💾 [DB] قاعدة البيانات غير متصلة — الحفظ في الذاكرة مؤقتاً");
       }
-    }).catch(() => console.warn("💾 [DB] تعذر التحقق من حالة قاعدة البيانات"));
+    });
 
     document.addEventListener("visibilitychange", () => {
       if (document.hidden && world?.engine) {
@@ -1525,6 +1483,6 @@ const loadingTimer = setTimeout(() => {
 
 init().then(() => clearTimeout(loadingTimer)).catch(err => {
   clearTimeout(loadingTimer);
-  console.error("❌ [FATAL] فشل تهيئة اللعبة:", err, err?.stack);
+  errorLogger.logError({ type: 'initFailed', message: 'فشل تهيئة اللعبة', stack: err?.stack, original: err?.message });
   showLoadingError();
 });

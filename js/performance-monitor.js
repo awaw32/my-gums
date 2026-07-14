@@ -221,6 +221,6 @@ export class PerformanceMonitor {
 export const performanceMonitor = new PerformanceMonitor();
 
 // Expose to window for debugging
-if (import.meta.env.DEV) {
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   window.__performanceMonitor = performanceMonitor;
 }
