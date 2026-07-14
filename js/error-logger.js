@@ -72,7 +72,7 @@ export class ErrorLogger {
       ...errorObj,
       id: this.generateErrorId(),
       sessionId: this.sessionId,
-      env: import.meta.env.MODE,
+      env: import.meta.env?.MODE,
       timestamp: errorObj.timestamp || Date.now(),
       url: window.location.href,
       userAgent: navigator.userAgent,
@@ -88,12 +88,12 @@ export class ErrorLogger {
     }
 
     // Log to console in development
-    if (import.meta.env.DEV) {
+    if (import.meta.env?.DEV) {
       console.error(`[ERROR] ${error.type}:`, error.message, error);
     }
 
     // Send to service if in production and error is critical
-    if (import.meta.env.PROD && this.isCritical(error)) {
+    if (import.meta.env?.PROD && this.isCritical(error)) {
       this.reportToService(error);
     }
   }
@@ -121,7 +121,7 @@ export class ErrorLogger {
       this.warnings.shift();
     }
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env?.DEV) {
       console.warn(`[${component}] ${message}`, metadata);
     }
   }
@@ -216,7 +216,7 @@ export class ErrorLogger {
         }),
       }).catch(e => {
         // Silently fail if logging service is unavailable
-        if (import.meta.env.DEV) console.warn('Logging service unavailable:', e.message);
+        if (import.meta.env?.DEV) console.warn('Logging service unavailable:', e.message);
       });
     } catch {
       // Prevent logging errors from breaking the app
@@ -268,6 +268,6 @@ export class ErrorLogger {
 export const errorLogger = new ErrorLogger();
 
 // Expose to window for debugging
-if (typeof window !== 'undefined' && import.meta.env.DEV) {
+if (typeof window !== 'undefined' && import.meta.env?.DEV) {
   window.__errorLogger = errorLogger;
 }

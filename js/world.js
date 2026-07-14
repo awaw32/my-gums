@@ -326,6 +326,15 @@ export class WorldMap {
       if (this._ui && this._ui.logCombat) this._ui.logCombat('lose', `💥 هُزمت أمام ${tgt.username} | خسرت ${cashLost} 💵`);
     }
 
+    // 🛡️ نتيجة السيرفر (simulatePvPFull) هي المرجع الرسمي — نخزّن ما طبّقناه محلياً
+    // بشكل متفائل كي نستطيع مصالحته مع رد الخادم في pvp_result (network-sync.js)
+    this._pendingPvPRecon = {
+      opponent: tgt.username,
+      cashApplied: won ? reward : -cashLost,
+      powerMultApplied: won ? 1 : 0.9,
+      ts: Date.now(),
+    };
+
     this._sendWS({
       type: "resolve_pvp",
       target: tgt.username,
@@ -793,25 +802,24 @@ export class WorldMap {
     this.spawnMonsters(); // وحوش محلية كبديل (يتم تحديثها من السيرفر عند الاتصال)
     this.spawnTreasureChests(); // 🎁 صناديق الكنز في الخريطة
 
-    // عوائق الصحراء
-    markObstacle(420, 380, 95);
-    markObstacle(780, 520, 70);
-    markObstacle(1150, 290, 110);
-    markObstacle(1420, 680, 85);
-    markObstacle(1680, 410, 65);
-    markObstacle(1950, 850, 120);
-    markObstacle(620, 920, 75);
-    markObstacle(980, 1150, 90);
-    markObstacle(1350, 1320, 55);
-    markObstacle(1720, 1080, 100);
-    markObstacle(2100, 1450, 80);
-    markObstacle(450, 1550, 70);
-    markObstacle(890, 1680, 95);
-    markObstacle(1280, 1820, 65);
-    markObstacle(1600, 1590, 85);
-
-    // مصفوفة عوائق الصخور الظاهرة في الخريطة
+    // 🪨 عوائق/صخور الصحراء — مصفوفة واحدة تُستخدم لكل من التصادم والرسم البصري
+    // (كانت سابقاً مجرد جدران خفية بلا أي تمثيل مرئي على الخريطة)
     this.MAP_OBSTACLES = [
+      { x: 420, y: 380, r: 95 },
+      { x: 780, y: 520, r: 70 },
+      { x: 1150, y: 290, r: 110 },
+      { x: 1420, y: 680, r: 85 },
+      { x: 1680, y: 410, r: 65 },
+      { x: 1950, y: 850, r: 120 },
+      { x: 620, y: 920, r: 75 },
+      { x: 980, y: 1150, r: 90 },
+      { x: 1350, y: 1320, r: 55 },
+      { x: 1720, y: 1080, r: 100 },
+      { x: 2100, y: 1450, r: 80 },
+      { x: 450, y: 1550, r: 70 },
+      { x: 890, y: 1680, r: 95 },
+      { x: 1280, y: 1820, r: 65 },
+      { x: 1600, y: 1590, r: 85 },
       { x: 350, y: 350, r: 40 },   // صخرة شمال غرب
       { x: 1100, y: 250, r: 50 },  // صخرة شمال
       { x: 1850, y: 380, r: 45 },  // صخرة شمال شرق
@@ -1508,6 +1516,7 @@ export class WorldMap {
     }
 
     this.drawSandParticles(ctx);
+    this.drawMapObstacles(ctx);
     this.drawPathLine(ctx, cam);
     this.drawBRZone(ctx);
 
@@ -2037,6 +2046,40 @@ export class WorldMap {
       if (p.x < 0 || p.x > this.W) p.vx *= -1;
       if (p.y < 0 || p.y > this.H) p.vy *= -1;
     }
+  }
+
+  /** 🪨 رسم صخور/عوائق الخريطة كمعالم بصرية تطابق مناطق التصادم الفعلية (this.MAP_OBSTACLES) */
+  drawMapObstacles(ctx) {
+    if (!this.MAP_OBSTACLES) return;
+    ctx.save();
+    for (const rock of this.MAP_OBSTACLES) {
+      const { x, y, r } = rock;
+      // ظل أسفل الصخرة
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      ctx.beginPath();
+      ctx.ellipse(x, y + r * 0.55, r * 0.9, r * 0.32, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+      grad.addColorStop(0, "#a8998a");
+      grad.addColorStop(0.55, "#8a7a6a");
+      grad.addColorStop(1, "#5c4d3f");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(x, y, r * 0.85, r * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // بقع تظليل بسيطة لإحساس صخري خشن
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      ctx.beginPath();
+      ctx.ellipse(x + r * 0.25, y + r * 0.1, r * 0.3, r * 0.18, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.10)";
+      ctx.beginPath();
+      ctx.ellipse(x - r * 0.28, y - r * 0.25, r * 0.22, r * 0.14, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   drawSandParticles(ctx) {

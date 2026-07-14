@@ -27,7 +27,7 @@ export class PerformanceMonitor {
     this.fpsUpdateInterval = 1000; // Update FPS every second
     this.lastFpsUpdate = this.lastTime;
 
-    this.enabled = import.meta.env.DEV; // Only enable in dev mode
+    this.enabled = import.meta.env?.DEV; // Only enable in dev mode
     this.listeners = [];
   }
 
@@ -221,6 +221,6 @@ export class PerformanceMonitor {
 export const performanceMonitor = new PerformanceMonitor();
 
 // Expose to window for debugging
-if (typeof window !== 'undefined' && import.meta.env.DEV) {
+if (typeof window !== 'undefined' && import.meta.env?.DEV) {
   window.__performanceMonitor = performanceMonitor;
 }

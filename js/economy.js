@@ -195,7 +195,7 @@ export class GameEconomy {
       const mult = this._events.getMult("mult_xp");
       if (mult > 1) amount = Math.floor(amount * mult);
     }
-    this.xp += amount;
+    this.xp = Math.max(0, this.xp + amount);
     let leveled = false;
     while (this.xp >= this.xpToNext && this.level < this.maxLevel) {
       this.xp -= this.xpToNext;

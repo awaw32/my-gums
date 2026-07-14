@@ -57,9 +57,12 @@ function resolveMonsterKill(playerData, monster, now) {
     if (!wasPhased && ab.type === "dodge" && Math.random() < (ab.chance || 0)) { wasDodged = true; finalDamage = 0; }
   }
 
-  const remaining = monster.hp - finalDamage;
-  monster.hp = Math.max(0, remaining);
-  const killed = remaining <= 0;
+  // العميل يُرسل "monster_killed" بعد قتال متعدد الضربات محاكى محلياً (بطل + جيش)،
+  // لذا لا يصح اشتراط أن ضربة خادم واحدة تُنهي كامل صحة الوحش لمنح القتل.
+  // الخادم يتحقق فعلاً من المسافة/وقت الظهور/عدم التكرار قبل الوصول هنا (worldHandler.js)،
+  // والقدرات الخاصة (تفادي/اختفاء) هي الاستثناء الوحيد الذي قد يُنجي الوحش من الضربة الأخيرة.
+  const killed = !wasDodged && !wasPhased;
+  monster.hp = killed ? 0 : Math.max(1, monster.hp - finalDamage);
 
   if (ab && !wasDodged && !killed) {
     const cd = monster._abilityCooldowns;

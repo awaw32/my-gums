@@ -289,36 +289,31 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         }
         _pvpCooldowns.set(username, now);
 
-        // حساب المعركة من الخادم بشكل حاسم
+        // حساب المعركة من الخادم بشكل حاسم — هذه هي النتيجة الرسمية الوحيدة المعتمدة
         const battle = simulatePvPFull(c, tc);
         const won = battle.attackerWon;
-        const attackerLoot = computeLoot(tc.army_power || 5000, !won);
-        const defenderLoot = computeLoot(c.army_power || 5000, won);
-        const validatedLoot = Math.min(attackerLoot.cash, 50000);
-        const validatedReward = Math.min(defenderLoot.cash, 25000);
+        const loserClient = won ? tc : c;
+        const winnerGain = Math.min(computeLoot(loserClient.army_power || 5000, true).cash, 25000);
+        const loserLoss = Math.min(computeLoot(loserClient.army_power || 5000, false).cash, 50000);
 
+        // رسالة موحّدة غير ملتبسة لكل طرف: cashDelta موقّع (موجب = ربح، سالب = خسارة)
         if (tc.ws.readyState === 1) {
           tc.ws.send(JSON.stringify({
             type: "pvp_result",
-            attacker: username,
+            opponent: username,
             won: !won,
-            loot: won ? 0 : validatedLoot,
-            reward: won ? 0 : validatedReward,
+            cashDelta: won ? -loserLoss : winnerGain,
             myPower: msg.myPower || 0,
           }));
         }
         if (c.ws.readyState === 1) {
           c.ws.send(JSON.stringify({
             type: "pvp_result",
-            attacker: targetName,
+            opponent: targetName,
             won,
-            loot: won ? validatedLoot : 0,
-            reward: won ? validatedReward : 0,
+            cashDelta: won ? winnerGain : -loserLoss,
             myPower: 0,
           }));
-        }
-        if (!won && validatedLoot > 0 && tc) {
-          tc.sessionCoins = Math.max(0, (tc.sessionCoins || 0) - validatedLoot);
         }
         if (won) {
           const despawnMsg = JSON.stringify({ type: "player_despawn", username: targetName });

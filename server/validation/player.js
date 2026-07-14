@@ -33,6 +33,7 @@ const PlayerSaveSchema = z.object({
   army_power: z.number().min(0).max(1e15).optional(),
   x_position: z.number().min(0).max(10000).optional(),
   y_position: z.number().min(0).max(10000).optional(),
+  kills: z.number().int().min(0).max(1e9).optional(),
   last_active: z.number().int().positive().optional(),
   unitLevel: z.number().int().min(1).max(1000).optional(),
   trainingLevel: z.number().int().min(1).max(1000).optional(),
@@ -61,7 +62,11 @@ const PlayerSaveSchema = z.object({
   hero: z.record(z.any()).optional(),
   loadout: z.record(z.any()).optional(),
   market: z.record(z.any()).optional(),
-  reputation: z.number().int().min(-10000).max(10000).optional(),
+  reputation: z.object({ score: z.number().int().min(-10000).max(10000) }).optional(),
+  multiplier: z.number().min(0).max(1000).optional(),
+  researchTree: z.record(z.any()).optional(),
+  completedVillages: z.array(z.string()).max(50).optional(),
+  currentChapter: z.number().int().min(1).max(100).optional(),
 }).strict();
 
 function sanitizePlayerData(data) {

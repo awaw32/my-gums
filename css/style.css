@@ -821,9 +821,9 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   .top-avatar { width: 28px; height: 28px; font-size: 0.85rem; }
   .top-level-track { width: 36px; }
   .top-level-label { font-size: 0.5rem; }
-  .top-resources { gap: 1px; }
-  .top-res { padding: 1px 3px; font-size: 0.5rem; border-radius: 10px; }
-  .top-res .res-val { font-size: 0.5rem; min-width: 16px; }
+  .top-resources { gap: 1px; flex-wrap: wrap; justify-content: center; }
+  .top-res { padding: 1px 4px; font-size: 0.68rem; border-radius: 10px; }
+  .top-res .res-val { font-size: 0.68rem; min-width: 16px; }
   .csb-icon { width: 34px; height: 34px; font-size: 1rem; }
   .csb-label { font-size: 0.5rem; }
   .map-building { padding: 10px 6px; min-height: 110px; }
@@ -2118,9 +2118,9 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 }
 @media (max-width: 440px) {
   .top-resources { flex-wrap: wrap; gap: 1px; justify-content: center; }
-  .top-res { padding: 1px 4px; gap: 1px; font-size: 0.5rem; }
-  .top-res .res-val { font-size: 0.5rem; min-width: 14px; }
-  .top-res .res-icon { font-size: 0.55rem; width:14px; height:14px; }
+  .top-res { padding: 1px 4px; gap: 1px; font-size: 0.68rem; }
+  .top-res .res-val { font-size: 0.68rem; min-width: 16px; }
+  .top-res .res-icon { font-size: 0.7rem; width:16px; height:16px; }
 }
 @media (max-width: 280px) {
   .top-resources { flex-wrap: wrap; justify-content: center; }

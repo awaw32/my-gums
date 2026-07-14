@@ -144,7 +144,7 @@ export class NetworkManager {
   async saveToDatabase(username, data) {
     // Prevent concurrent saves
     if (this.saveLock) {
-      if (import.meta.env.DEV) {
+      if (import.meta.env?.DEV) {
         console.warn('⚠️ [Network] Save already in progress, skipping...');
       }
       return false;
@@ -293,6 +293,6 @@ export class NetworkManager {
 // Global singleton
 export const networkManager = new NetworkManager();
 
-if (import.meta.env.DEV) {
+if (import.meta.env?.DEV) {
   window.__networkManager = networkManager;
 }

@@ -209,6 +209,8 @@ export class GameUI {
   }
 
   initStory() {
+    // 🛡️ main.js يتولى بالفعل تسلسل السينمائيك + مشاهد القصة للاعب الجديد — لا تكرر العرض
+    if (window._newPlayerStoryPending) return;
     const storyManager = window._storyManager;
     if (!storyManager || !storyManager.canShowStory()) {
       // لا توجد مشاهد قصة — ابدأ التدريب مباشرة إذا كان مطلوباً
@@ -242,10 +244,14 @@ export class GameUI {
     const hasChoices = scene.choices && scene.choices.length > 0;
     const alreadyChosen = hasChoices ? storyManager.getChoiceForScene(scene.id) : null;
 
+    // 🛡️ منع تراكب نافذتي قصة فوق بعضهما إذا استُدعيت الدالة مرتين
+    const existing = document.getElementById("story-overlay");
+    if (existing) existing.remove();
+
     const overlay = document.createElement("div");
     overlay.id = "story-overlay";
     overlay.className = "story-overlay";
-    
+
     // بناء أزرار الخيارات
     let choicesHtml = '';
     if (hasChoices && alreadyChosen === null) {
@@ -343,6 +349,10 @@ export class GameUI {
   _showBossScene(scene, callback) {
     const storyManager = window._storyManager;
     if (!storyManager) return;
+
+    // 🛡️ منع تراكب نافذتي قصة فوق بعضهما إذا استُدعيت الدالة مرتين
+    const existing = document.getElementById("story-overlay");
+    if (existing) existing.remove();
 
     const overlay = document.createElement("div");
     overlay.id = "story-overlay";

@@ -281,7 +281,7 @@ async function loadFromDatabase(economy, army, village, username) {
       if (data.x_position != null && data.y_position != null) {
         window._loadedPosition = { x: data.x_position, y: data.y_position };
       }
-      if (import.meta.env.DEV) { console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!"); }
+      if (import.meta.env?.DEV) { console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!"); }
     }
   } catch (err) {
     console.warn("⚠️ [API] لم يتم العثور على بيانات سابقة، سنبدأ من الصفر:", err.message);
@@ -456,7 +456,7 @@ async function init() {
     economy.addRaw("hammers", 1000);
     economy.addRaw("scrolls", 1000);
     economy.addRaw("food", 500);
-    if (import.meta.env.DEV) { console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!"); }
+    if (import.meta.env?.DEV) { console.log("🎉 [بونص] تم منح الرصيد الترحيبي للاعب الجديد!"); }
     // حفظ فوري في قاعدة البيانات عشان ما يضيع البونص
     networkManager.post(`/api/players/${encodeURIComponent(PLAYER_USERNAME)}`, {
       cash: economy.cash, gems: economy.gems, gold: economy.gold,
@@ -533,11 +533,19 @@ async function init() {
 
   // تشغيل السينماتيك للمستخدم الجديد
   if (!hasSavedData) {
+    // 🛡️ يمنع GameUI.initStory() من تشغيل مشهد قصة ثانٍ متزامن (كان يسبب تراكب نافذتين)
+    window._newPlayerStoryPending = true;
     setTimeout(() => {
       storyManager.playCinematicIntro().then(() => {
         // بعد السينماتيك، عرض مشهد الفصل الأول
         if (storyManager.hasMoreScenes()) {
-          setTimeout(() => ui.showStoryScene(() => {}), 500);
+          setTimeout(() => ui.showStoryScene(() => {
+            window._newPlayerStoryPending = false;
+            ui.initTutorial();
+          }), 500);
+        } else {
+          window._newPlayerStoryPending = false;
+          ui.initTutorial();
         }
       });
     }, 1000);
@@ -1202,8 +1210,12 @@ async function init() {
         if (titleEl) titleEl.textContent = titleText;
         const iconEl = brVictoryScreen?.querySelector('.victory-icon');
         if (iconEl) iconEl.textContent = icon;
-        economy.addRaw('gems', (result.bonusGems || 0) + 100 + (result.kills || 0) * 10);
-        economy.addRaw('gold', (result.bonusGold || 0) + 50 + (result.kills || 0) * 5);
+        // 🛡️ مسار الإخلاء (extraction) يمنح مكافأته بالفعل في world.js._doBRExtraction() —
+        // لا نكررها هنا؛ فقط "آخر لاعب صامد" يحصل على المكافأة الثابتة من هذا المسار
+        if (result.reason !== "extraction") {
+          economy.addRaw('gems', (result.bonusGems || 0) + 100 + (result.kills || 0) * 10);
+          economy.addRaw('gold', (result.bonusGold || 0) + 50 + (result.kills || 0) * 5);
+        }
         if (reputation) {
           const r = reputation.addScore(10 + (result.kills || 0) * 2, "br_win");
           if (r.changed) ui.showNotification(`${reputation.getTitle().icon} أصبحت ${r.newTitle}!`);
@@ -1453,7 +1465,7 @@ async function init() {
     // تحقق من حالة قاعدة البيانات
     networkManager.checkHealth().then(h => {
       if (h?.mongo === "connected") {
-        if (import.meta.env.DEV) { console.log("💾 [DB] قاعدة البيانات متصلة ✅"); }
+        if (import.meta.env?.DEV) { console.log("💾 [DB] قاعدة البيانات متصلة ✅"); }
         ui.setDbStatus(true);
       } else {
         console.warn("💾 [DB] قاعدة البيانات غير متصلة — الحفظ في الذاكرة مؤقتاً");

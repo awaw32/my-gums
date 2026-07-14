@@ -46,6 +46,17 @@ class IsometricSystem {
    * Generate a procedural tile map.
    */
   generateTileMap(seed = 42) {
+    // 🗺️ اضبط حجم الترابيع بحيث يغطي مسقطها الإيزومتري (isoToScreen) كامل مساحة
+    // الخريطة (mapW×mapH) دون قص أو فراغات — كانت الشبكة الثابتة 48×48 بحجم 64×32
+    // تنتج مسقطاً أصغر بكثير من مساحة الخريطة الفعلية، ما يترك أكثر من نصفها فارغاً.
+    const refCornerY = ((TILE_COLS - 1) * TILE_W + (TILE_ROWS - 1) * TILE_H) * 0.25;
+    const refCornerXSpan = (TILE_COLS - 1) * TILE_W * 0.5 + (TILE_ROWS - 1) * TILE_H * 0.5;
+    const scaleY = (this.mapH * 1.15) / Math.max(1, refCornerY);
+    const scaleX = (this.mapW * 1.15) / Math.max(1, refCornerXSpan);
+    const scale = Math.max(1, scaleY, scaleX);
+    this._tileW = TILE_W * scale;
+    this._tileH = TILE_H * scale;
+
     this.tileMap = [];
     const rng = this._mulberry32(seed);
 
@@ -92,12 +103,35 @@ class IsometricSystem {
 
   /**
    * Pre-render the tile map to an offscreen canvas for performance.
+   * The canvas is sized to the actual projected bounding box of the tile
+   * grid (not mapW×mapH directly) and offset so no tile is clipped by a
+   * negative coordinate — see generateTileMap() for the scale rationale.
    */
   _preRenderTiles() {
+    const tileW = this._tileW || TILE_W;
+    const tileH = this._tileH || TILE_H;
+    const hw = tileW / 2, hh = tileH / 2, depth = Math.max(6, tileH * 0.2);
+
+    // احسب حدود الإسقاط الفعلية لأركان الشبكة الأربعة لتفادي أي قص
+    const corners = [
+      this.isoToScreen(0, 0),
+      this.isoToScreen((TILE_COLS - 1) * tileW, 0),
+      this.isoToScreen(0, (TILE_ROWS - 1) * tileH),
+      this.isoToScreen((TILE_COLS - 1) * tileW, (TILE_ROWS - 1) * tileH),
+    ];
+    const minX = Math.min(...corners.map(c => c.x)) - hw;
+    const maxX = Math.max(...corners.map(c => c.x)) + hw;
+    const minY = Math.min(...corners.map(c => c.y)) - hh;
+    const maxY = Math.max(...corners.map(c => c.y)) + hh + depth;
+
+    this._tileDrawOffsetX = minX;
+    this._tileDrawOffsetY = minY;
+
     const canvas = document.createElement("canvas");
-    canvas.width = this.mapW;
-    canvas.height = this.mapH;
+    canvas.width = Math.ceil(maxX - minX);
+    canvas.height = Math.ceil(maxY - minY);
     const ctx = canvas.getContext("2d");
+    ctx.translate(-minX, -minY);
 
     for (let r = 0; r < TILE_ROWS; r++) {
       for (let c = 0; c < TILE_COLS; c++) {
@@ -114,10 +148,12 @@ class IsometricSystem {
    * Draw a single isometric tile (diamond shape).
    */
   _drawIsoTile(ctx, col, row, colors) {
-    const { x, y } = this.isoToScreen(col * TILE_W, row * TILE_H);
-    const hw = TILE_W / 2;
-    const hh = TILE_H / 2;
-    const depth = 6;
+    const tileW = this._tileW || TILE_W;
+    const tileH = this._tileH || TILE_H;
+    const { x, y } = this.isoToScreen(col * tileW, row * tileH);
+    const hw = tileW / 2;
+    const hh = tileH / 2;
+    const depth = Math.max(6, tileH * 0.2);
 
     // Top face
     ctx.fillStyle = colors.top;
@@ -155,7 +191,7 @@ class IsometricSystem {
    */
   drawTiles(ctx) {
     if (this._tileCanvas) {
-      ctx.drawImage(this._tileCanvas, 0, 0);
+      ctx.drawImage(this._tileCanvas, this._tileDrawOffsetX || 0, this._tileDrawOffsetY || 0);
     }
   }
 
@@ -197,8 +233,8 @@ class IsometricSystem {
    */
   getTileAt(wx, wy) {
     if (!this.tileMap) return TILE_SAND;
-    const col = Math.floor(wx / TILE_W);
-    const row = Math.floor(wy / TILE_H);
+    const col = Math.floor(wx / (this._tileW || TILE_W));
+    const row = Math.floor(wy / (this._tileH || TILE_H));
     if (row < 0 || row >= TILE_ROWS || col < 0 || col >= TILE_COLS) return TILE_SAND;
     return this.tileMap[row][col];
   }

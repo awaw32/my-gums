@@ -123,7 +123,6 @@ export class NetworkSync {
         method: "POST",
         headers: this._authHeaders(),
         body: JSON.stringify({
-          username: this.username,
           x_position: Math.floor(w.leader.x),
           y_position: Math.floor(w.leader.y),
           army_power: w.economy ? w.economy.power : 5000,
@@ -322,6 +321,11 @@ export class NetworkSync {
       case "monster_hit": {
         const mh = w.monsters.find(m => m.id === msg.id);
         if (mh) { mh.hp = msg.hp; mh.maxHp = msg.maxHp; }
+        // 🛡️ إذا تفادى الوحش الضربة الأخيرة أو اختفى (phase)، فهو لم يمت فعلياً على الخادم —
+        // لكن العميل ربما "قتله" محلياً بتفاؤل زائد؛ أعده حياً فوراً بدل انتظار مزامنة world_monsters
+        if ((msg.dodged || msg.phased) && mh && !mh.alive) {
+          mh.alive = true;
+        }
         if (msg.returnDamage > 0 && w.leader) {
           w.leader.hp = Math.max(0, w.leader.hp - msg.returnDamage);
         }
@@ -373,11 +377,43 @@ export class NetworkSync {
         break;
       }
       case "pvp_result": {
-        if (w.store) {
-          const text = msg.won
-            ? `⚔️ انتصرت على ${msg.attacker}! مكافأة: ${msg.reward} 💵`
-            : `⚔️ هُزمت أمام ${msg.attacker}! خسارة: ${msg.loot} 💵`;
-          w.store.set('notification', { text, t: Date.now() });
+        // 🛡️ نتيجة الخادم (simulatePvPFull) هي الرسمية. إن كنتُ المهاجم وسبق أن طبّقت
+        // نتيجة متفائلة محلياً في resolvePvP()، صالِح الفارق إن اختلفت النتيجتان.
+        // إن لم تكن هناك مصالحة معلّقة (أنا المُدافَع عليّ)، طبّق cashDelta مباشرة —
+        // لم يكن يُطبَّق أي أثر اقتصادي على المدافع من قبل.
+        const recon = w._pendingPvPRecon;
+        const iAmAttacker = recon && recon.opponent === msg.opponent && (Date.now() - recon.ts) < 15000;
+        if (iAmAttacker) {
+          w._pendingPvPRecon = null;
+          const wonMismatch = (recon.cashApplied > 0) !== msg.won;
+          if (wonMismatch && w.economy) {
+            // اعكس ما طُبّق محلياً بالخطأ، وطبّق نتيجة الخادم الصحيحة
+            w.economy.addRaw('cash', -recon.cashApplied);
+            if (recon.powerMultApplied !== 1 && w.economy.multiplier) {
+              w.economy.multiplier = Math.min(1, w.economy.multiplier / recon.powerMultApplied);
+            }
+            w.economy.addRaw('cash', msg.cashDelta || 0);
+            if (w.store) {
+              w.store.set('notification', {
+                text: msg.won ? `✅ صحّح الخادم النتيجة: لقد انتصرت فعلاً على ${msg.opponent}!` : `⚠️ صحّح الخادم النتيجة: لقد خسرت فعلياً أمام ${msg.opponent}`,
+                t: Date.now()
+              });
+            }
+          } else if (w.store) {
+            const text = msg.won
+              ? `⚔️ انتصرت على ${msg.opponent}! مكافأة: ${msg.cashDelta} 💵`
+              : `⚔️ هُزمت أمام ${msg.opponent}! خسارة: ${Math.abs(msg.cashDelta || 0)} 💵`;
+            w.store.set('notification', { text, t: Date.now() });
+          }
+        } else {
+          // أنا المُدافَع عليّ — لم يُطبَّق أي شيء محلياً بعد، طبّق نتيجة الخادم مباشرة
+          if (w.economy && msg.cashDelta) w.economy.addRaw('cash', msg.cashDelta);
+          if (w.store) {
+            const text = msg.won
+              ? `🛡️ صددت هجوم ${msg.opponent}! +${msg.cashDelta} 💵`
+              : `💥 هاجمك ${msg.opponent} وهزمك! -${Math.abs(msg.cashDelta || 0)} 💵`;
+            w.store.set('notification', { text, t: Date.now() });
+          }
         }
         break;
       }
