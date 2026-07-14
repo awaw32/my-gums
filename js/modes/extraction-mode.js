@@ -1,3 +1,5 @@
+import { showModeResultScreen } from "../ui/context-menu.js";
+
 export class ExtractionMode {
   // Extraction mode constants:
   // Map: 2400x2400, monster spawn margin 150px, deposit zone min distance 400px
@@ -167,18 +169,31 @@ export class ExtractionMode {
     this._extractionTimer -= dt;
     if (this._extractionTimer <= 0) {
       this._extractionActive = false;
-      if (this._totalDeposited > 0) {
-        const bonus = Math.floor(this._totalDeposited * 0.2);
+      const bonus = this._totalDeposited > 0 ? Math.floor(this._totalDeposited * 0.2) : 0;
+      if (bonus > 0) {
         w.sessionStats.coinsEarned += bonus;
         w.worldFx.push({ x: w.leader.x, y: w.leader.y, text: `⏰ انتهى الوقت! مكافأة: +${bonus} 💵`, color: "#FFD700", life: 3, maxLife: 3 });
+      }
+      if (typeof document !== "undefined") {
+        showModeResultScreen(w, {
+          won: this._totalDeposited > 0,
+          icon: "⏰",
+          title: this._totalDeposited > 0 ? "انتهى الوقت — استخراج ناجح!" : "انتهى الوقت بلا استخراج",
+          stats: [
+            { label: "إجمالي المُسلَّم", value: `${this._totalDeposited} 🪙` },
+            { label: "عدد القتلى", value: this._extractionKills },
+            { label: "المستوى", value: this._extractionLevel },
+          ],
+          rewardLine: bonus > 0 ? `+${bonus} 💵 مكافأة إتمام` : undefined,
+        });
       }
       return;
     }
 
-    // تقليل السرعة حسب الوزن
+    // تقليل السرعة حسب الوزن — مع تعويض جزئي من ترقية السرعة المشتراة
     const weight = this._carryingGold / this._getMaxBag();
     const speedMult = Math.max(0.4, 1 - weight * 0.6);
-    w.leader.speed = 140 * speedMult;
+    w.leader.speed = this._getBaseSpeed() * speedMult;
 
     // تحديث الوحوش المسالمة
     for (const m of w.monsters) {
@@ -303,6 +318,11 @@ export class ExtractionMode {
     return this._carryingMax + (this._currentUpgrades.bagSize - 1) * 100;
   }
 
+  /** 🏃 السرعة الأساسية قبل خصم الوزن — ترقية "السرعة" تزيدها فعلياً (كانت مشتراة بلا أي تأثير) */
+  _getBaseSpeed() {
+    return 140 + (this._currentUpgrades.speed - 1) * 12;
+  }
+
   getUpgradeCost(type) {
     const fn = this._upgradeCosts[type];
     if (!fn) return 0;
@@ -328,38 +348,39 @@ export class ExtractionMode {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const dpr = window.devicePixelRatio || 1;
     ctx.scale(dpr, dpr);
-    const cw = ctx.canvas.width / dpr;
+    // 🛡️ إزاحة رأسية بمقدار ارتفاع الشريط العلوي كي لا يُخفي الشريط أعلى اللوحة
+    const oy = 62;
 
-    // شريط الحالة أعلى اليمين
+    // شريط الحالة أعلى اليسار (بمنأى عن لوحة اللاعبين/الخريطة المصغّرة على اليمين)
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     const panelW = 220;
-    ctx.fillRect(cw - panelW - 8, 8, panelW, 110);
+    ctx.fillRect(8, 8 + oy, panelW, 110);
 
     ctx.fillStyle = "#FFD700";
     ctx.font = "bold 13px Cairo, sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(`🪙 ${this._carryingGold}/${this._getMaxBag()}`, cw - 14, 28);
+    ctx.textAlign = "left";
+    ctx.fillText(`🪙 ${this._carryingGold}/${this._getMaxBag()}`, 14, 28 + oy);
 
     ctx.fillStyle = "#4cd964";
     ctx.font = "bold 11px Cairo, sans-serif";
-    ctx.fillText(`✅ المسلَّم: ${this._totalDeposited}`, cw - 14, 48);
+    ctx.fillText(`✅ المسلَّم: ${this._totalDeposited}`, 14, 48 + oy);
 
     ctx.fillStyle = "#ff6b6b";
     const mins = Math.floor(this._extractionTimer / 60);
     const secs = Math.floor(this._extractionTimer % 60);
-    ctx.fillText(`⏱ ${mins}:${secs.toString().padStart(2, '0')}`, cw - 14, 68);
+    ctx.fillText(`⏱ ${mins}:${secs.toString().padStart(2, '0')}`, 14, 68 + oy);
 
     ctx.fillStyle = "#a29bfe";
-    ctx.fillText(`📦 الحقيبة Lv.${this._currentUpgrades.bagSize}`, cw - 14, 88);
+    ctx.fillText(`📦 الحقيبة Lv.${this._currentUpgrades.bagSize}`, 14, 88 + oy);
 
     ctx.fillStyle = "#fdcb6e";
-    ctx.fillText(`🏆 المستوى ${this._extractionLevel}`, cw - 14, 108);
+    ctx.fillText(`🏆 المستوى ${this._extractionLevel}`, 14, 108 + oy);
 
     // شريط XP للاستخراج (تحت شريط الذهب)
     const xpW = 200;
     const xpH = 6;
-    const xpX = cw - panelW - 8 + 10;
-    const xpY = 118;
+    const xpX = 18;
+    const xpY = 118 + oy;
     const xpRatio = this._extractionXp / this._extractionXpToNext;
     ctx.fillStyle = "rgba(0,0,0,0.5)";
     ctx.fillRect(xpX, xpY, xpW, xpH);
@@ -371,8 +392,8 @@ export class ExtractionMode {
     if (weightRatio > 0.5) {
       ctx.fillStyle = `rgba(255, 107, 107, ${(weightRatio - 0.5) * 0.5})`;
       ctx.font = "bold 10px Cairo, sans-serif";
-      ctx.textAlign = "right";
-      ctx.fillText(`⚖️ ${Math.floor(weightRatio * 100)}%`, cw - 14, 138);
+      ctx.textAlign = "left";
+      ctx.fillText(`⚖️ ${Math.floor(weightRatio * 100)}%`, 14, 138 + oy);
     }
 
     ctx.restore();

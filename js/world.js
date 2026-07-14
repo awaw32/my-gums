@@ -111,8 +111,6 @@ export class WorldMap {
     this.safeZone = { x: this.W / 2 - 120, y: this.H / 2 - 120, w: 240, h: 240 };
     this.worldFx = [];
     this.sandParticles = this._initSandParticles(60);
-    this.miniMapSize = 100;
-    this.miniMapMargin = 8;
     this._newbieShieldTimer = 120; // 2 دقيقة حماية للمبتدئين
     this._combatLog = [];
 
@@ -1316,7 +1314,13 @@ export class WorldMap {
 
   onWipe() {
     this._invulnerableTimer = 3;
-    if (this._activeMode && typeof this._activeMode.onWipe === 'function') this._activeMode.onWipe();
+    // 🛡️ إذا كان النمط النشط ينهي "جولته" بالموت (مثل الحشد) ويعرض شاشة نتيجة خاصة به،
+    // نتجنب ازدواج شاشة الهزيمة العامة فوقها. الأنماط الأخرى (كهف/استخراج) تستمر جولتها
+    // بعد الموت فتبقى شاشة الهزيمة العامة مناسبة لها كما هي.
+    let modeHandledScreen = false;
+    if (this._activeMode && typeof this._activeMode.onWipe === 'function') {
+      modeHandledScreen = this._activeMode.onWipe() === true;
+    }
     this._cancelPvPAttack();
     this._pvpDefeatShown = false;
     const pvpModal = document.getElementById("pvp-defeat-modal");
@@ -1338,7 +1342,7 @@ export class WorldMap {
     this.leader.y = this.H / 2;
     this.leader.path = null;
     this.initArmyUnits(8);
-    this._showWipeScreen(lost, killed);
+    if (!modeHandledScreen) this._showWipeScreen(lost, killed);
     if (this.store) this.store.set('notification', { text: `💀 هُزمت! خسرت ${lost} 💵`, t: Date.now() });
     if (this._onWipe) this._onWipe(lost, killed);
   }
@@ -1529,13 +1533,13 @@ export class WorldMap {
     }
     this._drawTelegraphs(ctx);
     this.drawWorldFx(ctx);
-    this.drawMiniMap(ctx, cam);
+    // 🗺️ الخريطة المصغّرة الآن عنصر DOM واحد فقط (#mini-map) بدل نسختين متزاحمتين
 
     ctx.restore();
 
     this.drawArmyHUD(dt, ctx);
     this.drawPvPMenu(ctx, cam);
-    this.drawBRUI(ctx);
+    // 🛡️ واجهة BR (المؤقت/اللاعبون/القتلى) عنصر DOM واحد فقط (#br-timer/#br-players/#br-kills) — لا نسخة مكررة على الـ canvas
     if (this._activeMode) this._activeMode.drawUI(ctx);
   }
 
@@ -2797,63 +2801,6 @@ export class WorldMap {
     }
   }
 
-  drawMiniMap(ctx, cam) {
-    const size = this.miniMapSize;
-    const m = this.miniMapMargin;
-    const sx = ctx.canvas.width / (window.devicePixelRatio || 1) - size - m;
-    const sy = m + 30;
-
-    ctx.save();
-    ctx.translate(0, 0);
-
-    // خلفية
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(sx, sy, size, size);
-    ctx.strokeStyle = "rgba(255,215,0,0.3)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(sx, sy, size, size);
-
-    const scale = size / this.W;
-
-    // رسم الوحوش
-    for (const mon of this.monsters) {
-      if (!mon.alive) continue;
-      ctx.fillStyle = mon.color;
-      ctx.fillRect(sx + mon.x * scale - 1, sy + mon.y * scale - 1, 3, 3);
-    }
-
-    // 🎁 رسم صناديق الكنز على الميني ماب
-    for (const c of this.treasureChests) {
-      if (c.opened) continue;
-      ctx.fillStyle = "#FFD700";
-      ctx.beginPath();
-      ctx.arc(sx + c.x * scale + 0.5, sy + c.y * scale + 0.5, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // رسم لاعبين آخرين
-    for (const [, p] of this.otherPlayers) {
-      ctx.fillStyle = p.color || "#3a5a8a";
-      ctx.fillRect(sx + p.x * scale - 1, sy + p.y * scale - 1, 3, 3);
-    }
-
-    // رسم القائد
-    ctx.fillStyle = "#FFD700";
-    ctx.beginPath();
-    ctx.arc(sx + this.leader.x * scale, sy + this.leader.y * scale, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // نافذة الكاميرا
-    ctx.strokeStyle = "rgba(255,255,255,0.3)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(
-      sx + cam.x * scale, sy + cam.y * scale,
-      cam.w * scale, cam.h * scale
-    );
-
-    ctx.restore();
-  }
-
   // ==================== Battle Royale Methods ====================
   // BR constants: map size 2000px, zone starts at 45% of map, min zone 100px,
   // shrink every 30s, extraction zone radius 70px, spawn margin 120px
@@ -3231,35 +3178,6 @@ export class WorldMap {
       ctx.fillRect(-14, -22, 28 * hpPct, 3);
       ctx.restore();
     }
-  }
-
-  drawBRUI(ctx) {
-    if (this.mode !== "battle_royale") return;
-    ctx.save();
-    ctx.translate(0, 0);
-    // مؤقت المباراة (أعلى وسط)
-    const timer = Math.max(0, Math.ceil(this.matchTimer));
-    const min = String(Math.floor(timer / 60)).padStart(2, "0");
-    const sec = String(timer % 60).padStart(2, "0");
-    const timerText = `${min}:${sec}`;
-    ctx.font = "bold 22px Cairo, monospace";
-    ctx.textAlign = "center";
-    ctx.fillStyle = timer < 60 ? "#ff4444" : "#FFD700";
-    ctx.shadowColor = "rgba(0,0,0,0.8)";
-    ctx.shadowBlur = 8;
-    ctx.fillText(timerText, ctx.canvas.width / 2 / (window.devicePixelRatio || 1), 50);
-    ctx.shadowBlur = 0;
-    // عدد اللاعبين (أعلى يسار)
-    ctx.textAlign = "left";
-    ctx.font = "bold 14px Cairo, sans-serif";
-    ctx.fillStyle = "#fdf6e3";
-    ctx.fillText(`👥 ${this.otherPlayers.size + 1}`, 12, 30);
-    // القتلى (أعلى يمين)
-    ctx.textAlign = "right";
-    ctx.fillStyle = "#ff6b6b";
-    const w = ctx.canvas.width / (window.devicePixelRatio || 1);
-    ctx.fillText(`⚔️ ${this.brKills}`, w - 12, 30);
-    ctx.restore();
   }
 
   enterWorldMap() {

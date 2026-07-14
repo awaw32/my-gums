@@ -1941,14 +1941,15 @@ export class GameUI {
   renderMiniMap() {
     const canvas = document.getElementById("mini-map");
     if (!canvas) return;
-    if (!this.world || this.world.settings?.minimap === false || !this.world.running) {
+    const w = this.world;
+    if (!w || w.settings?.minimap === false || !w.running || !w.leader) {
       canvas.classList.add("hidden");
       return;
     }
     canvas.classList.remove("hidden");
     const ctx = canvas.getContext("2d");
-    const W = this.world._worldW || 2400;
-    const H = this.world._worldH || 2400;
+    const W = w.W || 2400;
+    const H = w.H || 2400;
     const scaleX = 180 / W;
     const scaleY = 180 / H;
 
@@ -1956,49 +1957,51 @@ export class GameUI {
     ctx.fillStyle = "rgba(210,180,140,0.3)";
     ctx.fillRect(0, 0, 180, 180);
 
-    // رسم النقاط الساخنة (oases — b2, b3, b4, m1, m2)
-    const POI = [
-      { x: 600, y: 600, color: "#22c55e" }, { x: 1800, y: 600, color: "#22c55e" },
-      { x: 1200, y: 1200, color: "#22c55e" }, { x: 600, y: 1800, color: "#22c55e" },
-      { x: 1800, y: 1800, color: "#22c55e" }, { x: 1200, y: 400, color: "#f59e0b" },
-      { x: 400, y: 1200, color: "#f59e0b" }, { x: 2000, y: 1200, color: "#f59e0b" },
-    ];
-    for (const p of POI) {
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x * scaleX, p.y * scaleY, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // رسم الأعداء القريبين
-    if (this.world._enemies) {
-      for (const e of this.world._enemies) {
-        if (!e || e.hp <= 0) continue;
-        ctx.fillStyle = "#ef4444";
-        ctx.fillRect(e.x * scaleX - 1, e.y * scaleY - 1, 3, 3);
+    // 🎁 صناديق الكنز
+    if (w.treasureChests) {
+      for (const c of w.treasureChests) {
+        if (c.opened) continue;
+        ctx.fillStyle = "#FFD700";
+        ctx.beginPath();
+        ctx.arc(c.x * scaleX, c.y * scaleY, 2, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
-    // رسم اللاعبين الآخرين
-    if (this.world._otherPlayers) {
-      for (const p of this.world._otherPlayers) {
-        ctx.fillStyle = "#3b82f6";
+    // 👹 الوحوش الأحياء
+    if (w.monsters) {
+      for (const m of w.monsters) {
+        if (!m.alive) continue;
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(m.x * scaleX - 1, m.y * scaleY - 1, 3, 3);
+      }
+    }
+
+    // 👥 اللاعبون الآخرون
+    if (w.otherPlayers) {
+      for (const [, p] of w.otherPlayers) {
+        ctx.fillStyle = p.color || "#3b82f6";
         ctx.beginPath();
         ctx.arc(p.x * scaleX, p.y * scaleY, 2, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    // رسم موقع اللاعب
-    const player = this.world._player;
-    if (player) {
-      ctx.fillStyle = "#ffd700";
-      ctx.shadowColor = "#ffd700";
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      ctx.arc(player.x * scaleX, player.y * scaleY, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
+    // ⭐ القائد (اللاعب نفسه)
+    ctx.fillStyle = "#ffd700";
+    ctx.shadowColor = "#ffd700";
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(w.leader.x * scaleX, w.leader.y * scaleY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // 🖼️ نافذة الكاميرا الحالية
+    const cam = w.engine?.camera;
+    if (cam) {
+      ctx.strokeStyle = "rgba(255,255,255,0.4)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cam.x * scaleX, cam.y * scaleY, cam.w * scaleX, cam.h * scaleY);
     }
 
     // رسم الإطار
@@ -2018,8 +2021,8 @@ export class GameUI {
         const rect = canvas.getBoundingClientRect();
         const xRatio = (e.clientX - rect.left) / rect.width;
         const yRatio = (e.clientY - rect.top) / rect.height;
-        const W = this.world._worldW || 2400;
-        const H = this.world._worldH || 2400;
+        const W = this.world.W || 2400;
+        const H = this.world.H || 2400;
         this.world.movePlayerTo(Math.floor(xRatio * W), Math.floor(yRatio * H));
       });
     }

@@ -1501,8 +1501,9 @@ body.modal-open { overflow: hidden; }
   touch-action: manipulation;
 }
 .zoom-btn:active { transform: scale(0.85); }
-#zoom-in-btn { right: 16px; bottom: calc(140px + var(--safe-b)); }
-#zoom-out-btn { right: 16px; bottom: calc(80px + var(--safe-b)); }
+/* 🕹️ عناصر التحكم بالكاميرا كلها على اليسار (تمركز/تكبير/تصغير) — يترك يمين الشاشة بالكامل للخريطة المصغّرة بدون أي تراكب */
+#zoom-in-btn { left: 16px; bottom: calc(260px + var(--safe-b)); }
+#zoom-out-btn { left: 16px; bottom: calc(200px + var(--safe-b)); }
 
 /* ====== لوحة اللاعبين ====== */
 .player-panel {
@@ -2161,11 +2162,14 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   .quick-upgrade-card { min-width: 100px; padding: 4px 6px; }
   #bottom-bar { height: 56px; }
   :root { --bottom-h: 56px; }
-  .player-panel { top: calc(44px + var(--safe-t)); max-height: 60vh; }
+  /* 🛡️ نُبقي لوحة اللاعبين ضمن نصف الشاشة العلوي فقط في الوضع الأفقي القصير
+     كي لا تصل إلى ركن الخريطة المصغّرة السفلي (كانت 60vh تتراكب معها) */
+  .player-panel { top: calc(44px + var(--safe-t)); max-height: 38vh; }
   #chat-toggle-btn { bottom: calc(70px + var(--safe-b)); }
   #recenter-btn { bottom: calc(70px + var(--safe-b)); }
-  #zoom-in-btn { bottom: calc(130px + var(--safe-b)); }
-  #zoom-out-btn { bottom: calc(76px + var(--safe-b)); }
+  #zoom-in-btn { bottom: calc(190px + var(--safe-b)); }
+  #zoom-out-btn { bottom: calc(130px + var(--safe-b)); }
+  .mini-map { width: 70px; height: 70px; bottom: calc(70px + var(--safe-b)); right: 6px; }
 }
 @media (max-height: 400px) and (orientation: landscape) {
   #top-bar { height: 38px; }
@@ -3493,9 +3497,9 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
 .top-food { direction: ltr; }
 .top-power { direction: ltr; }
 
-/* ====== رقم الإصدار ====== */
+/* ====== رقم الإصدار — أسفل الشريط العلوي مباشرة بمنأى عن ركن الخريطة المصغّرة ====== */
 .version-badge {
-  position: fixed; bottom: 72px; right: 8px; z-index: 999;
+  position: fixed; top: calc(var(--top-h) + var(--safe-t) + 2px); left: 50%; transform: translateX(-50%); z-index: 55;
   background: rgba(0,0,0,0.5); color: rgba(255,215,0,0.5);
   font-size: 9px; padding: 2px 8px; border-radius: 999px;
   font-family: monospace; pointer-events: none;
@@ -3781,6 +3785,40 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   padding: 12px 32px; font-size: 1rem; font-weight: 700;
   background: #8a2020; color: #fff; border: none; border-radius: 12px;
   cursor: pointer; touch-action: manipulation; width: 200px;
+}
+
+/* ====== شاشة نتيجة الأنماط الخاصة (كهف/استخراج/حشد) ====== */
+.mode-result-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.9);
+  direction: rtl; text-align: center;
+  padding: 20px; box-sizing: border-box;
+  animation: fadeIn 0.3s ease;
+}
+.mode-result-overlay .mr-icon { font-size: 3.2rem; margin-bottom: 8px; animation: slideUp 0.4s ease; }
+.mode-result-overlay.won .mr-title { color: var(--gold, #d4a017); font-size: 1.3rem; font-weight: 800; margin-bottom: 16px; text-shadow: 0 0 16px rgba(212,160,23,0.5); }
+.mode-result-overlay.lost .mr-title { color: var(--accent-red); font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; }
+.mode-result-overlay .mr-stats {
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--bg-card); border: 1px solid var(--border-light);
+  border-radius: 14px; padding: 14px 20px; margin-bottom: 16px;
+  min-width: 220px; max-width: 320px; width: 90%;
+}
+.mode-result-overlay .mr-stat { display: flex; justify-content: space-between; font-size: 0.85rem; }
+.mode-result-overlay .mr-stat-label { color: var(--text-secondary); }
+.mode-result-overlay .mr-stat-value { color: var(--text-primary); font-weight: 700; }
+.mode-result-overlay .mr-reward { color: var(--gold, #d4a017); font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; }
+.mode-result-overlay .mr-btn {
+  padding: 12px 32px; font-size: 1rem; font-weight: 700;
+  background: var(--gold, #d4a017); color: #1a1200; border: none; border-radius: 12px;
+  cursor: pointer; touch-action: manipulation; margin-bottom: 8px; width: 200px; max-width: 90vw;
+}
+.mode-result-overlay .mr-btn-secondary {
+  padding: 12px 32px; font-size: 1rem; font-weight: 700;
+  background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-light); border-radius: 12px;
+  cursor: pointer; touch-action: manipulation; width: 200px; max-width: 90vw;
 }
 
 /* ====== Offline Rewards Popup ====== */

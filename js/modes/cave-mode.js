@@ -1,4 +1,5 @@
 import { calculateEnemyPower } from "../enemies.js";
+import { showModeResultScreen } from "../ui/context-menu.js";
 
 export class CaveMode {
   constructor(world) {
@@ -28,6 +29,7 @@ export class CaveMode {
     ];
     this._goDeeperTimer = 0;
     this._tunnelCooldown = 0;
+    this._caveVictoryAchieved = false;
   }
 
   init() {
@@ -44,6 +46,7 @@ export class CaveMode {
     this._caveMonstersKilled = 0;
     this._caveScore = 0;
     this._caveActive = true;
+    this._caveVictoryAchieved = false;
     this._exploredRooms = new Set(["entrance"]);
     this._currentRoom = "entrance";
 
@@ -118,24 +121,28 @@ export class CaveMode {
       monster._glowColor = enemyDef.color;
       w.monsters.push(monster);
     }
-    // Boss في العمق
-    if (this._caveDepth >= 2 && Math.random() < 0.3 + this._caveDepth * 0.05) {
+    // Boss في العمق — مضمون الظهور في العمق الأخير (10) كـ"حارس الكهف الأخير"
+    const isFinalDepth = this._caveDepth >= 10;
+    if (isFinalDepth || (this._caveDepth >= 2 && Math.random() < 0.3 + this._caveDepth * 0.05)) {
       const bossDef = this._caveEnemies[this._caveEnemies.length - 1];
-      const scaled = calculateEnemyPower(bossDef, this._caveDepth * 7);
+      const scaled = calculateEnemyPower(bossDef, this._caveDepth * (isFinalDepth ? 10 : 7));
       const boss = w.createMonster('cave_boss', w.W / 2 + 200, w.H / 2, bossDef);
       boss.hp = scaled.hp;
       boss.maxHp = scaled.hp;
       boss.damage = scaled.damage;
-      boss.rewardMoney = scaled.reward.cash * 3;
-      boss.rewardGold = scaled.reward.gold * 3;
+      boss.rewardMoney = scaled.reward.cash * (isFinalDepth ? 6 : 3);
+      boss.rewardGold = scaled.reward.gold * (isFinalDepth ? 6 : 3);
       boss.isBoss = true;
-      boss.radius = bossDef.radius * 1.2;
+      boss._caveFinalBoss = isFinalDepth;
+      boss.radius = bossDef.radius * (isFinalDepth ? 1.6 : 1.2);
       boss._caveMonster = true;
       boss._glowColor = bossDef.color;
+      // 🔦 حارس الكهف الأخير يرى في الظلام دائماً — لا يمكن التسلل منه
+      boss._aggressiveRange = isFinalDepth ? 400 : undefined;
       w.monsters.push(boss);
       w.worldFx.push({
         x: boss.x, y: boss.y - 20,
-        text: `🔥 ${bossDef.name} يظهر!`,
+        text: isFinalDepth ? `🏆 حارس الكهف الأخير — ${bossDef.name} يظهر!` : `🔥 ${bossDef.name} يظهر!`,
         color: "#e74c3c", life: 3, maxLife: 3
       });
     }
@@ -195,6 +202,16 @@ export class CaveMode {
     // نبض برك الحمم
     for (const p of this._lavaPools) {
       p.pulse += dt * 2;
+    }
+
+    // 🔦 رؤية حقيقية: الوحوش خارج نطاق ضوء الشعلة "نائمة" ولا تلاحظ اللاعب
+    // إلا بعد أن يكشفها الضوء عند الاقتراب — هذا ما يجعل الكهف مختلفاً فعلياً
+    // عن باقي الأنماط (لم يكن الظلام السابق سوى تأثير بصري بلا أثر على اللعب)
+    const visionRadius = this._torchRadius * 1.4;
+    for (const m of w.monsters) {
+      if (!m.alive || m._caveFinalBoss) continue; // حارس الكهف الأخير يرى دوماً بلا حاجة للشعلة
+      const dist = Math.hypot(m.x - w.leader.x, m.y - w.leader.y);
+      m._aggressiveRange = dist <= visionRadius ? 260 : 1;
     }
 
     // فحص tunnels
@@ -260,6 +277,16 @@ export class CaveMode {
     this._caveMonstersKilled++;
     this._caveScore += 10 + this._caveDepth * 5;
 
+    // 🏆 هزيمة حارس الكهف الأخير = شرط فوز حقيقي وواضح
+    if (monster._caveFinalBoss) {
+      this._caveVictoryAchieved = true;
+      w.worldFx.push({
+        x: monster.x, y: monster.y - 30,
+        text: "🏆 هزمت حارس الكهف الأخير! اذهب للخروج لمضاعفة مكافأتك",
+        color: "#FFD700", life: 3.5, maxLife: 3.5
+      });
+    }
+
     // كنز نادر من وحوش الكهف
     if (Math.random() < 0.15) {
       const rareItem = `💎 جوهرة الكهف النادرة!`;
@@ -297,18 +324,48 @@ export class CaveMode {
   _exitCave() {
     if (!this._caveActive) return;
     const w = this.world;
-    const bonus = Math.floor(this._caveScore * 0.2 + this._rareItemsCollected * 50 + this._caveDepth * 30);
+    let bonus = Math.floor(this._caveScore * 0.2 + this._rareItemsCollected * 50 + this._caveDepth * 30);
+    if (this._caveVictoryAchieved) bonus *= 2; // مضاعفة المكافأة لمن هزم حارس الكهف الأخير
     if (w.economy) {
       w.economy.addRaw("gold", bonus);
       w.economy.addXp(Math.floor(this._caveScore * 0.3));
     }
     w.worldFx.push({
       x: w.leader.x, y: w.leader.y - 30,
-      text: `🚪 خرجت من الكهف! مكافأة: ${bonus} 🪙 | جوهرات نادرة: ${this._rareItemsCollected} 💎`,
+      text: this._caveVictoryAchieved
+        ? `🏆 انتصار! خرجت منتصراً بمكافأة مضاعفة: ${bonus} 🪙 | جوهرات نادرة: ${this._rareItemsCollected} 💎`
+        : `🚪 خرجت من الكهف! مكافأة: ${bonus} 🪙 | جوهرات نادرة: ${this._rareItemsCollected} 💎`,
       color: "#FFD700", life: 3, maxLife: 3
     });
+    if (typeof document !== "undefined") {
+      showModeResultScreen(w, {
+        won: this._caveVictoryAchieved,
+        icon: this._caveVictoryAchieved ? "🏆" : "🕯️",
+        title: this._caveVictoryAchieved ? "انتصار! هزمت حارس الكهف الأخير" : "خرجت من الكهف",
+        stats: [
+          { label: "أقصى عمق", value: this._caveDepth },
+          { label: "الوحوش المقتولة", value: this._caveMonstersKilled },
+          { label: "جوهرات نادرة", value: `${this._rareItemsCollected} 💎` },
+        ],
+        rewardLine: `+${bonus} 🪙`,
+      });
+    }
     this._caveActive = false;
     w.sessionStats.coinsEarned += bonus;
+  }
+
+  /** 🛡️ عقوبة الموت: تُفقد الجوهرات النادرة المحمولة (غير المسلَّمة بعد) — مثل عقوبة الذهب المحمول في نمط الاستخراج */
+  onWipe() {
+    const w = this.world;
+    if (!this._caveActive) return;
+    if (this._rareItemsCollected > 0) {
+      w.worldFx.push({
+        x: w.leader.x, y: w.leader.y - 30,
+        text: `💀 فقدت ${this._rareItemsCollected} 💎 من الجوهرات النادرة كنت تحملها!`,
+        color: "#ff4444", life: 2.5, maxLife: 2.5
+      });
+      this._rareItemsCollected = 0;
+    }
   }
 
   drawBackground(ctx) {
@@ -369,25 +426,33 @@ export class CaveMode {
     const dpr = window.devicePixelRatio || 1;
     ctx.scale(dpr, dpr);
     const cw = ctx.canvas.width / dpr;
+    // 🛡️ إزاحة رأسية بمقدار ارتفاع الشريط العلوي (أطول حالة: 64px) + هامش، كي لا يُخفي الشريط أعلى اللوحة
+    const oy = 62;
 
     // لوحة الكهف (أعلى يسار)
     ctx.fillStyle = "rgba(0,0,0,0.7)";
-    ctx.fillRect(8, 8, 200, 85);
+    ctx.fillRect(8, 8 + oy, 200, this._caveVictoryAchieved ? 105 : 85);
 
     ctx.fillStyle = "#f39c12";
     ctx.font = "bold 13px Cairo, sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText(`🕯️ العمق ${this._caveDepth}`, 14, 28);
+    ctx.fillText(`🕯️ العمق ${this._caveDepth}${this._caveDepth >= 10 ? " (أخير)" : ""}`, 14, 28 + oy);
 
     ctx.fillStyle = "#e74c3c";
     ctx.font = "bold 11px Cairo, sans-serif";
-    ctx.fillText(`⚔️ ${this._caveMonstersKilled} قتلى`, 14, 48);
+    ctx.fillText(`⚔️ ${this._caveMonstersKilled} قتلى`, 14, 48 + oy);
 
     ctx.fillStyle = "#9b59b6";
-    ctx.fillText(`💎 كنوز نادرة: ${this._rareItemsCollected}`, 14, 68);
+    ctx.fillText(`💎 كنوز نادرة: ${this._rareItemsCollected}`, 14, 68 + oy);
 
     ctx.fillStyle = "#fdcb6e";
-    ctx.fillText(`🏆 ${this._caveScore} نقطة`, 14, 88);
+    ctx.fillText(`🏆 ${this._caveScore} نقطة`, 14, 88 + oy);
+
+    if (this._caveVictoryAchieved) {
+      ctx.fillStyle = "#FFD700";
+      ctx.font = "bold 11px Cairo, sans-serif";
+      ctx.fillText("🏆 انتصار! المكافأة مضاعفة عند الخروج", 14, 106 + oy);
+    }
 
     // إرشاد الخروج — مرسوم على الخريطة أيضاً
     if (this._caveExit && this._rareItemsCollected > 0) {
@@ -396,12 +461,12 @@ export class CaveMode {
         ctx.fillStyle = "rgba(46, 204, 113, 0.7)";
         ctx.font = "bold 10px Cairo, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("🚪 اذهب للخروج (أسفل الخريطة)", cw / 2, 30);
+        ctx.fillText("🚪 اذهب للخروج (أسفل الخريطة)", cw / 2, 30 + oy);
       } else {
         ctx.fillStyle = "rgba(46, 204, 113, 0.9)";
         ctx.font = "bold 12px Cairo, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("🚪 اختر الخروج!", cw / 2, 30);
+        ctx.fillText("🚪 اختر الخروج!", cw / 2, 30 + oy);
       }
     }
 

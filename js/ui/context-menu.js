@@ -72,6 +72,36 @@ export function showPvPDefeat(worldMap, killerName, killerPower, lootTaken, powe
   }
 }
 
+/**
+ * شاشة نتيجة مخصصة احترافية لأوضاع اللعب الخاصة (كهف/استخراج/حشد) —
+ * تعرض إحصائيات ذات صلة بالنمط بدل الاعتماد على نص عائم يختفي خلال ثوانٍ.
+ * opts: { won, icon, title, stats: [{label, value}], rewardLine }
+ */
+export function showModeResultScreen(worldMap, opts) {
+  const existing = document.getElementById("mode-result-overlay");
+  if (existing) existing.remove();
+  const overlay = document.createElement("div");
+  overlay.id = "mode-result-overlay";
+  overlay.className = `mode-result-overlay ${opts.won ? "won" : "lost"}`;
+  const statsHtml = (opts.stats || [])
+    .map(s => `<div class="mr-stat"><span class="mr-stat-label">${s.label}</span><span class="mr-stat-value">${s.value}</span></div>`)
+    .join("");
+  overlay.innerHTML = `
+    <div class="mr-icon">${opts.icon || (opts.won ? "🏆" : "💀")}</div>
+    <div class="mr-title">${opts.title || (opts.won ? "انتصار!" : "انتهت المحاولة")}</div>
+    <div class="mr-stats">${statsHtml}</div>
+    ${opts.rewardLine ? `<div class="mr-reward">${opts.rewardLine}</div>` : ""}
+    <button id="mode-result-close-btn" class="mr-btn">🗺️ العودة للخريطة</button>
+    <button id="mode-result-exit-btn" class="mr-btn-secondary">🚪 الخروج للقائمة</button>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("mode-result-close-btn").onclick = () => overlay.remove();
+  document.getElementById("mode-result-exit-btn").onclick = () => {
+    overlay.remove();
+    if (worldMap.onExit) worldMap.onExit();
+  };
+}
+
 export function showWipeScreen(worldMap, lost, killed) {
   const existing = document.getElementById("wipe-overlay");
   if (existing) existing.remove();

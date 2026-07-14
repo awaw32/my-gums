@@ -1,3 +1,5 @@
+import { showModeResultScreen } from "../ui/context-menu.js";
+
 export class HordeMode {
   constructor(world) {
     this.world = world;
@@ -23,7 +25,7 @@ export class HordeMode {
   init() {
     const w = this.world;
     w.mode = "horde";
-    w._pvpDisabled = false;
+    w._pvpDisabled = true; // 🛡️ متسق مع باقي الأنماط الخاصة — لا مقاطعة PvP أثناء التركيز على الموجات
     w._campaignMode = false;
     w.W = 2400;
     w.H = 2400;
@@ -220,10 +222,27 @@ export class HordeMode {
       color: "#FFD700", life: 4, maxLife: 4
     });
     w.sessionStats.coinsEarned += bonus;
+
+    // 🏆 شاشة نتيجة مخصصة بدل الاعتماد على النص العائم فقط
+    if (typeof document !== "undefined") {
+      showModeResultScreen(w, {
+        won,
+        icon: won ? "🏆" : "🌊",
+        title: won ? `انتصرت! أكملت كل ${this._maxWave} موجة` : `انتهى الحشد عند الموجة ${this._wave}`,
+        stats: [
+          { label: "الموجة المُحقّقة", value: `${this._wave} / ${this._maxWave}` },
+          { label: "عدد القتلى", value: this._hordeKills },
+          { label: "وقت الصمود", value: `${Math.floor(this._survivalTime)} ث` },
+        ],
+        rewardLine: `+${bonus} 🪙`,
+      });
+    }
   }
 
+  /** @returns {boolean} true إن كانت شاشة النتيجة المخصصة عُرضت (لمنع ازدواج شاشة الهزيمة العامة) */
   onWipe() {
     this._endHorde(false);
+    return true;
   }
 
   drawUI(ctx) {
@@ -232,59 +251,61 @@ export class HordeMode {
     const dpr = window.devicePixelRatio || 1;
     ctx.scale(dpr, dpr);
     const cw = ctx.canvas.width / dpr;
+    // 🛡️ إزاحة رأسية بمقدار ارتفاع الشريط العلوي كي لا يُخفي الشريط أعلى اللوحة
+    const oy = 62;
 
-    // لوحة الحالة (أعلى يسار)
+    // لوحة الحالة أعلى اليسار (بمنأى عن لوحة اللاعبين/الخريطة المصغّرة على اليمين)
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     const panelW = 200;
     const panelH = this._hordeActive ? 130 : 100;
-    ctx.fillRect(cw - panelW - 8, 8, panelW, panelH);
+    ctx.fillRect(8, 8 + oy, panelW, panelH);
 
     ctx.fillStyle = "#ff6b6b";
     ctx.font = "bold 14px Cairo, sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(`🌊 الموجة ${this._wave}/${this._maxWave}`, cw - 14, 28);
+    ctx.textAlign = "left";
+    ctx.fillText(`🌊 الموجة ${this._wave}/${this._maxWave}`, 14, 28 + oy);
 
     ctx.fillStyle = "#fdcb6e";
     ctx.font = "bold 12px Cairo, sans-serif";
-    ctx.fillText(`⚔️ ${this._hordeKills} قتلى`, cw - 14, 48);
+    ctx.fillText(`⚔️ ${this._hordeKills} قتلى`, 14, 48 + oy);
 
     ctx.fillStyle = "#ff9ff3";
-    ctx.fillText(`👹 ${this._monstersAlive} حي`, cw - 14, 68);
+    ctx.fillText(`👹 ${this._monstersAlive} حي`, 14, 68 + oy);
 
     ctx.fillStyle = "#4cd964";
     const mins = Math.floor(this._survivalTime / 60);
     const secs = Math.floor(this._survivalTime % 60);
-    ctx.fillText(`⏱ ${mins}:${secs.toString().padStart(2, '0')}`, cw - 14, 88);
+    ctx.fillText(`⏱ ${mins}:${secs.toString().padStart(2, '0')}`, 14, 88 + oy);
 
     // شريط تقدم الموجات
     if (this._hordeActive) {
       const waveProgress = this._wave / this._maxWave;
       ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.fillRect(cw - panelW - 8 + 10, 94, panelW - 20, 4);
+      ctx.fillRect(18, 94 + oy, panelW - 20, 4);
       ctx.fillStyle = "#ff6b6b";
-      ctx.fillRect(cw - panelW - 8 + 10, 94, (panelW - 20) * Math.min(1, waveProgress), 4);
-      
+      ctx.fillRect(18, 94 + oy, (panelW - 20) * Math.min(1, waveProgress), 4);
+
       // عدد الوحوش المتبقية في هذه الموجة
       ctx.fillStyle = "#fdcb6e";
       ctx.font = "bold 10px Cairo, sans-serif";
       if (this._waveDelayTimer > 0) {
-        ctx.fillText(`⏳ الموجة التالية بعد ${Math.ceil(this._waveDelayTimer)}ث`, cw - 14, 114);
+        ctx.fillText(`⏳ الموجة التالية بعد ${Math.ceil(this._waveDelayTimer)}ث`, 14, 114 + oy);
       } else {
-        ctx.fillText(`🏆 اكمال ${this._maxWave} موجة للفوز`, cw - 14, 114);
+        ctx.fillText(`🏆 اكمال ${this._maxWave} موجة للفوز`, 14, 114 + oy);
       }
     }
 
     // شريط XP
     ctx.fillStyle = "#f39c12";
     ctx.font = "bold 10px Cairo, sans-serif";
-    ctx.fillText(`🏆 ${this._hordeScore} نقطة`, cw - 14, panelH + 24);
+    ctx.fillText(`🏆 ${this._hordeScore} نقطة`, 14, panelH + 24 + oy);
 
     // تحذير إذا عدد الوحوش كبير
     if (this._monstersAlive > 30) {
       ctx.fillStyle = "rgba(255,0,0,0.7)";
       ctx.font = "bold 16px Cairo, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(`⚠️ ${this._monstersAlive} وحش!`, cw / 2, 60);
+      ctx.fillText(`⚠️ ${this._monstersAlive} وحش!`, cw / 2, 60 + oy);
     }
 
     ctx.restore();

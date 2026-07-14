@@ -48,7 +48,7 @@ GameUI.prototype.buildWarScreen = function() {
       <button class="war-mode-btn" id="horde-enter-btn" data-mode="horde">
         <div class="war-mode-icon">🌊</div>
         <div class="war-mode-name">حشد</div>
-        <div class="war-mode-desc">PvE — وحوش تتضاعف</div>
+        <div class="war-mode-desc">PvE — موجات متصاعدة</div>
       </button>
       <button class="war-mode-btn" id="cave-enter-btn" data-mode="cave">
         <div class="war-mode-icon">🕯️</div>
@@ -78,11 +78,11 @@ GameUI.prototype.buildWarScreen = function() {
           <span class="war-detail-title">حشد الأعداء</span>
         </div>
         <div class="war-detail-body">
-          <p>وحوش شرسة تتضاعف! كل وحش تقتله يظهر اثنان مكانه. كم موجة تستطيع الصمود؟</p>
+          <p>موجات متصاعدة من الوحوش — كل موجة أعداد وقوة أكبر من سابقتها. اصمد حتى الموجة 20 لتحقيق النصر!</p>
           <div class="war-detail-stats">
             <div class="war-stat"><span class="war-stat-icon">⚔️</span><span class="war-stat-label">نوع القتال</span><span class="war-stat-value">PvE (حشد)</span></div>
-            <div class="war-stat"><span class="war-stat-icon">🔄</span><span class="war-stat-label">التضاعف</span><span class="war-stat-value">كل وحش ← 2</span></div>
-            <div class="war-stat"><span class="war-stat-icon">⏱</span><span class="war-stat-label">الموجات</span><span class="war-stat-value">كم تصمد؟</span></div>
+            <div class="war-stat"><span class="war-stat-icon">📈</span><span class="war-stat-label">التصعيد</span><span class="war-stat-value">قوة وعدد متزايدان</span></div>
+            <div class="war-stat"><span class="war-stat-icon">🏆</span><span class="war-stat-label">الفوز</span><span class="war-stat-value">الصمود حتى الموجة 20</span></div>
           </div>
           <button class="war-start-btn" id="war-start-horde">🌊 ابدأ الحشد</button>
         </div>
