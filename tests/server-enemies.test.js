@@ -9,7 +9,7 @@ import {
 
 describe('Server Enemy Data', () => {
   it('should have 20 enemy definitions', () => {
-    expect(Object.keys(ENEMY_TYPES)).toHaveLength(20);
+    expect(Object.keys(ENEMY_TYPES)).toHaveLength(25);
   });
 
   it('should return enemy scaled for level 1', () => {

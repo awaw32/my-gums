@@ -146,25 +146,40 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         }
       } else if (msg.type === "monster_killed" && username) {
         const mon = worldMonsters.find(m => m.id === msg.id);
-        if (mon && mon.alive) {
-          // 🛡️ تحقق من السباق (Race Condition) — نفس الوحش لا يُقتل مرتين
-          const killKey = `kill_${msg.id}`;
+        const c = worldClients.get(username);
+        if (mon && mon.alive && c) {
           const now = Date.now();
+          // 🛡️ التحقق من المسافة — اللاعب يجب أن يكون قريباً من الوحش
+          const dx = c.x - mon.x;
+          const dy = c.y - mon.y;
+          if (Math.hypot(dx, dy) > 150) {
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: "error", message: "أنت بعيد جداً عن هذا الوحش" }));
+            }
+            return;
+          }
+          // 🛡️ التحقق من وقت الظهور — الوحش يجب أن يكون ظهر منذ 3 ثوان على الأقل
+          if (now - (mon._spawnTime || 0) < 3000) {
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: "error", message: "هذا الوحش ظهر لتوه" }));
+            }
+            return;
+          }
+          // 🛡️ تحقق السباق — نفس الوحش لا يُقتل مرتين بفارق 3 ثوان
+          const killKey = `kill_${msg.id}`;
           const lastKill = _monsterKillTimestamps.get(killKey) || 0;
-          if (now - lastKill < 2000) {
-            // وحش قُتل قبل أقل من 2 ثانية — نرفض
+          if (now - lastKill < 3000) {
             if (ws.readyState === 1) {
               ws.send(JSON.stringify({ type: "error", message: "هذا الوحش قد مات بالفعل" }));
             }
             return;
           }
           _monsterKillTimestamps.set(killKey, now);
-          
           mon.alive = false;
           mon.hp = 0;
           mon.respawnTimer = 25;
-          const killMsg = JSON.stringify({ type: "monster_killed", id: msg.id, killedBy: username });
-          worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(killMsg); });
+          const killMsg = JSON.stringify({ type: "monster_killed", id: msg.id, killedBy: esc(username) });
+          worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(killMsg); });
         }
       } else if (msg.type === "pvp_attack" && username) {
         const target = msg.target;
@@ -180,6 +195,20 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         const reward = msg.winnerReward || 0;
 
         const now = Date.now();
+        const c = worldClients.get(username);
+        const tc = worldClients.get(targetName);
+        if (!c || !tc) return;
+
+        // 🛡️ التحقق من المسافة بين المتبارزين
+        const dx = c.x - tc.x;
+        const dy = c.y - tc.y;
+        if (Math.hypot(dx, dy) > 200) {
+          if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: "error", message: "الخصم بعيد جداً" }));
+          }
+          return;
+        }
+
         const lastPvP = _pvpCooldowns.get(username) || 0;
         if (now - lastPvP < 5000) {
           if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "انتظر قليلاً قبل PvP" }));
@@ -187,10 +216,7 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         }
         _pvpCooldowns.set(username, now);
 
-        const tc = worldClients.get(targetName);
-        if (!tc) return;
-
-        const attackerPower = (worldClients.get(username)?.army_power || 5000);
+        const attackerPower = (c.army_power || 5000);
         const targetPower = (tc.army_power || 5000);
         const maxReasonableLoot = Math.min(50000, Math.floor(Math.max(attackerPower, targetPower) * 0.15));
         const maxReasonableReward = Math.min(25000, Math.floor(Math.max(attackerPower, targetPower) * 0.08));
@@ -212,7 +238,7 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         }
         if (won) {
           const despawnMsg = JSON.stringify({ type: "player_despawn", username: targetName });
-          worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(despawnMsg); });
+          worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(despawnMsg); });
         }
         const pvpMsg = JSON.stringify({
           type: "broadcast_chat",

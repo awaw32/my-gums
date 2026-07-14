@@ -40,7 +40,8 @@ function createCombatLoop(deps) {
       rewardMoney: scaled.reward.cash || 5,
       rewardGold: scaled.reward.gold || 1,
       x, y, spawnX: x, spawnY: y,
-      alive: true, respawnTimer: 0
+      alive: true, respawnTimer: 0,
+      _spawnTime: Date.now(),
     };
   }
 
@@ -152,6 +153,7 @@ function createCombatLoop(deps) {
         if (m.respawnTimer <= 0) {
           m.alive = true; m.hp = m.maxHp;
           m.x = m.spawnX; m.y = m.spawnY;
+          m._spawnTime = Date.now();
         }
       } else {
         // حركة دورية سلسة
