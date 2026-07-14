@@ -197,6 +197,8 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           c.kills = msg.kills ?? c.kills;
           c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
           c.armyAlive = msg.armyAlive ?? c.armyAlive;
+          c.level = msg.level ?? c.level;
+          c.army_power = msg.army_power ?? c.army_power;
           if (msg.br_hp !== undefined) c.br_hp = Math.max(0, msg.br_hp);
           if (msg.br_alive !== undefined) c.br_alive = msg.br_alive;
           broadcastWorld(ws);

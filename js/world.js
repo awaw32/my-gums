@@ -19,7 +19,7 @@ import { spriteFactory, SpriteFactory } from "./sprite-factory.js";
 import { IsometricSystem, DepthSorter } from "./isometric.js";
 import { getEnemyForLevel, getEnemiesForVillage, getBossForVillage, calculateEnemyPower } from "./enemies.js";
 import { SOLDIER_ROLES } from "./army.js";
-import { getBossPhaseConfig, triggerBossPhase, updateBossEnrage, getEpicBossLoot } from "./combat/epic-bosses.js";
+import { getBossPhaseConfig, triggerBossPhase, updateBossEnrage } from "./combat/epic-bosses.js";
 
 export class WorldMap {
   constructor(economy, username = "بطل الصحراء", apiBase = "", army = null) {

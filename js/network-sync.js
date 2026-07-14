@@ -356,7 +356,7 @@ export class NetworkSync {
           const loot = msg.loot;
           if (loot.cash > 0) w.economy.addRaw('cash', loot.cash);
           if (loot.gold > 0) w.economy.addRaw('gold', loot.gold);
-          if (w.createDrop) w.createDrop(mon ? mon.x : w.leader?.x || 0, mon ? mon.y : w.leader?.y || 0, loot.cash, loot.gold);
+          if (w.createDrop && mon) w.createDrop(mon.x, mon.y, loot.cash, loot.gold);
           if (msg.bossLoot) {
             const bl = msg.bossLoot;
             if (bl.artifacts > 0) w.economy.addRaw('artifacts', bl.artifacts);
