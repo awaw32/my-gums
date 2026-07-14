@@ -55,6 +55,7 @@ const NetworkServer = require("./server/network/networkServer");
 const metrics = require("./server/metrics");
 
 const worldMonsters = [];
+const worldDrops = [];
 const WORLD_W2 = 2400, WORLD_H2 = 2400;
 const SAFE_ZONE = { x: WORLD_W2 / 2 - 120, y: WORLD_H2 / 2 - 120, w: 240, h: 240 };
 const worldClients = new Map();
@@ -79,7 +80,7 @@ const warManager = createWarManager({
 
 const { createWorldHandler } = require("./server/network/worldHandler");
 const handleWorldConnection = createWorldHandler({
-  rooms, worldMonsters, worldClients,
+  rooms, worldMonsters, worldDrops, worldClients,
   broadcast,
   combatSystem, memStore, getDefaultPlayer, markDirty,
   computeArmyYardUpgradeCost, computeArmyYardStats,

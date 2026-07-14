@@ -153,20 +153,18 @@ function createCombatLoop(deps) {
   const monsterInterval = setInterval(() => {
     for (const m of worldMonsters) {
       if (!m.alive) {
-        m.respawnTimer -= 0.3; // 300ms ticks
+        m.respawnTimer -= 0.3;
         if (m.respawnTimer <= 0) {
           m.alive = true; m.hp = m.maxHp;
           m.x = m.spawnX; m.y = m.spawnY;
           m._spawnTime = Date.now();
         }
       } else {
-        // حركة دورية سلسة
         if (!m._patrolTarget || Math.hypot(m.x - m._patrolTarget.x, m.y - m._patrolTarget.y) < 12) {
           m._patrolTarget = {
             x: m.spawnX + (Math.random() - 0.5) * 150,
             y: m.spawnY + (Math.random() - 0.5) * 150,
           };
-          // سرعة متغيرة قليلاً
           m._patrolSpeed = 12 + Math.random() * 8;
         }
         const dx = m._patrolTarget.x - m.x;
@@ -178,15 +176,39 @@ function createCombatLoop(deps) {
           m.y += (dy / dist) * step;
         }
       }
+      if (m._shieldTimer !== undefined) m._shieldTimer = Math.max(0, m._shieldTimer - 0.3);
+      if (m._phaseTimer !== undefined) m._phaseTimer = Math.max(0, m._phaseTimer - 0.3);
+      if (m._sandstormTimer !== undefined) m._sandstormTimer = Math.max(0, m._sandstormTimer - 0.3);
     }
     const msg = JSON.stringify({ type: "world_monsters", list: worldMonsters });
     worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
-  }, 300); // 300ms ← أسرع 3× من 1000ms (حركة وحوش أكثر سلاسة)
+  }, 300);
+
+  const poisonInterval = setInterval(() => {
+    worldClients.forEach((c, name) => {
+      if (!c._poisonEffects || c._poisonEffects.length === 0) return;
+      if (c.hp <= 0) { c._poisonEffects = []; return; }
+      let totalDmg = 0;
+      for (let i = c._poisonEffects.length - 1; i >= 0; i--) {
+        const p = c._poisonEffects[i];
+        p.timer -= 0.3;
+        const dmg = Math.floor(p.dps * 0.3);
+        if (dmg > 0) totalDmg += dmg;
+        if (p.timer <= 0) c._poisonEffects.splice(i, 1);
+      }
+      if (totalDmg > 0) {
+        c.hp = Math.max(0, c.hp - totalDmg);
+        const poisonMsg = JSON.stringify({ type: "poison_tick", username: name, hp: Math.floor(c.hp), maxHp: c.maxHp || 120, damage: totalDmg });
+        worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(poisonMsg); });
+      }
+    });
+  }, 300);
 
   return {
     tickTimer,
     monsterInterval,
     pvpCombatInterval,
+    poisonInterval,
     initWorldMonsters,
     gameTick,
   };

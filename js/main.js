@@ -385,6 +385,16 @@ async function init() {
   const inventory = new InventoryManager(economy);
   const droppedItems = new DroppedItemsManager();
   window._inventory = inventory;
+
+  // تحديث الإسقاطات من الخادم (لللاعبين الجدد أو إعادة الاتصال)
+  world._onWorldDrops = (list) => {
+    if (list && list.length > 0) {
+      for (const d of list) {
+        const dropObj = { id: d.id, x: d.x, y: d.y, name: d.name, icon: d.icon, username: d.username, spawnTime: d._droppedAt || Date.now(), size: 20 };
+        droppedItems.add(dropObj);
+      }
+    }
+  };
   
   // 🎒 نظام الشنطة (Loadout)
   const loadoutManager = new LoadoutManager(economy, inventory, army);

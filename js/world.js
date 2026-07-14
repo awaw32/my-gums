@@ -19,6 +19,7 @@ import { spriteFactory, SpriteFactory } from "./sprite-factory.js";
 import { IsometricSystem, DepthSorter } from "./isometric.js";
 import { getEnemyForLevel, getEnemiesForVillage, getBossForVillage, calculateEnemyPower } from "./enemies.js";
 import { SOLDIER_ROLES } from "./army.js";
+import { getBossPhaseConfig, triggerBossPhase, updateBossEnrage, getEpicBossLoot } from "./combat/epic-bosses.js";
 
 export class WorldMap {
   constructor(economy, username = "بطل الصحراء", apiBase = "", army = null) {
@@ -144,6 +145,7 @@ export class WorldMap {
     this._sandstormActive = false;
     this._sandstormTimer = 0;
     this._stompSlowTimer = 0;
+    this._telegraphs = [];
 
     // ── Weapon Abilities System ──
     this._weaponAbilities = new WeaponAbilityManager();
@@ -546,17 +548,29 @@ export class WorldMap {
   }
 
   _checkBossPhase(monster) {
-    if (!monster.isBoss || !monster._phases) return;
+    if (!monster.isBoss) return;
     const hpPct = monster.hp / monster.maxHp;
-    for (const phase of monster._phases) {
+    const bossId = monster.enemyId || "";
+    const epicConfig = getBossPhaseConfig(bossId);
+    const phases = epicConfig ? epicConfig.phases : (monster._phases || null);
+    if (!phases) return;
+
+    for (const phase of phases) {
       if (hpPct <= phase.threshold && !phase.triggered) {
         phase.triggered = true;
-        this.worldFx.push({ x: monster.x, y: monster.y, text: phase.message || "💢!", color: "#ff4444", life: 2, maxLife: 2 });
-        if (phase.enrage) {
-          monster.damage = Math.floor(monster.damage * (phase.enrage.damageMult || 1.5));
-          this.worldFx.push({ x: monster.x, y: monster.y, text: "🔥 طيران!", color: "#ff8800", life: 2, maxLife: 2 });
+        if (epicConfig) {
+          triggerBossPhase(this, monster, phase, bossId);
+          if (this._ui && this._ui.showNotification) {
+            this._ui.showNotification(`💢 ${monster.name}: ${phase.name}!`, "battle", 3000);
+          }
+        } else {
+          this.worldFx.push({ x: monster.x, y: monster.y, text: phase.message || "💢!", color: "#ff4444", life: 2, maxLife: 2 });
+          if (phase.enrage) {
+            monster.damage = Math.floor(monster.damage * (phase.enrage.damageMult || 1.5));
+            this.worldFx.push({ x: monster.x, y: monster.y, text: "🔥 طيران!", color: "#ff8800", life: 2, maxLife: 2 });
+          }
+          if (this.engine) this.engine.shake(14, 0.5);
         }
-        if (this.engine) this.engine.shake(14, 0.5);
       }
     }
   }
@@ -1419,6 +1433,30 @@ export class WorldMap {
       if (this._sandstormTimer <= 0) this._sandstormActive = false;
     }
     if (this._stompSlowTimer > 0) this._stompSlowTimer -= dt;
+
+    // تحديث enrage timer للزعماء
+    for (const m of this.monsters) {
+      if (m.isBoss && m.alive) {
+        const bossConfig = getBossPhaseConfig(m.enemyId || "");
+        if (bossConfig) updateBossEnrage(this, m, bossConfig, dt);
+      }
+      if (m._summoned && m._lifetime !== undefined) {
+        m._lifetime -= dt;
+        if (m._lifetime <= 0) {
+          m.alive = false;
+          this.worldFx.push({ x: m.x, y: m.y, text: "💨 تلاشى!", color: "#888", life: 1, maxLife: 1 });
+        }
+      }
+    }
+
+    // تحديث telegraphs
+    if (this._telegraphs) {
+      for (let i = this._telegraphs.length - 1; i >= 0; i--) {
+        this._telegraphs[i].life -= dt;
+        if (this._telegraphs[i].life <= 0) this._telegraphs.splice(i, 1);
+      }
+    }
+
     this.checkWipe();
     // 🎁 إعادة ظهور صناديق الكنز بعد فتحها
     for (const c of this.treasureChests) {
@@ -1473,6 +1511,7 @@ export class WorldMap {
     if (this._activeMode && this._activeMode.modeName === "cave") {
       this._activeMode.drawDarkness(ctx);
     }
+    this._drawTelegraphs(ctx);
     this.drawWorldFx(ctx);
     this.drawMiniMap(ctx, cam);
 
@@ -1482,6 +1521,33 @@ export class WorldMap {
     this.drawPvPMenu(ctx, cam);
     this.drawBRUI(ctx);
     if (this._activeMode) this._activeMode.drawUI(ctx);
+  }
+
+  _drawTelegraphs(ctx) {
+    if (!this._telegraphs || this._telegraphs.length === 0) return;
+    ctx.save();
+    for (const t of this._telegraphs) {
+      const alpha = Math.min(1, t.life / (t.maxLife || 1));
+      ctx.globalAlpha = alpha * 0.35;
+      if (t.w && t.h) {
+        ctx.fillStyle = t.color || "#ff444466";
+        ctx.fillRect(t.x, t.y, t.w, t.h);
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.strokeRect(t.x, t.y, t.w, t.h);
+      } else if (t.radius) {
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, t.radius, 0, Math.PI * 2);
+        ctx.fillStyle = t.color || "#ff444466";
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   /**
@@ -2470,17 +2536,20 @@ export class WorldMap {
       if (this._ui && this._ui.logCombat) this._ui.logCombat('kill', `⚔️ قتلت ${monster.name || 'وحشاً'} | +${reward} 💵`);
       this.createDrop(monster.x, monster.y, reward, goldReward);
 
-      // 🏺 القطع الأثرية من الـ Bosses
+      // 🏺 القطع الأثرية + غنائم الزعماء المحسّنة
       if (monster.isBoss && this.economy) {
-        const artifactDrop = 1 + Math.floor(Math.random() * 2);
-        const gemDrop = monster.enemyId === 'final_boss' ? 1 : 0;
+        const epicLoot = getEpicBossLoot(monster.enemyId || "", this);
+        const artifactDrop = epicLoot.artifacts > 0 ? epicLoot.artifacts : 1 + Math.floor(Math.random() * 2);
+        const gemDrop = epicLoot.desertGem || (monster.enemyId === 'final_boss' ? 1 : 0);
         if (artifactDrop > 0) this.economy.addRaw('artifacts', artifactDrop);
         if (gemDrop > 0) this.economy.addRaw('desertGem', gemDrop);
+        if (epicLoot.cashBonus > 0) {
+          if (this.economy.cash !== undefined) this.economy.cash += epicLoot.cashBonus;
+        }
         if (this.store) {
-          this.store.set('notification', {
-            text: `🏺 حصلت على ${artifactDrop} قطع أثرية!${gemDrop ? ' 💠وجوهرة الصحراء!' : ''}`,
-            t: Date.now()
-          });
+          let notifText = `🏺 حصلت على ${artifactDrop} قطع أثرية!${gemDrop ? ' 💠وجوهرة الصحراء!' : ''}`;
+          if (epicLoot.cashBonus > 0) notifText += ` 💰+${epicLoot.cashBonus}`;
+          this.store.set('notification', { text: notifText, t: Date.now() });
         }
       } else if (this.economy && Math.random() < 0.08) {
         this.economy.addRaw('artifacts', 1);

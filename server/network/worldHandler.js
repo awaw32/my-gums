@@ -12,7 +12,33 @@ function playerColor(username) {
   return PLAYER_COLORS[Math.abs(h) % PLAYER_COLORS.length];
 }
 
-function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager }) {
+let _dropIdCounter = 0;
+const DROP_CLEANUP_MS = 60000;
+
+function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager }) {
+
+  // تنظيف اللاعبين المنقطعين كل 10 ثوانٍ (مهلة 30 ثانية)
+  setInterval(() => {
+    const now = Date.now();
+    for (const [name, c] of worldClients) {
+      if (c._disconnectedAt && now - c._disconnectedAt > 30000) {
+        worldClients.delete(name);
+        const leaveMsg = JSON.stringify({ type: "player_left", username: name });
+        worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(leaveMsg); });
+        logger.info({ username: name }, "[WorldWS] cleanup after disconnect timeout");
+      }
+    }
+  }, 10000);
+
+  // تنظيف الإسقاطات القديمة كل 30 ثانية
+  setInterval(() => {
+    const now = Date.now();
+    for (let i = worldDrops.length - 1; i >= 0; i--) {
+      if (now - worldDrops[i]._droppedAt > DROP_CLEANUP_MS) {
+        worldDrops.splice(i, 1);
+      }
+    }
+  }, 30000);
 
   function broadcastWorld(excludeWs = null) {
     const list = [];
@@ -76,6 +102,29 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
           ws.close(4001, "Username mismatch"); return;
         }
         combatSystem.initWorldMonsters();
+
+        // 🔁 إعادة اتصال — استعادة حالة اللاعب خلال 30 ثانية
+        const existing = worldClients.get(username);
+        if (existing && existing._disconnectedAt) {
+          existing.ws = ws;
+          delete existing._disconnectedAt;
+          existing.x = msg.x_position ?? existing.x;
+          existing.y = msg.y_position ?? existing.y;
+          existing.army_power = msg.army_power ?? existing.army_power;
+          existing.hp = msg.hp ?? existing.hp;
+          existing.maxHp = msg.maxHp ?? existing.maxHp;
+          existing.level = msg.level ?? existing.level;
+          existing.unitLevel = msg.unitLevel ?? existing.unitLevel;
+          existing.armyAlive = msg.armyAlive ?? existing.armyAlive;
+          existing.kills = msg.kills ?? existing.kills;
+          existing.coinsEarned = msg.coinsEarned ?? existing.coinsEarned;
+          ws.send(JSON.stringify({ type: "world_monsters", list: worldMonsters }));
+          ws.send(JSON.stringify({ type: "world_drops", list: worldDrops }));
+          broadcastWorld();
+          logger.info({ username }, "[WorldWS] reconnected");
+          return;
+        }
+
         const color = playerColor(username);
         const initHP = msg.hp ?? 120;
         const initMaxHP = msg.maxHp ?? 120;
@@ -109,6 +158,7 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
           research: msg.research || {},
         });
         ws.send(JSON.stringify({ type: "world_monsters", list: worldMonsters }));
+        ws.send(JSON.stringify({ type: "world_drops", list: worldDrops }));
         broadcastWorld();
         const joinMsg = JSON.stringify({ type: "player_joined", username });
         worldClients.forEach((c) => {
@@ -137,6 +187,12 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
             c.x = result.clamped.x;
             c.y = result.clamped.y;
             c._lastMoveTs = now;
+            // إرسال الموقع المعتمد من الخادم لتصحيح العميل
+            if (Math.abs(result.clamped.x - newX) > 2 || Math.abs(result.clamped.y - newY) > 2) {
+              if (c.ws.readyState === 1) {
+                c.ws.send(JSON.stringify({ type: "pos_correction", x: result.clamped.x, y: result.clamped.y }));
+              }
+            }
           }
           c.kills = msg.kills ?? c.kills;
           c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
@@ -166,10 +222,25 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
             if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "هذا الوحش قد مات بالفعل" }));
             return;
           }
-          // 🛡️ حساب الضرر من الخادم — اللاعب لا يستطيع تزوير نتيجة القتل
-          const result = resolveMonsterKill(c, mon);
+          const result = resolveMonsterKill(c, mon, Date.now());
           if (!result.valid) return;
-          const dmgMsg = JSON.stringify({ type: "monster_hit", id: msg.id, hp: mon.hp, maxHp: mon.maxHp, dmg: result.damage, killedBy: esc(username) });
+          if (result.returnDamage > 0) {
+            c.hp = Math.max(0, c.hp - result.returnDamage);
+          }
+          if (result.poisonInfo) {
+            if (!c._poisonEffects) c._poisonEffects = [];
+            c._poisonEffects.push(result.poisonInfo);
+          }
+          const dmgMsg = JSON.stringify({
+            type: "monster_hit", id: msg.id, hp: mon.hp, maxHp: mon.maxHp,
+            dmg: result.damage, isCrit: result.isCrit, killedBy: esc(username),
+            returnDamage: result.returnDamage,
+            dodged: result.wasDodged,
+            phased: result.wasPhased,
+            sandstormActive: result.sandstormActive,
+            abilities: result.abilitiesTriggered,
+            poisonActive: !!result.poisonInfo,
+          });
           worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(dmgMsg); });
           if (result.killed) {
             _monsterKillTimestamps.set(killKey, now);
@@ -360,10 +431,13 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         if (now < c._dropCooldown) return;
         c._dropCooldown = now + 300;
         if (name.length === 0) return;
+        const dropId = `drop_${++_dropIdCounter}`;
+        const dropData = { id: dropId, x: ix, y: iy, name, icon, username, _droppedAt: now };
+        worldDrops.push(dropData);
         const dropMsg = JSON.stringify({
           type: "item_dropped",
           username,
-          item: { x: ix, y: iy, name, icon }
+          item: { id: dropId, x: ix, y: iy, name, icon }
         });
         worldClients.forEach((cl) => {
           if (cl.ws !== ws && cl.ws.readyState === 1) cl.ws.send(dropMsg);
@@ -456,13 +530,11 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
 
     ws.on("close", () => {
       if (username) {
-        worldClients.delete(username);
-        broadcastWorld();
-        const leaveMsg = JSON.stringify({ type: "player_left", username });
-        worldClients.forEach((cl) => {
-          if (cl.ws.readyState === 1) cl.ws.send(leaveMsg);
-        });
-        logger.info({ username }, "[WorldWS] left");
+        const c = worldClients.get(username);
+        if (c) {
+          c._disconnectedAt = Date.now();
+          logger.info({ username }, "[WorldWS] disconnected (grace period 30s)");
+        }
       }
     });
 

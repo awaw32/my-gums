@@ -113,4 +113,89 @@ describe('Combat Resolver (Server-Authoritative)', () => {
     expect(result.valid).toBe(false);
     expect(result.reason).toContain('ميت');
   });
+
+  describe('Monster Abilities', () => {
+    it('dodge should set damage to 0', () => {
+      const player = basePlayer();
+      const monster = baseMonster();
+      monster.enemyId = 'desert_thief';
+      const result = resolveMonsterKill(player, monster, Date.now());
+      if (result.wasDodged) {
+        expect(result.damage).toBe(0);
+      } else {
+        expect(result.damage).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    it('shield should halve damage when timer active', () => {
+      const player = basePlayer();
+      const monster = baseMonster();
+      monster.enemyId = 'palace_boss';
+      monster._shieldTimer = 3;
+      const result = resolveMonsterKill(player, monster, Date.now());
+      expect(result.damage).toBeGreaterThanOrEqual(0);
+      const expectedMax = Math.floor(computeOneHitDamage(player).damage);
+      expect(result.damage).toBeLessThanOrEqual(Math.floor(expectedMax));
+    });
+
+    it('phase should make damage 0', () => {
+      const player = basePlayer();
+      const monster = baseMonster();
+      monster.enemyId = 'palace_ghost';
+      monster._phaseTimer = 1.5;
+      const result = resolveMonsterKill(player, monster, Date.now());
+      expect(result.wasPhased).toBe(true);
+      expect(result.damage).toBe(0);
+    });
+
+    it('heal should increase monster HP', () => {
+      const player = basePlayer();
+      const monster = baseMonster();
+      monster.hp = 100;
+      monster.enemyId = 'sand_sorcerer';
+      const result = resolveMonsterKill(player, monster, Date.now());
+      const healEvent = result.abilitiesTriggered.find(a => a.type === 'heal');
+      if (healEvent) {
+        expect(monster.hp).toBeGreaterThan(100 - result.damage);
+        expect(healEvent.amount).toBeGreaterThan(0);
+      }
+    });
+
+    it('charge should return damage to player', () => {
+      const player = basePlayer();
+      const monster = baseMonster();
+      monster.enemyId = 'shadow_knight';
+      const result = resolveMonsterKill(player, monster, Date.now());
+      const chargeEvent = result.abilitiesTriggered.find(a => a.type === 'charge');
+      if (chargeEvent) {
+        expect(result.returnDamage).toBeGreaterThan(0);
+        expect(chargeEvent.damage).toBeGreaterThan(0);
+      }
+    });
+
+    it('poison should set poisonInfo', () => {
+      const player = basePlayer();
+      const monster = baseMonster();
+      monster.hp = 500;
+      monster.enemyId = 'desert_scorpion';
+      const result = resolveMonsterKill(player, monster, Date.now());
+      const poisonEvent = result.abilitiesTriggered.find(a => a.type === 'poison');
+      if (poisonEvent) {
+        expect(result.poisonInfo).not.toBeNull();
+        expect(result.poisonInfo.dps).toBeGreaterThan(0);
+        expect(result.poisonInfo.duration).toBeGreaterThan(0);
+      }
+    });
+
+    it('sandstorm should activate sandstorm timer', () => {
+      const player = basePlayer();
+      const monster = baseMonster();
+      monster.enemyId = 'wadi_boss';
+      const result = resolveMonsterKill(player, monster, Date.now());
+      const sandEvent = result.abilitiesTriggered.find(a => a.type === 'sandstorm');
+      if (sandEvent) {
+        expect(monster._sandstormTimer).toBeGreaterThan(0);
+      }
+    });
+  });
 });

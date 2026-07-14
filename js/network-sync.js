@@ -322,6 +322,31 @@ export class NetworkSync {
       case "monster_hit": {
         const mh = w.monsters.find(m => m.id === msg.id);
         if (mh) { mh.hp = msg.hp; mh.maxHp = msg.maxHp; }
+        if (msg.returnDamage > 0 && w.leader) {
+          w.leader.hp = Math.max(0, w.leader.hp - msg.returnDamage);
+        }
+        if (msg.abilities && msg.abilities.length > 0 && w.worldFx) {
+          const mx = mh ? mh.x : (w.leader?.x || 0);
+          const my = mh ? mh.y : (w.leader?.y || 0);
+          for (const ab of msg.abilities) {
+            let text = "", color = "#ffffff";
+            switch (ab) {
+              case "dodge": text = "💨 تفادى!"; color = "#4a90d9"; break;
+              case "shield": text = "🛡️ درع!"; color = "#4a90d9"; break;
+              case "heal": text = "💚 شفاء!"; color = "#4cd964"; break;
+              case "phase": text = "👻 اختفى!"; color = "#8e44ad"; break;
+              case "poison": text = "☠️ سم!"; color = "#a855f7"; break;
+              case "charge": text = "💥 انقضاض!"; color = "#ff4444"; break;
+              case "sandstorm": text = "🌪️ عاصفة!"; color = "#f39c12"; break;
+              case "fire_breath": text = "🔥 نفس النار!"; color = "#e74c3c"; break;
+              case "swoop": text = "🦅 انقضاض!"; color = "#ff6b6b"; break;
+              case "stomp": text = "🗿 دكة!"; color = "#c4a35a"; break;
+              case "aoe": text = "💫 هجوم شامل!"; color = "#9b59b6"; break;
+              default: text = `⚡ ${ab}`; color = "#ffd700";
+            }
+            w.worldFx.push({ x: mx, y: my - 10, text, color, life: 1.2, maxLife: 1.2 });
+          }
+        }
         break;
       }
       case "monster_killed": {
@@ -383,6 +408,23 @@ export class NetworkSync {
       case "player_despawn":
         w.otherPlayers.delete(msg.username);
         if (w.store) w.store.set('notification', { text: `💀 ${msg.username} قُتل في PvP`, t: Date.now() });
+        break;
+      case "poison_tick":
+        if (msg.username === this.username && w.leader) {
+          w.leader.hp = Math.min(w.leader.hp, msg.hp);
+        }
+        if (w.worldFx) {
+          w.worldFx.push({ x: w.leader?.x || 0, y: w.leader?.y || 0, text: `☠️ ${msg.damage}`, color: "#a855f7", life: 1, maxLife: 1 });
+        }
+        break;
+      case "pos_correction":
+        if (w.leader && (msg.x !== undefined || msg.y !== undefined)) {
+          if (msg.x !== undefined) w.leader.x = msg.x;
+          if (msg.y !== undefined) w.leader.y = msg.y;
+        }
+        break;
+      case "world_drops":
+        if (w._onWorldDrops && msg.list) w._onWorldDrops(msg.list);
         break;
       case "claim_gift_ack":
         if (msg.claimed && msg.reward) {
