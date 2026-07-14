@@ -812,18 +812,18 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 /* ====== توافق مع الشاشات الصغيرة جداً ====== */
 @media (max-width: 360px) {
   :root {
-    --top-h: 50px;
+    --top-h: 64px;
     --sub-h: 64px;
     --qu-h: 58px;
     --bottom-h: 56px;
     --chat-overlay-h: 28px;
   }
-  .top-avatar { width: 30px; height: 30px; font-size: 0.9rem; }
-  .top-level-track { width: 40px; }
-  .top-level-label { font-size: 0.55rem; }
+  .top-avatar { width: 28px; height: 28px; font-size: 0.85rem; }
+  .top-level-track { width: 36px; }
+  .top-level-label { font-size: 0.5rem; }
   .top-resources { gap: 1px; }
   .top-res { padding: 1px 3px; font-size: 0.5rem; border-radius: 10px; }
-  .top-res .res-val { font-size: 0.5rem; min-width: 18px; }
+  .top-res .res-val { font-size: 0.5rem; min-width: 16px; }
   .csb-icon { width: 34px; height: 34px; font-size: 1rem; }
   .csb-label { font-size: 0.5rem; }
   .map-building { padding: 10px 6px; min-height: 110px; }
@@ -2116,10 +2116,11 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   .promo-card-new:nth-child(3),
   .promo-card-new:nth-child(4) { height: 130px; }
 }
-@media (max-width: 400px) {
-  .top-res .res-val { display: none; }
-  .top-res { padding: 2px 3px; gap: 1px; }
-  .top-resources { gap: 1px; }
+@media (max-width: 440px) {
+  .top-resources { flex-wrap: wrap; gap: 1px; justify-content: center; }
+  .top-res { padding: 1px 4px; gap: 1px; font-size: 0.5rem; }
+  .top-res .res-val { font-size: 0.5rem; min-width: 14px; }
+  .top-res .res-icon { font-size: 0.55rem; width:14px; height:14px; }
 }
 @media (max-width: 280px) {
   .top-resources { flex-wrap: wrap; justify-content: center; }
@@ -4713,6 +4714,9 @@ input[type="number"] { -moz-appearance: textfield; }
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: auto;
   animation: fadeIn 0.25s ease;
 }
 
@@ -4729,6 +4733,8 @@ input[type="number"] { -moz-appearance: textfield; }
   max-width: 520px;
   max-height: 88vh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: auto;
   background: linear-gradient(160deg, #2c1e10 0%, #1a1208 100%);
   border: 1.5px solid rgba(212, 160, 23, 0.35);
   border-radius: 18px;

@@ -395,6 +395,8 @@ GameUI.prototype._landsToast = function(msg) {
 };
 
 GameUI.prototype.renderWar = function() {
+  if (this._warListenersAttached) return;
+  this._warListenersAttached = true;
   const modes = ['extraction', 'horde', 'cave'];
   const selectMode = (mode) => {
     for (const m of modes) {
@@ -796,6 +798,9 @@ GameUI.prototype.showLoadoutScreen = function(modeName) {
   const modeNames = { extraction: 'استخراج الذهب', horde: 'الحشد', cave: 'الكهف' };
   const modeIcons = { extraction: '🪙', horde: '🌊', cave: '🕯️' };
   
+  const existing = document.getElementById("loadout-overlay");
+  if (existing) existing.remove();
+
   const overlay = document.createElement("div");
   overlay.id = "loadout-overlay";
   overlay.className = "loadout-overlay";
