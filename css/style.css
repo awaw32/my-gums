@@ -44,6 +44,16 @@
   --accent-red-dim: #7B2D26;
   --accent-gold: #D4A017;
   --vh: 1vh;
+  /* سلم z-index: loading=3000, particles=4000, story-overlay=9999, tooltip=9999, mini-map=9999, bottom-bar=9999, sub-bar=10000, modal=90000, confirm=100000 */
+  --z-loading: 3000;
+  --z-particles: 4000;
+  --z-story: 9999;
+  --z-tooltip: 9999;
+  --z-minimap: 9999;
+  --z-nav: 9999;
+  --z-subbar: 10000;
+  --z-modal: 90000;
+  --z-confirm: 100000;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; touch-action: manipulation; }

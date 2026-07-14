@@ -218,6 +218,15 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
 
         const attackerPower = (c.army_power || 5000);
         const targetPower = (tc.army_power || 5000);
+        // التحقق من أن الفائز المزعوم قوي بما يكفي (يمنع الغش)
+        if (won && attackerPower < targetPower * 0.3) {
+          if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "لا يمكن هزيمة خصم أقوى بكثير" }));
+          return;
+        }
+        if (!won && targetPower < attackerPower * 0.3) {
+          _pvpCooldowns.set(username, 0);
+          return;
+        }
         const maxReasonableLoot = Math.min(50000, Math.floor(Math.max(attackerPower, targetPower) * 0.15));
         const maxReasonableReward = Math.min(25000, Math.floor(Math.max(attackerPower, targetPower) * 0.08));
         const validatedLoot = Math.max(0, Math.min(loot, maxReasonableLoot));
