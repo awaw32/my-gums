@@ -325,10 +325,19 @@ class GameEngine {
       const pts = Array.from(this._touchPoints.values());
       const curDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       if (this._pinch.dist > 0) {
+        // 🤏 تمحور التكبير حول نقطة التقاء الإصبعين فعلياً (وليس مركز الشاشة الثابت)
+        // — نحسب نقطة العالم تحت الإصبعين قبل التغيير، ثم نعيد ضبط الكاميرا بعده
+        // كي تبقى نفس نقطة العالم تحت الإصبعين، تماماً كتكبير التطبيقات الأصلية.
+        const midX = (pts[0].x + pts[1].x) / 2;
+        const midY = (pts[0].y + pts[1].y) / 2;
+        const worldPoint = this.camera.screenToWorld(midX, midY);
         const newZoom = Math.max(this.camera.minZoom,
           Math.min(this.camera.maxZoom,
             this._pinch.startZoom * (curDist / this._pinch.dist)));
         this.camera.zoom = newZoom;
+        const cx = this.camera.w / 2, cy = this.camera.h / 2;
+        this.camera.x = worldPoint.x - cx - (midX - cx) / newZoom;
+        this.camera.y = worldPoint.y - cy - (midY - cy) / newZoom;
       }
       return;
     }

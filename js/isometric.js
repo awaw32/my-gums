@@ -32,6 +32,24 @@ const TILE_COLORS = {
   [TILE_PATH]:      { top: "#c9b07a", left: "#a99060", right: "#b9a06a" },
 };
 
+/** يُغمّق/يُفتّح لوناً سداسياً بنسبة amt (-1..1) — لبناء تدرّجات وتفاوتات الأرضية */
+function shadeHexColor(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) & 0xff, g = (n >> 8) & 0xff, b = n & 0xff;
+  if (amt >= 0) {
+    r += (255 - r) * amt; g += (255 - g) * amt; b += (255 - b) * amt;
+  } else {
+    r *= 1 + amt; g *= 1 + amt; b *= 1 + amt;
+  }
+  const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+  return `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`;
+}
+
+/** قيمة عشوائية ثابتة (0..1) حسب إحداثيات البلاطة — تكسر التكرار البصري المسطّح بلا تكلفة أداء أثناء اللعب */
+function tileVariance(col, row) {
+  return ((col * 928371 + row * 614897 + 7) % 97) / 97;
+}
+
 class IsometricSystem {
   constructor(mapW = WORLD_W, mapH = WORLD_H) {
     this.mapW = mapW;
@@ -145,7 +163,8 @@ class IsometricSystem {
   }
 
   /**
-   * Draw a single isometric tile (diamond shape).
+   * Draw a single isometric tile (diamond shape) — مرة واحدة فقط عند التوليد
+   * (_preRenderTiles)، لذا تحمل تدرّجات وتفاصيل إضافية بلا أي تكلفة أثناء اللعب.
    */
   _drawIsoTile(ctx, col, row, colors) {
     const tileW = this._tileW || TILE_W;
@@ -154,9 +173,14 @@ class IsometricSystem {
     const hw = tileW / 2;
     const hh = tileH / 2;
     const depth = Math.max(6, tileH * 0.2);
+    const variance = tileVariance(col, row);
 
-    // Top face
-    ctx.fillStyle = colors.top;
+    // الوجه العلوي — تدرّج خفيف (إضاءة من أعلى-اليسار) بدل تلوين مسطّح بالكامل
+    const grad = ctx.createLinearGradient(x - hw, y - hh, x + hw, y + hh);
+    grad.addColorStop(0, shadeHexColor(colors.top, 0.10 + variance * 0.04));
+    grad.addColorStop(0.55, colors.top);
+    grad.addColorStop(1, shadeHexColor(colors.top, -0.08 - variance * 0.04));
+    ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.moveTo(x, y - hh);
     ctx.lineTo(x + hw, y);
@@ -165,8 +189,29 @@ class IsometricSystem {
     ctx.closePath();
     ctx.fill();
 
+    // حدّ رفيع لإبراز حواف البلاطة — إحساس أعمق بالمنظور الإيزومتري
+    ctx.strokeStyle = "rgba(0,0,0,0.06)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // بقع رملية خفيفة (نسيج) — تكسر التكرار البصري المسطّح لأرضية الصحراء
+    if (variance > 0.55) {
+      const speckleCount = 2 + Math.floor(variance * 3);
+      ctx.fillStyle = shadeHexColor(colors.top, -0.14);
+      ctx.globalAlpha = 0.25;
+      for (let i = 0; i < speckleCount; i++) {
+        const sv = tileVariance(col * 13 + i, row * 7 + i);
+        const sx = x + (sv - 0.5) * hw * 1.2;
+        const sy = y + (tileVariance(row * 11 + i, col * 5 + i) - 0.5) * hh * 1.2;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, hw * 0.05, hh * 0.05, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
     // Left face (side)
-    ctx.fillStyle = colors.left;
+    ctx.fillStyle = shadeHexColor(colors.left, -variance * 0.06);
     ctx.beginPath();
     ctx.moveTo(x - hw, y);
     ctx.lineTo(x, y + hh);
@@ -176,7 +221,7 @@ class IsometricSystem {
     ctx.fill();
 
     // Right face (side)
-    ctx.fillStyle = colors.right;
+    ctx.fillStyle = shadeHexColor(colors.right, -variance * 0.06);
     ctx.beginPath();
     ctx.moveTo(x + hw, y);
     ctx.lineTo(x, y + hh);

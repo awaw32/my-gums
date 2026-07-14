@@ -12,7 +12,34 @@ const DIR_ANGLES = {
   NW: Math.PI * 5 / 4, N: -Math.PI / 2, NE: -Math.PI / 4,
   E: 0, SE: Math.PI / 4
 };
-const FRAME_COUNT = 4;
+const BASE_SIZE = 48; // الحجم المنطقي الثابت على الشاشة — لا يتغير مهما زادت دقة التخزين الداخلية
+
+// عدد الإطارات لكل حالة حركة — المشي يبقى بأربعة إطارات كما كان، والوقوف/الهجوم أخف
+const ANIM_STATES = {
+  walk: 4,
+  idle: 2,
+  attack: 2,
+};
+
+/**
+ * يحسب انحناء الجسم (bobY) وتمايل الأطراف (walkSwing) لكل حالة حركة وإطار.
+ * تبقى دوال الرسم لكل شخصية كما هي بلا تعديل — فقط قيم الدخل تختلف حسب الحالة،
+ * فتنتج وضعية وقوف هادئة، مشي كامل التمايل، أو ضربة هجوم بلا الحاجة لمحرك أنيميشن جديد.
+ */
+function getAnimProfile(state, frame) {
+  if (state === "idle") {
+    // تنفّس خفيف فقط — بلا أي حركة أطراف
+    return { bobY: Math.sin(frame * Math.PI) * 0.8, walkSwing: 0 };
+  }
+  if (state === "attack") {
+    // استعداد (سحب للخلف) ثم ضربة/اندفاع للأمام — تُحرّك الذراع والسلاح عبر نفس معادلات الرسم الحالية
+    return frame === 0
+      ? { bobY: -1, walkSwing: -6 }
+      : { bobY: 1, walkSwing: 9 };
+  }
+  // walk (الافتراضي) — نفس دورة المشي الأصلية بأربعة إطارات
+  return { bobY: Math.sin(frame * Math.PI / 2) * 2, walkSwing: Math.sin(frame * Math.PI / 2) * 3 };
+}
 
 class SpriteFactory {
   constructor() {
@@ -38,10 +65,13 @@ class SpriteFactory {
 
     for (const { id, config } of types) {
       for (const dir of DIRECTIONS) {
-        for (let f = 0; f < FRAME_COUNT; f++) {
-          const key = `${id}_${dir}_${f}`;
-          const canvas = this._generateFrame(id, config, dir, f);
-          this._cache.set(key, canvas);
+        for (const state of Object.keys(ANIM_STATES)) {
+          const frameCount = ANIM_STATES[state];
+          for (let f = 0; f < frameCount; f++) {
+            const key = `${id}_${dir}_${state}_${f}`;
+            const canvas = this._generateFrame(id, config, dir, state, f);
+            this._cache.set(key, canvas);
+          }
         }
       }
     }
@@ -52,20 +82,23 @@ class SpriteFactory {
    * Get a cached sprite canvas.
    * @returns {HTMLCanvasElement}
    */
-  get(type, direction, frame) {
+  get(type, direction, state, frame) {
     const dir = DIRECTIONS[direction] || DIRECTIONS[0];
-    const fr = (frame | 0) % FRAME_COUNT;
-    return this._cache.get(`${type}_${dir}_${fr}`);
+    const st = ANIM_STATES[state] ? state : "walk";
+    const fr = (frame | 0) % ANIM_STATES[st];
+    return this._cache.get(`${type}_${dir}_${st}_${fr}`);
   }
 
   /**
    * Draw a sprite at position.
    */
-  draw(ctx, type, x, y, direction, frame, scale = 1, flipX = false) {
-    const canvas = this.get(type, direction, frame);
+  draw(ctx, type, x, y, direction, state, frame, scale = 1, flipX = false) {
+    const canvas = this.get(type, direction, state, frame);
     if (!canvas) return false;
-    const w = canvas.width * scale;
-    const h = canvas.height * scale;
+    // الحجم المعروض على الشاشة ثابت منطقياً بغض النظر عن دقة التخزين الداخلية للـ canvas
+    // (المتصفح يُصغّر تلقائياً من الدقة العالية إلى حجم العرض — نتيجة أوضح من تكبير صورة صغيرة)
+    const w = BASE_SIZE * scale;
+    const h = BASE_SIZE * scale;
     ctx.save();
     if (flipX) {
       ctx.translate(x + w / 2, y - h / 2);
@@ -90,18 +123,22 @@ class SpriteFactory {
   }
 
   // ─── Internal: Generate a single frame ───────────────────
-  _generateFrame(type, config, dir, frame) {
-    const size = 48;
+  _generateFrame(type, config, dir, state, frame) {
+    // معامل تكبير الدقة الداخلية (Supersampling) — يجعل الشخصيات واضحة على شاشات
+    // الجوال عالية الكثافة (DPR) بدل تخزينها بدقة 48px ثابتة دائماً كانت تبدو ضبابية
+    // عند التكبير. لا حاجة لتعديل إحداثيات الرسم في كل دالة draw() لأن ctx.scale
+    // يطبّق التكبير على كل عمليات الرسم اللاحقة تلقائياً.
+    const dpr = Math.min(3, Math.max(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1));
     const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = BASE_SIZE * dpr;
+    canvas.height = BASE_SIZE * dpr;
     const ctx = canvas.getContext("2d");
-    ctx.translate(size / 2, size / 2);
+    ctx.scale(dpr, dpr);
+    ctx.translate(BASE_SIZE / 2, BASE_SIZE / 2);
 
-    const bobY = Math.sin(frame * Math.PI / 2) * 2;
-    const walkSwing = Math.sin(frame * Math.PI / 2) * 3;
+    const { bobY, walkSwing } = getAnimProfile(state, frame);
 
-    config.draw(ctx, dir, frame, bobY, walkSwing, size);
+    config.draw(ctx, dir, frame, bobY, walkSwing, BASE_SIZE);
 
     return canvas;
   }

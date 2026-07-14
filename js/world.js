@@ -832,6 +832,7 @@ export class WorldMap {
     for (const rock of this.MAP_OBSTACLES) {
       markObstacle(rock.x, rock.y, rock.r);
     }
+    this._prerenderObstacleSprites();
 
     const img = new Image();
     img.onload = () => { 
@@ -1504,6 +1505,9 @@ export class WorldMap {
     if (this.mode === "battle_royale") this.updateBR(dt);
     if (this._activeMode) this._activeMode.update(dt);
 
+    // 🛡️ منع الكاميرا من الخروج عن حدود الخريطة الحالية إلى فراغ (تختلف الحدود حسب النمط)
+    if (typeof cam.clamp === "function") cam.clamp(this.W, this.H);
+
     ctx.save();
     ctx.translate(-cam.x, -cam.y);
 
@@ -1574,6 +1578,16 @@ export class WorldMap {
    * رسم جميع الكائنات مع ترتيب العمق (2.5D depth sorting).
    * الكائنات التي يبلغ عمقها (x+y) أقل تُرسم أولاً (خلف).
    */
+  /**
+   * 🖼️ حجب الكيانات خارج نطاق رؤية الكاميرا (Frustum Culling) — شبكة أمان أداء
+   * تستخدم camera.visible() الموجودة أصلاً في المحرك، بلا أي تغيير بصري.
+   */
+  _isEntityVisible(x, y, margin = 150) {
+    const visible = this.engine?.camera?.visible;
+    if (typeof visible !== "function") return true; // بيئة بلا كاميرا (اختبارات مثلاً) — لا حجب
+    return visible(x, y, margin);
+  }
+
   _drawEntitiesSorted(ctx) {
     const ds = this._depthSorter;
     ds.clear();
@@ -1581,28 +1595,33 @@ export class WorldMap {
     // إضافة الوحوش
     for (const m of this.monsters) {
       if (!m.alive) continue;
+      if (!this._isEntityVisible(m.x, m.y, m.radius + 60)) continue;
       ds.add(m.x, m.y, (c) => this._drawMonsterEntity(c, m));
     }
 
     // إضافة الـ drops
     for (const d of this.drops) {
       if (d.collected) continue;
+      if (!this._isEntityVisible(d.x, d.y)) continue;
       ds.add(d.x, d.y, (c) => this._drawDropEntity(c, d));
     }
 
     // 🎁 إضافة صناديق الكنز
     for (const c of this.treasureChests) {
       if (c.opened) continue;
+      if (!this._isEntityVisible(c.x, c.y)) continue;
       ds.add(c.x, c.y, (c2) => this._drawTreasureChestEntity(c2, c));
     }
 
     // إضافة الجنود
     for (const u of this.armyUnits) {
+      if (!this._isEntityVisible(u.x, u.y, u.radius + 60)) continue;
       ds.add(u.x, u.y, (c) => this._drawArmyEntity(c, u));
     }
 
     // إضافة اللاعبين الآخرين
     for (const [, p] of this.otherPlayers) {
+      if (!this._isEntityVisible(p.x, p.y, (p.radius || 20) + 100)) continue;
       ds.add(p.x, p.y, (c) => this._drawOtherPlayerEntity(c, p));
     }
 
@@ -1610,14 +1629,29 @@ export class WorldMap {
     if (this.mode === "battle_royale") {
       for (const b of this.bandits) {
         if (!b.alive) continue;
+        if (!this._isEntityVisible(b.x, b.y, 80)) continue;
         ds.add(b.x, b.y, (c) => this._drawBanditEntity(c, b));
       }
     }
 
-    // إضافة القائد (دائماً في الأعلى)
+    // إضافة القائد (دائماً في الأعلى — بلا حجب، يبقى ظاهراً دوماً)
     ds.add(this.leader.x, this.leader.y + 1000, (c) => this.drawHero(c));
 
     ds.drawAll(ctx);
+  }
+
+  /**
+   * 🎬 يحدّد حالة حركة الكيان (وقوف/مشي/هجوم) اعتماداً على معطيات موجودة أصلاً —
+   * بلا حاجة لتتبّع حالة جديدة معقّدة. يُستخدم مع كل استدعاءات spriteFactory.draw.
+   */
+  _getAnimState(entity, isFighting) {
+    if (isFighting) return "attack";
+    const px = entity._animPrevX, py = entity._animPrevY;
+    entity._animPrevX = entity.x;
+    entity._animPrevY = entity.y;
+    if (px === undefined) return "idle";
+    const moved = Math.hypot(entity.x - px, entity.y - py) > 0.15;
+    return moved ? "walk" : "idle";
   }
 
   /**
@@ -1644,7 +1678,9 @@ export class WorldMap {
       const flipX = m.facing < 0;
       const spriteType = m.imageKey === "monster-1" ? "wolf" :
                           m.imageKey === "monster-2" ? "shadow" : "sandlord";
-      spriteFactory.draw(ctx, spriteType, 0, 0, dir, this._spriteFrame, 1.2, flipX);
+      const isAttacking = !!(m._chaseTarget && Math.hypot(m.x - m._chaseTarget.x, m.y - m._chaseTarget.y) < 30);
+      const animState = this._getAnimState(m, isAttacking);
+      spriteFactory.draw(ctx, spriteType, 0, 0, dir, animState, this._spriteFrame, 1.2, flipX);
     } else {
       ctx.scale(m.facing || 1, 1);
       this._drawSprite(ctx, m.imageKey, m.color, m.radius);
@@ -1687,7 +1723,8 @@ export class WorldMap {
         u.fighting ? (u.fighting.x - u.x) : 0,
         u.fighting ? (u.fighting.y - u.y) : 0
       );
-      spriteFactory.draw(ctx, "soldier", 0, 0, dir, this._spriteFrame, 1, u.facing < 0);
+      const animState = this._getAnimState(u, !!u.fighting);
+      spriteFactory.draw(ctx, "soldier", 0, 0, dir, animState, this._spriteFrame, 1, u.facing < 0);
     } else {
       ctx.scale(u.facing || 1, 1);
       this._drawSprite(ctx, "soldier-player", "#3d2b1f", u.radius);
@@ -1709,6 +1746,9 @@ export class WorldMap {
    */
   _drawOtherPlayerEntity(ctx, p) {
     const useSprites = this._isometricEnabled && spriteFactory.isReady;
+    // 🎬 نحسب حالة الحركة مرة واحدة للاعب الآخر ونشاركها مع جنوده الشبحيين
+    // (يتحركون معاً أصلاً)، لتفادي تضارب تتبّع "آخر موضع" عند استدعائها مرتين
+    const animState = this._getAnimState(p, false);
 
     // جيش اللاعب الآخر
     const armyPower = p.army_power || 0;
@@ -1722,7 +1762,7 @@ export class WorldMap {
       ctx.ellipse(0, 5, 6, 2, 0, 0, Math.PI * 2);
       ctx.fill();
       if (useSprites) {
-        spriteFactory.draw(ctx, "soldier", 0, 0, "S", this._spriteFrame, 0.7, p.facing < 0);
+        spriteFactory.draw(ctx, "soldier", 0, 0, "S", animState, this._spriteFrame, 0.7, p.facing < 0);
       } else {
         ctx.scale(p.facing || 1, 1);
         this._drawSprite(ctx, "soldier-enemy", p.color + "99", 8);
@@ -1740,7 +1780,7 @@ export class WorldMap {
     ctx.fill();
 
     if (useSprites) {
-      spriteFactory.draw(ctx, "leader", 0, 0, p.facing >= 0 ? "E" : "W", this._spriteFrame, 1, p.facing < 0);
+      spriteFactory.draw(ctx, "leader", 0, 0, p.facing >= 0 ? "E" : "W", animState, this._spriteFrame, 1, p.facing < 0);
     } else {
       ctx.scale(p.facing || 1, 1);
       this._drawSprite(ctx, "leader-enemy", p.color, p.radius);
@@ -1807,7 +1847,8 @@ export class WorldMap {
     ctx.fill();
 
     if (useSprites) {
-      spriteFactory.draw(ctx, "bandit", 0, 0, "S", this._spriteFrame, 1, b.facing < 0);
+      const animState = this._getAnimState(b, false);
+      spriteFactory.draw(ctx, "bandit", 0, 0, "S", animState, this._spriteFrame, 1, b.facing < 0);
     } else {
       ctx.scale(b.facing || 1, 1);
       const banditImg = this.images.get("bandit-br");
@@ -2052,38 +2093,60 @@ export class WorldMap {
     }
   }
 
-  /** 🪨 رسم صخور/عوائق الخريطة كمعالم بصرية تطابق مناطق التصادم الفعلية (this.MAP_OBSTACLES) */
-  drawMapObstacles(ctx) {
-    if (!this.MAP_OBSTACLES) return;
-    ctx.save();
-    for (const rock of this.MAP_OBSTACLES) {
-      const { x, y, r } = rock;
+  /**
+   * 🪨 يخزّن شكل كل صخرة (الظل + التدرّج + بقع التظليل) في canvas صغير مرة واحدة
+   * بدل إعادة إنشاء التدرّجات وإعادة الرسم كل فريم — نفس أسلوب تخزين الـ sprites.
+   */
+  _prerenderObstacleSprites() {
+    if (!this.MAP_OBSTACLES) { this._obstacleSprites = []; return; }
+    this._obstacleSprites = this.MAP_OBSTACLES.map((rock) => {
+      const { r } = rock;
+      const size = Math.ceil(r * 2.4);
+      const cx = size / 2, cy = size / 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+
       // ظل أسفل الصخرة
       ctx.fillStyle = "rgba(0,0,0,0.18)";
       ctx.beginPath();
-      ctx.ellipse(x, y + r * 0.55, r * 0.9, r * 0.32, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy + r * 0.55, r * 0.9, r * 0.32, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+      const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
       grad.addColorStop(0, "#a8998a");
       grad.addColorStop(0.55, "#8a7a6a");
       grad.addColorStop(1, "#5c4d3f");
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.ellipse(x, y, r * 0.85, r * 0.7, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy, r * 0.85, r * 0.7, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // بقع تظليل بسيطة لإحساس صخري خشن
       ctx.fillStyle = "rgba(0,0,0,0.12)";
       ctx.beginPath();
-      ctx.ellipse(x + r * 0.25, y + r * 0.1, r * 0.3, r * 0.18, 0.4, 0, Math.PI * 2);
+      ctx.ellipse(cx + r * 0.25, cy + r * 0.1, r * 0.3, r * 0.18, 0.4, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "rgba(255,255,255,0.10)";
       ctx.beginPath();
-      ctx.ellipse(x - r * 0.28, y - r * 0.25, r * 0.22, r * 0.14, -0.3, 0, Math.PI * 2);
+      ctx.ellipse(cx - r * 0.28, cy - r * 0.25, r * 0.22, r * 0.14, -0.3, 0, Math.PI * 2);
       ctx.fill();
+
+      return { canvas, offsetX: cx, offsetY: cy };
+    });
+  }
+
+  /** 🪨 رسم صخور/عوائق الخريطة كمعالم بصرية تطابق مناطق التصادم الفعلية (this.MAP_OBSTACLES) */
+  drawMapObstacles(ctx) {
+    if (!this.MAP_OBSTACLES) return;
+    if (!this._obstacleSprites) this._prerenderObstacleSprites();
+    for (let i = 0; i < this.MAP_OBSTACLES.length; i++) {
+      const rock = this.MAP_OBSTACLES[i];
+      const sprite = this._obstacleSprites[i];
+      if (!sprite) continue;
+      ctx.drawImage(sprite.canvas, rock.x - sprite.offsetX, rock.y - sprite.offsetY);
     }
-    ctx.restore();
   }
 
   drawSandParticles(ctx) {
@@ -2661,7 +2724,8 @@ export class WorldMap {
         dy = l.path[l.pathIdx].y - l.y;
       }
       const dir = SpriteFactory.vectorToDirection(dx, dy);
-      spriteFactory.draw(ctx, "leader", 0, 0, dir, this._spriteFrame, 1.3, l.facing < 0);
+      const animState = this._getAnimState(l, !!l.fighting);
+      spriteFactory.draw(ctx, "leader", 0, 0, dir, animState, this._spriteFrame, 1.3, l.facing < 0);
     } else {
       // Fallback: الكود الأصلي
       ctx.scale(l.facing || 1, 1);
