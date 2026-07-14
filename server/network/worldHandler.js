@@ -348,21 +348,24 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         }
       } else if (msg.type === "item_dropped" && username) {
         const c = worldClients.get(username);
-        if (c && msg.item) {
-          const dropMsg = JSON.stringify({
-            type: "item_dropped",
-            username,
-            item: {
-              x: msg.item.x || c.x,
-              y: msg.item.y || c.y,
-              name: msg.item.name || "",
-              icon: msg.item.icon || "",
-            }
-          });
-          worldClients.forEach((cl) => {
-            if (cl.ws !== ws && cl.ws.readyState === 1) cl.ws.send(dropMsg);
-          });
-        }
+        if (!c || !msg.item) return;
+        const name = (msg.item.name || "").slice(0, 48);
+        const icon = (msg.item.icon || "").slice(0, 8);
+        const ix = Math.min(Math.max(msg.item.x || c.x, -500), 5000);
+        const iy = Math.min(Math.max(msg.item.y || c.y, -500), 5000);
+        if (!c._dropCooldown) c._dropCooldown = 0;
+        const now = Date.now();
+        if (now < c._dropCooldown) return;
+        c._dropCooldown = now + 300;
+        if (name.length === 0) return;
+        const dropMsg = JSON.stringify({
+          type: "item_dropped",
+          username,
+          item: { x: ix, y: iy, name, icon }
+        });
+        worldClients.forEach((cl) => {
+          if (cl.ws !== ws && cl.ws.readyState === 1) cl.ws.send(dropMsg);
+        });
       } else if (msg.type === "claim_gift" && username) {
         const c = worldClients.get(username);
         if (c) {

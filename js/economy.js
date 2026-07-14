@@ -79,7 +79,7 @@ export class GameEconomy {
     this.lastTick = Date.now();
     this.powerSources = [];
     this.kills = 0;
-    this.totalEarned = 0;
+    this.totalEarned = { cash: 0, gold: 0, gems: 0 };
     this.b3GoldBonus = 1;
     this._onLevelUp = null;
     this._onGoldEarned = null;
@@ -180,6 +180,7 @@ export class GameEconomy {
       }
       this.resources[type] += finalAmt;
       if (this.resources[type] < 0) this.resources[type] = 0;
+      if (amt > 0 && this.totalEarned[type] !== undefined) this.totalEarned[type] += finalAmt;
       if (type === "gold" && amt > 0 && this._onGoldEarned) {
         this._onGoldEarned(amt); // نبعت المبلغ الأصلي للإنجاز (بدون مضاعف)
       }

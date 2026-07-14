@@ -1500,6 +1500,8 @@ async function init() {
       }
     });
 
+    document.getElementById('reload-btn')?.addEventListener('click', () => location.reload());
+
     window.addEventListener("beforeunload", () => {
       try { saveGame(economy, village, army); saveToDB(); persistGameSession(economy, village, army); } catch {}
     });

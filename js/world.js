@@ -322,16 +322,14 @@ export class WorldMap {
       if (this._ui && this._ui.logCombat) this._ui.logCombat('lose', `💥 هُزمت أمام ${tgt.username} | خسرت ${cashLost} 💵`);
     }
 
-    if (this.netSync) {
-      this.netSync.send({
-        type: "pvp_result",
-        target: tgt.username,
-        won,
-        myPower: myEffective,
-        loot: cashLost,
-        winnerReward: reward,
-      });
-    }
+    this._sendWS({
+      type: "pvp_result",
+      target: tgt.username,
+      won,
+      myPower: myEffective,
+      loot: cashLost,
+      winnerReward: reward,
+    });
 
     const newArmyPower = this.economy ? Math.max(500, Math.floor((this.economy.power || 5000))) : 5000;
     try {
@@ -2471,7 +2469,7 @@ export class WorldMap {
       }
 
       this.sessionStats.kills++;
-      if (this.netSync) this.netSync.send({ type: "monster_killed", id: monster.id });
+      this._sendWS({ type: "monster_killed", id: monster.id });
       if (this._ui && this._ui.logCombat) this._ui.logCombat('kill', `⚔️ قتلت ${monster.name || 'وحشاً'} | +${reward} 💵`);
       this.createDrop(monster.x, monster.y, reward, goldReward);
 
