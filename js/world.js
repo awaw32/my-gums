@@ -2516,10 +2516,7 @@ export class WorldMap {
       if (this._activeMode) this._activeMode.onMonsterKilled(monster);
       monster.alive = false;
       monster.respawnTimer = 25;
-      const reward = monster.rewardMoney ?? 10;
-      const goldReward = monster.rewardGold ?? Math.floor(reward * 0.3);
 
-      // ── Combo ──
       this._comboCount++;
       this._comboTimer = 5;
       if (this._comboCount >= this._comboThreshold) {
@@ -2533,29 +2530,7 @@ export class WorldMap {
 
       this.sessionStats.kills++;
       this._sendWS({ type: "monster_killed", id: monster.id });
-      if (this._ui && this._ui.logCombat) this._ui.logCombat('kill', `⚔️ قتلت ${monster.name || 'وحشاً'} | +${reward} 💵`);
-      this.createDrop(monster.x, monster.y, reward, goldReward);
 
-      // 🏺 القطع الأثرية + غنائم الزعماء المحسّنة
-      if (monster.isBoss && this.economy) {
-        const epicLoot = getEpicBossLoot(monster.enemyId || "", this);
-        const artifactDrop = epicLoot.artifacts > 0 ? epicLoot.artifacts : 1 + Math.floor(Math.random() * 2);
-        const gemDrop = epicLoot.desertGem || (monster.enemyId === 'final_boss' ? 1 : 0);
-        if (artifactDrop > 0) this.economy.addRaw('artifacts', artifactDrop);
-        if (gemDrop > 0) this.economy.addRaw('desertGem', gemDrop);
-        if (epicLoot.cashBonus > 0) {
-          if (this.economy.cash !== undefined) this.economy.cash += epicLoot.cashBonus;
-        }
-        if (this.store) {
-          let notifText = `🏺 حصلت على ${artifactDrop} قطع أثرية!${gemDrop ? ' 💠وجوهرة الصحراء!' : ''}`;
-          if (epicLoot.cashBonus > 0) notifText += ` 💰+${epicLoot.cashBonus}`;
-          this.store.set('notification', { text: notifText, t: Date.now() });
-        }
-      } else if (this.economy && Math.random() < 0.08) {
-        this.economy.addRaw('artifacts', 1);
-      }
-
-      // تأثير موت الوحش
       spawnMonsterDeathEffect(this, monster);
       if (this.engine) this.engine.shake(monster.isBoss ? 12 : 4, monster.isBoss ? 0.3 : 0.15);
 

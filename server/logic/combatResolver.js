@@ -212,10 +212,28 @@ function computeLoot(playerPower, won) {
   return { cash: Math.min(lost, 50000), gold: 0 };
 }
 
+function computeMonsterReward(monster, playerData) {
+  const power = playerData.army_power || 5000;
+  const level = playerData.level || 1;
+  const baseCash = monster.rewardMoney || 10;
+  const baseGold = monster.rewardGold || Math.floor(baseCash * 0.3);
+  const levelMult = 1 + level * 0.02;
+  let cash = Math.floor(baseCash * levelMult);
+  let gold = Math.floor(baseGold * levelMult);
+  const powerCap = Math.floor(power * 0.15);
+  cash = Math.min(cash, powerCap);
+  gold = Math.min(gold, Math.floor(powerCap * 0.3));
+  const artifacts = monster.isBoss ? 1 + Math.floor(Math.random() * 2) : 0;
+  const desertGem = monster.enemyId === "final_boss" ? 1 : 0;
+  const cashBonus = monster.isBoss ? Math.floor(cash * 0.5) : 0;
+  return { cash, gold, artifacts, desertGem, cashBonus };
+}
+
 module.exports = {
   computeOneHitDamage,
   resolveMonsterKill,
   simulatePvPFull,
   computeLoot,
+  computeMonsterReward,
   WEAPON_COMBAT_STATS,
 };

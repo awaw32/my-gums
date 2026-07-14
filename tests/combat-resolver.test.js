@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeOneHitDamage, resolveMonsterKill, simulatePvPFull, computeLoot, WEAPON_COMBAT_STATS } from '../server/logic/combatResolver.js';
+import { computeOneHitDamage, resolveMonsterKill, simulatePvPFull, computeLoot, computeMonsterReward, WEAPON_COMBAT_STATS } from '../server/logic/combatResolver.js';
 
 describe('Combat Resolver (Server-Authoritative)', () => {
   const basePlayer = () => ({
@@ -97,6 +97,68 @@ describe('Combat Resolver (Server-Authoritative)', () => {
     expect(loot.cash).toBeGreaterThanOrEqual(0);
     expect(loot.cash).toBeLessThanOrEqual(50000);
     expect(loot.gold).toBe(0);
+  });
+
+  it('computeMonsterReward should give proportional reward', () => {
+    const monster = {
+      rewardMoney: 10,
+      rewardGold: 3,
+      hp: 200, maxHp: 200, enemyId: 'desert_wolf',
+    };
+    const player = basePlayer();
+    const reward = computeMonsterReward(monster, player);
+    expect(reward.cash).toBeGreaterThanOrEqual(1);
+    expect(reward.gold).toBeGreaterThanOrEqual(0);
+    const powerCap = Math.floor(player.army_power * 0.15);
+    expect(reward.cash).toBeLessThanOrEqual(powerCap);
+  });
+
+  it('computeMonsterReward for boss should include artifacts', () => {
+    const monster = {
+      rewardMoney: 100,
+      rewardGold: 30,
+      hp: 500, maxHp: 500, isBoss: true, enemyId: 'wadi_boss',
+    };
+    const player = basePlayer();
+    const reward = computeMonsterReward(monster, player);
+    expect(reward.artifacts).toBeGreaterThanOrEqual(1);
+    expect(reward.artifacts).toBeLessThanOrEqual(3);
+  });
+
+  it('computeMonsterReward should cap at 15% power', () => {
+    const monster = {
+      rewardMoney: 999999,
+      rewardGold: 99999,
+      hp: 1, maxHp: 1, enemyId: 'desert_wolf',
+    };
+    const player = basePlayer();
+    const reward = computeMonsterReward(monster, player);
+    const maxCash = Math.floor(player.army_power * 0.15);
+    expect(reward.cash).toBeLessThanOrEqual(maxCash);
+    expect(reward.gold).toBeLessThanOrEqual(Math.floor(maxCash * 0.3));
+  });
+
+  it('computeMonsterReward for final_boss should give desertGem', () => {
+    const monster = {
+      rewardMoney: 2000,
+      rewardGold: 200,
+      hp: 30000, maxHp: 30000, isBoss: true, enemyId: 'final_boss',
+    };
+    const player = basePlayer();
+    const reward = computeMonsterReward(monster, player);
+    expect(reward.desertGem).toBe(1);
+  });
+
+  it('computeMonsterReward should handle zero-armed player gracefully', () => {
+    const monster = {
+      rewardMoney: 10,
+      rewardGold: 3,
+      hp: 200, maxHp: 200, enemyId: 'desert_wolf',
+    };
+    const weakPlayer = { ...basePlayer(), army_power: 10, level: 1 };
+    const reward = computeMonsterReward(monster, weakPlayer);
+    expect(reward.cash).toBeGreaterThanOrEqual(0);
+    expect(reward.gold).toBeGreaterThanOrEqual(0);
   });
 
   it('should have weapon stats matching client definitions', () => {

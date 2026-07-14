@@ -2,7 +2,7 @@
 
 const { PLAYER_COLORS } = require("../config");
 const logger = require("../logger");
-const { resolveMonsterKill, simulatePvPFull, computeLoot } = require("../logic/combatResolver");
+const { resolveMonsterKill, simulatePvPFull, computeLoot, computeMonsterReward } = require("../logic/combatResolver");
 
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c] || c); }
 
@@ -246,7 +246,12 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
             _monsterKillTimestamps.set(killKey, now);
             mon.alive = false;
             mon.respawnTimer = 25;
-            const killMsg = JSON.stringify({ type: "monster_killed", id: msg.id, killedBy: esc(username) });
+            const loot = computeMonsterReward(mon, c);
+            const killMsg = JSON.stringify({
+              type: "monster_killed", id: msg.id, killedBy: esc(username),
+              loot: { cash: loot.cash, gold: loot.gold },
+              bossLoot: mon.isBoss ? { artifacts: loot.artifacts, desertGem: loot.desertGem, cashBonus: loot.cashBonus } : null,
+            });
             worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(killMsg); });
           }
         }

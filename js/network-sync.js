@@ -352,6 +352,24 @@ export class NetworkSync {
       case "monster_killed": {
         const mon = w.monsters.find(m => m.id === msg.id);
         if (mon && mon.alive) { mon.alive = false; mon.hp = 0; mon.respawnTimer = 25; }
+        if (msg.killedBy === this.username && msg.loot && w.economy) {
+          const loot = msg.loot;
+          if (loot.cash > 0) w.economy.addRaw('cash', loot.cash);
+          if (loot.gold > 0) w.economy.addRaw('gold', loot.gold);
+          if (w.createDrop) w.createDrop(mon ? mon.x : w.leader?.x || 0, mon ? mon.y : w.leader?.y || 0, loot.cash, loot.gold);
+          if (msg.bossLoot) {
+            const bl = msg.bossLoot;
+            if (bl.artifacts > 0) w.economy.addRaw('artifacts', bl.artifacts);
+            if (bl.desertGem > 0) w.economy.addRaw('desertGem', bl.desertGem);
+            if (bl.cashBonus > 0 && w.economy.cash !== undefined) w.economy.addRaw('cash', bl.cashBonus);
+            if (w.store) {
+              let notifText = `🏺 حصلت على ${bl.artifacts} قطع أثرية!${bl.desertGem ? ' 💠وجوهرة الصحراء!' : ''}`;
+              if (bl.cashBonus > 0) notifText += ` 💰+${bl.cashBonus}`;
+              w.store.set('notification', { text: notifText, t: Date.now() });
+            }
+          }
+          if (w._ui && w._ui.logCombat) w._ui.logCombat('kill', `⚔️ قتلت ${mon?.name || 'وحشاً'} | +${loot.cash} 💵`);
+        }
         break;
       }
       case "pvp_result": {
