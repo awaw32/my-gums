@@ -85,6 +85,7 @@ function computePlayerStats(data) {
     resourceSpeed,
     researchEndurance,
     depotProtectPercent,
+    weaponDamage: weaponStats.weaponDamage || 0,
     weaponStarLevel: weaponStats.starLevel || 1,
     weaponGemLevel: weaponStats.gemLevel || 1,
     weaponCombinedLevel: weaponStats.combinedLevel || 1,

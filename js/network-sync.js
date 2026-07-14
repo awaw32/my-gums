@@ -319,9 +319,23 @@ export class NetworkSync {
       case "world_monsters":
         this.syncMonsters(msg.list || []);
         break;
+      case "monster_hit": {
+        const mh = w.monsters.find(m => m.id === msg.id);
+        if (mh) { mh.hp = msg.hp; mh.maxHp = msg.maxHp; }
+        break;
+      }
       case "monster_killed": {
         const mon = w.monsters.find(m => m.id === msg.id);
         if (mon && mon.alive) { mon.alive = false; mon.hp = 0; mon.respawnTimer = 25; }
+        break;
+      }
+      case "pvp_result": {
+        if (w.store) {
+          const text = msg.won
+            ? `⚔️ انتصرت على ${msg.attacker}! مكافأة: ${msg.reward} 💵`
+            : `⚔️ هُزمت أمام ${msg.attacker}! خسارة: ${msg.loot} 💵`;
+          w.store.set('notification', { text, t: Date.now() });
+        }
         break;
       }
       case "pvp_notify":

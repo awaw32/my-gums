@@ -2,6 +2,7 @@
 
 const { PLAYER_COLORS } = require("../config");
 const logger = require("../logger");
+const { resolveMonsterKill, simulatePvPFull, computeLoot } = require("../logic/combatResolver");
 
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c] || c); }
 
@@ -149,37 +150,34 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         const c = worldClients.get(username);
         if (mon && mon.alive && c) {
           const now = Date.now();
-          // 🛡️ التحقق من المسافة — اللاعب يجب أن يكون قريباً من الوحش
           const dx = c.x - mon.x;
           const dy = c.y - mon.y;
           if (Math.hypot(dx, dy) > 150) {
-            if (ws.readyState === 1) {
-              ws.send(JSON.stringify({ type: "error", message: "أنت بعيد جداً عن هذا الوحش" }));
-            }
+            if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "أنت بعيد جداً عن هذا الوحش" }));
             return;
           }
-          // 🛡️ التحقق من وقت الظهور — الوحش يجب أن يكون ظهر منذ 3 ثوان على الأقل
           if (now - (mon._spawnTime || 0) < 3000) {
-            if (ws.readyState === 1) {
-              ws.send(JSON.stringify({ type: "error", message: "هذا الوحش ظهر لتوه" }));
-            }
+            if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "هذا الوحش ظهر لتوه" }));
             return;
           }
-          // 🛡️ تحقق السباق — نفس الوحش لا يُقتل مرتين بفارق 3 ثوان
           const killKey = `kill_${msg.id}`;
           const lastKill = _monsterKillTimestamps.get(killKey) || 0;
           if (now - lastKill < 3000) {
-            if (ws.readyState === 1) {
-              ws.send(JSON.stringify({ type: "error", message: "هذا الوحش قد مات بالفعل" }));
-            }
+            if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "هذا الوحش قد مات بالفعل" }));
             return;
           }
-          _monsterKillTimestamps.set(killKey, now);
-          mon.alive = false;
-          mon.hp = 0;
-          mon.respawnTimer = 25;
-          const killMsg = JSON.stringify({ type: "monster_killed", id: msg.id, killedBy: esc(username) });
-          worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(killMsg); });
+          // 🛡️ حساب الضرر من الخادم — اللاعب لا يستطيع تزوير نتيجة القتل
+          const result = resolveMonsterKill(c, mon);
+          if (!result.valid) return;
+          const dmgMsg = JSON.stringify({ type: "monster_hit", id: msg.id, hp: mon.hp, maxHp: mon.maxHp, dmg: result.damage, killedBy: esc(username) });
+          worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(dmgMsg); });
+          if (result.killed) {
+            _monsterKillTimestamps.set(killKey, now);
+            mon.alive = false;
+            mon.respawnTimer = 25;
+            const killMsg = JSON.stringify({ type: "monster_killed", id: msg.id, killedBy: esc(username) });
+            worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(killMsg); });
+          }
         }
       } else if (msg.type === "pvp_attack" && username) {
         const target = msg.target;
@@ -188,27 +186,20 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         if (tc && tc.ws.readyState === 1) {
           tc.ws.send(JSON.stringify({ type: "pvp_notify", attacker: esc(attacker), power: msg.myPower || 0 }));
         }
-      } else if (msg.type === "pvp_result" && username) {
+      } else if (msg.type === "resolve_pvp" && username) {
+        // 🛡️ PvP محسوب بالكامل من الخادم — اللاعب لا يقرر الفائز
         const targetName = msg.target;
-        const won = msg.won;
-        const loot = msg.loot || 0;
-        const reward = msg.winnerReward || 0;
-
         const now = Date.now();
         const c = worldClients.get(username);
         const tc = worldClients.get(targetName);
         if (!c || !tc) return;
 
-        // 🛡️ التحقق من المسافة بين المتبارزين
         const dx = c.x - tc.x;
         const dy = c.y - tc.y;
         if (Math.hypot(dx, dy) > 200) {
-          if (ws.readyState === 1) {
-            ws.send(JSON.stringify({ type: "error", message: "الخصم بعيد جداً" }));
-          }
+          if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "الخصم بعيد جداً" }));
           return;
         }
-
         const lastPvP = _pvpCooldowns.get(username) || 0;
         if (now - lastPvP < 5000) {
           if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "انتظر قليلاً قبل PvP" }));
@@ -216,21 +207,13 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
         }
         _pvpCooldowns.set(username, now);
 
-        const attackerPower = (c.army_power || 5000);
-        const targetPower = (tc.army_power || 5000);
-        // التحقق من أن الفائز المزعوم قوي بما يكفي (يمنع الغش)
-        if (won && attackerPower < targetPower * 0.3) {
-          if (ws.readyState === 1) ws.send(JSON.stringify({ type: "error", message: "لا يمكن هزيمة خصم أقوى بكثير" }));
-          return;
-        }
-        if (!won && targetPower < attackerPower * 0.3) {
-          _pvpCooldowns.set(username, 0);
-          return;
-        }
-        const maxReasonableLoot = Math.min(50000, Math.floor(Math.max(attackerPower, targetPower) * 0.15));
-        const maxReasonableReward = Math.min(25000, Math.floor(Math.max(attackerPower, targetPower) * 0.08));
-        const validatedLoot = Math.max(0, Math.min(loot, maxReasonableLoot));
-        const validatedReward = Math.max(0, Math.min(reward, maxReasonableReward));
+        // حساب المعركة من الخادم بشكل حاسم
+        const battle = simulatePvPFull(c, tc);
+        const won = battle.attackerWon;
+        const attackerLoot = computeLoot(tc.army_power || 5000, !won);
+        const defenderLoot = computeLoot(c.army_power || 5000, won);
+        const validatedLoot = Math.min(attackerLoot.cash, 50000);
+        const validatedReward = Math.min(defenderLoot.cash, 25000);
 
         if (tc.ws.readyState === 1) {
           tc.ws.send(JSON.stringify({
@@ -240,6 +223,16 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
             loot: won ? 0 : validatedLoot,
             reward: won ? 0 : validatedReward,
             myPower: msg.myPower || 0,
+          }));
+        }
+        if (c.ws.readyState === 1) {
+          c.ws.send(JSON.stringify({
+            type: "pvp_result",
+            attacker: targetName,
+            won,
+            loot: won ? validatedLoot : 0,
+            reward: won ? validatedReward : 0,
+            myPower: 0,
           }));
         }
         if (!won && validatedLoot > 0 && tc) {
@@ -256,7 +249,7 @@ function createWorldHandler({ worldMonsters, worldClients, combatSystem, memStor
             ? `${username} انتصر على ${targetName}!`
             : `${targetName} هزم ${username}!`,
         });
-        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(pvpMsg); });
+        worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(pvpMsg); });
       } else if (msg.type === "chat" && username) {
         const chatMsg = JSON.stringify({ type: "broadcast_chat", username: esc(username), message: esc(String(msg.message || "").slice(0, 200)) });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });

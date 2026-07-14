@@ -323,12 +323,9 @@ export class WorldMap {
     }
 
     this._sendWS({
-      type: "pvp_result",
+      type: "resolve_pvp",
       target: tgt.username,
-      won,
       myPower: myEffective,
-      loot: cashLost,
-      winnerReward: reward,
     });
 
     const newArmyPower = this.economy ? Math.max(500, Math.floor((this.economy.power || 5000))) : 5000;

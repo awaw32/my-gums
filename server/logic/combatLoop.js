@@ -106,8 +106,12 @@ function createCombatLoop(deps) {
         if (dist > PVP_ENGAGEMENT_RADIUS) continue;
         const aStats = computePlayerStats(a);
         const bStats = computePlayerStats(b);
-        const aDmg = Math.max(1, Math.floor(aStats.totalDamage * 0.6));
-        const bDmg = Math.max(1, Math.floor(bStats.totalDamage * 0.6));
+        const aBaseDmg = Math.max(1, Math.floor(aStats.totalDamage * 0.6));
+        const bBaseDmg = Math.max(1, Math.floor(bStats.totalDamage * 0.6));
+        const aCrit = Math.random() < aStats.critChance;
+        const bCrit = Math.random() < bStats.critChance;
+        const aDmg = aCrit ? Math.floor(aBaseDmg * (aStats.critMultiplier + (aStats.weaponDamageMult * aStats.weaponStarLevel || 0) * 0.1)) : aBaseDmg;
+        const bDmg = bCrit ? Math.floor(bBaseDmg * (bStats.critMultiplier + (bStats.weaponDamageMult * bStats.weaponStarLevel || 0) * 0.1)) : bBaseDmg;
         a.hp -= bDmg;
         b.hp -= aDmg;
         if (a.hp <= 0) { a.hp = 0; dead.push(nameA); }
