@@ -175,6 +175,8 @@ export class WorldMap {
       "leader-player", "avatar-player", "soldier-player",
       "leader-enemy", "soldier-enemy", "bandit-br",
       "monster-1", "monster-2", "monster-3",
+      "warrior-scimitar", "healer-oasis", "archer-desert", "camel-rider",
+      "scorpion-elite", "sand-dragon", "giant-sand", "mystic-mage", "thief-assassin",
     ];
     for (const key of keys) {
       const img = new Image();
@@ -983,6 +985,11 @@ export class WorldMap {
   }
 
   _getMonsterImageKey(enemyId) {
+    if (enemyId.includes("scorpion_elite")) return "scorpion-elite";
+    if (enemyId.includes("sand_dragon")) return "sand-dragon";
+    if (enemyId.includes("giant_sand")) return "giant-sand";
+    if (enemyId.includes("mystic_mage")) return "mystic-mage";
+    if (enemyId.includes("thief_assassin")) return "thief-assassin";
     if (enemyId.includes("wolf") || enemyId.includes("scorpion") || enemyId.includes("thief")) return "monster-1";
     if (enemyId.includes("ghost") || enemyId.includes("shadow") || enemyId.includes("sorcerer")) return "monster-2";
     if (enemyId.includes("dragon") || enemyId.includes("boss") || enemyId.includes("eagle")) return "monster-3";

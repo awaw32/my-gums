@@ -356,22 +356,22 @@ GameUI.prototype._renderUpgradeTree = function() {
   grid.textContent = "";
   const paths = [
     {
-      id: 'army', icon: '⚔️', name: 'الجيش',
+      id: 'army', icon: '⚔️', name: 'الجيش', image: 'assets/images/upgrades/army.png',
       desc: 'تطوير قوة الجيش الصحراوي',
       color: '#ff6b6b', bgGrad: 'linear-gradient(135deg, rgba(255,68,68,0.15), rgba(180,40,40,0.08))'
     },
     {
-      id: 'knowledge', icon: '📜', name: 'المعرفة',
+      id: 'knowledge', icon: '📜', name: 'المعرفة', image: 'assets/images/upgrades/knowledge.png',
       desc: 'تطوير المعرفة والعلوم الصحراوية',
       color: '#9b59b6', bgGrad: 'linear-gradient(135deg, rgba(155,89,182,0.15), rgba(100,50,120,0.08))'
     },
     {
-      id: 'defense', icon: '🛡️', name: 'الدفاع',
+      id: 'defense', icon: '🛡️', name: 'الدفاع', image: 'assets/images/upgrades/defense.png',
       desc: 'تحصينات القلعة والدفاع',
       color: '#2ecc71', bgGrad: 'linear-gradient(135deg, rgba(46,204,113,0.15), rgba(20,150,70,0.08))'
     },
     {
-      id: 'trade', icon: '🐪', name: 'التجارة',
+      id: 'trade', icon: '🐪', name: 'التجارة', image: 'assets/images/upgrades/trade.png',
       desc: 'قوافل التجارة الصحراوية',
       color: '#f39c12', bgGrad: 'linear-gradient(135deg, rgba(243,156,18,0.15), rgba(200,120,10,0.08))'
     },
@@ -400,7 +400,7 @@ GameUI.prototype._renderUpgradeTree = function() {
     card.innerHTML = `
       <div class="ug-card-header">
         <div class="ug-icon-wrap" style="background:${p.color}22;border-color:${p.color}44">
-          <span class="ug-icon" style="color:${p.color}">${p.icon}</span>
+          ${p.image ? `<img src="${p.image}" class="ug-icon-img" alt="" style="width:32px;height:32px;border-radius:6px">` : `<span class="ug-icon" style="color:${p.color}">${p.icon}</span>`}
         </div>
         <div class="ug-title-area">
           <div class="ug-name">${p.name}</div>

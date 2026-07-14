@@ -806,13 +806,19 @@ GameUI.prototype.showLoadoutScreen = function(modeName) {
   const availableItems = loadoutMgr.getAvailableItemsForMode(modeName);
   
   // الأيقونات العربية للأسلحة
+  const _imgKey = (k, fb) => {
+    const url = typeof ImageResolver !== 'undefined' ? ImageResolver.src(k) : null;
+    return url ? `<img src="${url}" class="lod-icon-img" alt="">` : fb;
+  };
   const weaponIcons = {
-    'w1': '🗡️', 'w2': '🏹', 'w3': '🔱',
+    'w1': _imgKey('itemDesertScimitar', '🗡️'), 'w2': '🏹', 'w3': '🔱',
     'w4': '🗡️', 'w5': '🏹🔥', 'w6': '🪓'
   };
   const itemIcons = {
-    bandage: '🩹', heal_potion: '🧪', fire_sword: '🗡️', desert_shield: '🛡️',
-    power_helmet: '⛑️', xp_scroll: '📜', power_gem: '💎', iron_sword: '🗡️'
+    bandage: _imgKey('itemBandage', '🩹'), heal_potion: _imgKey('itemHealPotion', '🧪'),
+    fire_sword: _imgKey('itemFireSword', '🗡️'), desert_shield: _imgKey('itemDesertShield', '🛡️'),
+    power_helmet: _imgKey('itemPowerHelmet', '⛑️'), xp_scroll: _imgKey('itemXpScroll', '📜'),
+    power_gem: _imgKey('itemPowerGem', '💎'), iron_sword: _imgKey('itemIronSword', '🗡️')
   };
   
   // بناء HTML للأسلحة المجهزة

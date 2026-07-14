@@ -17,7 +17,7 @@ export class VillageBuilding {
     this.icon = template.icon;
     this.x = template.x ?? 50;
     this.y = template.y ?? 50;
-    this.img = template.img || getBuildingImages(villageId, template.id) || {
+    this.img = getBuildingImages(villageId, template.id) || template.img || {
       empty: 'assets/images/building-ruins.png',
       building: 'assets/images/building-construction.png',
       built: 'assets/images/building-complete.png'

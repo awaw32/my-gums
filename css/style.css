@@ -271,7 +271,9 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   border-color: var(--accent-red-soft);
   color: var(--accent-red);
 }
-.top-res .res-icon { font-size: 0.65rem; }
+.top-res .res-icon { font-size: 0.65rem; width:16px; height:16px; vertical-align:middle; }
+.inv-item-img, .lod-icon-img, .craft-res-icon { width:20px; height:20px; vertical-align:middle; border-radius:3px; object-fit:contain; }
+.ug-icon-img { width:32px; height:32px; border-radius:6px; object-fit:contain; }
 .top-res .res-val {
   font-size: 0.6rem;
   font-weight: 800;
@@ -2118,7 +2120,6 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   .top-res .res-val { display: none; }
   .top-res { padding: 2px 3px; gap: 1px; }
   .top-resources { gap: 1px; }
-  .top-res .res-icon { font-size: 0.65rem; }
 }
 @media (max-width: 280px) {
   .top-resources { flex-wrap: wrap; justify-content: center; }

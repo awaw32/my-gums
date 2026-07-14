@@ -1488,6 +1488,15 @@ export class GameUI {
     }
   }
 
+  _imgSrc(resKey) {
+    return typeof ImageResolver !== 'undefined' ? ImageResolver.src(resKey) : null;
+  }
+
+  _imgTag(resKey, fallback) {
+    const url = this._imgSrc(resKey);
+    return url ? `<img src="${url}" class="inv-item-img" alt="">` : fallback;
+  }
+
   renderInventory() {
     const itemsEl = document.getElementById("inventory-items");
     const recipesEl = document.getElementById("crafting-recipes");
@@ -1495,7 +1504,13 @@ export class GameUI {
     if (itemsEl) {
       const state = this.inventory.getState();
       const usableItems = ['heal_potion', 'xp_scroll', 'arena_ticket', 'fire_sword', 'desert_shield', 'power_helmet', 'power_gem', 'tower_blueprint', 'iron_sword'];
-      const itemIcons = { heal_potion: '🧪', xp_scroll: '📜', arena_ticket: '🎫', fire_sword: '🗡️', desert_shield: '🛡️', power_helmet: '⛑️', power_gem: '💎', tower_blueprint: '📐', iron_sword: '🗡️', bandage: '🩹' };
+      const itemIcons = {
+        bandage: this._imgTag('itemBandage', '🩹'), heal_potion: this._imgTag('itemHealPotion', '🧪'),
+        fire_sword: this._imgTag('itemFireSword', '🗡️'), desert_shield: this._imgTag('itemDesertShield', '🛡️'),
+        power_helmet: this._imgTag('itemPowerHelmet', '⛑️'), xp_scroll: this._imgTag('itemXpScroll', '📜'),
+        power_gem: this._imgTag('itemPowerGem', '💎'), arena_ticket: this._imgTag('itemArenaTicket', '🎫'),
+        tower_blueprint: this._imgTag('itemTowerBlueprint', '📐'), iron_sword: this._imgTag('itemIronSword', '🗡️')
+      };
       const itemLabels = { bandage: 'باندج', heal_potion: 'جرعة علاج', xp_scroll: 'لفافة خبرة', arena_ticket: 'تذكرة ساحة', fire_sword: 'سيف ناري', desert_shield: 'درع صحراوي', power_helmet: 'خوذة القوة', power_gem: 'جوهرة القوة', tower_blueprint: 'مخطط برج', iron_sword: 'سيف حديدي' };
       const itemTooltips = {
         bandage: '<div class="tt-name">🩹 باندج</div><div class="tt-desc">ضمادة بسيطة لمعالجة الجروح</div><div class="tt-sep"></div><div class="tt-stat"><span class="tt-stat-label">العلاج</span><span class="tt-stat-value">+30 HP</span></div><div class="tt-stat"><span class="tt-stat-label">الفئة</span><span class="tt-stat-value">علاج</span></div>',
@@ -1542,8 +1557,11 @@ export class GameUI {
             <div class="craft-name">${r.name}</div>
             <div class="craft-desc">${r.description}</div>
             <div class="craft-cost">${Object.entries(r.ingredients).map(([res, amt]) => {
-              const icons = {gold:'🪙',cash:'💵',hammers:'🔨',scrolls:'📜',food:'🌾',gems:'💎'};
-              return `${icons[res]||'•'} ${amt}`;
+              const resImgMap = {gold:'goldIcon',cash:'moneyIcon',hammers:'hammersIcon',scrolls:'scrollsIcon',food:'foodIcon',gems:'gemsIcon'};
+              const imgKey = resImgMap[res];
+              const imgUrl = imgKey ? this._imgSrc(imgKey) : null;
+              const fallbackIcons = {gold:'🪙',cash:'💵',hammers:'🔨',scrolls:'📜',food:'🌾',gems:'💎'};
+              return imgUrl ? `<img src="${imgUrl}" class="craft-res-icon" alt=""> ${amt}` : `${fallbackIcons[res]||'•'} ${amt}`;
             }).join(' + ')}</div>
           </div>
           <button class="action-btn craft-btn" data-recipe="${r.id}" ${canCraft ? '' : 'disabled'}>🔨 اصنع</button>

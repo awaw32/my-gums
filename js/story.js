@@ -28,7 +28,9 @@ export const BUILDING_IMAGES = {
   b1: getBuildingImages('wadi', 'b1'),
   b2: getBuildingImages('wadi', 'b2'),
   b3: getBuildingImages('wadi', 'b3'),
-  b4: getBuildingImages('wadi', 'b4')
+  b4: getBuildingImages('wadi', 'b4'),
+  b5: getBuildingImages('wadi', 'b5'),
+  b6: getBuildingImages('wadi', 'b6'),
 };
 
 export const STORY_CHAPTERS = [

@@ -33,7 +33,7 @@ const UPGRADE_PATHS = [
     id: "army",
     name: "الجيش",
     icon: "⚔️",
-    // 🖼️ image: 'assets/images/upgrades/army.png', // 120×120 — ارفع صورتك هنا
+    image: 'assets/images/upgrades/army.png',
     desc: "تطوير تكتيكات الجيش الصحراوي (يتطلب مستوى جنود)",
     levels: [
       { cost: 50, desc: "تكتيكات الجيش +10", effect: 10, icon: "⚔️", requireUnitLevel: 1 },
@@ -48,7 +48,7 @@ const UPGRADE_PATHS = [
     id: "knowledge",
     name: "المعرفة",
     icon: "📜",
-    // 🖼️ image: 'assets/images/upgrades/knowledge.png', // 120×120 — ارفع صورتك هنا
+    image: 'assets/images/upgrades/knowledge.png',
     desc: "تطوير المعرفة والعلوم الصحراوية (يتطلب التقدم في القصة)",
     levels: [
       { cost: 40, desc: "إنتاج الذهب +15%", effect: 15, icon: "📖", requireKnowledgeLevel: 1 },
@@ -63,7 +63,7 @@ const UPGRADE_PATHS = [
     id: "defense",
     name: "الدفاع",
     icon: "🛡️",
-    // 🖼️ image: 'assets/images/upgrades/defense.png', // 120×120 — ارفع صورتك هنا
+    image: 'assets/images/upgrades/defense.png',
     desc: "تحصينات القلعة والدفاع",
     levels: [
       { cost: 35, desc: "دفاع +5", effect: 5, icon: "🪵" },
@@ -78,7 +78,7 @@ const UPGRADE_PATHS = [
     id: "trade",
     name: "التجارة",
     icon: "🐪",
-    // 🖼️ image: 'assets/images/upgrades/trade.png', // 120×120 — ارفع صورتك هنا
+    image: 'assets/images/upgrades/trade.png',
     desc: "قوافل التجارة الصحراوية",
     levels: [
       { cost: 45, desc: "دخل القوافل +20%", effect: 20, icon: "📦" },
