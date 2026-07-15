@@ -4,6 +4,8 @@ const { PLAYER_COLORS } = require("../config");
 const logger = require("../logger");
 const { resolveMonsterKill, simulatePvPFull, computeLoot, computeMonsterReward } = require("../logic/combatResolver");
 const { sendPush } = require("../push");
+const { customAlphabet } = require("nanoid");
+const generatePartyCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 6);
 
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c] || c); }
 
@@ -161,6 +163,7 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           br_alive: msg.br_alive ?? true,
           buildings: msg.buildings || {},
           research: msg.research || {},
+          partyCode: null,
         });
         ws.send(JSON.stringify({ type: "world_monsters", list: worldMonsters }));
         ws.send(JSON.stringify({ type: "world_drops", list: worldDrops }));
@@ -343,31 +346,49 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         if (result && ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "war_response", requestType: msg.type, ...result }));
         }
+      } else if (msg.type === "party_create" && username) {
+        const c = worldClients.get(username);
+        if (!c) return;
+        const code = generatePartyCode();
+        c.partyCode = code;
+        if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "party_created", code }));
+      } else if (msg.type === "party_join" && username) {
+        const c = worldClients.get(username);
+        if (!c) return;
+        const code = String(msg.partyCode || "").toUpperCase().slice(0, 6);
+        const codeExists = Array.from(worldClients.values()).some((cl) => cl.partyCode === code);
+        if (!code || !codeExists) {
+          if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "party_join_failed", reason: "كود غير صحيح" }));
+          return;
+        }
+        c.partyCode = code;
+        const joinedMsg = JSON.stringify({ type: "party_member_joined", username: esc(username), code });
+        worldClients.forEach((cl) => { if (cl.partyCode === code && cl.ws.readyState === 1) cl.ws.send(joinedMsg); });
       } else if (msg.type === "br_match_start" && username) {
         const brClient = worldClients.get(username);
         if (!brClient || !brClient.br_alive) return;
         const brMsg = JSON.stringify({ type: "br_match_start", mapSize: msg.mapSize, matchDuration: msg.matchDuration });
-        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(brMsg); });
+        worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(brMsg); });
       } else if (msg.type === "br_zone_shrink" && username) {
         const brClient = worldClients.get(username);
         if (!brClient || !brClient.br_alive) return;
         const zMsg = JSON.stringify({ type: "br_zone_shrink", radius: msg.radius, centerX: msg.centerX, centerY: msg.centerY });
-        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(zMsg); });
+        worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(zMsg); });
       } else if (msg.type === "br_bandit_spawn" && username) {
         const brClient = worldClients.get(username);
         if (!brClient || !brClient.br_alive) return;
         const bMsg = JSON.stringify({ type: "br_bandit_spawn", bandit: msg.bandit });
-        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(bMsg); });
+        worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(bMsg); });
       } else if (msg.type === "br_player_eliminated" && username) {
         const brClient = worldClients.get(username);
         if (!brClient || !brClient.br_alive) return;
         const eMsg = JSON.stringify({ type: "br_player_eliminated", playerId: msg.playerId, by: msg.by });
-        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(eMsg); });
+        worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(eMsg); });
       } else if (msg.type === "br_match_end" && username) {
         const brClient = worldClients.get(username);
         if (!brClient || !brClient.br_alive) return;
         const endMsg = JSON.stringify({ type: "br_match_end", winner: msg.winner, kills: msg.kills });
-        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(endMsg); });
+        worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(endMsg); });
       } else if (msg.type === "equip_weapon" && username) {
         const c = worldClients.get(username);
         if (c) {

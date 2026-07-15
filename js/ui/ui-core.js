@@ -1035,6 +1035,14 @@ export class GameUI {
         </div>
         ` : ''}
         <div class="setting-row">
+          <span>👥 حزب اللعب الجماعي${this.world?.partyCode ? ` (${this.world.partyCode})` : ''}</span>
+          <button class="action-btn" id="party-create-btn">إنشاء حزب</button>
+        </div>
+        <div class="setting-row">
+          <input type="text" id="party-join-input" class="name-input" placeholder="أدخل كود الحزب..." maxlength="6" style="flex:1;text-transform:uppercase">
+          <button class="action-btn" id="party-join-btn">انضمام</button>
+        </div>
+        <div class="setting-row">
           <span>💾 حذف الحفظ</span>
           <button class="action-btn danger-btn" id="reset-game-btn">🗑️ حذف كل شيء</button>
         </div>
@@ -1100,6 +1108,14 @@ export class GameUI {
       btn.disabled = false;
       btn.textContent = result.ok ? '✅ تم التفعيل' : ('❌ ' + result.error);
       this.notifier?.show?.(result.ok ? '🔔 تم تفعيل الإشعارات' : ('❌ ' + result.error));
+    });
+    container.querySelector('#party-create-btn')?.addEventListener('click', () => {
+      this.world?.createParty?.();
+    });
+    container.querySelector('#party-join-btn')?.addEventListener('click', () => {
+      const input = container.querySelector('#party-join-input');
+      const code = (input?.value || '').trim();
+      if (code) this.world?.joinParty?.(code);
     });
   }
 

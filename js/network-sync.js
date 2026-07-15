@@ -429,6 +429,15 @@ export class NetworkSync {
       case "broadcast_chat":
         if (w._onChatMessage) w._onChatMessage(msg.username, msg.message);
         break;
+      case "party_created":
+        if (w._onPartyCreated) w._onPartyCreated(msg.code);
+        break;
+      case "party_member_joined":
+        if (w._onPartyMemberJoined) w._onPartyMemberJoined(msg.username, msg.code);
+        break;
+      case "party_join_failed":
+        if (w._onPartyJoinFailed) w._onPartyJoinFailed(msg.reason);
+        break;
       case "br_zone_shrink":
         if (w.mode === "battle_royale") { w.zone.radius = msg.radius; w.zone.x = msg.centerX; w.zone.y = msg.centerY; }
         break;
