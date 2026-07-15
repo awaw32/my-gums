@@ -48,4 +48,6 @@ server-err.txt
 data-inttest-*
 data-final
 data-test-mongo
+data-*-verify
+data-*/
 
