@@ -429,6 +429,56 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  🔔 اشتراك إشعارات Push (Web Push / VAPID)
+    // ═══════════════════════════════════════════════════════════════
+    if (req.url === "/api/push/subscribe" && req.method === "POST") {
+      const authHeader = req.headers["authorization"];
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "auth required" }));
+        return true;
+      }
+      const { verifyToken } = require("../network/auth");
+      const auth = verifyToken(authHeader.slice(7));
+      if (!auth.valid) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "forbidden" }));
+        return true;
+      }
+      let body = "";
+      let size = 0;
+      req.on("data", chunk => {
+        size += chunk.length;
+        if (size > 8192) { req.destroy(); return; }
+        body += chunk;
+      });
+      req.on("end", async () => {
+        try {
+          const { subscription } = JSON.parse(body);
+          if (!subscription || typeof subscription !== "object" || !subscription.endpoint) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "invalid subscription" }));
+            return;
+          }
+          const username = auth.username;
+          const existing = memStore.get(username) || getDefaultPlayer(username);
+          existing.pushSubscription = subscription;
+          memStore.set(username, existing);
+          markDirty(username);
+          if (mongoConnected) {
+            await Player.updateOne({ username }, { $set: { pushSubscription: subscription } }, { upsert: true });
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+        } catch {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "invalid json" }));
+        }
+      });
+      return true;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  🛡️ استقبال أخطاء العميل (بديل Sentry عند غياب SENTRY_DSN)
     // ═══════════════════════════════════════════════════════════════
     if (req.url === "/api/logs" && req.method === "POST") {

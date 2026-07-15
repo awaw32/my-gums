@@ -3,6 +3,7 @@ import { injectPromotionMethods } from "./ui-promotion.js";
 import { injectGameplayMethods } from "./ui-gameplay.js";
 import { injectMarketMethods } from "./ui-market.js";
 import { ALLIANCE_RAIDS } from "../alliance-manager.js";
+import { isPushAvailable, enablePushNotifications } from "../push-subscribe.js";
 
 export class GameUI {
   constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager, reputation) {
@@ -1027,6 +1028,12 @@ export class GameUI {
             <span class="toggle-slider"></span>
           </label>
         </div>
+        ${isPushAvailable() ? `
+        <div class="setting-row">
+          <span>🔔 الإشعارات</span>
+          <button class="action-btn" id="push-enable-btn">تفعيل الإشعارات</button>
+        </div>
+        ` : ''}
         <div class="setting-row">
           <span>💾 حذف الحفظ</span>
           <button class="action-btn danger-btn" id="reset-game-btn">🗑️ حذف كل شيء</button>
@@ -1084,6 +1091,15 @@ export class GameUI {
     });
     container.querySelector('#reset-game-btn')?.addEventListener('click', () => {
       this.showConfirmDialog({ icon: '🗑️', title: 'حذف الحفظ', desc: 'سيتم حذف جميع التقدم! هل أنت متأكد؟', onConfirm: () => { localStorage.clear(); location.reload(); } });
+    });
+    container.querySelector('#push-enable-btn')?.addEventListener('click', async (e) => {
+      const btn = e.target;
+      btn.disabled = true;
+      btn.textContent = '⏳ جاري التفعيل...';
+      const result = await enablePushNotifications();
+      btn.disabled = false;
+      btn.textContent = result.ok ? '✅ تم التفعيل' : ('❌ ' + result.error);
+      this.notifier?.show?.(result.ok ? '🔔 تم تفعيل الإشعارات' : ('❌ ' + result.error));
     });
   }
 

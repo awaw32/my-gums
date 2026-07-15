@@ -75,6 +75,7 @@ const playerSchema = new mongoose.Schema({
   completedVillages: { type: Array, default: [] },
   currentChapter: { type: Number, default: 1 },
   isGuest:        { type: Boolean, default: false },
+  pushSubscription: { type: Object, default: null },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);

@@ -3,6 +3,7 @@
 const { PLAYER_COLORS } = require("../config");
 const logger = require("../logger");
 const { resolveMonsterKill, simulatePvPFull, computeLoot, computeMonsterReward } = require("../logic/combatResolver");
+const { sendPush } = require("../push");
 
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c] || c); }
 
@@ -318,6 +319,12 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         if (won) {
           const despawnMsg = JSON.stringify({ type: "player_despawn", username: targetName });
           worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(despawnMsg); });
+        }
+        // إشعار Push إضافي (لا يستبدل رسائل WS أعلاه) للطرف الخاسر
+        const loserName = won ? targetName : username;
+        const loserSub = memStore.get(loserName)?.pushSubscription;
+        if (loserSub) {
+          sendPush(loserSub, { title: "⚔️ هجوم PvP", body: `هزمك ${won ? username : targetName} في معركة!`, url: "/" });
         }
         const pvpMsg = JSON.stringify({
           type: "broadcast_chat",

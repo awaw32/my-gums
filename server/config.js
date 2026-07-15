@@ -5,6 +5,9 @@ const USE_HTTPS = process.env.HTTPS === "true" || process.env.HTTPS === "1";
 const CERT_DIR = process.env.CERT_DIR || "/etc/letsencrypt/live";
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
 const SENTRY_DSN = process.env.SENTRY_DSN || "";
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "";
 const crypto = require("crypto");
 const isProd = process.env.NODE_ENV === "production";
 // ═══════════════════════════════════════════════════════════════
@@ -65,6 +68,9 @@ module.exports = {
   CERT_DIR,
   ADMIN_KEY,
   SENTRY_DSN,
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY,
+  VAPID_SUBJECT,
   BUILD_ID,
   DATA_DIR,
   BUILD_DIR,
