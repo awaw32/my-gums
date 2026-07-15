@@ -47,9 +47,9 @@ function sanitizePassword(pw) {
 //  - الحسابات الجديدة تتطلب كلمة مرور (4 أحرف كحد أدنى)
 //  - يتم تخزين كلمة المرور في localStorage لإعادة الدخول التلقائي
 // ═══════════════════════════════════════════════════════════════════
-async function tryLogin(username, password) {
+async function tryLogin(username, password, isGuest = false) {
   try {
-    const data = await networkManager.post('/api/auth/login', { username, password }, { timeout: 8000 });
+    const data = await networkManager.post('/api/auth/login', { username, password, isGuest }, { timeout: 8000 });
     localStorage.setItem("player_token", data.token);
     return { ok: true, isNew: !!data.isNew, passwordUpgraded: !!data.passwordUpgraded, username: data.username };
   } catch (err) {
@@ -91,6 +91,7 @@ async function getOrPromptUsername() {
         <button id="login-btn" class="name-submit-btn" style="flex:1">🔑 تسجيل دخول</button>
         <button id="register-btn" class="name-submit-btn" style="flex:1;background:var(--green,#27ae60)">✨ إنشاء حساب</button>
       </div>
+      <button id="guest-btn" class="name-submit-btn" style="width:100%;margin-top:8px;background:var(--beige-dark,#8d7b68)">🎭 دخول كضيف (بدون تسجيل)</button>
       <p style="font-size:0.6rem;color:var(--text-secondary);margin-top:8px">
         الحسابات القديمة: أدخل كلمة مرور جديدة لترقية حسابك
       </p>
@@ -107,6 +108,7 @@ async function getOrPromptUsername() {
   const passInput = overlay.querySelector("#password-input");
   const loginBtn = overlay.querySelector("#login-btn");
   const registerBtn = overlay.querySelector("#register-btn");
+  const guestBtn = overlay.querySelector("#guest-btn");
   const errorEl = overlay.querySelector("#login-error");
 
   // تعبئة اسم المستخدم المحفوظ إن وجد
@@ -172,6 +174,28 @@ async function getOrPromptUsername() {
     return null; // فشل
   };
 
+  const doGuestLogin = async () => {
+    showError('⏳ جاري إنشاء حساب ضيف...');
+    const randomSuffix = () => Math.random().toString(36).slice(2, 8);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const name = sanitizeUsername(`ضيف_${randomSuffix()}`);
+      const pass = randomSuffix() + randomSuffix();
+      const result = await tryLogin(name, pass, true);
+      if (result.ok) {
+        localStorage.setItem("player_username", name);
+        overlay.remove();
+        return name;
+      }
+      // تصادم نادر في اسم المستخدم (401) → إعادة المحاولة باسم عشوائي جديد
+      if (result.status !== 401) {
+        showError('❌ ' + (result.error || 'تعذر إنشاء حساب الضيف'));
+        return null;
+      }
+    }
+    showError('❌ تعذر إنشاء حساب الضيف، حاول مجدداً');
+    return null;
+  };
+
   return new Promise(resolve => {
     loginBtn.onclick = async () => {
       const name = await doLogin(false);
@@ -179,6 +203,10 @@ async function getOrPromptUsername() {
     };
     registerBtn.onclick = async () => {
       const name = await doLogin(true);
+      if (name) resolve(name);
+    };
+    guestBtn.onclick = async () => {
+      const name = await doGuestLogin();
       if (name) resolve(name);
     };
     const handleKey = (e) => {

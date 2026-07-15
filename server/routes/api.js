@@ -62,7 +62,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       });
       req.on("end", async () => {
         try {
-          const { username, password } = JSON.parse(body);
+          const { username, password, isGuest } = JSON.parse(body);
           if (!username || typeof username !== "string" || username.length < 2 || username.length > 30 || /[\/:;<>"']/.test(username)) {
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: "invalid username" }));
@@ -137,6 +137,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             const pData = getDefaultPlayer(sanitized);
             pData._legacyEmpty = false;
             pData.password = await hashPassword(password);
+            pData.isGuest = !!isGuest;
             memStore.set(sanitized, pData);
             markDirty(sanitized);
             const token = generateToken(sanitized);

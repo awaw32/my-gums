@@ -74,6 +74,7 @@ const playerSchema = new mongoose.Schema({
   researchTree:   { type: Object, default: {} },
   completedVillages: { type: Array, default: [] },
   currentChapter: { type: Number, default: 1 },
+  isGuest:        { type: Boolean, default: false },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);
