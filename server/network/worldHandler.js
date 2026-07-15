@@ -18,7 +18,7 @@ function playerColor(username) {
 let _dropIdCounter = 0;
 const DROP_CLEANUP_MS = 60000;
 
-function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager }) {
+function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, broadcastBus }) {
 
   // تنظيف اللاعبين المنقطعين كل 10 ثوانٍ (مهلة 30 ثانية)
   setInterval(() => {
@@ -338,8 +338,10 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         });
         worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(pvpMsg); });
       } else if (msg.type === "chat" && username) {
-        const chatMsg = JSON.stringify({ type: "broadcast_chat", username: esc(username), message: esc(String(msg.message || "").slice(0, 200)) });
+        const chatPayload = { username: esc(username), message: esc(String(msg.message || "").slice(0, 200)) };
+        const chatMsg = JSON.stringify({ type: "broadcast_chat", ...chatPayload });
         worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });
+        if (broadcastBus) broadcastBus.publish("chat", chatPayload);
       } else if (msg.type && msg.type.startsWith("war_") && warManager && username) {
         // 🏜️ معالج رسائل الحرب القبلية
         const result = warManager.handleMessage(msg, username, ws);
@@ -369,26 +371,31 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         if (!brClient || !brClient.br_alive) return;
         const brMsg = JSON.stringify({ type: "br_match_start", mapSize: msg.mapSize, matchDuration: msg.matchDuration });
         worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(brMsg); });
+        if (broadcastBus) broadcastBus.publish("br_match_start", { partyCode: brClient.partyCode, mapSize: msg.mapSize, matchDuration: msg.matchDuration });
       } else if (msg.type === "br_zone_shrink" && username) {
         const brClient = worldClients.get(username);
         if (!brClient || !brClient.br_alive) return;
         const zMsg = JSON.stringify({ type: "br_zone_shrink", radius: msg.radius, centerX: msg.centerX, centerY: msg.centerY });
         worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(zMsg); });
+        if (broadcastBus) broadcastBus.publish("br_zone_shrink", { partyCode: brClient.partyCode, radius: msg.radius, centerX: msg.centerX, centerY: msg.centerY });
       } else if (msg.type === "br_bandit_spawn" && username) {
         const brClient = worldClients.get(username);
         if (!brClient || !brClient.br_alive) return;
         const bMsg = JSON.stringify({ type: "br_bandit_spawn", bandit: msg.bandit });
         worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(bMsg); });
+        if (broadcastBus) broadcastBus.publish("br_bandit_spawn", { partyCode: brClient.partyCode, bandit: msg.bandit });
       } else if (msg.type === "br_player_eliminated" && username) {
         const brClient = worldClients.get(username);
         if (!brClient || !brClient.br_alive) return;
         const eMsg = JSON.stringify({ type: "br_player_eliminated", playerId: msg.playerId, by: msg.by });
         worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(eMsg); });
+        if (broadcastBus) broadcastBus.publish("br_player_eliminated", { partyCode: brClient.partyCode, playerId: msg.playerId, by: msg.by });
       } else if (msg.type === "br_match_end" && username) {
         const brClient = worldClients.get(username);
         if (!brClient || !brClient.br_alive) return;
         const endMsg = JSON.stringify({ type: "br_match_end", winner: msg.winner, kills: msg.kills });
         worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(endMsg); });
+        if (broadcastBus) broadcastBus.publish("br_match_end", { partyCode: brClient.partyCode, winner: msg.winner, kills: msg.kills });
       } else if (msg.type === "equip_weapon" && username) {
         const c = worldClients.get(username);
         if (c) {

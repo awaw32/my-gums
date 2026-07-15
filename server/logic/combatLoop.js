@@ -4,7 +4,7 @@ const { getEnemyForLevel, calculateEnemyPower } = require("../data/enemies");
 const metrics = require("../metrics");
 
 function createCombatLoop(deps) {
-  const { rooms, broadcast, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2 } = deps;
+  const { rooms, broadcast, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2, broadcastBus, isOwner = true } = deps;
 
   let lastTickTime = performance.now();
 
@@ -109,9 +109,13 @@ function createCombatLoop(deps) {
     }, nextDelay);
   }
 
-  scheduleNextTick();
+  // 🌐 نسخ التحجيم الأفقي غير المالكة للمحاكاة (isOwner=false) لا تُشغّل حلقات المحاكاة إطلاقاً —
+  // فقط تُرحّل ما يصلها عبر broadcastBus. النسخة الافتراضية (نسخة واحدة، isOwner=true) لا تتأثر.
+  if (isOwner) {
+    scheduleNextTick();
+  }
 
-  const monsterInterval = setInterval(() => {
+  const monsterInterval = isOwner ? setInterval(() => {
     for (const m of worldMonsters) {
       if (!m.alive) {
         m.respawnTimer -= 0.3;
@@ -143,9 +147,10 @@ function createCombatLoop(deps) {
     }
     const msg = JSON.stringify({ type: "world_monsters", list: worldMonsters });
     worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
-  }, 300);
+    if (broadcastBus) broadcastBus.publish("world_monsters", { list: worldMonsters });
+  }, 300) : null;
 
-  const poisonInterval = setInterval(() => {
+  const poisonInterval = isOwner ? setInterval(() => {
     worldClients.forEach((c, name) => {
       if (!c._poisonEffects || c._poisonEffects.length === 0) return;
       if (c.hp <= 0) { c._poisonEffects = []; return; }
@@ -161,9 +166,10 @@ function createCombatLoop(deps) {
         c.hp = Math.max(0, c.hp - totalDmg);
         const poisonMsg = JSON.stringify({ type: "poison_tick", username: name, hp: Math.floor(c.hp), maxHp: c.maxHp || 120, damage: totalDmg });
         worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(poisonMsg); });
+        if (broadcastBus) broadcastBus.publish("poison_tick", { username: name, hp: Math.floor(c.hp), maxHp: c.maxHp || 120, damage: totalDmg });
       }
     });
-  }, 300);
+  }, 300) : null;
 
   return {
     tickTimer,

@@ -8,6 +8,8 @@ const SENTRY_DSN = process.env.SENTRY_DSN || "";
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "";
+const REDIS_URL = process.env.REDIS_URL || "";
+const SIM_OWNER = process.env.SIM_OWNER !== "false"; // افتراضياً true (نسخة واحدة تشغّل المحاكاة كالسابق)
 const crypto = require("crypto");
 const isProd = process.env.NODE_ENV === "production";
 // ═══════════════════════════════════════════════════════════════
@@ -71,6 +73,8 @@ module.exports = {
   VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY,
   VAPID_SUBJECT,
+  REDIS_URL,
+  SIM_OWNER,
   BUILD_ID,
   DATA_DIR,
   BUILD_DIR,

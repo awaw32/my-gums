@@ -8,7 +8,9 @@ const logger = require("./server/logger");
 const {
   PORT, USE_HTTPS, CERT_DIR, DATA_DIR,
   WORLD_W, TICK_MS, RATE_LIMIT_WINDOW, RATE_LIMIT_MAX,
+  SIM_OWNER,
 } = require("./server/config");
+const broadcastBus = require("./server/network/broadcastBus");
 
 let server;
 if (USE_HTTPS) {
@@ -64,6 +66,7 @@ const { createCombatLoop } = require("./server/logic/combatLoop");
 const combatSystem = createCombatLoop({
   rooms, broadcast,
   WORLD_W, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2,
+  broadcastBus, isOwner: SIM_OWNER,
 });
 
 const { createWarManager } = require("./server/logic/warManager");
@@ -87,7 +90,39 @@ const handleWorldConnection = createWorldHandler({
   computeKnowledgeUpgradeCost, computeKnowledgeBonuses,
   claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades,
   applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, sanitizePlayerData,
-  warManager,
+  warManager, broadcastBus,
+});
+
+// 🌐 موزّع استقبال واحد فقط لكل العملية — يُرحّل أحداث النسخ الأخرى (عبر Redis) إلى العملاء
+// المحليين المتصلين بهذه النسخة تحديداً. لا شيء هنا يعمل ما لم يُضبط REDIS_URL.
+broadcastBus.init((event) => {
+  switch (event.kind) {
+    case "world_monsters": {
+      const msg = JSON.stringify({ type: "world_monsters", list: event.payload.list });
+      worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
+      break;
+    }
+    case "poison_tick": {
+      const msg = JSON.stringify({ type: "poison_tick", ...event.payload });
+      worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
+      break;
+    }
+    case "chat": {
+      const msg = JSON.stringify({ type: "broadcast_chat", ...event.payload });
+      worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
+      break;
+    }
+    case "br_match_start":
+    case "br_zone_shrink":
+    case "br_bandit_spawn":
+    case "br_player_eliminated":
+    case "br_match_end": {
+      const { partyCode, ...rest } = event.payload;
+      const msg = JSON.stringify({ type: event.kind, ...rest });
+      worldClients.forEach((c) => { if (c.partyCode === partyCode && c.ws.readyState === 1) c.ws.send(msg); });
+      break;
+    }
+  }
 });
 
 const { createArenaHandler } = require("./server/network/arenaHandler");
