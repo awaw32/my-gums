@@ -1,11 +1,10 @@
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = `desert-kingdom-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/sw.js',
-  '/lands.html',
   '/config/images.js'
 ];
 

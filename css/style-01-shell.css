@@ -1,0 +1,992 @@
+:root {
+  --gold: #D4A017;
+  --gold-dim: #B8860B;
+  --gold-glow: rgba(212, 160, 23, 0.25);
+  --gold-light: rgba(212, 160, 23, 0.08);
+  --sand: #C4956A;
+  --sand-light: #E8D5B7;
+  --sand-dark: #8B6914;
+  --desert-sky: #E8D5B7;
+  --desert-sand: #F5E6D0;
+  --dark: #3D2B1F;
+  --dark2: #5D4B3A;
+  --dark3: #7D6B5A;
+  --beige: #3D2B1F;
+  --beige-dark: #7D6B5A;
+  --green: #27AE60;
+  --green-bg: rgba(39, 174, 96, 0.12);
+  --red: #C0392B;
+  --red-bg: rgba(192, 57, 43, 0.08);
+  --orange: #D4A017;
+  --panel-bg: rgba(255, 248, 240, 0.97);
+  --panel-border: rgba(192, 57, 43, 0.15);
+  --top-h: 56px;
+  --sub-h: 72px;
+  --qu-h: 64px;
+  --bottom-h: 72px;
+  --chat-overlay-h: 32px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --bg-page: #FFF8F0;
+  --bg-card: #FFFFFF;
+  --bg-surface: #FFFDF5;
+  --text-primary: #3D2B1F;
+  --text-secondary: #7D6B5A;
+  --text-muted: #A0927E;
+  --accent-red: #C0392B;
+  --accent-red-soft: rgba(192, 57, 43, 0.15);
+  --accent-red-hover: #E74C3C;
+  --border-light: rgba(192, 57, 43, 0.12);
+  --shadow-card: 0 2px 12px rgba(0,0,0,0.06);
+  --bg-input: rgba(245, 230, 208, 0.4);
+  --bg-primary: #FFF8F0;
+  --bg-header: rgba(232, 213, 183, 0.5);
+  --accent-red-dim: #7B2D26;
+  --accent-gold: #D4A017;
+  --vh: 1vh;
+  /* سلم z-index: loading=3000, particles=4000, story-overlay=9999, tooltip=9999, mini-map=9999, bottom-bar=9999, sub-bar=10000, modal=90000, confirm=100000 */
+  --z-loading: 3000;
+  --z-particles: 4000;
+  --z-story: 9999;
+  --z-tooltip: 9999;
+  --z-minimap: 9999;
+  --z-nav: 9999;
+  --z-subbar: 10000;
+  --z-modal: 90000;
+  --z-confirm: 100000;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; touch-action: manipulation; }
+input, textarea { user-select: text; -webkit-user-select: text; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+button { font: inherit; cursor: pointer; border: none; outline: none; background: none; color: inherit; }
+.hidden { display: none !important; }
+
+/* ====== شاشة التحميل ====== */
+#loading-screen {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--bg-page);
+  gap: 16px;
+  transition: opacity 0.6s, visibility 0.6s;
+}
+#loading-screen.fade-out { opacity: 0; visibility: hidden; }
+
+.loading-wheel {
+  width: 100px; height: 100px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.wheel-rim {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 4px solid var(--accent-red-soft);
+  border-top-color: var(--accent-red);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.wheel-logo { font-size: 3rem; z-index: 1; filter: drop-shadow(0 0 12px rgba(192,57,43,0.3)); }
+
+.loading-title {
+  font-family: 'Amiri', serif;
+  font-size: 2.2rem;
+  color: var(--accent-red);
+  text-shadow: 0 2px 12px rgba(192,57,43,0.2);
+}
+.loading-sub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+  margin-top: -8px;
+}
+.loading-bar-track {
+  width: 260px; height: 8px;
+  background: var(--accent-red-soft);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.loading-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-red-hover));
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.loading-pct {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* ====== App Shell محصور ====== */
+.app-shell {
+  max-width: 480px !important;
+  margin: 0 auto !important;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: 0 0 60px rgba(0,0,0,0.8);
+}
+
+/* ====== خلفية الشاشة الكاملة (FIXED - لا تتحرك أبداً) ====== */
+.fullscreen-bg {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+  background: var(--bg-page) !important;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ====== الشريط العلوي — Glassmorphism بألوان الصحراء ====== */
+#top-bar {
+  position: relative;
+  height: var(--top-h);
+  padding: 2px 6px;
+  padding-top: calc(2px + var(--safe-t));
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-light);
+  z-index: 100;
+  flex-shrink: 0;
+  direction: rtl;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+/* الجهة اليمنى: الصورة + المستوى */
+.top-player-section {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.top-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-red-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  background: var(--bg-card);
+  box-shadow: 0 0 8px rgba(192,57,43,0.1);
+  flex-shrink: 0;
+}
+.top-level-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.top-level-label {
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: var(--accent-red);
+  line-height: 1;
+  white-space: nowrap;
+}
+.top-level-track {
+  width: 60px;
+  height: 5px;
+  background: var(--accent-red-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.top-level-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-red-hover));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.top-level-amount {
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+  direction: ltr;
+  font-family: monospace;
+}
+
+/* الوسط: الموارد — بألوان ذهبية وصحراوية */
+.top-resources {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+.top-res {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 14px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  white-space: nowrap;
+  direction: ltr;
+  border: 1px solid transparent;
+  min-width: 0;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.gold-res {
+  background: var(--accent-red-soft);
+  border-color: var(--accent-red-soft);
+  color: var(--accent-red);
+}
+.cash-res {
+  background: var(--green-bg);
+  border-color: rgba(39, 174, 96, 0.15);
+  color: var(--green);
+}
+.food-res {
+  background: rgba(196, 149, 106, 0.08);
+  border-color: rgba(196, 149, 106, 0.15);
+  color: var(--text-secondary);
+}
+.power-res {
+  background: var(--red-bg);
+  border-color: var(--accent-red-soft);
+  color: var(--accent-red);
+}
+.top-res .res-icon { font-size: 0.65rem; width:16px; height:16px; vertical-align:middle; }
+.inv-item-img, .lod-icon-img, .craft-res-icon { width:20px; height:20px; vertical-align:middle; border-radius:3px; object-fit:contain; }
+.ug-icon-img { width:32px; height:32px; border-radius:6px; object-fit:contain; }
+.top-res .res-val {
+  font-size: 0.6rem;
+  font-weight: 800;
+  min-width: 30px;
+}
+
+/* الجهة اليسرى: المضاعف */
+.top-multiplier-section {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.top-multiplier {
+  background: var(--accent-red-soft);
+  border: 1px solid var(--border-light);
+  color: var(--accent-red);
+  padding: 3px 8px;
+  border-radius: 14px;
+  gap: 3px;
+  display: flex;
+  align-items: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.multiplier-icon { font-size: 0.65rem; }
+.multiplier-value { font-size: 0.7rem; }
+#multiplier-display { font-weight: 900; }
+
+/* ====== الشريط الدائري الفرعي ====== */
+#sub-bar {
+  height: var(--sub-h);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  background: var(--bg-surface);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+  direction: rtl;
+  scroll-behavior: smooth;
+}
+#sub-bar::-webkit-scrollbar { display: none; }
+.circular-sub-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  position: relative;
+  min-width: 56px;
+}
+.circular-sub-btn:active { transform: scale(0.92); }
+.circular-sub-btn.active { color: var(--accent-red); }
+.circular-sub-btn.active .csb-icon {
+  background: var(--accent-red-soft);
+  border-color: var(--accent-red);
+  box-shadow: 0 0 12px rgba(192,57,43,0.15);
+}
+.csb-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: all 0.3s;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.csb-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.csb-badge {
+  position: absolute;
+  top: 2px;
+  left: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  box-shadow: 0 0 6px rgba(192,57,43,0.6);
+  pointer-events: none;
+}
+.csb-badge.active { display: block !important; }
+.br-sub-btn .csb-icon {
+  background: linear-gradient(135deg, rgba(192,57,43,0.1), rgba(192,57,43,0.05));
+  border-color: var(--accent-red-soft);
+}
+.br-sub-btn .csb-icon { font-size: 1.1rem; }
+
+/* ====== شريط الترقية السريع ====== */
+#quick-upgrade-bar {
+  height: var(--qu-h);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-page);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+  direction: rtl;
+}
+#quick-upgrade-bar::-webkit-scrollbar { display: none; }
+.quick-upgrade-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  flex-shrink: 0;
+  min-width: 140px;
+  box-shadow: var(--shadow-card);
+}
+.qu-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+.qu-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.qu-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.qu-level {
+  font-size: 0.55rem;
+  color: var(--accent-red);
+  font-weight: 600;
+}
+.qu-track {
+  width: 100%;
+  height: 3px;
+  background: var(--accent-red-soft);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.qu-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-red-hover));
+  border-radius: 2px;
+  transition: width 0.5s;
+}
+.qu-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  background: var(--accent-red);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.1s, background 0.15s;
+  min-height: 28px;
+}
+.qu-btn:active { transform: scale(0.92); background: var(--accent-red-hover); }
+
+/* ====== خريطة اللعبة ====== */
+#screen-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  padding-bottom: calc(var(--bottom-h) + 8px);
+}
+#screen-content::-webkit-scrollbar { width: 2px; }
+#screen-content::-webkit-scrollbar-track { background: transparent; }
+#screen-content::-webkit-scrollbar-thumb { background: var(--accent-red-soft); border-radius: 2px; }
+
+.game-map {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  background: #1a1a2e;
+  overflow: hidden;
+  padding: 12px;
+}
+.map-sand-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* شبكة المباني العائمة */
+.map-buildings-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 4px;
+}
+
+/* ====== المبنى العائم ====== */
+.map-building {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  min-height: 130px;
+  transition: all 0.3s;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.map-building:active { transform: scale(0.97); }
+.map-building.state-ready {
+  border-color: rgba(39,174,96,0.3);
+  background: rgba(39,174,96,0.04);
+}
+.map-building.state-building {
+  border-color: var(--accent-red-soft);
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+.map-building-icon { font-size: 2rem; line-height: 1; }
+.map-building-name { font-size: 0.78rem; font-weight: 800; color: var(--text-primary); }
+.map-building-desc { font-size: 0.65rem; color: var(--text-secondary); line-height: 1.3; }
+.map-building-level {
+  font-size: 0.6rem;
+  color: var(--accent-red);
+  background: var(--accent-red-soft);
+  padding: 1px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+.map-building-produce {
+  font-size: 0.6rem;
+  color: var(--green);
+  margin-top: 2px;
+}
+
+/* ====== عقدة الأرباح العائمة ====== */
+.income-node {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 8px;
+  background: linear-gradient(135deg, rgba(46,204,113,0.2), rgba(39,174,96,0.1));
+  border: 1px solid rgba(46,204,113,0.35);
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--green);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  transition: all 0.2s;
+  animation: income-float 2s ease-in-out infinite;
+  box-shadow: 0 2px 8px rgba(46,204,113,0.2);
+}
+.income-node:active {
+  transform: scale(1.2);
+  animation: none;
+}
+.income-node-icon { font-size: 0.7rem; }
+.income-node-value { direction: ltr; }
+.income-node.collecting {
+  animation: income-collect 0.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes income-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes income-collect {
+  0% { opacity: 1; transform: scale(1) translateY(0); }
+  50% { opacity: 0.8; transform: scale(1.3) translateY(-10px); }
+  100% { opacity: 0; transform: scale(0.5) translateY(-20px); }
+}
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(255,215,0,0.3); }
+  50% { border-color: rgba(255,215,0,0.6); }
+}
+
+/* ====== شريط المحادثة الشفاف ====== */
+#chat-overlay {
+  position: relative;
+  height: var(--chat-overlay-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px;
+  background: var(--bg-surface);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+  cursor: pointer;
+  z-index: 50;
+  direction: rtl;
+  gap: 4px;
+}
+.chat-overlay-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  min-width: 0;
+  font-size: 0.6rem;
+  white-space: nowrap;
+}
+.chat-overlay-alliance {
+  color: var(--accent-red);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.chat-overlay-player {
+  color: var(--text-primary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.chat-overlay-msg {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.chat-overlay-toggle {
+  flex-shrink: 0;
+  background: var(--accent-red-soft);
+  border: 1px solid var(--border-light);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-red);
+  font-size: 0.55rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.chat-overlay-toggle:active { transform: scale(0.85); }
+.chat-overlay-toggle.open { transform: rotate(180deg); }
+
+/* ====== القائمة السفلية — أزرار ذهبية متوهجة ====== */
+#bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  height: var(--bottom-h);
+  padding: 2px 4px;
+  padding-bottom: var(--safe-b);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  background: var(--bg-surface);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border-light);
+  z-index: 100;
+  direction: rtl;
+  box-shadow: 0 -1px 4px rgba(0,0,0,0.04);
+}
+.nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 12px;
+  transition: all 0.25s ease;
+  min-width: 48px;
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+}
+.nav-btn .nav-icon { 
+  font-size: 1.3rem; 
+  line-height: 1;
+  transition: all 0.25s ease;
+}
+.nav-btn .nav-label { 
+  font-size: 0.55rem; 
+  font-weight: 700; 
+  color: var(--text-muted);
+  transition: all 0.25s ease;
+}
+.nav-btn.active {
+  color: var(--accent-red);
+}
+.nav-btn.active .nav-icon {
+  filter: drop-shadow(0 0 8px rgba(192, 57, 43, 0.4));
+  transform: scale(1.1);
+}
+.nav-btn.active .nav-label {
+  color: var(--accent-red);
+}
+.nav-btn:active { transform: scale(0.92); }
+
+/* الزر الأوسط البارز — توهج أحمر */
+.nav-btn-center {
+  transform: translateY(-8px);
+  min-width: 56px;
+}
+.nav-btn-center .nav-icon {
+  font-size: 1.7rem;
+  position: relative;
+  z-index: 2;
+}
+.nav-btn-center .nav-label {
+  font-size: 0.6rem;
+  position: relative;
+  z-index: 2;
+}
+.nav-center-glow {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(192,57,43,0.12), rgba(192,57,43,0.03));
+  border: 2px solid var(--accent-red-soft);
+  box-shadow: 0 0 12px rgba(192,57,43,0.1);
+  z-index: 1;
+}
+.nav-btn-center.active .nav-center-glow {
+  background: radial-gradient(circle at center, rgba(192,57,43,0.2), rgba(192,57,43,0.05));
+  border-color: var(--accent-red);
+  box-shadow: 0 0 20px rgba(192,57,43,0.2);
+}
+
+/* ====== زر إغلاق الشات ====== */
+#chat-minimize-btn {
+  color: var(--text-secondary);
+  padding: 0 8px;
+}
+
+/* ====== زر طي القائمة الفرعية ====== */
+.panel-toggle-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--accent-red-soft);
+  border: 1px solid var(--border-light);
+  color: var(--accent-red);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+  padding: 0;
+  font-family: inherit;
+  margin-right: 2px;
+}
+.panel-toggle-btn:active { transform: scale(0.85); background: var(--accent-red-soft); }
+.panel-toggle-btn.open { background: var(--accent-red-soft); border-color: var(--accent-red); }
+
+/* ====== القائمة المنزلقة (Sub-bar + Quick Upgrades) ====== */
+#quick-panel {
+  position: absolute;
+  top: var(--top-h);
+  left: 0;
+  right: 0;
+  z-index: 110;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.35s ease, opacity 0.3s ease;
+  opacity: 0;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+}
+#quick-panel.open {
+  max-height: calc(var(--sub-h) + var(--qu-h) + 8px);
+  opacity: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ====== توافق مع الشاشات الصغيرة جداً ====== */
+@media (max-width: 360px) {
+  :root {
+    --top-h: 64px;
+    --sub-h: 64px;
+    --qu-h: 58px;
+    --bottom-h: 56px;
+    --chat-overlay-h: 28px;
+  }
+  .top-avatar { width: 28px; height: 28px; font-size: 0.85rem; }
+  .top-level-track { width: 36px; }
+  .top-level-label { font-size: 0.5rem; }
+  .top-resources { gap: 1px; flex-wrap: wrap; justify-content: center; }
+  .top-res { padding: 1px 4px; font-size: 0.68rem; border-radius: 10px; }
+  .top-res .res-val { font-size: 0.68rem; min-width: 16px; }
+  .csb-icon { width: 34px; height: 34px; font-size: 1rem; }
+  .csb-label { font-size: 0.5rem; }
+  .map-building { padding: 10px 6px; min-height: 110px; }
+  .map-building-icon { font-size: 1.6rem; }
+  .map-buildings-grid { gap: 6px; }
+  .quick-upgrade-card { min-width: 120px; padding: 3px 6px; }
+  .nav-btn-center { transform: translateY(-6px); }
+  .nav-center-glow { width: 44px; height: 44px; }
+  .nav-icon { font-size: 1.2rem; }
+  .nav-label { font-size: 0.5rem; }
+  .circular-sub-btn { min-width: 50px; padding: 4px 2px; }
+  #bottom-bar { height: 56px; }
+  .loading-bar-track { width: 180px; }
+  .task-card { padding: 4px 6px; }
+}
+
+/* ====== توافق مع الشاشات المتوسطة (تابلت) ====== */
+@media (min-width: 481px) {
+  .app-shell {
+    border-left: 1px solid var(--border-light);
+    border-right: 1px solid var(--border-light);
+  }
+  .map-buildings-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ====== تحسينات اللمس ====== */
+.circular-sub-btn, .nav-btn, .qu-btn, .income-node, .map-building, .chat-overlay, .chat-overlay-toggle {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* إخفاء عناصر قديمة */
+.isometric-map { min-height: 100%; padding: 12px; }
+
+/* ====== زر طي القائمة الفرعية ====== */
+.sub-bar-toggle {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-red-soft);
+  border: 1px solid var(--border-light);
+  color: var(--accent-red);
+  font-size: 0.55rem;
+  cursor: pointer;
+  transition: transform 0.3s, background 0.3s;
+  position: sticky;
+  left: 4px;
+  z-index: 2;
+  min-width: 28px;
+  min-height: 28px;
+}
+.sub-bar-toggle:active { transform: scale(0.85); }
+
+/* collapse animation */
+#sub-bar {
+  transition: height 0.35s ease, opacity 0.3s ease, padding 0.35s ease, border 0.3s ease;
+  overflow: hidden;
+}
+#sub-bar.collapsed {
+  height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ====== شريط تقدم البناء ====== */
+.building-timer-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.building-timer-fill {
+  height: 100%;
+  background: var(--accent-red);
+  border-radius: 2px;
+  transition: width 0.3s;
+  width: 0%;
+}
+
+/* ====== صور حالة المباني ====== */
+.map-building.state-locked .map-building-icon-wrap {
+  background: linear-gradient(135deg, rgba(80,40,20,0.3), rgba(40,20,10,0.4));
+  border: 1px solid rgba(255,68,68,0.15);
+}
+.map-building.state-building .map-building-icon-wrap {
+  background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,215,0,0.03));
+  border: 1px solid rgba(255,215,0,0.2);
+  animation: build-pulse 1s ease-in-out infinite;
+}
+.map-building.state-ready .map-building-icon-wrap {
+  background: linear-gradient(135deg, rgba(46,204,113,0.12), rgba(46,204,113,0.04));
+  border: 1px solid rgba(46,204,113,0.2);
+}
+.map-building-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+  transition: all 0.4s;
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.state-locked .map-building-icon-wrap {
+  background-image: url('../assets/images/building-ruins.png');
+  color: transparent;
+}
+.state-building .map-building-icon-wrap {
+  background-image: url('../assets/images/building-construction.png');
+  color: transparent;
+}
+.state-ready .map-building-icon-wrap {
+  background-image: url('../assets/images/building-complete.png');
+  color: transparent;
+}
+
+@keyframes build-pulse {
+  0%, 100% { border-color: rgba(255,215,0,0.15); }
+  50% { border-color: rgba(255,215,0,0.4); }
+}
+
+/* ====== المودال العام ====== */
+#modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+#modal-overlay.hidden { display: none !important; }
+#modal-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-card);
+  border-radius: 18px;
+  border: 1px solid var(--border-light);
+  padding: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+
+/* ====== تجاوب المودال ====== */
+@media (max-width: 360px) {
+  #modal-card { padding: 16px !important; }
+}
+
+/* ====== منع التمرير خلف المودال ====== */
+body.modal-open { overflow: hidden; }
+

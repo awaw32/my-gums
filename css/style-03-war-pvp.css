@@ -1,0 +1,853 @@
+/* ====== ساحات الحرب القبلية — Tribal War System ====== */
+.war-tribal-section {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(180,83,9,0.06), rgba(146,64,14,0.03));
+  border: 1px solid rgba(180,83,9,0.15);
+}
+
+.tribal-war-status {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+}
+.tribal-war-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.tribal-stat-label { font-size: 0.7rem; color: var(--text-secondary); }
+.tribal-stat-value { font-size: 0.95rem; font-weight: 700; color: var(--gold); }
+
+.tribal-war-list { display: flex; flex-direction: column; gap: 8px; }
+
+.tribal-war-card {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+}
+.tribal-war-card.war-attacker { border-left: 3px solid var(--accent-red); }
+.tribal-war-card.war-defender { border-left: 3px solid var(--green); }
+.tribal-war-card.war-observer { border-left: 3px solid var(--border-light); }
+.tribal-war-card.tribal-locked {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.tribal-war-card.tribal-locked .tribal-war-icon { font-size: 2rem; }
+
+.tribal-war-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-bottom: 6px;
+}
+.war-tribe-name { font-weight: 700; font-size: 0.9rem; color: var(--text-primary); }
+.war-vs { font-size: 1.2rem; }
+
+.tribal-war-scores {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.war-score { font-weight: 600; }
+.war-timer { color: var(--accent-red); }
+
+.tribal-war-loot {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.tribal-war-empty {
+  text-align: center;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.tribal-war-declare-btn {
+  background: linear-gradient(135deg, #c0392b, #922b21);
+  color: #fff;
+  border: none;
+  flex: 1;
+}
+
+.tribal-war-action-btn {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--accent-red);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  width: 100%;
+}
+.tribal-war-action-btn:active { opacity: 0.85; }
+
+.tribal-rankings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.tribal-ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  font-size: 0.8rem;
+}
+.tribal-rank-medal { width: 22px; text-align: center; font-weight: 700; }
+.tribal-rank-name { flex: 1; font-weight: 600; color: var(--text-primary); }
+.tribal-rank-stats { font-size: 0.72rem; color: var(--text-secondary); }
+
+/* ====== واجهة القبيلة الجماعية ====== */
+.tribal-alliance-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px; margin-bottom: 8px;
+  background: linear-gradient(135deg, rgba(243,156,18,0.1), rgba(211,84,0,0.05));
+  border: 1px solid rgba(243,156,18,0.3);
+  border-radius: 12px;
+}
+.tribal-alliance-banner { font-size: 2rem; }
+.tribal-alliance-name { font-size: 1rem; font-weight: 700; color: var(--gold); flex: 1; }
+.tribal-alliance-info {
+  display: flex; gap: 6px; margin-bottom: 8px;
+}
+.tribal-info-item {
+  flex: 1; text-align: center;
+  padding: 6px 4px; border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--border-light);
+  font-size: 0.72rem; color: var(--text-secondary);
+}
+.tribal-info-item strong { display: block; font-size: 0.85rem; color: var(--text-primary); margin-top: 2px; }
+.tribal-treasury-box {
+  padding: 10px; margin-bottom: 8px;
+  border-radius: 10px; background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+}
+.tribal-treasury-bar-track {
+  height: 6px; background: rgba(0,0,0,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 8px;
+}
+.tribal-treasury-bar-fill {
+  height: 100%; background: linear-gradient(90deg, #f1c40f, #e67e22); border-radius: 3px; transition: width 0.3s;
+}
+.tribal-treasury-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.tribal-input {
+  width: 70px; padding: 4px 6px; border-radius: 6px;
+  border: 1px solid var(--border-light); background: var(--bg-surface);
+  color: var(--text-primary); font-size: 0.8rem; text-align: center;
+}
+.tribal-members-list {
+  display: flex; flex-direction: column; gap: 3px; margin-top: 4px;
+}
+.tribal-member-row {
+  display: flex; align-items: center; gap: 4px;
+  padding: 5px 8px; border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--border-light);
+  font-size: 0.75rem;
+}
+.tribal-member-rank-icon { font-size: 1rem; width: 20px; text-align: center; }
+.tribal-member-name { flex: 1; font-weight: 600; color: var(--text-primary); }
+.tribal-member-rank-name { font-size: 0.65rem; color: var(--text-secondary); width: 50px; text-align: center; }
+.tribal-member-contribution { font-size: 0.65rem; color: var(--gold); width: 55px; text-align: center; }
+.tribal-member-power { font-size: 0.65rem; color: var(--accent-red); width: 45px; text-align: center; }
+.tribal-promote-btn, .tribal-demote-btn {
+  background: none; border: 1px solid var(--border-light);
+  border-radius: 4px; cursor: pointer; padding: 2px 5px;
+  font-size: 0.7rem; color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.tribal-promote-btn:hover { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+.tribal-demote-btn:hover { background: var(--red-bg); color: var(--accent-red); border-color: var(--accent-red); }
+
+/* ====== تأثير قدرات البطل ====== */
+@keyframes abilityFlash {
+  0% { box-shadow: 0 0 0 0 rgba(255,215,0,0.7); transform: scale(1); }
+  50% { box-shadow: 0 0 20px 8px rgba(255,215,0,0.4); transform: scale(1.12); }
+  100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); transform: scale(1); }
+}
+.ability-flash {
+  animation: abilityFlash 0.6s ease-out;
+}
+
+/* ====== واجهة المتجر ====== */
+.shop-section-title {
+  font-size: 0.85rem; font-weight: 700; color: var(--text-primary);
+  margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+.shop-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-card); border: 1px solid var(--border-light);
+  border-radius: 12px; padding: 10px; margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+.shop-item-available { border-color: rgba(46,204,113,0.4); }
+.shop-item-locked { opacity: 0.6; }
+.shop-item-icon { font-size: 1.5rem; min-width: 36px; text-align: center; }
+.shop-item-info { flex: 1; }
+.shop-item-name { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); }
+.shop-item-desc { font-size: 0.65rem; color: var(--text-secondary); margin-top: 1px; }
+.shop-item-right { text-align: center; min-width: 70px; }
+.shop-item-cost { font-size: 0.7rem; font-weight: 700; color: var(--gold); margin-bottom: 4px; }
+.shop-buy-btn {
+  padding: 5px 12px; font-size: 0.7rem; font-weight: 700;
+  background: var(--accent-red); color: #fff; border: none; border-radius: 8px;
+  cursor: pointer; font-family: inherit; transition: opacity 0.2s;
+}
+.shop-buy-btn:active { opacity: 0.8; }
+.shop-buy-disabled { background: #666; cursor: default; }
+
+/* ====== تحسينات Responsive و Touch Targets ====== */
+button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom-btn {
+  min-height: 48px;
+  min-width: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* استخدام vh المحسّن للجوال */
+.app-shell, #screen-content, #fullscreen-bg {
+  min-height: calc(var(--vh, 1vh) * 100);
+}
+.fullscreen-bg {
+  min-height: calc(var(--vh, 1vh) * 100);
+}
+
+/* تحسين الـ scroll على الجوال */
+#screen-content, .upgrade-panel, .screen-panel {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* تكبير الـ touch targets للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .top-resources { gap: 2px; }
+  .top-res { padding: 2px 4px; font-size: 0.55rem; }
+  .top-res .res-val { min-width: 22px; font-size: 0.55rem; }
+  .top-res .res-icon { font-size: 0.55rem; }
+  .loading-bar-track { width: 200px; }
+  .nav-btn { min-height: 44px; min-width: 44px; }
+  #sub-bar .circular-sub-btn { min-width: 56px; }
+  .panel-toggle-btn { width: 40px; height: 40px; font-size: 1rem; }
+  .quick-upgrade-card { padding: 6px; }
+  .qu-icon { font-size: 1.2rem; width: 28px; }
+  .qu-label { font-size: 0.55rem; }
+  .qu-btn { font-size: 0.6rem; padding: 4px 10px; }
+  .promo-hub-grid { gap: 6px; }
+  .promo-card-new { height: 140px; }
+  .promo-card-new:nth-child(3),
+  .promo-card-new:nth-child(4) { height: 130px; }
+}
+@media (max-width: 440px) {
+  .top-resources { flex-wrap: wrap; gap: 1px; justify-content: center; }
+  .top-res { padding: 1px 4px; gap: 1px; font-size: 0.68rem; }
+  .top-res .res-val { font-size: 0.68rem; min-width: 16px; }
+  .top-res .res-icon { font-size: 0.7rem; width:16px; height:16px; }
+}
+@media (max-width: 280px) {
+  .top-resources { flex-wrap: wrap; justify-content: center; }
+  .top-player-section { min-width: 60px; }
+  .top-level-info { display: none; }
+  .promo-hub-grid { grid-template-columns: 1fr; }
+  .promo-card-new { height: 120px; }
+}
+@media (min-width: 640px) {
+  .iso-oasis-buildings { grid-template-columns: repeat(4, 1fr); }
+  #screen-content { padding: 12px 20px; }
+  .task-card { padding: 8px 12px; }
+}
+@media (min-width: 768px) {
+  .app-shell { margin: 0 auto; }
+}
+@media (min-width: 1024px) {
+  .iso-oasis { max-width: 700px; }
+  .iso-oasis-buildings { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* تحسينات الشاشات العالية الكثافة */
+@media (-webkit-min-device-pixel-ratio: 3) {
+  .top-res, .nav-btn, .panel-toggle-btn {
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* وضع الأفقي للجوال */
+@media (max-height: 500px) and (orientation: landscape) {
+  #top-bar { height: 44px; }
+  :root { --top-h: 44px; --sub-h: 56px; }
+  #quick-panel { max-height: 80px; overflow-x: auto; flex-direction: row; padding: 2px 4px; }
+  #sub-bar { height: 56px; overflow-x: auto; gap: 2px; padding: 2px 4px; }
+  #sub-bar .circular-sub-btn { min-width: 44px; height: 44px; font-size: 0.9rem; }
+  .csb-label { font-size: 0.45rem; }
+  #quick-upgrade-bar { max-height: 50px; overflow-x: auto; padding: 2px 4px; gap: 4px; }
+  .quick-upgrade-card { min-width: 100px; padding: 4px 6px; }
+  #bottom-bar { height: 56px; }
+  :root { --bottom-h: 56px; }
+  /* 🛡️ نُبقي لوحة اللاعبين ضمن نصف الشاشة العلوي فقط في الوضع الأفقي القصير
+     كي لا تصل إلى ركن الخريطة المصغّرة السفلي (كانت 60vh تتراكب معها) */
+  .player-panel { top: calc(44px + var(--safe-t)); max-height: 38vh; }
+  #chat-toggle-btn { bottom: calc(70px + var(--safe-b)); }
+  #recenter-btn { bottom: calc(70px + var(--safe-b)); }
+  #zoom-in-btn { bottom: calc(190px + var(--safe-b)); }
+  #zoom-out-btn { bottom: calc(130px + var(--safe-b)); }
+  .mini-map { width: 70px; height: 70px; bottom: calc(70px + var(--safe-b)); right: 6px; }
+}
+@media (max-height: 400px) and (orientation: landscape) {
+  #top-bar { height: 38px; }
+  :root { --top-h: 38px; }
+  .top-avatar { width: 28px; height: 28px; font-size: 1rem; }
+  .top-resources { gap: 1px; }
+  .top-res { padding: 1px 3px; }
+  #bottom-bar { height: 44px; }
+  :root { --bottom-h: 44px; }
+  .nav-icon { font-size: 1rem; }
+  .nav-label { font-size: 0.45rem; }
+}
+@media (max-height: 350px) and (orientation: landscape) {
+  .top-level-info { display: none; }
+  .top-multiplier-section { gap: 2px; }
+  .panel-toggle-btn { width: 32px; height: 32px; font-size: 0.8rem; }
+  .nav-btn { min-height: 36px; min-width: 36px; }
+  #bottom-bar { gap: 0; }
+}
+
+/* ====== شاشة إدخال الاسم ====== */
+.name-overlay-content {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 16px;
+  padding: 32px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  max-width: 340px;
+  width: 90%;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+}
+.name-overlay-crown { font-size: 3.5rem; filter: drop-shadow(0 0 16px rgba(200,50,50,0.3)); }
+.name-overlay-title {
+  font-family: 'Amiri', serif;
+  font-size: 2rem;
+  color: var(--accent-red);
+  text-shadow: 0 2px 12px rgba(200,50,50,0.2);
+}
+.name-overlay-sub { font-size: 0.9rem; color: var(--text-secondary); text-align: center; }
+.name-input {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 2px solid var(--border-light);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  text-align: center;
+  font-family: 'Cairo', sans-serif;
+  outline: none;
+  transition: border-color 0.3s;
+}
+.name-input:focus {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 16px rgba(200,50,50,0.15);
+}
+.name-input::placeholder { color: var(--text-secondary); opacity: 0.5; }
+.name-submit-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--accent-red);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.2s;
+}
+.name-submit-btn:active { transform: scale(0.97); }
+
+/* ====== Chat ====== */
+.chat-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  height: 50vh;
+  background: var(--bg-primary);
+  border-top: 2px solid var(--border-light);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s;
+}
+.chat-panel.hidden { transform: translateY(100%); }
+.chat-header {
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-red);
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-light);
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chat-msg { font-size: 0.7rem; color: var(--text-primary); line-height: 1.4; word-break: break-word; }
+.chat-author { font-weight: 700; color: var(--accent-red); }
+.chat-input-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border-light);
+}
+.chat-input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  outline: none;
+  font-family: inherit;
+}
+.chat-input::placeholder { color: var(--text-secondary); }
+.chat-send-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent-red);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.chat-toggle-btn {
+  position: fixed;
+  bottom: calc(140px + var(--safe-b));
+  left: 16px;
+  z-index: 65;
+  width: 48px; height: 48px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-light);
+  border-radius: 50%;
+  color: var(--accent-red);
+  font-size: 1.4rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  touch-action: manipulation;
+}
+.chat-toggle-btn:active { transform: scale(0.85); }
+
+/* ====== PvP Context Menu (Floating Attack / Inspect) ====== */
+.pvp-context-menu {
+  position: fixed;
+  z-index: 70;
+  pointer-events: none;
+  width: 0; height: 0;
+  top: 50%; left: 50%;
+}
+.pvp-context-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 69;
+  background: transparent;
+  display: none;
+  touch-action: manipulation;
+}
+.pvp-context-menu:not(.hidden) ~ .pvp-context-bg,
+.pvp-context-menu:not(.hidden) .pvp-context-bg { display: block; }
+.pvp-action-btn {
+  position: fixed;
+  pointer-events: auto;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25);
+  font-size: 1.5rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  transition: transform 0.15s;
+}
+.pvp-action-btn:active { transform: scale(0.85); }
+.attack-btn {
+  background: linear-gradient(180deg, #c0392b, #8a1a1a);
+  color: #fff;
+}
+.inspect-btn {
+  background: var(--accent-red);
+  color: #fff;
+}
+
+/* ====== PvP Inspect Popup ====== */
+.pvp-inspect-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pvp-inspect-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  padding: 28px 24px;
+  width: 280px;
+  max-width: 85vw;
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+}
+.pvp-inspect-name {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--accent-red);
+  margin-bottom: 16px;
+}
+.pvp-inspect-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+.pvp-inspect-stat span:last-child { font-weight: 700; color: var(--accent-red); }
+.pvp-inspect-close {
+  margin-top: 18px;
+  padding: 10px 36px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent-red);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* ====== PvP Defeat Modal ====== */
+.pvp-defeat-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pvp-defeat-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255,68,68,0.3);
+  border-radius: 24px;
+  padding: 32px 28px;
+  width: 300px;
+  max-width: 88vw;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(255,0,0,0.1);
+  direction: rtl;
+}
+.pvp-defeat-icon { font-size: 3.5rem; margin-bottom: 8px; filter: drop-shadow(0 0 20px rgba(255,0,0,0.3)); }
+.pvp-defeat-title {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #c0392b;
+  margin-bottom: 20px;
+}
+.pvp-defeat-detail {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.85rem;
+}
+.pvp-defeat-label { color: var(--text-secondary); }
+.pvp-defeat-val { font-weight: 700; color: var(--text-primary); }
+.pvp-defeat-val.lost { color: #c0392b; }
+.pvp-defeat-countdown-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px;
+  background: rgba(192,57,43,0.08);
+  border-radius: 12px;
+  direction: rtl;
+}
+.pvp-defeat-countdown-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.pvp-defeat-countdown-num {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--accent-red);
+  min-width: 24px;
+  text-align: center;
+}
+.pvp-defeat-btn {
+  margin-top: 14px;
+  padding: 14px 40px;
+  border-radius: 14px;
+  border: none;
+  background: var(--accent-red);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  width: 100%;
+  touch-action: manipulation;
+}
+.pvp-defeat-btn:active { transform: scale(0.97); }
+
+/* ====== Battle Royale ====== */
+#br-timer {
+  position: fixed; top: calc(var(--top-h) + var(--safe-t) + 6px); left: 50%;
+  transform: translateX(-50%); z-index: 100;
+  font-size: 1.6rem; font-weight: 900;
+  color: var(--accent-red); text-shadow: 0 0 10px rgba(0,0,0,0.9);
+  direction: ltr; font-family: monospace;
+  pointer-events: none;
+}
+#br-timer.warning { color: #c0392b; animation: pulse-red 0.5s infinite alternate; }
+#br-players {
+  position: fixed; top: calc(var(--top-h) + var(--safe-t) + 8px); left: 10px;
+  z-index: 100; font-size: 0.95rem; color: var(--text-primary);
+  background: var(--bg-card); padding: 4px 10px; border-radius: 12px;
+  border: 1px solid var(--border-light);
+  pointer-events: none;
+}
+#br-kills {
+  position: fixed; top: calc(var(--top-h) + var(--safe-t) + 8px); right: 10px;
+  z-index: 100; font-size: 0.95rem; color: #c0392b;
+  background: var(--bg-card); padding: 4px 10px; border-radius: 12px;
+  border: 1px solid var(--border-light);
+  pointer-events: none;
+}
+#br-kill-feed {
+  position: fixed; top: calc(var(--top-h) + var(--safe-t) + 56px); left: 50%;
+  transform: translateX(-50%); z-index: 100;
+  display: flex; flex-direction: column; gap: 4px;
+  pointer-events: none;
+}
+.kill-msg {
+  background: rgba(0,0,0,0.7); color: var(--sand-light);
+  padding: 4px 14px; border-radius: 8px;
+  font-size: 0.85rem; white-space: nowrap;
+  animation: fade-in 0.3s;
+}
+#br-zone-warning {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  z-index: 100; font-size: 1.8rem; font-weight: 900;
+  color: var(--accent-red); text-shadow: 0 0 20px rgba(255,0,0,0.5);
+  animation: pulse-red 0.3s; pointer-events: none;
+}
+.br-evacuate-btn {
+  position: fixed; bottom: calc(var(--safe-b) + 100px); left: 50%;
+  transform: translateX(-50%); z-index: 200;
+  background: linear-gradient(135deg, var(--green), #27ae60);
+  color: #fff; font-size: 1.1rem; font-weight: 700;
+  padding: 14px 36px; border: none; border-radius: 16px;
+  cursor: pointer; box-shadow: 0 4px 20px rgba(39,174,96,0.4);
+  animation: pulse-extract 1s infinite alternate;
+  font-family: inherit; min-height: 52px;
+}
+.br-evacuate-btn:hover { background: linear-gradient(135deg, #27ae60, #1e8449); }
+.br-evacuate-btn.hidden { display: none; }
+@keyframes pulse-extract {
+  from { transform: translateX(-50%) scale(1); box-shadow: 0 4px 20px rgba(46,204,113,0.4); }
+  to { transform: translateX(-50%) scale(1.05); box-shadow: 0 6px 30px rgba(46,204,113,0.6); }
+}
+#br-victory-screen, #br-defeat-screen {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+}
+.victory-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-light);
+  border-radius: 20px;
+  padding: 30px 40px; text-align: center;
+  max-width: 90vw;
+  box-shadow: var(--shadow-card);
+}
+.victory-card h2 { color: var(--accent-red); font-size: 1.5rem; margin: 12px 0; }
+.victory-card p { color: var(--text-secondary); font-size: 1rem; }
+.victory-icon { font-size: 4rem; }
+
+@keyframes pulse-red {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ====== Achievements ====== */
+.achievements-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  max-height: calc(100dvh - var(--top-h) - var(--sub-h) - var(--bottom-h) - 10px);
+}
+.achievement-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 8px 10px;
+  width: 100%;
+  box-shadow: var(--shadow-card);
+}
+.achievement-done { border-color: var(--accent-red); background: var(--accent-red-soft); }
+.achievement-claimed { opacity: 0.5; }
+.achievement-icon { font-size: 1.8rem; flex-shrink: 0; }
+.achievement-info { flex: 1; min-width: 0; }
+.achievement-name { font-size: 0.75rem; font-weight: 700; color: var(--text-primary); }
+.achievement-desc { font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 4px; }
+.achievement-progress-track {
+  height: 4px;
+  background: var(--border-light);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+.achievement-progress-fill {
+  height: 100%;
+  background: var(--accent-red);
+  border-radius: 2px;
+  transition: width 0.5s;
+}
+.achievement-progress-text { font-size: 0.55rem; color: var(--text-secondary); }
+.achievement-claim-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--accent-red);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  min-width: 64px;
+  min-height: 38px;
+  touch-action: manipulation;
+}
+.achievement-claim-btn:active { transform: scale(0.92); }
+
+/* ====== Inventory / Crafting ====== */
+.inventory-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+}
+.inventory-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.6rem;
+  box-shadow: var(--shadow-card);
+}
+.inv-item-icon { font-size: 1.1rem; }
+.inv-item-name { color: var(--text-primary); font-weight: 600; }
+.inv-item-count { color: var(--accent-red); font-weight: 700; }
+.crafting-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  max-height: calc(100dvh - var(--top-h) - var(--sub-h) - var(--bottom-h) - 60px);
+}
+.crafting-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 10px 8px;
+  width: 100%;
+  box-shadow: var(--shadow-card);
+}
+.crafting-card.craftable { border-color: rgba(46,204,113,0.3); }
+.craft-icon { font-size: 1.4rem; flex-shrink: 0; width: 32px; text-align: center; }
+.craft-info { flex: 1; min-width: 0; }
+.craft-name { font-size: 0.7rem; font-weight: 700; color: var(--text-primary); }
+.craft-desc { font-size: 0.55rem; color: var(--text-secondary); margin-top: 1px; }
+.craft-cost { font-size: 0.55rem; color: var(--accent-red); margin-top: 3px; line-height: 1.4; }
+.craft-btn { flex-shrink: 0; padding: 8px 12px; font-size: 0.65rem; min-width: 56px; border-radius: 8px; }
+.craft-btn:disabled { opacity: 0.35; }
+@media (max-width: 480px) {
+  .crafting-card { flex-wrap: wrap; gap: 4px; padding: 8px; }
+  .craft-icon { font-size: 1.2rem; width: 28px; }
+  .craft-btn { width: 100%; padding: 10px; font-size: 0.75rem; min-width: unset; }
+  .inventory-item { font-size: 0.5rem; padding: 4px 6px; }
+  .inv-item-icon { font-size: 0.9rem; }
+}
+
+/* ====== Events ====== */
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  max-height: calc(100dvh - var(--top-h) - var(--sub-h) - var(--bottom-h) - 10px);
+}
+.event-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--shadow-card);
+}
+.event-active { border-color: var(--accent-red); background: var(--accent-red-soft); }
+.event-icon { font-size: 2rem; flex-shrink: 0; }
+.event-info { flex: 1; }
+.event-title { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); }
+.event-desc { font-size: 0.6rem; color: var(--text-secondary); }
+.event-timer { font-size: 0.55rem; color: var(--orange); margin-top: 2px; font-family: monospace; }
+.event-inactive { font-size: 0.55rem; color: var(--text-secondary); margin-top: 2px; }
+

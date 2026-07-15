@@ -28,7 +28,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/server.js .
 COPY --from=builder /app/sw.js .
-COPY --from=builder /app/lands.html .
 COPY --from=builder /app/config ./config
 
 EXPOSE 3000
