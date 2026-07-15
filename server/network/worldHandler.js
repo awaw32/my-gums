@@ -496,6 +496,7 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           if (result.ok) {
             c.weaponStarLevel = result.starLevel;
             c.weaponGemLevel = result.gemLevel;
+            c.weapons = pData.weapons; // مزامنة فورية — بدون هذا يبقى ضرر السلاح المُرقّى قديماً حتى إعادة الاتصال
             const glowMsg = JSON.stringify({
               type: "weapon_glow",
               username,
