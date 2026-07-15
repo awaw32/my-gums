@@ -25,6 +25,8 @@
     "node": ">=18.17 <23"
   },
   "dependencies": {
+    "@sentry/browser": "^10.65.0",
+    "@sentry/node": "^10.65.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.11.1",
     "compression": "^1.8.1",

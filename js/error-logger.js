@@ -4,6 +4,23 @@
  * Production-safe with optional service integration
  */
 
+let _sentryInitPromise = null;
+
+async function ensureSentry() {
+  const dsn = import.meta.env?.VITE_SENTRY_DSN;
+  if (!dsn) return null;
+  if (!_sentryInitPromise) {
+    _sentryInitPromise = import('@sentry/browser').then((Sentry) => {
+      Sentry.init({ dsn, environment: import.meta.env?.MODE || 'production', tracesSampleRate: 0 });
+      return Sentry;
+    }).catch((e) => {
+      if (import.meta.env?.DEV) console.warn('Sentry init failed:', e.message);
+      return null;
+    });
+  }
+  return _sentryInitPromise;
+}
+
 export class ErrorLogger {
   constructor() {
     this.errors = [];
@@ -18,7 +35,7 @@ export class ErrorLogger {
       errorsByType: {},
       errorsByComponent: {},
     };
-    
+
     this.setupGlobalHandlers();
   }
 
@@ -202,10 +219,17 @@ export class ErrorLogger {
    */
   async reportToService(error) {
     try {
-      // This is a placeholder for service integration
-      // Replace with your actual logging service endpoint
+      const Sentry = await ensureSentry();
+      if (Sentry) {
+        try {
+          Sentry.captureException(new Error(error.message || error.type), { extra: error });
+        } catch {}
+        return;
+      }
+
+      // بلا Sentry مُفعّل: ترسل تقريراً بسيطاً إلى /api/logs (يُسجَّل عبر pino على السيرفر)
       const loggingEndpoint = window.__LOGGING_ENDPOINT__ || '/api/logs';
-      
+
       await fetch(loggingEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

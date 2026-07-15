@@ -4,6 +4,7 @@ const PORT = parseInt(process.env.PORT) || 3000;
 const USE_HTTPS = process.env.HTTPS === "true" || process.env.HTTPS === "1";
 const CERT_DIR = process.env.CERT_DIR || "/etc/letsencrypt/live";
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
+const SENTRY_DSN = process.env.SENTRY_DSN || "";
 const crypto = require("crypto");
 const isProd = process.env.NODE_ENV === "production";
 // ═══════════════════════════════════════════════════════════════
@@ -63,6 +64,7 @@ module.exports = {
   USE_HTTPS,
   CERT_DIR,
   ADMIN_KEY,
+  SENTRY_DSN,
   BUILD_ID,
   DATA_DIR,
   BUILD_DIR,

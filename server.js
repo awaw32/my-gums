@@ -223,8 +223,11 @@ server.listen(PORT, () => {
 });
 
 // ==================== 🛡️ Global Error Handlers ====================
+const { captureException } = require("./server/sentry");
+
 process.on("uncaughtException", (err) => {
   logger.error({ err }, "Uncaught Exception");
+  captureException(err);
   try { wss.clients.forEach((ws) => ws.close()); } catch {}
   try { server.close(); } catch {}
   process.exit(1);
@@ -232,6 +235,7 @@ process.on("uncaughtException", (err) => {
 
 process.on("unhandledRejection", (reason, promise) => {
   logger.error({ promise, reason: reason?.message || reason }, "Unhandled Rejection");
+  captureException(reason instanceof Error ? reason : new Error(String(reason)));
   try { wss.clients.forEach((ws) => ws.close()); } catch {}
   try { server.close(); } catch {}
   process.exit(1);

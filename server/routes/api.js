@@ -5,6 +5,7 @@ const { sanitizePlayerData } = require("../validation/player");
 const metrics = require("../metrics");
 const { makeRateLimiter } = require("../network/rateLimiter");
 const loginLimiters = new Map();
+const clientLogLimiters = new Map();
 
 function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, markDirty, rooms, BUILDING_DEFS, TICK_MS, claimReward }) {
 
@@ -424,6 +425,36 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       const { WEAPON_DEFS } = require("../db/databaseHelper");
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(WEAPON_DEFS));
+      return true;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  🛡️ استقبال أخطاء العميل (بديل Sentry عند غياب SENTRY_DSN)
+    // ═══════════════════════════════════════════════════════════════
+    if (req.url === "/api/logs" && req.method === "POST") {
+      const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress;
+      let limiter = clientLogLimiters.get(ip);
+      if (!limiter) { limiter = makeRateLimiter({ maxPerSec: 2 }); clientLogLimiters.set(ip, limiter); }
+      if (!limiter()) {
+        res.writeHead(429, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "too many requests" }));
+        return true;
+      }
+      let body = "";
+      let size = 0;
+      req.on("data", chunk => {
+        size += chunk.length;
+        if (size > 8192) { req.destroy(); return; }
+        body += chunk;
+      });
+      req.on("end", () => {
+        try {
+          const payload = JSON.parse(body);
+          logger.warn({ clientError: payload.error, sessionId: payload.sessionId }, "Client-reported error");
+        } catch { /* تجاهل حمولة غير صالحة */ }
+        res.writeHead(204);
+        res.end();
+      });
       return true;
     }
 
