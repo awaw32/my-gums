@@ -753,3 +753,84 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
   .victory-banner .vb-icon { font-size: 3rem; }
   .victory-banner .vb-title { font-size: 1.5rem; }
 }
+
+/* ====== واجهة الحزب (العب مع صديق) ====== */
+.party-overlay {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(0,0,0,0.65);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; direction: rtl;
+}
+.party-card {
+  position: relative;
+  background: var(--bg-card, #fff8f0);
+  border: 2px solid var(--accent-gold, #d4a017);
+  border-radius: 20px;
+  padding: 24px 20px;
+  width: 100%; max-width: 380px;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  animation: vb-pop 0.35s cubic-bezier(0.18, 1.4, 0.4, 1);
+}
+.party-close {
+  position: absolute; top: 10px; left: 10px;
+  background: none; border: none; font-size: 1.1rem;
+  color: var(--text-secondary, #7d6b5a); cursor: pointer;
+  min-width: 36px; min-height: 36px;
+}
+.party-icon { font-size: 2.6rem; }
+.party-title { font-size: 1.3rem; font-weight: 900; color: var(--accent-red, #c0392b); margin: 6px 0 14px; }
+.party-code-box {
+  background: rgba(212, 160, 23, 0.1);
+  border: 1px dashed var(--accent-gold, #d4a017);
+  border-radius: 14px; padding: 14px 10px;
+}
+.party-code-label { font-size: 0.75rem; color: var(--text-secondary, #7d6b5a); }
+.party-code-value {
+  font-size: 2.2rem; font-weight: 900; letter-spacing: 6px;
+  color: var(--accent-gold, #b8860b); margin: 6px 0; direction: ltr;
+  font-family: monospace;
+}
+.party-share-row { display: flex; gap: 8px; justify-content: center; margin: 10px 0 6px; }
+.party-share-btn {
+  padding: 10px 14px; min-height: 44px; border: none; border-radius: 12px;
+  font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+  background: var(--bg-page, #f5ead9); color: var(--text-primary, #3b2f24);
+  border: 1px solid var(--border-light, #e0d0b8);
+}
+.party-wa-btn { background: #25d366; color: #fff; border: none; }
+.party-hint { font-size: 0.68rem; color: var(--text-secondary, #7d6b5a); margin-top: 8px; line-height: 1.6; }
+.party-divider {
+  margin: 16px 0 10px; font-size: 0.72rem; color: var(--text-secondary, #7d6b5a);
+  display: flex; align-items: center; gap: 8px;
+}
+.party-divider::before, .party-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border-light, #e0d0b8);
+}
+.party-main-btn {
+  width: 100%; padding: 13px; min-height: 48px; border: none; border-radius: 14px;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #fff; font-family: inherit; font-size: 0.95rem; font-weight: 800; cursor: pointer;
+}
+.party-main-btn:disabled { opacity: 0.5; cursor: default; }
+.party-join-row { display: flex; gap: 8px; }
+.party-join-row .party-main-btn { width: auto; flex-shrink: 0; padding: 13px 20px; }
+.party-join-input {
+  flex: 1; padding: 12px; border-radius: 12px;
+  border: 1.5px solid var(--border-light, #e0d0b8);
+  font-family: monospace; font-size: 1.1rem; font-weight: 700;
+  text-align: center; text-transform: uppercase; letter-spacing: 3px;
+  direction: ltr; background: var(--bg-page, #fdf6ec); color: var(--text-primary, #3b2f24);
+}
+
+/* زر الحزب في أزرار الخريطة */
+.party-world-btn {
+  background: linear-gradient(135deg, #25d366, #128c7e) !important;
+  color: #fff;
+}
+/* تمييز زر "العب مع صديق" في القائمة */
+.friend-sub-btn .csb-icon { filter: drop-shadow(0 0 6px rgba(37, 211, 102, 0.8)); }
+#party-world-btn {
+  bottom: calc(200px + var(--safe-b));
+  border: none;
+}

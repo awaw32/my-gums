@@ -1173,6 +1173,14 @@ async function init() {
 
     // ====== Battle Royale ======
     const brBtn = document.getElementById('br-enter-btn');
+
+    // 👥 زر "العب مع صديق" — في القائمة وفي أزرار الخريطة
+    const openParty = async () => {
+      const { openPartyModal } = await import('./ui/party-ui.js');
+      openPartyModal(world);
+    };
+    document.getElementById('play-friend-btn')?.addEventListener('click', openParty);
+    document.getElementById('party-world-btn')?.addEventListener('click', openParty);
     const brVictoryBtn = document.getElementById('br-victory-btn');
     const brDefeatBtn = document.getElementById('br-defeat-btn');
     const brZoneWarningEl = document.getElementById('br-zone-warning');
