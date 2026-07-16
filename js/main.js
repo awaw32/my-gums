@@ -4,6 +4,7 @@ import { GameArmy } from "./army.js";
 import { GameUI } from "./ui.js";
 import { WorldMap } from "./world.js";
 import { spawnLevelUp, spawnGoldBurst, spawnXpGain } from "./particles.js";
+import { celebrate } from "./celebrations.js";
 import { AssetManager } from "./asset-manager.js";
 import { AudioManager } from "./audio.js";
 import { saveGame, loadGame, persistGameSession } from "./save.js";
@@ -849,7 +850,7 @@ async function init() {
     // ربط أحداث الإنجازات الأخرى
     economy._onLevelUp = (lvl) => {
       ui.showNotification(`🎉 ترقيت إلى المستوى ${lvl}!`);
-      audio.playSound('levelup');
+      celebrate('level_up', `المستوى ${lvl} 🏅`);
       spawnLevelUp(window.innerWidth / 2, window.innerHeight / 2);
       ui.updateTopBar();
       achievements.updateProgress('player_level', lvl);
@@ -1225,6 +1226,7 @@ async function init() {
         brKillsTotal += result.kills || 0;
         if (brVictoryScreen) brVictoryScreen.classList.remove('hidden');
         const isExtraction = result.reason === "extraction";
+        celebrate(isExtraction ? 'extraction' : 'br_win', `${result.kills || 0} قتل ⚔️`);
         const icon = isExtraction ? "🚁" : "👑";
         const titleText = isExtraction ? "إخلاء ناجح!" : "أنت الفائز!";
         const bonusDisplay = result.bonusGems ? ` +${result.bonusGems} 💎` : '';

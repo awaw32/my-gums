@@ -1,5 +1,7 @@
 "use strict";
 
+import { celebrate } from "../celebrations.js";
+
 export function showPvPMenu(worldMap, otherPlayer) {
   const menu = document.getElementById("pvp-context-menu");
   const attackBtn = document.getElementById("pvp-attack-btn");
@@ -95,6 +97,8 @@ export function showModeResultScreen(worldMap, opts) {
     <button id="mode-result-exit-btn" class="mr-btn-secondary">🚪 الخروج للقائمة</button>
   `;
   document.body.appendChild(overlay);
+  // 🎉 احتفال كامل عند الفوز بالنمط
+  if (opts.won) celebrate("mode_win", opts.rewardLine || "");
   document.getElementById("mode-result-close-btn").onclick = () => overlay.remove();
   document.getElementById("mode-result-exit-btn").onclick = () => {
     overlay.remove();

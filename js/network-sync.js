@@ -1,3 +1,5 @@
+import { celebrate } from "./celebrations.js";
+
 export class NetworkSync {
   constructor(apiBase, username) {
     this.apiBase = apiBase;
@@ -363,6 +365,7 @@ export class NetworkSync {
           if (w.createDrop && mon) w.createDrop(mon.x, mon.y, loot.cash, loot.gold);
           if (msg.bossLoot) {
             const bl = msg.bossLoot;
+            celebrate('boss_kill', `🏺 +${bl.artifacts || 0}${bl.cashBonus ? ` 💰+${bl.cashBonus}` : ''}`);
             if (bl.artifacts > 0) w.economy.addRaw('artifacts', bl.artifacts);
             if (bl.desertGem > 0) w.economy.addRaw('desertGem', bl.desertGem);
             if (bl.cashBonus > 0 && w.economy.cash !== undefined) w.economy.addRaw('cash', bl.cashBonus);
@@ -377,6 +380,8 @@ export class NetworkSync {
         break;
       }
       case "pvp_result": {
+        // 🎉 احتفال النصر — يُشغَّل لأي طرف انتصر (مهاجم أو مدافع)
+        if (msg.won) celebrate('pvp_win', `+${msg.cashDelta || 0} 💵`);
         // 🛡️ نتيجة الخادم (simulatePvPFull) هي الرسمية. إن كنتُ المهاجم وسبق أن طبّقت
         // نتيجة متفائلة محلياً في resolvePvP()، صالِح الفارق إن اختلفت النتيجتان.
         // إن لم تكن هناك مصالحة معلّقة (أنا المُدافَع عليّ)، طبّق cashDelta مباشرة —

@@ -347,6 +347,21 @@ export class AudioManager {
     }
   }
 
+  /**
+   * 🎺 موسيقى نصر كبرى — للحظات الفوز الكبيرة (بوس/BR/نمط خاص)
+   * لحن صاعد من 6 نغمات مع وتر ختامي
+   */
+  sfxFanfare() {
+    this._ensure();
+    if (!this.ctx || !this.sfxGain) return;
+    const melody = [392, 392, 523, 659, 784, 1047];
+    melody.forEach((f, i) => {
+      setTimeout(() => this._playTone(f, i === melody.length - 1 ? 0.5 : 0.18, "triangle", this.sfxGain), i * 130);
+    });
+    // وتر ختامي متزامن مع النغمة الأخيرة
+    setTimeout(() => this._playChord([523, 659, 784], 0.6, "sine", this.sfxGain), melody.length * 130);
+  }
+
   sfxTreasureOpen() {
     this._ensure();
     if (!this.ctx || !this.sfxGain) return;
