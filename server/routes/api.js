@@ -270,6 +270,14 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
               if (v !== undefined) merged[k] = v;
             }
             merged.last_active = lastActive;
+            // 🔥 تتبع قتلات الأسبوع (للترتيب الأسبوعي) — يُصفَّر تلقائياً عند أسبوع جديد
+            {
+              const nowWeek = Math.floor(Date.now() / (7 * 24 * 3600 * 1000));
+              const prevWeekly = (existing.weekKey === nowWeek) ? (existing.weeklyKills || 0) : 0;
+              const killsDelta = Math.max(0, (data.kills || 0) - (existing.kills || 0));
+              merged.weekKey = nowWeek;
+              merged.weeklyKills = prevWeekly + killsDelta;
+            }
             memStore.set(username, merged);
             markDirty(username);
             if (mongoConnected) {
@@ -294,6 +302,23 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     if (req.url.startsWith("/api/leaderboard") && req.method === "GET") {
       const urlObj = new URL(req.url, `http://${req.headers.host}`);
       const sortBy = urlObj.searchParams.get("sort") || "power";
+
+      // 🔥 ترتيب أسبوعي — يُصفَّر تلقائياً كل أسبوع (قتلات هذا الأسبوع فقط)
+      if (sortBy === "weekly") {
+        const nowWeek = Math.floor(Date.now() / (7 * 24 * 3600 * 1000));
+        const weeklyValue = (p) => (p.weekKey === nowWeek ? (p.weeklyKills || 0) : 0);
+        const source = mongoConnected
+          ? await Player.find({}, { username: 1, weeklyKills: 1, weekKey: 1, army_power: 1, _id: 0 }).lean().catch(() => [])
+          : Array.from(memStore.values());
+        const sorted = source
+          .map(p => ({ username: p.username, weeklyKills: weeklyValue(p), army_power: p.army_power || 0 }))
+          .sort((a, b) => b.weeklyKills - a.weeklyKills)
+          .slice(0, 50);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(sorted));
+        return true;
+      }
+
       const sortField = sortBy === "kills" ? "kills" : sortBy === "level" ? "level" : sortBy === "oases" ? "oases" : "army_power";
       if (!mongoConnected) {
         const sorted = Array.from(memStore.values())

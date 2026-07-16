@@ -131,27 +131,62 @@ GameUI.prototype.renderRanking = function() {
       vb.textContent = 'الإصدار رقم —';
     }
   }
-  list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⏳ جاري التحميل...</div>`;
   const apiBase = this.world?.apiBase || "";
-  fetch(apiBase + "/api/leaderboard")
+  const mode = this._rankingMode || "all";
+
+  // تبويبا الترتيب: الكل (القوة) / هذا الأسبوع (قتلات تُصفَّر أسبوعياً — فرصة قمة لكل لاعب!)
+  let tabs = document.getElementById("ranking-tabs");
+  if (!tabs) {
+    tabs = document.createElement("div");
+    tabs.id = "ranking-tabs";
+    tabs.className = "ranking-tabs";
+    list.parentElement?.insertBefore(tabs, list);
+  }
+  tabs.innerHTML = `
+    <button class="ranking-tab${mode === 'all' ? ' active' : ''}" data-mode="all">🏆 الأقوى</button>
+    <button class="ranking-tab${mode === 'weekly' ? ' active' : ''}" data-mode="weekly">🔥 أبطال الأسبوع</button>
+  `;
+  tabs.querySelectorAll(".ranking-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      this._rankingMode = btn.dataset.mode;
+      this.renderRanking();
+    });
+  });
+
+  list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⏳ جاري التحميل...</div>`;
+  const url = mode === "weekly" ? "/api/leaderboard?sort=weekly" : "/api/leaderboard";
+  fetch(apiBase + url)
     .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
     .then(players => {
       list.innerHTML = "";
-      if (!players || players.length === 0) {
-        list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">لا يوجد لاعبون بعد</div>`;
+      if (mode === "weekly") {
+        const note = document.createElement("div");
+        note.className = "ranking-weekly-note";
+        note.textContent = "⏳ يُصفَّر الترتيب كل أسبوع — الجميع يبدأ من الصفر. كن بطل هذا الأسبوع!";
+        list.appendChild(note);
+      }
+      if (!players || players.length === 0 || (mode === "weekly" && players.every(p => !p.weeklyKills))) {
+        const empty = document.createElement("div");
+        empty.style.cssText = "text-align:center;padding:20px;color:var(--beige-dark)";
+        empty.textContent = mode === "weekly" ? "لا قتلات هذا الأسبوع بعد — كن الأول! ⚔️" : "لا يوجد لاعبون بعد";
+        list.appendChild(empty);
         return;
       }
       const myName = this.world?.username || "";
       players.forEach((p, i) => {
+        if (mode === "weekly" && !p.weeklyKills) return;
         const isMe = p.username === myName;
+        const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : (i + 1);
         const card = document.createElement("div");
         card.className = `rank-card${isMe ? " rank-card-me" : ""}`;
         card.innerHTML = `
-          <div class="rank-num">${i + 1}</div>
+          <div class="rank-num">${medal}</div>
           <div class="rank-avatar">${isMe ? "🐪" : "🧙"}</div>
           <div class="rank-info">
             <div class="rank-name">${isMe ? "⭐ " : ""}${p.username}${isMe ? " (أنت)" : ""}</div>
-            <div class="rank-power">👊 ${formatNumber(p.army_power || 0)} | 💵 ${formatNumber(p.cash || 0)}</div>
+            <div class="rank-power">${mode === "weekly"
+              ? `⚔️ ${formatNumber(p.weeklyKills || 0)} قتلة هذا الأسبوع`
+              : `👊 ${formatNumber(p.army_power || 0)} | 💵 ${formatNumber(p.cash || 0)}`}</div>
           </div>
         `;
         list.appendChild(card);

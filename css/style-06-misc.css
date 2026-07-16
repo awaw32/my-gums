@@ -834,3 +834,41 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
   bottom: calc(200px + var(--safe-b));
   border: none;
 }
+
+/* ====== سلسلة الدخول اليومي المحسّنة ====== */
+.daily-streak-hot { color: #e74c3c; animation: streak-pulse 1.2s ease-in-out infinite; }
+@keyframes streak-pulse { 50% { transform: scale(1.04); } }
+.daily-streak-warn { font-size: 0.65rem; color: var(--text-secondary, #7d6b5a); text-align: center; margin: 2px 0 8px; }
+.daily-milestone {
+  background: rgba(212, 160, 23, 0.08);
+  border: 1px solid var(--border-light, #e0d0b8);
+  border-radius: 12px; padding: 10px 12px; margin-bottom: 10px;
+}
+.daily-milestone-label { font-size: 0.72rem; color: var(--text-primary, #3b2f24); }
+.daily-milestone-track {
+  height: 8px; background: rgba(0,0,0,0.08); border-radius: 6px;
+  overflow: hidden; margin: 6px 0 3px;
+}
+.daily-milestone-fill {
+  height: 100%; border-radius: 6px;
+  background: linear-gradient(90deg, #f59e0b, #ffd700);
+  transition: width 0.4s ease;
+}
+.daily-milestone-count { font-size: 0.62rem; color: var(--text-secondary, #7d6b5a); text-align: left; direction: ltr; }
+
+/* ====== تبويبات الترتيب ====== */
+.ranking-tabs { display: flex; gap: 8px; padding: 4px 0 10px; }
+.ranking-tab {
+  flex: 1; padding: 10px; min-height: 44px; border-radius: 12px;
+  border: 1.5px solid var(--border-light, #e0d0b8);
+  background: var(--bg-card, #fff8f0); color: var(--text-secondary, #7d6b5a);
+  font-family: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer;
+}
+.ranking-tab.active {
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #fff; border-color: transparent;
+}
+.ranking-weekly-note {
+  font-size: 0.65rem; color: var(--text-secondary, #7d6b5a);
+  text-align: center; padding: 4px 0 10px;
+}

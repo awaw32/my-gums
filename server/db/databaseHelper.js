@@ -76,6 +76,8 @@ const playerSchema = new mongoose.Schema({
   currentChapter: { type: Number, default: 1 },
   isGuest:        { type: Boolean, default: false },
   pushSubscription: { type: Object, default: null },
+  weeklyKills:    { type: Number, default: 0 },
+  weekKey:        { type: Number, default: 0 },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);

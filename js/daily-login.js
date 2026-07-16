@@ -8,16 +8,37 @@ const DAILY_REWARDS = [
   { day: 7, icon: "👑", label: "50 جواهر + 500 ذهب", reward: { gems: 50, gold: 500 } },
 ];
 
+// 🏅 مكافآت السلسلة — تُمنح مرة واحدة عند بلوغ كل معلم
+const STREAK_MILESTONES = [
+  { streak: 7,  gems: 100, label: "أسبوع كامل!" },
+  { streak: 14, gems: 250, label: "أسبوعان متتاليان!" },
+  { streak: 30, gems: 600, label: "شهر كامل — أسطوري!" },
+  { streak: 60, gems: 1500, label: "60 يوماً — لا يُصدَّق!" },
+];
+
 export class DailyLoginManager {
   constructor(economy) {
     this.economy = economy;
     this.currentDay = 0;
     this.lastClaimDate = "";
     this.streak = 0;
+    this.claimedMilestones = [];
     this._onClaim = null;
+    this._onMilestone = null;
   }
 
   get rewards() { return DAILY_REWARDS; }
+  get milestones() { return STREAK_MILESTONES; }
+
+  /** نسبة مكافأة السلسلة الإضافية: +5% لكل يوم متتالٍ، بحد أقصى +100% */
+  get streakBonusPercent() {
+    return Math.min(100, this.streak * 5);
+  }
+
+  /** المعلم القادم غير المستلَم (للعرض في الواجهة) */
+  get nextMilestone() {
+    return STREAK_MILESTONES.find(m => !this.claimedMilestones.includes(m.streak)) || null;
+  }
 
   checkDaily() {
     const today = new Date().toDateString();
@@ -26,7 +47,11 @@ export class DailyLoginManager {
       const last = new Date(this.lastClaimDate);
       const now = new Date(today);
       const diffDays = Math.floor((now - last) / (1000 * 60 * 60 * 24));
-      if (diffDays > 1) this.streak = 0;
+      if (diffDays > 1) {
+        // انكسرت السلسلة — تبدأ الدورة من جديد (هذا ما يجعل السلسلة ذات قيمة)
+        this.streak = 0;
+        this.currentDay = 0;
+      }
     }
     return true;
   }
@@ -39,10 +64,21 @@ export class DailyLoginManager {
     this.streak++;
     const reward = DAILY_REWARDS[this.currentDay - 1];
     const eco = this.economy;
-    if (reward.reward.gold) eco.addRaw("gold", reward.reward.gold);
-    if (reward.reward.cash) eco.addRaw("cash", reward.reward.cash);
-    if (reward.reward.gems) eco.addRaw("gems", reward.reward.gems);
-    if (reward.reward.food) eco.addRaw("food", reward.reward.food);
+    // مضاعف السلسلة: كل يوم متتالٍ يزيد المكافأة 5% (حتى الضعف)
+    const mult = 1 + this.streakBonusPercent / 100;
+    if (reward.reward.gold) eco.addRaw("gold", Math.floor(reward.reward.gold * mult));
+    if (reward.reward.cash) eco.addRaw("cash", Math.floor(reward.reward.cash * mult));
+    if (reward.reward.gems) eco.addRaw("gems", Math.floor(reward.reward.gems * mult));
+    if (reward.reward.food) eco.addRaw("food", Math.floor(reward.reward.food * mult));
+    // معالم السلسلة — جوائز جواهر ضخمة لمرة واحدة
+    const milestone = STREAK_MILESTONES.find(
+      m => this.streak >= m.streak && !this.claimedMilestones.includes(m.streak)
+    );
+    if (milestone) {
+      this.claimedMilestones.push(milestone.streak);
+      eco.addRaw("gems", milestone.gems);
+      if (this._onMilestone) this._onMilestone(milestone);
+    }
     if (this._onClaim) this._onClaim(this.currentDay, reward);
     return true;
   }
@@ -53,6 +89,8 @@ export class DailyLoginManager {
     return {
       currentDay: this.currentDay,
       streak: this.streak,
+      streakBonusPercent: this.streakBonusPercent,
+      nextMilestone: this.nextMilestone,
       canClaim,
       lastClaimDate: this.lastClaimDate,
       today,
@@ -65,9 +103,10 @@ export class DailyLoginManager {
     this.currentDay = saved.currentDay || 0;
     this.lastClaimDate = saved.lastClaimDate || "";
     this.streak = saved.streak || 0;
+    this.claimedMilestones = saved.claimedMilestones || [];
   }
 
   getSaveData() {
-    return { currentDay: this.currentDay, lastClaimDate: this.lastClaimDate, streak: this.streak };
+    return { currentDay: this.currentDay, lastClaimDate: this.lastClaimDate, streak: this.streak, claimedMilestones: this.claimedMilestones };
   }
 }

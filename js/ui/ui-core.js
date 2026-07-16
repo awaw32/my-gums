@@ -1691,8 +1691,18 @@ export class GameUI {
     const container = document.getElementById("daily-content");
     if (!container || !this.dailyLogin) return;
     const state = this.dailyLogin.getState();
+    const nm = state.nextMilestone;
+    const milestoneHtml = nm
+      ? `<div class="daily-milestone">
+           <div class="daily-milestone-label">🏅 الجائزة الكبرى القادمة: <b>+${nm.gems} 💎</b> عند ${nm.streak} يوماً متتالياً</div>
+           <div class="daily-milestone-track"><div class="daily-milestone-fill" style="width:${Math.min(100, (state.streak / nm.streak) * 100)}%"></div></div>
+           <div class="daily-milestone-count">${state.streak} / ${nm.streak}</div>
+         </div>`
+      : '';
     container.innerHTML = `
-      <div class="daily-streak">🔥 Streak: ${state.streak} يوم</div>
+      <div class="daily-streak${state.streak >= 3 ? ' daily-streak-hot' : ''}">🔥 سلسلتك: <b>${state.streak}</b> يوم متتالٍ${state.streakBonusPercent > 0 ? ` — مكافآتك أقوى بـ <b>+${state.streakBonusPercent}%</b>` : ''}</div>
+      <div class="daily-streak-warn">⚠️ يوم غياب واحد يُصفّر السلسلة!</div>
+      ${milestoneHtml}
       <div class="daily-grid">
         ${state.rewards.map((r, i) => `
           <div class="daily-day${i === state.currentDay % 7 && state.canClaim ? ' daily-today' : ''}${i < state.currentDay % 7 ? ' daily-done' : ''}">
@@ -1706,9 +1716,15 @@ export class GameUI {
     if (state.canClaim) {
       const btn = document.createElement("button");
       btn.className = "action-btn daily-claim-btn";
-      btn.textContent = `📦 استلم مكافأة اليوم ${(state.currentDay % 7) + 1}`;
-      btn.addEventListener("click", () => {
+      const bonusTag = state.streakBonusPercent > 0 ? ` (+${state.streakBonusPercent}%)` : '';
+      btn.textContent = `📦 استلم مكافأة اليوم ${(state.currentDay % 7) + 1}${bonusTag}`;
+      btn.addEventListener("click", async () => {
+        // ربط احتفال المعالم قبل الاستلام
+        const { celebrate } = await import("../celebrations.js");
+        this.dailyLogin._onMilestone = (m) => celebrate("mode_win", `🏅 ${m.label} +${m.gems} 💎`);
         if (this.dailyLogin.claim()) {
+          const s = this.dailyLogin.getState();
+          if (s.currentDay === 7) celebrate("level_up", "🔥 أسبوع كامل من الولاء!");
           this.renderDailyLogin();
           this.updateTopBar();
           if (this.reputation) {
@@ -1721,7 +1737,7 @@ export class GameUI {
     } else {
       const done = document.createElement("div");
       done.className = "daily-done-msg";
-      done.textContent = "✅ استلمت مكافأة اليوم! عد غداً.";
+      done.textContent = `✅ استلمت مكافأة اليوم! عد غداً لتحافظ على سلسلة الـ${state.streak} 🔥`;
       container.appendChild(done);
     }
   }
