@@ -273,11 +273,26 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             const lastActive = data.last_active || Date.now();
             const existing = memStore.get(username) || getDefaultPlayer(username);
             // مكافحة الغش — تحقق من معدل تغير الموارد
-            const deltaCheck = require("../validation/player").validateResourceDelta(existing, data);
+            const { validateResourceDelta, validateWeaponsChange, validateEquippedWeapon } = require("../validation/player");
+            const deltaCheck = validateResourceDelta(existing, data);
             if (!deltaCheck.ok) {
               logger.warn({ username, reason: deltaCheck.reason }, "AntiCheat rejection");
               res.writeHead(409, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: deltaCheck.reason }));
+              return;
+            }
+            const weaponsCheck = validateWeaponsChange(existing, data);
+            if (!weaponsCheck.ok) {
+              logger.warn({ username, reason: weaponsCheck.reason }, "AntiCheat rejection (weapons)");
+              res.writeHead(409, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: weaponsCheck.reason }));
+              return;
+            }
+            const equipCheck = validateEquippedWeapon(existing, data);
+            if (!equipCheck.ok) {
+              logger.warn({ username, reason: equipCheck.reason }, "AntiCheat rejection (equip)");
+              res.writeHead(409, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: equipCheck.reason }));
               return;
             }
             const merged = { ...existing };
@@ -387,12 +402,35 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
         try {
           const data = JSON.parse(body);
           const existing = memStore.get(uname) || getDefaultPlayer(uname);
+          const { validateWeaponsChange, validateEquippedWeapon } = require("../validation/player");
+          const weaponsCheck = validateWeaponsChange(existing, data);
+          if (!weaponsCheck.ok) {
+            logger.warn({ uname, reason: weaponsCheck.reason }, "AntiCheat rejection (weapons/upgrades)");
+            res.writeHead(409, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: weaponsCheck.reason }));
+            return;
+          }
+          const equipCheck = validateEquippedWeapon(existing, data);
+          if (!equipCheck.ok) {
+            logger.warn({ uname, reason: equipCheck.reason }, "AntiCheat rejection (equip/upgrades)");
+            res.writeHead(409, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: equipCheck.reason }));
+            return;
+          }
           const updated = { ...existing };
           if (data.armyYardLevel !== undefined) updated.armyYardLevel = data.armyYardLevel;
           if (data.knowledgeLevel !== undefined) updated.knowledgeLevel = data.knowledgeLevel;
           if (data.knowledgeType !== undefined) updated.knowledgeType = data.knowledgeType;
           if (data.equippedWeapon !== undefined) updated.equippedWeapon = data.equippedWeapon;
-          if (data.weapons !== undefined) updated.weapons = data.weapons;
+          if (data.weapons !== undefined) {
+            updated.weapons = data.weapons;
+            const newWeapon = data.weapons.find(w => !(existing.weapons || []).some(e => e.id === w.id));
+            if (newWeapon) {
+              const { WEAPON_DEFS } = require("../db/databaseHelper");
+              const def = WEAPON_DEFS.find(d => d.id === newWeapon.id);
+              if (def) updated.cash = Math.max(0, (existing.cash || 0) - def.cashPrice);
+            }
+          }
           memStore.set(uname, updated);
           markDirty(uname);
           if (mongoConnected) {

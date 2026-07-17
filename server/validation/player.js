@@ -106,4 +106,75 @@ function validateResourceDelta(existing, incoming) {
   return { ok: true };
 }
 
-module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta };
+// ═══════════════════════════════════════════════════════════════════
+//  🛡️ مكافحة الغش — التحقق من تغييرات مصفوفة الأسلحة (weapons)
+//  المسار الشرعي الوحيد لترقية سلاح مملوك هو رسالة WS "weapon_upgrade"
+//  (applyWeaponUpgrade في weaponUpgrade.js، محقّقة بالفعل). هذا التحقق
+//  يمنع أي محاولة لتعديل مستوى سلاح موجود أو إضافة سلاح دون دفع ثمنه
+//  عبر مسارات الحفظ العامة (/api/players و /api/upgrades).
+// ═══════════════════════════════════════════════════════════════════
+function validateWeaponsChange(existing, incoming) {
+  if (incoming.weapons === undefined) return { ok: true };
+  const incomingWeapons = incoming.weapons;
+  if (!Array.isArray(incomingWeapons)) return { ok: false, reason: "invalid weapons format" };
+
+  const existingWeapons = existing.weapons || [];
+  const existingById = new Map(existingWeapons.map(w => [w.id, w]));
+  const incomingIds = new Set();
+
+  let newWeapon = null;
+  for (const w of incomingWeapons) {
+    if (!w || typeof w.id !== "string") return { ok: false, reason: "invalid weapon entry" };
+    if (incomingIds.has(w.id)) return { ok: false, reason: "duplicate weapon id" };
+    incomingIds.add(w.id);
+    const old = existingById.get(w.id);
+    if (!old) {
+      if (newWeapon) return { ok: false, reason: "multiple new weapons in one save" };
+      newWeapon = w;
+      continue;
+    }
+    // سلاح مملوك مسبقاً — يُمنع تغيير مستواه هنا؛ الترقية فقط عبر weapon_upgrade
+    if ((w.level || 0) !== (old.level || 0) ||
+        (w.starLevel || 1) !== (old.starLevel || 1) ||
+        (w.gemLevel || 1) !== (old.gemLevel || 1) ||
+        (w.upgradeLevel || 0) !== (old.upgradeLevel || 0)) {
+      return { ok: false, reason: `weapon ${w.id} level change rejected — use weapon_upgrade` };
+    }
+  }
+
+  // لا يجوز حذف سلاح مملوك من المصفوفة
+  for (const id of existingById.keys()) {
+    if (!incomingIds.has(id)) return { ok: false, reason: `weapon ${id} removed` };
+  }
+
+  if (newWeapon) {
+    const { WEAPON_DEFS } = require("../db/databaseHelper");
+    const def = WEAPON_DEFS.find(d => d.id === newWeapon.id);
+    if (!def) return { ok: false, reason: "unknown weapon id" };
+    if ((newWeapon.level || 0) > 1 || (newWeapon.starLevel || 1) > 1 ||
+        (newWeapon.gemLevel || 1) > 1 || (newWeapon.upgradeLevel || 0) > 1) {
+      return { ok: false, reason: "new weapon must start at level 1" };
+    }
+    const playerLevel = incoming.level ?? existing.level ?? 1;
+    if (playerLevel < def.requireLevel) return { ok: false, reason: "player level too low for this weapon" };
+    const oldCash = existing.cash || 0;
+    const newCash = incoming.cash !== undefined ? incoming.cash : oldCash;
+    const cashSpent = oldCash - newCash;
+    if (cashSpent < def.cashPrice - 0.01) {
+      return { ok: false, reason: "insufficient cash decrease for weapon purchase" };
+    }
+  }
+
+  return { ok: true };
+}
+
+function validateEquippedWeapon(existing, incoming) {
+  if (incoming.equippedWeapon === undefined) return { ok: true };
+  if (incoming.equippedWeapon === "") return { ok: true };
+  const weapons = incoming.weapons !== undefined ? incoming.weapons : (existing.weapons || []);
+  const owned = (weapons || []).some(w => w.id === incoming.equippedWeapon);
+  if (!owned) return { ok: false, reason: "cannot equip unowned weapon" };
+  return { ok: true };
+}
+
+module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta, validateWeaponsChange, validateEquippedWeapon };
