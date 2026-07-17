@@ -27,6 +27,8 @@ const WEAPON_DEFS = [
 
 const playerSchema = new mongoose.Schema({
   username:       { type: String, required: true, unique: true, index: true },
+  password:       { type: String, default: "" },
+  _legacyEmpty:   { type: Boolean, default: false },
   cash:           { type: Number, default: 0 },
   gems:           { type: Number, default: 0 },
   gold:           { type: Number, default: 0 },

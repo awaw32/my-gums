@@ -114,8 +114,8 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             // ترقية كلمة المرور للحسابات القديمة
             if (isLegacyEmpty && password && password.length > 0) {
               existing.password = await hashPassword(password);
-              memStore.set(sanitized, existing);
-              markDirty(sanitized);
+              // 🛡️ savePlayer تُزامن مع MongoDB أيضاً إن كان متصلاً (وليس فقط الذاكرة/SQLite)
+              await require("../db/databaseHelper").savePlayer(sanitized, existing);
             }
 
             const token = generateToken(sanitized);
@@ -139,8 +139,10 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             pData._legacyEmpty = false;
             pData.password = await hashPassword(password);
             pData.isGuest = !!isGuest;
-            memStore.set(sanitized, pData);
-            markDirty(sanitized);
+            // 🛡️ savePlayer تُزامن مع MongoDB أيضاً إن كان متصلاً (وليس فقط الذاكرة/SQLite) —
+            // بدونها كانت كلمة المرور تُفقد نهائياً عند أي إعادة نشر إن كانت MONGO_URL مضبوطة
+            // ولم تكن SQLite على قرص دائم.
+            await require("../db/databaseHelper").savePlayer(sanitized, pData);
             const token = generateToken(sanitized);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ token, username: sanitized, isNew: true }));
