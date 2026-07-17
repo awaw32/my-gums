@@ -93,6 +93,10 @@ const handleWorldConnection = createWorldHandler({
   warManager, broadcastBus,
 });
 
+// 🔔 تذكير دوري بالهدية المجانية للاعبين غير المتصلين — no-op بلا مفاتيح VAPID
+const { startReminderPush } = require("./server/reminderPush");
+startReminderPush({ memStore, worldClients });
+
 // 🌐 موزّع استقبال واحد فقط لكل العملية — يُرحّل أحداث النسخ الأخرى (عبر Redis) إلى العملاء
 // المحليين المتصلين بهذه النسخة تحديداً. لا شيء هنا يعمل ما لم يُضبط REDIS_URL.
 broadcastBus.init((event) => {

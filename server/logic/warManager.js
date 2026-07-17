@@ -1,5 +1,7 @@
 "use strict";
 
+const { sendPush } = require("../push");
+
 /**
  * server/logic/warManager.js
  * ============================================================================
@@ -53,7 +55,7 @@ function createWarRecord(attackerAlliance, defenderAlliance, _stats) {
  * محرك الحرب الرئيسي
  */
 function createWarManager(deps) {
-  const { worldClients, broadcastChat } = deps;
+  const { worldClients, broadcastChat, memStore } = deps;
 
   // الحروب النشطة: Map<warId, warRecord>
   const activeWars = new Map();
@@ -77,6 +79,16 @@ function createWarManager(deps) {
     for (const member of members) {
       const c = getOnlineClient(member);
       if (c) c.ws.send(msg);
+    }
+  }
+
+  // 🔔 إشعار Push لأعضاء القبيلة غير المتصلين (يُستخدم لتنبيه "تحالفك تحت هجوم")
+  function pushToOfflineTribe(members, payload) {
+    if (!memStore) return;
+    for (const member of members) {
+      if (getOnlineClient(member)) continue; // متصل بالفعل — لن يفوته شيء
+      const sub = memStore.get(member)?.pushSubscription;
+      if (sub) sendPush(sub, payload);
     }
   }
 
@@ -159,6 +171,12 @@ function createWarManager(deps) {
     };
     broadcastToTribe(war.attacker.members, warStartMsg);
     broadcastToTribe(war.defender.members, warStartMsg);
+    // 🔔 تنبيه الأعضاء الغائبين في التحالف المُهاجَم — أهم إشعار استرجاع في اللعبة
+    pushToOfflineTribe(war.defender.members, {
+      title: "🗡️ تحالفك تحت الهجوم!",
+      body: `${war.attacker.name} أعلنت الغزوة على ${war.defender.name} — عد للدفاع الآن!`,
+      url: "/",
+    });
 
     // إعلان عام في الدردشة
     broadcastToAll({
