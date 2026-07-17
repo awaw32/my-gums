@@ -50,7 +50,7 @@ function buildContent(world) {
         return `
           <div class="pvpt-row" data-username="${t.username}">
             <div class="pvpt-info">
-              <div class="pvpt-name">🧙 ${t.username}</div>
+              <div class="pvpt-name">🧙 ${t.username} <span class="pvpt-rep">${t.repIcon || "😐"} ${t.repTitle || "محايد"}</span></div>
               <div class="pvpt-meta">👊 ${Math.round(t.army_power || 0)} <span class="pvpt-badge ${badge.cls}">${badge.label}</span></div>
               <div class="pvpt-dist">📍 يبعد ${dist}م</div>
             </div>

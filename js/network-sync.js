@@ -81,6 +81,8 @@ export class NetworkSync {
       equippedWeapon: w._equippedWeapon || "",
       weaponStarLevel: w._weaponStarLevel || 1,
       weaponGemLevel: w._weaponGemLevel || 1,
+      repTitle: w._reputation ? w._reputation.getTitle().name : "محايد",
+      repIcon: w._reputation ? w._reputation.getTitle().icon : "😐",
     };
     if (w.mode === "battle_royale") {
       update.br_hp = w.leader.hp;
@@ -207,6 +209,8 @@ export class NetworkSync {
         existing.equippedWeapon = p.equippedWeapon ?? existing.equippedWeapon ?? "";
         existing.weaponStarLevel = p.weaponStarLevel ?? existing.weaponStarLevel ?? 1;
         existing.weaponGemLevel = p.weaponGemLevel ?? existing.weaponGemLevel ?? 1;
+        existing.repTitle = p.repTitle ?? existing.repTitle ?? "محايد";
+        existing.repIcon = p.repIcon ?? existing.repIcon ?? "😐";
       } else {
         w.otherPlayers.set(name, {
           username: name,
@@ -230,6 +234,8 @@ export class NetworkSync {
           equippedWeapon: p.equippedWeapon || "",
           weaponStarLevel: p.weaponStarLevel || 1,
           weaponGemLevel: p.weaponGemLevel || 1,
+          repTitle: p.repTitle || "محايد",
+          repIcon: p.repIcon || "😐",
         });
       }
     }
@@ -274,6 +280,8 @@ export class NetworkSync {
         weapons: w?.army?.weapons?.map(ww => ({ id: ww.id, starLevel: ww.starLevel || 1, gemLevel: ww.gemLevel || 1 })) || [],
         weaponStarLevel: w?._weaponStarLevel || 1,
         weaponGemLevel: w?._weaponGemLevel || 1,
+        repTitle: w?._reputation ? w._reputation.getTitle().name : "محايد",
+        repIcon: w?._reputation ? w._reputation.getTitle().icon : "😐",
       });
     };
 
@@ -456,6 +464,10 @@ export class NetworkSync {
         if (w.mode === "battle_royale") { w.matchEnded = true; w.matchStarted = false; if (this.onBRMatchEnd) this.onBRMatchEnd(msg); }
         break;
       case "equip_weapon_ack":
+        if (msg.ok === false) {
+          if (w.store) w.store.set('notification', { text: `❌ ${msg.reason || 'تعذر تجهيز السلاح'}`, t: Date.now() });
+          break;
+        }
         w._equippedWeapon = msg.weaponId || "";
         if (w.store) w.store.set('equippedWeapon', w._equippedWeapon);
         break;

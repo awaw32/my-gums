@@ -617,6 +617,7 @@ async function init() {
     // ربط العالم بأنظمة الترقيات والتحالف
     world._allianceManager = allianceManager;
     world._upgradeTree = upgradeTree;
+    world._reputation = reputation;
 
     // تسجيل مصادر القوة (powerSources) — بدونه يكون power = 0 دائماً
     economy.powerSources.push(() => village.getPower());

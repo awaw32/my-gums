@@ -529,7 +529,13 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   font-size: 1.3rem;
   font-weight: 900;
   color: var(--accent-red);
-  margin-bottom: 16px;
+  margin-bottom: 4px;
+}
+.pvp-inspect-rep {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-gold, #b8860b);
+  margin-bottom: 14px;
 }
 .pvp-inspect-stat {
   display: flex;

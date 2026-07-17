@@ -971,3 +971,4 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
   color: #fff; font-family: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer;
 }
 .pvpt-empty { text-align: center; padding: 24px 8px; color: var(--text-secondary, #7d6b5a); font-size: 0.8rem; }
+.pvpt-rep { font-size: 0.62rem; font-weight: 700; color: var(--accent-gold, #b8860b); margin-right: 4px; }

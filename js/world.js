@@ -1080,11 +1080,13 @@ export class WorldMap {
     if (!target) return;
     const popup = document.getElementById("pvp-inspect-popup");
     const nameEl = document.getElementById("pvp-inspect-name");
+    const repEl = document.getElementById("pvp-inspect-rep");
     const powerEl = document.getElementById("pvp-inspect-power");
     const killsEl = document.getElementById("pvp-inspect-kills");
     const coinsEl = document.getElementById("pvp-inspect-coins");
     if (popup && nameEl) {
       nameEl.textContent = target.username || "—";
+      if (repEl) repEl.textContent = `${target.repIcon || "😐"} ${target.repTitle || "محايد"}`;
       const est = this.estimateEnemyStats(target);
       if (powerEl) powerEl.textContent = `${target.army_power || 0} 👊 (DMG: ${est.damage} | HP: ${est.maxHp})`;
       if (killsEl) killsEl.textContent = target.kills || 0;

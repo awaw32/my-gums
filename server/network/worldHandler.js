@@ -64,6 +64,8 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         equippedWeapon: c.equippedWeapon || "",
         weaponStarLevel: c.weaponStarLevel || 1,
         weaponGemLevel: c.weaponGemLevel || 1,
+        repTitle: c.repTitle || "محايد",
+        repIcon: c.repIcon || "😐",
         last_active: Date.now()
       });
     });
@@ -137,6 +139,14 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         const initMaxHP = msg.maxHp ?? 120;
         const { clampPosition } = require("../validation/movement");
         const initPos = clampPosition(msg.x_position || 1200, msg.y_position || 1200);
+        // 🛡️ الأسلحة تُقرأ من البيانات المحفوظة الموثوقة (memStore، مُحقَّقة عند كل حفظ)
+        // وليس مما يرسله العميل عبر رسالة join — تمنع أي تلاعب بضرر القتال الحي.
+        const persisted = memStore.get(username);
+        const trustedWeapons = persisted?.weapons || [];
+        const trustedEquipped = trustedWeapons.some(w => w.id === persisted?.equippedWeapon)
+          ? (persisted?.equippedWeapon || "")
+          : "";
+        const equippedDef = trustedWeapons.find(w => w.id === trustedEquipped);
         worldClients.set(username, {
           ws, username, color,
           x: initPos.x,
@@ -155,10 +165,12 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           armyYardLevel: msg.armyYardLevel || 1,
           knowledgeLevel: msg.knowledgeLevel || 1,
           knowledgeType: msg.knowledgeType || "economic",
-          equippedWeapon: msg.equippedWeapon || "",
-          weapons: msg.weapons || [],
-          weaponStarLevel: msg.weaponStarLevel || 1,
-          weaponGemLevel: msg.weaponGemLevel || 1,
+          equippedWeapon: trustedEquipped,
+          weapons: trustedWeapons,
+          weaponStarLevel: equippedDef?.starLevel || 1,
+          weaponGemLevel: equippedDef?.gemLevel || 1,
+          repTitle: typeof msg.repTitle === "string" ? msg.repTitle.slice(0, 20) : "محايد",
+          repIcon: typeof msg.repIcon === "string" ? msg.repIcon.slice(0, 4) : "😐",
           br_hp: msg.br_hp ?? 120,
           br_alive: msg.br_alive ?? true,
           buildings: msg.buildings || {},
@@ -400,8 +412,17 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         const c = worldClients.get(username);
         if (c) {
           const weaponId = msg.weaponId || "";
+          // 🛡️ لا يجوز تجهيز سلاح غير مملوك فعلياً (وفق مصفوفة c.weapons الموثوقة)
+          const owned = weaponId === "" || (c.weapons || []).some(w => w.id === weaponId);
+          if (!owned) {
+            if (c.ws.readyState === 1) c.ws.send(JSON.stringify({ type: "equip_weapon_ack", ok: false, reason: "سلاح غير مملوك" }));
+            return;
+          }
           c.equippedWeapon = weaponId;
-          const reply = JSON.stringify({ type: "equip_weapon_ack", weaponId });
+          const equippedDef = (c.weapons || []).find(w => w.id === weaponId);
+          c.weaponStarLevel = equippedDef?.starLevel || 1;
+          c.weaponGemLevel = equippedDef?.gemLevel || 1;
+          const reply = JSON.stringify({ type: "equip_weapon_ack", ok: true, weaponId });
           if (c.ws.readyState === 1) c.ws.send(reply);
           broadcastWorld(ws);
         }
@@ -612,6 +633,8 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         equippedWeapon: c.equippedWeapon || "",
         weaponStarLevel: c.weaponStarLevel || 1,
         weaponGemLevel: c.weaponGemLevel || 1,
+        repTitle: c.repTitle || "محايد",
+        repIcon: c.repIcon || "😐",
         last_active: Date.now()
       });
     });
