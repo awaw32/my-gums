@@ -12,6 +12,30 @@ export class EventManager {
     this.events = EVENT_TEMPLATES.map(e => ({ ...e, active: false, remaining: 0 }));
     this._onEventStart = null;
     this._onEventEnd = null;
+    this._weekKey = 0;
+  }
+
+  /**
+   * 🔥 حدث الأسبوع — دوران حتمي محسوب من رقم الأسبوع (نفس الحدث لجميع اللاعبين
+   * في نفس الأسبوع تلقائياً بلا حاجة لسيرفر). يُستدعى مرة عند بدء اللعبة.
+   * يعيد الحدث النشط الجديد إن بدأ لتوّه، أو null إن كان مستمراً من جلسة سابقة.
+   */
+  ensureWeeklyEvent() {
+    const nowWeek = Math.floor(Date.now() / (7 * 24 * 3600 * 1000));
+    if (this._weekKey === nowWeek) return null; // مُفعَّل بالفعل هذا الأسبوع
+    // أوقف حدث الأسبوع الماضي إن كان لا يزال نشطاً محلياً
+    const prevWeekly = this.events.find(e => e._isWeekly && e.active);
+    if (prevWeekly) this.stopEvent(prevWeekly.id);
+    this._weekKey = nowWeek;
+    const pick = EVENT_TEMPLATES[nowWeek % EVENT_TEMPLATES.length];
+    const e = this.events.find(x => x.id === pick.id);
+    if (!e) return null;
+    e._isWeekly = true;
+    e.active = true;
+    // ينتهي مع نهاية الأسبوع التقويمي الحالي (وليس بعد duration الثابتة)
+    e.remaining = (nowWeek + 1) * 7 * 24 * 3600 * 1000 / 1000 - Date.now() / 1000;
+    if (this._onEventStart) this._onEventStart(e);
+    return e;
   }
 
   getAll() { return this.events; }
@@ -58,16 +82,21 @@ export class EventManager {
 
   loadState(saved) {
     if (!saved) return;
-    for (const s of saved) {
+    const list = Array.isArray(saved) ? saved : (saved.events || []);
+    for (const s of list) {
       const e = this.events.find(x => x.id === s.id);
       if (e) {
         e.active = s.active || false;
         e.remaining = s.remaining || 0;
       }
     }
+    this._weekKey = (!Array.isArray(saved) && saved.weekKey) || 0;
   }
 
   getSaveData() {
-    return this.events.map(e => ({ id: e.id, active: e.active, remaining: e.remaining }));
+    return {
+      events: this.events.map(e => ({ id: e.id, active: e.active, remaining: e.remaining })),
+      weekKey: this._weekKey,
+    };
   }
 }

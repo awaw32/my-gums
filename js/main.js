@@ -449,6 +449,15 @@ async function init() {
     delete window._loadedReputation;
   }
   if (window._loadedEvents) events.loadState(window._loadedEvents);
+  // 🔥 حدث الأسبوع — يبدأ تلقائياً (نفس الحدث للجميع، يتغير كل أسبوع)
+  const newWeeklyEvent = events.ensureWeeklyEvent();
+  if (newWeeklyEvent) {
+    setTimeout(async () => {
+      ui.showNotification(`🔥 حدث الأسبوع بدأ: ${newWeeklyEvent.title} — ${newWeeklyEvent.desc}!`);
+      const { confettiBurst } = await import("./celebrations.js");
+      confettiBurst(16);
+    }, 2500);
+  }
   if (window._loadedTutorial) tutorial.loadState(window._loadedTutorial);
   if (window._loadedStory) {
     storyManager.loadState(window._loadedStory);
