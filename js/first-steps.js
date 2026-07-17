@@ -5,9 +5,9 @@
 // ═══════════════════════════════════════════════════════════════════
 
 const FIRST_STEPS = [
-  { id: "train",  icon: "⚔️", goal: "درّب جيشك — اضغط زر ترقية الجيش",   hint: "من القائمة السريعة أسفل الشاشة", reward: { cash: 300 },  rewardLabel: "+300 💵" },
-  { id: "kill",   icon: "🗡️", goal: "اقتل أول وحش في الخريطة!",          hint: "افتح حرب ← مغامرة الصحراء واضغط على وحش", reward: { gems: 20 },  rewardLabel: "+20 💎" },
-  { id: "equip",  icon: "🛡️", goal: "جهّز سلاحك الأول",                  hint: "من الترقية ← الأسلحة — اشترِ وجهّز", reward: { cash: 500, gems: 10 }, rewardLabel: "+500 💵 +10 💎" },
+  { id: "train",  icon: "⚔️", goal: "درّب جيشك",   hint: "القائمة السريعة أسفل الشاشة", reward: { cash: 300 },  rewardLabel: "+300 💵" },
+  { id: "kill",   icon: "🗡️", goal: "اقتل أول وحش",  hint: "حرب ← مغامرة الصحراء", reward: { gems: 20 },  rewardLabel: "+20 💎" },
+  { id: "equip",  icon: "🛡️", goal: "جهّز سلاحاً",   hint: "الترقية ← الأسلحة", reward: { cash: 500, gems: 10 }, rewardLabel: "+500 💵 +10 💎" },
 ];
 
 const STORAGE_KEY = "first_steps_v1";
@@ -69,8 +69,8 @@ export class FirstStepsManager {
     banner.innerHTML = `
       <span class="fs-icon">${step.icon}</span>
       <span class="fs-text">
-        <span class="fs-goal">${step.goal}</span>
-        <span class="fs-hint">${step.hint} — المكافأة: <b>${step.rewardLabel}</b></span>
+        <span class="fs-goal">${step.goal}<b class="fs-reward">${step.rewardLabel}</b></span>
+        <span class="fs-hint">${step.hint}</span>
       </span>
       <span class="fs-progress">${this.stepIndex + 1}/${FIRST_STEPS.length}</span>
     `;

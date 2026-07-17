@@ -879,25 +879,38 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
   bottom: calc(96px + var(--safe-b, 0px));
   left: 50%; transform: translateX(-50%);
   z-index: 900;
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
   background: linear-gradient(135deg, rgba(30, 22, 12, 0.95), rgba(58, 40, 20, 0.95));
   border: 1.5px solid #ffd700;
-  border-radius: 16px;
-  padding: 10px 14px;
-  max-width: min(92vw, 420px);
+  border-radius: 14px;
+  padding: 8px 12px;
+  width: max-content;
+  max-width: min(90vw, 340px);
   box-shadow: 0 6px 24px rgba(0,0,0,0.45), 0 0 12px rgba(255, 215, 0, 0.25);
   direction: rtl;
   animation: fs-slide-in 0.5s cubic-bezier(0.18, 1.2, 0.4, 1);
 }
 @keyframes fs-slide-in { from { transform: translateX(-50%) translateY(30px); opacity: 0; } }
-.first-steps-banner .fs-icon { font-size: 1.6rem; animation: fs-bounce 1.4s ease-in-out infinite; }
+.first-steps-banner .fs-icon { font-size: 1.3rem; flex-shrink: 0; animation: fs-bounce 1.4s ease-in-out infinite; }
 @keyframes fs-bounce { 50% { transform: translateY(-4px); } }
-.first-steps-banner .fs-text { display: flex; flex-direction: column; min-width: 0; }
-.first-steps-banner .fs-goal { font-size: 0.82rem; font-weight: 800; color: #ffd700; }
-.first-steps-banner .fs-hint { font-size: 0.62rem; color: #d8c9a8; margin-top: 2px; }
+.first-steps-banner .fs-text {
+  display: flex; flex-direction: column;
+  min-width: 0; flex: 1 1 auto;
+  overflow: hidden;
+}
+.first-steps-banner .fs-goal {
+  font-size: 0.8rem; font-weight: 800; color: #ffd700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: baseline; gap: 6px;
+}
+.first-steps-banner .fs-reward { font-size: 0.68rem; color: #4cd964; white-space: nowrap; flex-shrink: 0; }
+.first-steps-banner .fs-hint {
+  font-size: 0.6rem; color: #d8c9a8; margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .first-steps-banner .fs-progress {
-  font-size: 0.7rem; font-weight: 800; color: #fff;
-  background: rgba(255, 215, 0, 0.2); border-radius: 10px; padding: 4px 8px;
+  font-size: 0.68rem; font-weight: 800; color: #fff;
+  background: rgba(255, 215, 0, 0.2); border-radius: 10px; padding: 3px 7px;
   flex-shrink: 0;
 }
 
