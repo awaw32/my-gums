@@ -60,21 +60,24 @@
 <body>
   <!-- ====== شاشة التحميل ====== -->
   <div id="loading-screen">
-    <div class="loading-wheel">
-      <div class="wheel-rim"></div>
-      <div class="wheel-logo">👑</div>
-    </div>
-    <h1 class="loading-title">ملك الصحراء</h1>
-    <p class="loading-sub">King of the Deserts</p>
-    <div class="loading-bar-track">
-      <div class="loading-bar-fill" id="loading-progress"></div>
-    </div>
-    <p class="loading-pct" id="loading-pct">0%</p>
-    <div id="loading-error" class="loading-error hidden">
-      <div style="font-size:2rem;margin-bottom:10px">😵</div>
-      <div style="font-weight:700;font-size:0.9rem;color:#e74c3c">عذراً! تعذر تحميل اللعبة</div>
-      <div style="font-size:0.75rem;color:var(--beige-dark);margin:8px 0 16px">قد يكون اتصالك بالإنترنت ضعيفاً أو الخادم مشغولاً</div>
-      <button id="reload-btn" style="padding:12px 32px;min-height:44px;background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;border:none;border-radius:12px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit">🔄 حاول مجدداً</button>
+    <div class="loading-bg" style="background-image:url('assets/images/bg/bg-loading-royal.svg')"></div>
+    <div class="loading-content">
+      <div class="loading-crown">👑</div>
+      <h1 class="loading-title">ملك الصحراء</h1>
+      <p class="loading-sub">KING OF THE DESERT</p>
+      <div class="loading-wheel">
+        <div class="wheel-rim"></div>
+      </div>
+      <div class="loading-bar-track">
+        <div class="loading-bar-fill" id="loading-progress"></div>
+      </div>
+      <p class="loading-pct" id="loading-pct">0%</p>
+      <div id="loading-error" class="loading-error hidden">
+        <div style="font-size:2rem;margin-bottom:10px">😵</div>
+        <div style="font-weight:700;font-size:0.9rem;color:#e74c3c">عذراً! تعذر تحميل اللعبة</div>
+        <div style="font-size:0.75rem;color:var(--beige-dark);margin:8px 0 16px">قد يكون اتصالك بالإنترنت ضعيفاً أو الخادم مشغولاً</div>
+        <button id="reload-btn" style="padding:12px 32px;min-height:44px;background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;border:none;border-radius:12px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit">🔄 حاول مجدداً</button>
+      </div>
     </div>
   </div>
 

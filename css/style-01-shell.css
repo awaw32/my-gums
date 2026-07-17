@@ -76,58 +76,91 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 /* ====== شاشة التحميل ====== */
 #loading-screen {
   position: fixed; inset: 0; z-index: 3000;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  background: var(--bg-page);
-  gap: 16px;
-  transition: opacity 0.6s, visibility 0.6s;
+  display: flex; align-items: center; justify-content: center;
+  background: #1a1330;
+  overflow: hidden;
+  transition: opacity 0.7s, visibility 0.7s;
 }
 #loading-screen.fade-out { opacity: 0; visibility: hidden; }
 
+.loading-bg {
+  position: absolute; inset: 0;
+  background-size: cover;
+  background-position: center;
+  animation: loading-bg-zoom 12s ease-in-out infinite alternate;
+}
+@keyframes loading-bg-zoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+
+.loading-content {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  width: 100%;
+}
+
+.loading-crown {
+  font-size: 3.4rem;
+  filter: drop-shadow(0 0 18px rgba(255, 215, 0, 0.65));
+  animation: loading-crown-float 2.8s ease-in-out infinite;
+}
+@keyframes loading-crown-float { 50% { transform: translateY(-8px); } }
+
+.loading-title {
+  font-family: 'Amiri', serif;
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6), 0 0 24px rgba(255, 215, 0, 0.4);
+  margin: 0;
+}
+.loading-sub {
+  font-size: 0.78rem;
+  color: #f5e6c8;
+  letter-spacing: 5px;
+  margin: -10px 0 4px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+
 .loading-wheel {
-  width: 100px; height: 100px;
+  width: 44px; height: 44px;
   position: relative;
   display: flex; align-items: center; justify-content: center;
+  margin-top: 6px;
 }
 .wheel-rim {
   position: absolute; inset: 0;
   border-radius: 50%;
-  border: 4px solid var(--accent-red-soft);
-  border-top-color: var(--accent-red);
+  border: 3px solid rgba(255, 215, 0, 0.2);
+  border-top-color: #ffd700;
   animation: spin 1s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.wheel-logo { font-size: 3rem; z-index: 1; filter: drop-shadow(0 0 12px rgba(192,57,43,0.3)); }
 
-.loading-title {
-  font-family: 'Amiri', serif;
-  font-size: 2.2rem;
-  color: var(--accent-red);
-  text-shadow: 0 2px 12px rgba(192,57,43,0.2);
-}
-.loading-sub {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  letter-spacing: 2px;
-  margin-top: -8px;
-}
 .loading-bar-track {
-  width: 260px; height: 8px;
-  background: var(--accent-red-soft);
+  width: min(260px, 70vw); height: 8px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255, 215, 0, 0.25);
   border-radius: 4px;
   overflow: hidden;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 .loading-bar-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, var(--accent-red), var(--accent-red-hover));
+  background: linear-gradient(90deg, #d4a017, #ffd700);
   border-radius: 4px;
   transition: width 0.3s;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
 }
 .loading-pct {
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: #f5e6c8;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
 
 /* ====== App Shell محصور ====== */
