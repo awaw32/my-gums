@@ -834,6 +834,12 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
   bottom: calc(200px + var(--safe-b));
   border: none;
 }
+.pvp-targets-world-btn {
+  bottom: calc(260px + var(--safe-b));
+  background: linear-gradient(135deg, #c0392b, #e74c3c) !important;
+  color: #fff;
+  border: none;
+}
 
 /* ====== سلسلة الدخول اليومي المحسّنة ====== */
 .daily-streak-hot { color: #e74c3c; animation: streak-pulse 1.2s ease-in-out infinite; }
@@ -941,3 +947,27 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
   background: rgba(0,0,0,0.7); border-radius: 8px;
   padding: 0 4px; min-width: 14px; text-align: center;
 }
+
+/* ====== قائمة أهداف PvP المقترحة ====== */
+.pvpt-sub { font-size: 0.7rem; color: var(--text-secondary, #7d6b5a); margin: 4px 0 14px; }
+.pvpt-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.pvpt-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--bg-page, #fdf6ec);
+  border: 1px solid var(--border-light, #e0d0b8);
+  border-radius: 12px; padding: 10px 12px;
+}
+.pvpt-info { text-align: right; min-width: 0; }
+.pvpt-name { font-size: 0.82rem; font-weight: 800; color: var(--text-primary, #3b2f24); }
+.pvpt-meta { font-size: 0.7rem; color: var(--text-secondary, #7d6b5a); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+.pvpt-dist { font-size: 0.62rem; color: var(--text-secondary, #7d6b5a); margin-top: 1px; }
+.pvpt-badge { font-size: 0.6rem; font-weight: 800; padding: 2px 6px; border-radius: 8px; }
+.pvpt-badge.pvpt-easy { background: rgba(76,217,100,0.18); color: #2e9e4f; }
+.pvpt-badge.pvpt-even { background: rgba(212,160,23,0.2); color: #b8860b; }
+.pvpt-badge.pvpt-hard { background: rgba(231,76,60,0.18); color: #c0392b; }
+.pvpt-attack-btn {
+  flex-shrink: 0; padding: 10px 14px; min-height: 44px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff; font-family: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer;
+}
+.pvpt-empty { text-align: center; padding: 24px 8px; color: var(--text-secondary, #7d6b5a); font-size: 0.8rem; }

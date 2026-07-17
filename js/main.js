@@ -1207,6 +1207,12 @@ async function init() {
     };
     document.getElementById('play-friend-btn')?.addEventListener('click', openParty);
     document.getElementById('party-world-btn')?.addEventListener('click', openParty);
+
+    // 🎯 أهداف PvP مقترحة
+    document.getElementById('pvp-targets-btn')?.addEventListener('click', async () => {
+      const { openPvPTargetsPanel } = await import('./ui/pvp-targets.js');
+      openPvPTargetsPanel(world);
+    });
     const brVictoryBtn = document.getElementById('br-victory-btn');
     const brDefeatBtn = document.getElementById('br-defeat-btn');
     const brZoneWarningEl = document.getElementById('br-zone-warning');
