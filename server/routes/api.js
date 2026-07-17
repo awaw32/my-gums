@@ -154,6 +154,21 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       return true;
     }
 
+    // 🔐 التحقق من صلاحية التوكن المحفوظ محلياً (للدخول التلقائي الصامت عند إعادة فتح اللعبة)
+    if (req.url === "/api/auth/verify" && req.method === "GET") {
+      const authHeader = req.headers["authorization"];
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ valid: false }));
+        return true;
+      }
+      const { verifyToken } = require("../network/auth");
+      const result = verifyToken(authHeader.slice(7));
+      res.writeHead(result.valid ? 200 : 401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ valid: result.valid, username: result.username || null }));
+      return true;
+    }
+
     if (req.url === "/api/players" || req.url.startsWith("/api/players?")) {
       if (req.method === "GET") {
         if (!mongoConnected) {

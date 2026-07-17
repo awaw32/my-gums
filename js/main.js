@@ -60,16 +60,18 @@ async function tryLogin(username, password, isGuest = false) {
 }
 
 async function getOrPromptUsername() {
-  // ── محاولة الدخول التلقائي (إذا وجد اسم مستخدم وكلمة مرور مخزنين) ──
+  // ── محاولة الدخول التلقائي عبر التحقق من صلاحية التوكن المحفوظ (بلا كلمة مرور) ──
   const savedUser = localStorage.getItem("player_username");
   const savedToken = localStorage.getItem("player_token");
 
   if (savedUser && savedUser.trim() && savedToken) {
     const name = sanitizeUsername(savedUser.trim());
-    const result = await tryLogin(name, '');
-    if (result.ok) {
-      return name;
-    }
+    try {
+      const verifyResult = await networkManager.get('/api/auth/verify', { timeout: 6000 });
+      if (verifyResult?.valid && verifyResult.username === name) {
+        return name;
+      }
+    } catch { /* التوكن غير صالح أو انتهت صلاحيته — سنطلب تسجيل دخول جديداً أدناه */ }
     // إذا فشل التوكن، نزيله ونطلب تسجيل دخول من جديد
     localStorage.removeItem("player_token");
   }
