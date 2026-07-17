@@ -1105,12 +1105,16 @@ async function init() {
       };
     }
 
-    // أزرار قدرات البطل
+    // أزرار قدرات البطل (لوحة البطل الكاملة + شريط سريع عائم أثناء القتال)
     const heroAbilityBtns = {
       'hero-ability-1': 'heal',
       'hero-ability-2': 'powerStrike',
       'hero-ability-3': 'shield',
       'hero-ability-4': 'rally',
+      'hero-quick-1': 'heal',
+      'hero-quick-2': 'powerStrike',
+      'hero-quick-3': 'shield',
+      'hero-quick-4': 'rally',
     };
 
     for (const [btnId, abilityKey] of Object.entries(heroAbilityBtns)) {
@@ -1159,24 +1163,26 @@ async function init() {
       if (dmgEl) dmgEl.textContent = hero.damage;
       if (defEl) defEl.textContent = hero.defense;
 
+      let anyUnlocked = false;
       for (const [btnId, abilityKey] of Object.entries(heroAbilityBtns)) {
         const btn = document.getElementById(btnId);
         const ab = hero.abilities[abilityKey];
         if (btn && ab) {
+          if (ab.unlocked) anyUnlocked = true;
           btn.disabled = !ab.unlocked || ab.cooldown > 0;
           btn.classList.toggle('active-ability', ab.active);
           const descEl = btn.querySelector('.hero-ab-desc');
           if (descEl) {
-            if (!ab.unlocked) {
-              descEl.textContent = `Lv.${ab.levelReq}`;
-            } else if (ab.cooldown > 0) {
-              descEl.textContent = `${Math.ceil(ab.cooldown)}s`;
-            } else {
-              descEl.textContent = 'جاهز';
-            }
+            if (!ab.unlocked) descEl.textContent = `Lv.${ab.levelReq}`;
+            else if (ab.cooldown > 0) descEl.textContent = `${Math.ceil(ab.cooldown)}s`;
+            else descEl.textContent = 'جاهز';
           }
+          const cdEl = btn.querySelector('.hero-quick-cd');
+          if (cdEl) cdEl.textContent = ab.unlocked && ab.cooldown > 0 ? Math.ceil(ab.cooldown) : '';
         }
       }
+      const quickbar = document.getElementById('hero-quickbar');
+      if (quickbar) quickbar.classList.toggle('hidden', !anyUnlocked);
     }, 1000);
     _gameIntervals.push(heroInterval);
 

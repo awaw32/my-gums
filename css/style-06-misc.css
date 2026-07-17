@@ -900,3 +900,31 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
   background: rgba(255, 215, 0, 0.2); border-radius: 10px; padding: 4px 8px;
   flex-shrink: 0;
 }
+
+/* ====== شريط قدرات البطل السريع (أثناء القتال) ====== */
+.hero-quickbar {
+  position: fixed;
+  bottom: calc(200px + var(--safe-b, 0px));
+  right: 16px;
+  z-index: 66;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.hero-quick-btn {
+  position: relative;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--bg-card, #fff8f0);
+  border: 2px solid var(--accent-gold, #d4a017);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  touch-action: manipulation;
+}
+.hero-quick-btn:disabled { opacity: 0.4; filter: grayscale(0.6); }
+.hero-quick-btn.active-ability { border-color: #4cd964; box-shadow: 0 0 12px rgba(76,217,100,0.7); }
+.hero-quick-btn:active:not(:disabled) { transform: scale(0.88); }
+.hero-quick-cd {
+  position: absolute; bottom: -4px;
+  font-size: 0.6rem; font-weight: 900; color: #fff;
+  background: rgba(0,0,0,0.7); border-radius: 8px;
+  padding: 0 4px; min-width: 14px; text-align: center;
+}
