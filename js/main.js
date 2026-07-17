@@ -392,6 +392,12 @@ async function init() {
   const droppedItems = new DroppedItemsManager();
   window._inventory = inventory;
 
+  // 🧭 خطواتك الأولى — توجيه اللاعب الجديد (يختفي نهائياً بعد إكمال الخطوات الثلاث)
+  const { FirstStepsManager } = await import("./first-steps.js");
+  const firstSteps = new FirstStepsManager(economy);
+  window._firstSteps = firstSteps;
+  if (!firstSteps.done) setTimeout(() => firstSteps.render(), 3000);
+
   // تحديث الإسقاطات من الخادم (لللاعبين الجدد أو إعادة الاتصال)
   world._onWorldDrops = (list) => {
     if (list && list.length > 0) {
@@ -633,6 +639,7 @@ async function init() {
       if (result) {
         achievements.updateProgress('army_level', this.unitLevel);
         quests.updateProgress('train', 1);
+        window._firstSteps?.notify('train');
       }
       return result;
     };
@@ -787,6 +794,7 @@ async function init() {
           world.syncWeaponVisuals();
           audio.playWeaponSound(wid, 'equip');
           ui.showNotification(`🗡️ تم تجهيز ${weapon.name}`);
+          window._firstSteps?.notify('equip');
           saveToDB(); persistGameSession(economy, village, army);
           ui.updateTopBar();
         }
@@ -868,6 +876,7 @@ async function init() {
       hero.addXp(15);
       economy.addXp(10);
       quests.updateProgress('kill', 1);
+      window._firstSteps?.notify('kill');
 
       // 🎁 إسقاط عناصر عشوائية من الوحوش (فرصة 15%)
       if (Math.random() < 0.15) {

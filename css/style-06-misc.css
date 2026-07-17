@@ -872,3 +872,31 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
   font-size: 0.65rem; color: var(--text-secondary, #7d6b5a);
   text-align: center; padding: 4px 0 10px;
 }
+
+/* ====== بانر خطواتك الأولى ====== */
+.first-steps-banner {
+  position: fixed;
+  bottom: calc(96px + var(--safe-b, 0px));
+  left: 50%; transform: translateX(-50%);
+  z-index: 900;
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, rgba(30, 22, 12, 0.95), rgba(58, 40, 20, 0.95));
+  border: 1.5px solid #ffd700;
+  border-radius: 16px;
+  padding: 10px 14px;
+  max-width: min(92vw, 420px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.45), 0 0 12px rgba(255, 215, 0, 0.25);
+  direction: rtl;
+  animation: fs-slide-in 0.5s cubic-bezier(0.18, 1.2, 0.4, 1);
+}
+@keyframes fs-slide-in { from { transform: translateX(-50%) translateY(30px); opacity: 0; } }
+.first-steps-banner .fs-icon { font-size: 1.6rem; animation: fs-bounce 1.4s ease-in-out infinite; }
+@keyframes fs-bounce { 50% { transform: translateY(-4px); } }
+.first-steps-banner .fs-text { display: flex; flex-direction: column; min-width: 0; }
+.first-steps-banner .fs-goal { font-size: 0.82rem; font-weight: 800; color: #ffd700; }
+.first-steps-banner .fs-hint { font-size: 0.62rem; color: #d8c9a8; margin-top: 2px; }
+.first-steps-banner .fs-progress {
+  font-size: 0.7rem; font-weight: 800; color: #fff;
+  background: rgba(255, 215, 0, 0.2); border-radius: 10px; padding: 4px 8px;
+  flex-shrink: 0;
+}
