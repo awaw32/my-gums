@@ -66,7 +66,13 @@ const worldClients = new Map();
 // stepCaravanGuards في كل تكة (300ms) لتحريك القافلة كوحدة واحدة A→B.
 const { createCaravanManager } = require("./server/logic/caravan-manager");
 const caravanManager = createCaravanManager({
-  worldMonsters, worldClients, WORLD_W2, WORLD_H2,
+  worldMonsters, worldClients, WORLD_W2, WORLD_H2, memStore,
+});
+
+// 💀 عقوبة الموت خارج الواحة — سيرفر-موثوق بالكامل (لا economy.add على العميل)
+const { createDeathManager } = require("./server/logic/death-manager");
+const deathManager = createDeathManager({
+  worldClients, memStore, getDefaultPlayer, markDirty, SAFE_ZONE,
 });
 
 const { createCombatLoop } = require("./server/logic/combatLoop");
@@ -123,7 +129,7 @@ const handleWorldConnection = createWorldHandler({
   computeKnowledgeUpgradeCost, computeKnowledgeBonuses,
   claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades,
   applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, sanitizePlayerData,
-  warManager, allianceManager, caravanManager, broadcastBus, auctionManager,
+  warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager,
 });
 
 // 🔔 تذكير دوري بالهدية المجانية للاعبين غير المتصلين — no-op بلا مفاتيح VAPID

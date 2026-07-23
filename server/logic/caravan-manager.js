@@ -1,6 +1,7 @@
 "use strict";
 
 const { ENEMY_TYPES } = require("../data/enemies");
+const { sendPush, enabled: pushEnabled } = require("../push");
 
 /**
  * server/logic/caravan-manager.js
@@ -20,7 +21,7 @@ const GUARD_ENEMY_ID = "desert_thief"; // عدو موجود بالفعل — ل�
 const CARAVAN_SPEED = 40; // px/ثانية تقريباً، أبطأ من الوحوش العادية (قافلة تمشي لا تركض)
 
 function createCaravanManager(deps) {
-  const { worldMonsters, worldClients, WORLD_W2, WORLD_H2 } = deps;
+  const { worldMonsters, worldClients, WORLD_W2, WORLD_H2, memStore } = deps;
 
   let activeCaravan = null; // { id, guardIds: [id1, id2], from: {x,y}, to: {x,y} }
   let spawnTimer = null;
@@ -93,6 +94,20 @@ function createCaravanManager(deps) {
       toY: Math.round(to.y),
       gold: CARAVAN_GOLD_TOTAL,
     });
+
+    // 🔔 تنبيه اللاعبين غير المتصلين بقافلة ذهب جديدة — يشجّع العودة للعبة
+    if (pushEnabled && memStore) {
+      for (const [username, player] of memStore) {
+        if (worldClients.has(username)) continue; // متصل بالفعل
+        if (player.pushSubscription) {
+          sendPush(player.pushSubscription, {
+            title: "🐫 قافلة ذهب!",
+            body: `قافلة تحمل ${CARAVAN_GOLD_TOTAL} 🪙 ظهرت في الصحراء — اذهب وانهبها قبل أن يسبقك أحد!`,
+            url: "/",
+          });
+        }
+      }
+    }
   }
 
   function despawnCaravan(reason) {

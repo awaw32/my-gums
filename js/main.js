@@ -5,6 +5,7 @@ import { GameUI } from "./ui.js";
 import { WorldMap } from "./world.js";
 import { spawnLevelUp, spawnGoldBurst, spawnXpGain } from "./particles.js";
 import { celebrate } from "./celebrations.js";
+import { FTUEManager } from "./ftue-manager.js";
 import { AssetManager } from "./asset-manager.js";
 import { AudioManager } from "./audio.js";
 import { saveGame, loadGame, persistGameSession } from "./save.js";
@@ -261,6 +262,7 @@ async function loadFromDatabase(economy, army, village, username) {
       economy.resources.leather = Math.max(economy.resources.leather, data.leather ?? 0);
       economy.resources.copper = Math.max(economy.resources.copper, data.copper ?? 0);
       economy.resources.herbs = Math.max(economy.resources.herbs, data.herbs ?? 0);
+      if (data.lastFoodDecayCheck) economy.lastFoodDecayCheck = data.lastFoodDecayCheck;
       economy.level = data.level || 1;
       economy.xp = data.xp || 0;
       economy.xpToNext = getXpForLevel(economy.level);
@@ -292,6 +294,7 @@ async function loadFromDatabase(economy, army, village, username) {
   window._loadedAchievements = data.achievements || null;
       window._loadedDailyLogin = data.dailyLogin || null;
       window._loadedPrestige = data.prestigeLevel ?? 0;
+      window._loadedIsNewPlayer = data.isNewPlayer !== false;
       window._loadedInventory = data.inventory || null;
       window._loadedLoadout = data.loadout || null;
       window._loadedMarket = data.market || null;
@@ -355,9 +358,10 @@ async function init() {
   // ثم تحميل من قاعدة البيانات (الرسمية) — يلغي بيانات localStorage
   await loadFromDatabase(economy, army, village, PLAYER_USERNAME);
   
-  const hasSavedData = economy.level > 1 || economy.xp > 0 || 
+  const hasSavedData = economy.level > 1 || economy.xp > 0 ||
                        (economy.buildings && Object.keys(economy.buildings).length > 0);
-  
+  window._isNewPlayer = window._loadedIsNewPlayer !== false;
+
   const oasisManager = new OasisManager(economy);
   const upgradeTree = new UpgradeTree(economy);
   upgradeTree.setArmyRef(army);
@@ -397,6 +401,12 @@ async function init() {
   window._world = world;
   window._allianceManager = allianceManager;
   const prestige = new PrestigeManager(economy, village, army, storyManager);
+  // 🏜️ برستيج "شيخ حكيم" (مستوى 3+): يفتح فئة البحوث السرية في شجرة المعرفة
+  researchTree.prestigeLevel = prestige.level;
+  prestige._onPrestige = ((orig) => (level) => {
+    if (orig) orig(level);
+    researchTree.prestigeLevel = level;
+  })(prestige._onPrestige);
   const inventory = new InventoryManager(economy);
   const droppedItems = new DroppedItemsManager();
   window._inventory = inventory;
@@ -429,7 +439,8 @@ async function init() {
   window._tradeMarket = tradeMarket;
 
   const reputation = new ReputationManager();
-  tradeMarket._priceModifier = () => reputation.tradeModifier;
+  // 🏜️ برستيج "تاجر" (مستوى 2+): خصم إضافي على أسعار السوق فوق تأثير السمعة
+  tradeMarket._priceModifier = () => reputation.tradeModifier * prestige.marketPriceModifier;
   window._reputation = reputation;
   
   setProgress(80);
@@ -442,6 +453,7 @@ async function init() {
   if (window._loadedAchievements) achievements.loadState(window._loadedAchievements);
   if (window._loadedDailyLogin) dailyLogin.loadState(window._loadedDailyLogin);
   if (window._loadedPrestige !== 0 && window._loadedPrestige !== undefined) prestige.loadState(window._loadedPrestige);
+  researchTree.prestigeLevel = prestige.level; // بعد تحميل الحفظ — يضبط فئة البحوث السرية بشكل صحيح
   if (window._loadedInventory) inventory.loadState(window._loadedInventory);
   // 🆕 استعادة بيانات الشنطة من قاعدة البيانات (إذا كانت محفوظة)
   if (window._loadedLoadout) {
@@ -584,22 +596,34 @@ async function init() {
   if (loadingScreen) loadingScreen.classList.add("fade-out");
   if (appShell) appShell.classList.remove("hidden");
 
-  // تشغيل السينماتيك للمستخدم الجديد
-  if (!hasSavedData) {
+  // 🏜️ قصة البداية FTUE — للاعب الجديد فقط (isNewPlayer محفوظ، وليس hasSavedData وحدها)
+  if (!hasSavedData && window._isNewPlayer) {
     // 🛡️ يمنع GameUI.initStory() من تشغيل مشهد قصة ثانٍ متزامن (كان يسبب تراكب نافذتين)
     window._newPlayerStoryPending = true;
     setTimeout(() => {
-      storyManager.playCinematicIntro().then(() => {
-        // بعد السينماتيك، عرض مشهد الفصل الأول
-        if (storyManager.hasMoreScenes()) {
-          setTimeout(() => ui.showStoryScene(() => {
-            window._newPlayerStoryPending = false;
-            ui.initTutorial();
-          }), 500);
-        } else {
-          window._newPlayerStoryPending = false;
+      storyManager.playFTUEIntro().then(() => {
+        window._newPlayerStoryPending = false;
+        const canvas = document.getElementById("gameCanvas");
+        if (canvas) canvas.classList.remove("hidden");
+        const worldButtons = document.getElementById("world-buttons");
+        if (worldButtons) worldButtons.classList.remove("hidden");
+        world.enterWorldMap();
+        world._ftue = new FTUEManager(world, village);
+        world._ftue._onStepChanged = (step) => {
+          const stepText = {
+            move: "🏃 تحرّك في الصحراء 30 ثانية لتعتاد الحركة",
+            kill: "⚔️ اقتل اللص القريب منك!",
+            build: "🏠 ابنِ خيمة لتأوي قومك",
+            survive: "🛡️ اصمد أمام هجوم اللصوص الثلاثة!",
+            done: "🎉 أثبتّ جدارتك! العالم كله أمامك الآن",
+          };
+          if (stepText[step]) ui.showNotification(stepText[step]);
+        };
+        world._ftue._onComplete = () => {
+          markPlayerNotNew();
           ui.initTutorial();
-        }
+        };
+        world._ftue.start();
       });
     }, 1000);
   } else if (storyManager.shouldShowIntro()) {
@@ -625,13 +649,13 @@ async function init() {
     world._allianceManager = allianceManager;
     world._upgradeTree = upgradeTree;
     world._reputation = reputation;
+    world._prestige = prestige;
 
     // تسجيل مصادر القوة (powerSources) — بدونه يكون power = 0 دائماً
     economy.powerSources.push(() => village.getPower());
     economy.powerSources.push(() => (army.unitPower + army.getEquippedWeaponPower(world._equippedWeapon)) || army.unitLevel * 10);
     economy.powerSources.push(() => Math.floor(economy.level * 5));
     economy.powerSources.push(() => allianceManager.level * 10);
-    economy.powerSources.push(() => prestige.level * 50);
     economy.powerSources.push(() => hero.powerContribution);
 
     // تشغيل الخريطة المصغرة
@@ -639,7 +663,10 @@ async function init() {
 
     // ربط إنجازات المباني
     village.setBuildingCallbacks(
-      () => { achievements.updateProgress('builds', 1); audio.playSound('build'); hero.addXp(10); },
+      () => {
+        achievements.updateProgress('builds', 1); audio.playSound('build'); hero.addXp(10);
+        if (world._ftue?.active) world._ftue.onBuildingBuilt();
+      },
       () => { achievements.updateProgress('upgrades', 1); audio.playSound('upgrade'); hero.addXp(8); }
     );
 
@@ -720,6 +747,7 @@ async function init() {
         leather: economy.resources.leather || 0,
         copper: economy.resources.copper || 0,
         herbs: economy.resources.herbs || 0,
+        lastFoodDecayCheck: economy.lastFoodDecayCheck,
         army_power: economy.power,
         unitLevel: army.unitLevel,
         trainingLevel: army.trainingLevel,
@@ -758,8 +786,16 @@ async function init() {
         reputation: reputation.getSaveData(),
         completedVillages: village.completedVillages,
         currentChapter: village.currentChapter,
+        isNewPlayer: window._isNewPlayer !== false,
         last_active: Date.now()
       }).catch(e => console.warn("[Save] saveToDB:", e.message));
+    };
+
+    // 🏜️ يُستدعى مرة واحدة عند اكتمال FTUE — يحفظ isNewPlayer=false فوراً (محلياً وسيرفرياً)
+    const markPlayerNotNew = () => {
+      window._isNewPlayer = false;
+      markDirty();
+      saveToDB();
     };
 
     // أي تغيير في الاقتصاد أو الجيش أو القرية = علامة متسخ + حفظ خلفي
@@ -887,7 +923,7 @@ async function init() {
       ui.checkBuildingUnlocks(lvl);
     };
 
-    world._onMonsterKilled = () => {
+    world._onMonsterKilled = (_monster) => {
       if (world._equippedWeapon) {
         audio.playWeaponSound(world._equippedWeapon, 'attack');
       } else {
@@ -947,6 +983,18 @@ async function init() {
       economy.addXp(25);
     };
     world._onPvPLose = () => audio.playSound('hit');
+    // 💰 استجابة استلام صندوق الموت — الذهب يُضاف فقط بعد تأكيد الخادم فعلياً
+    world._onDeathCrateClaimResponse = (res) => {
+      if (res.ok) {
+        economy.addRaw('gold', res.goldGained);
+        ui.showNotification(`💰 استلمت ${res.goldGained} 🪙 من الصندوق!`);
+        audio.playSound('collect');
+        ui.updateTopBar();
+      } else if (res.reason === 'too_far') {
+        // إعادة السماح بمحاولة استلام لاحقة إذا فشل بسبب البعد الفعلي
+        for (const crate of world._activeCrates?.values() || []) crate._claimRequested = false;
+      }
+    };
     world._onPvPReturn = async () => {
       await world.exitWorldMap();
     };
@@ -978,10 +1026,14 @@ async function init() {
     // تخزين مؤقت لتنظيف الفواصل لاحقاً
     const _gameIntervals = [];
 
-    // تنظيف الأدوات القديمة + السوق كل دقيقة
+    // تنظيف الأدوات القديمة + السوق كل دقيقة (وفحص فساد الطعام — مُقيَّد داخلياً بـ24 ساعة)
     _gameIntervals.push(setInterval(() => {
       droppedItems.cleanup();
       tradeMarket.cleanup();
+      const houseLevel = ui._landsState?.['b1']?.level || 1;
+      if (economy.checkFoodSpoilage(houseLevel)) {
+        ui.showNotification("🌾 فسد جزء من طعامك المتراكم — احفظه في مخزن القلعة أو أنفقه!");
+      }
     }, 60000));
     achievements._onUnlock = (a) => {
       ui.showNotification(`🏆 إنجاز: ${a.title} — ${a.desc}`);

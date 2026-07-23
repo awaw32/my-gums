@@ -29,7 +29,7 @@ function playerColor(username) {
 let _dropIdCounter = 0;
 const DROP_CLEANUP_MS = 60000;
 
-function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager }) {
+function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager }) {
 
   // تنظيف اللاعبين المنقطعين كل 10 ثوانٍ (مهلة 30 ثانية)
   setInterval(() => {
@@ -77,6 +77,7 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         weaponGemLevel: c.weaponGemLevel || 1,
         repTitle: c.repTitle || "محايد",
         repIcon: c.repIcon || "😐",
+        prestigeLevel: c.prestigeLevel || 0,
         last_active: Date.now()
       });
     });
@@ -212,6 +213,12 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
                 currentBid: active.currentBid, currentBidder: active.currentBidder, endsAt: active.endsAt,
               }));
             }
+          }
+        }
+        // 💀 مزامنة صناديق الموت النشطة (إن وُجدت) للاعب المنضمّ حديثاً
+        if (deathManager && ws.readyState === 1) {
+          for (const crate of deathManager.getActiveCrates()) {
+            ws.send(JSON.stringify({ type: "death_crate_spawn", ...crate }));
           }
         }
         broadcastWorld();
@@ -423,6 +430,16 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         const result = auctionManager.placeBid(username, msg.amount);
         if (ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "auction_bid_response", ...result }));
+        }
+      } else if (msg.type === "player_died" && username && deathManager) {
+        // 💀 موقع الموت يُقرأ من حالة اللاعب المتتبَّعة على الخادم، وليس من رسالة
+        // العميل — يمنع الادّعاء بالموت خارج الواحة بينما اللاعب فعلياً بداخلها
+        const client = worldClients.get(username);
+        if (client) deathManager.handlePlayerDeath(username, client.x, client.y);
+      } else if (msg.type === "death_crate_claim" && username && deathManager) {
+        const result = deathManager.claimCrate(username, msg.crateId);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "death_crate_claim_response", ...result }));
         }
       } else if (msg.type === "tribe_help" && username && allianceManager) {
         // 🆘 نداء نجدة — يرسل موقع اللاعب لكل أعضاء تحالفه فقط

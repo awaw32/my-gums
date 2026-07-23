@@ -222,7 +222,9 @@ export class TradeMarket {
       return false;
     }
 
-    const totalCost = listing.pricePerUnit * quantity;
+    // 💰 معامل السعر (سمعة + برستيج "التاجر" إن وُجد) يُطبَّق على تكلفة الشراء فقط
+    const priceMod = typeof this._priceModifier === "function" ? this._priceModifier() : (this._priceModifier || 1);
+    const totalCost = Math.floor(listing.pricePerUnit * quantity * priceMod);
 
     // تحقق من أن اللاعب لديه المال الكافي
     if (!this.economy.canAfford("cash", totalCost)) {

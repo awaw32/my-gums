@@ -55,6 +55,42 @@ export const RESEARCH_DEFS = {
       },
     },
   },
+  // 🏜️ بحوث سرية — تُقفل حتى يصل اللاعب برستيج "شيخ حكيم" (المستوى 3)
+  secret: {
+    id: "secret",
+    name: "البحوث السرية",
+    icon: "🔮",
+    prestigeRequired: 3,
+    skills: {
+      mirage: {
+        id: "mirage",
+        name: "سراب الصحراء",
+        maxLevel: 10,
+        baseCost: { cash: 500, gold: 20, desertGem: 1 },
+        costScale: 1.3,
+        effectDesc: "فرصة تفادي +2% لكل مستوى",
+        effectPerLevel: { dodgePercent: 2 },
+      },
+      ancientWisdom: {
+        id: "ancientWisdom",
+        name: "حكمة القدماء",
+        maxLevel: 10,
+        baseCost: { cash: 500, gold: 20, desertGem: 1 },
+        costScale: 1.3,
+        effectDesc: "خبرة +5% لكل مستوى",
+        effectPerLevel: { xpBonusPercent: 5 },
+      },
+      forbiddenAlchemy: {
+        id: "forbiddenAlchemy",
+        name: "الخيمياء المحرَّمة",
+        maxLevel: 10,
+        baseCost: { cash: 500, gold: 20, desertGem: 1 },
+        costScale: 1.3,
+        effectDesc: "إنتاج الجواهر +3% لكل مستوى",
+        effectPerLevel: { gemProduction: 3 },
+      },
+    },
+  },
 };
 
 export class ResearchTree {
@@ -63,11 +99,19 @@ export class ResearchTree {
     this.research = {}; // { "military.desertShield": level }
     this.academyLevel = 0;
     this.palaceLevel = 1;
+    this.prestigeLevel = 0; // يُضبط من main.js بعد إنشاء PrestigeManager
     this._onChanged = null;
   }
 
   getSkillDef(categoryId, skillId) {
     return RESEARCH_DEFS[categoryId]?.skills?.[skillId] || null;
+  }
+
+  isCategoryUnlocked(categoryId) {
+    const cat = RESEARCH_DEFS[categoryId];
+    if (!cat) return false;
+    if (!cat.prestigeRequired) return true;
+    return this.prestigeLevel >= cat.prestigeRequired;
   }
 
   getLevel(categoryId, skillId) {
@@ -89,6 +133,10 @@ export class ResearchTree {
   canUpgrade(categoryId, skillId) {
     const def = this.getSkillDef(categoryId, skillId);
     if (!def) return { allowed: false, reason: "مهارة غير معروفة" };
+    if (!this.isCategoryUnlocked(categoryId)) {
+      const required = RESEARCH_DEFS[categoryId].prestigeRequired;
+      return { allowed: false, reason: `🔒 يتطلب برستيج مستوى ${required}` };
+    }
     const key = `${categoryId}.${skillId}`;
     const current = this.research[key] || 0;
     if (current >= def.maxLevel) return { allowed: false, reason: "الحد الأقصى" };
@@ -118,7 +166,11 @@ export class ResearchTree {
   }
 
   getEffects() {
-    const effects = { defensePercent: 0, moveSpeedPercent: 0, endurancePercent: 0, goldProduction: 0, crystalProduction: 0, buildSpeed: 0 };
+    const effects = {
+      defensePercent: 0, moveSpeedPercent: 0, endurancePercent: 0,
+      goldProduction: 0, crystalProduction: 0, buildSpeed: 0,
+      dodgePercent: 0, xpBonusPercent: 0, gemProduction: 0,
+    };
     for (const [catId, cat] of Object.entries(RESEARCH_DEFS)) {
       for (const [skillId, skill] of Object.entries(cat.skills)) {
         const level = this.getLevel(catId, skillId);
@@ -131,7 +183,7 @@ export class ResearchTree {
   }
 
   getCategories() {
-    return Object.values(RESEARCH_DEFS);
+    return Object.values(RESEARCH_DEFS).filter(cat => this.isCategoryUnlocked(cat.id));
   }
 
   loadState(saved) {

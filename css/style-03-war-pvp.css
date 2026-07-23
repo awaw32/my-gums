@@ -338,7 +338,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   .top-res .res-val { min-width: 22px; font-size: 0.55rem; }
   .top-res .res-icon { font-size: 0.55rem; }
   .loading-bar-track { width: 200px; }
-  .nav-btn { min-height: 44px; min-width: 44px; }
+  .nav-btn { min-height: 48px; min-width: 48px; }
   #sub-bar .circular-sub-btn { min-width: 56px; }
   .panel-toggle-btn { width: 40px; height: 40px; font-size: 1rem; }
   .quick-upgrade-card { padding: 6px; }
@@ -389,7 +389,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   :root { --top-h: 44px; --sub-h: 56px; }
   #quick-panel { max-height: 80px; overflow-x: auto; flex-direction: row; padding: 2px 4px; }
   #sub-bar { height: 56px; overflow-x: auto; gap: 2px; padding: 2px 4px; }
-  #sub-bar .circular-sub-btn { min-width: 44px; height: 44px; font-size: 0.9rem; }
+  #sub-bar .circular-sub-btn { min-width: 48px; height: 48px; font-size: 0.9rem; }
   .csb-label { font-size: 0.45rem; }
   #quick-upgrade-bar { max-height: 50px; overflow-x: auto; padding: 2px 4px; gap: 4px; }
   .quick-upgrade-card { min-width: 100px; padding: 4px 6px; }
@@ -419,7 +419,7 @@ button, .nav-btn, .event-icon, .task-card, .world-exit-btn, .recenter-btn, .zoom
   .top-level-info { display: none; }
   .top-multiplier-section { gap: 2px; }
   .panel-toggle-btn { width: 32px; height: 32px; font-size: 0.8rem; }
-  .nav-btn { min-height: 36px; min-width: 36px; }
+  .nav-btn { min-height: 48px; min-width: 48px; }
   #bottom-bar { gap: 0; }
 }
 

@@ -37,6 +37,13 @@ export function injectWipeHudMethods(WorldMap) {
       this.economy.addXp(-Math.floor(killed * 5));
       if (this.netSync) this.netSync.sendPositionUpdate();
     }
+    // 💀 خوف الخسارة — إذا مات اللاعب خارج الواحة، يُخصم -15% ذهب و-50% ماء
+    // فعلياً على الخادم (سيرفر-موثوق)، وينشأ صندوق (death_crate) مكان الموت
+    // يظهر للجميع 3 دقائق. لا يُطبَّق أي خصم هنا على العميل مباشرة — فقط إشعار.
+    if (!this.isInSafeZone(this.leader.x, this.leader.y)) {
+      this._sendWS({ type: "player_died", x: this.leader.x, y: this.leader.y });
+      if (this.store) this.store.set('notification', { text: "😱 سقطت أمتعتك! عد قبل 3 دقائق!", t: Date.now() });
+    }
     this.sessionStats = { kills: 0, coinsEarned: 0, pvpWins: 0, upgradesToday: 0 };
     this.leader.hp = this.leader.maxHp;
     this.leader.x = this.W / 2;

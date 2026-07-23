@@ -84,6 +84,8 @@ const playerSchema = new mongoose.Schema({
   weeklyKills:    { type: Number, default: 0 },
   weekKey:        { type: Number, default: 0 },
   legendaryItems: { type: Array, default: [] }, // عناصر فاز بها اللاعب من مزاد الجمعة الأسطوري
+  lastFoodDecayCheck: { type: Number, default: 0 },
+  isNewPlayer: { type: Boolean, default: true }, // يُصبح false بعد إكمال قصة البداية FTUE
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);
@@ -118,6 +120,8 @@ function getDefaultPlayer(username) {
     currentChapter: 1,
     loadout: { bagLevel: 0, equippedWeapons: [], equippedItems: [] }, // 🆕 الشنطة (Loadout)
     legendaryItems: [],
+    lastFoodDecayCheck: 0,
+    isNewPlayer: true,
   };
 }
 

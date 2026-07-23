@@ -79,6 +79,15 @@ export function injectEntitiesMethods(WorldMap) {
       this._tribeHelpMarker = null;
     }
 
+    // 💀 صناديق الموت — ذهب سقط من لاعبين ماتوا خارج الواحة، يظهر للجميع
+    if (this._activeCrates && this._activeCrates.size > 0) {
+      for (const crate of this._activeCrates.values()) {
+        if (Date.now() >= crate.expiresAt) continue;
+        if (!this._isEntityVisible(crate.x, crate.y, 80)) continue;
+        ds.add(crate.x, crate.y - 20, (c) => this._drawDeathCrate(c, crate));
+      }
+    }
+
     // إضافة الـ drops
     for (const d of this.drops) {
       if (d.collected) continue;
@@ -197,6 +206,23 @@ export function injectEntitiesMethods(WorldMap) {
     ctx.fillStyle = "#FFD700";
     ctx.font = "bold 10px Cairo, sans-serif";
     ctx.fillText("قافلة ذهب", 0, -20 + bob);
+    ctx.restore();
+  };
+
+  /**
+   * 💀 صندوق الموت — ذهب سقط من لاعب مات خارج الواحة، أول من يصله يأخذه
+   */
+  WorldMap.prototype._drawDeathCrate = function (ctx, crate) {
+    ctx.save();
+    ctx.translate(crate.x, crate.y - 20);
+    const bob = Math.sin(Date.now() * 0.003) * 3;
+    ctx.font = "22px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("💰", 0, bob);
+    ctx.fillStyle = "#FFD700";
+    ctx.font = "bold 10px Cairo, sans-serif";
+    ctx.fillText(`${crate.goldLost} 🪙`, 0, -20 + bob);
     ctx.restore();
   };
 

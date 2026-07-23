@@ -82,12 +82,12 @@
   .weapon-shop-grid { gap: 6px; }
 }
 
-/* تحسين عام لحجم اللمس — كل الأزرار ≥44px */
+/* تحسين عام لحجم اللمس — كل الأزرار ≥48px (معيار إمكانية الوصول لأهداف اللمس) */
 button, .nav-btn, .action-btn, .shop-buy-btn, .promo-btn, .quick-upgrade-btn,
 .weapon-card-btn, .craft-btn, .upgrade-btn, .tab-btn, .daily-claim-btn,
 .prestige-btn, .offline-claim-btn, .pvp-defeat-btn, .hero-ability-btn,
 .lands-building, .quest-claim-btn, .alliance-raid-btn, .alliance-boss-btn {
-  min-height: 44px;
+  min-height: 48px;
 }
 .nav-btn { min-height: 52px; }
 .shop-buy-btn, .promo-btn, .weapon-card-btn { padding: 10px 16px !important; font-size: 0.75rem !important; }

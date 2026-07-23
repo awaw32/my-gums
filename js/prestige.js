@@ -1,14 +1,25 @@
+// 🏜️ البرستيج — 5 ألقاب صحراوية، كل واحد بقدرة فريدة بدل مضاعف قوة مسطّح
 const PRESTIGE_BONUSES = [
-  { level: 1, title: "المولود الجديد", dmgMult: 1.5, xpMult: 1.5, goldMult: 1.2, startCash: 500, startGold: 200, startGems: 25, unlockWeapon: 0, icon: "🌱",
-    desc: "قوة +50% | خبرة +50% | ذهب +20% | يبدأ بـ 500 💵 + 200 🪙 + 25 💎" },
-  { level: 2, title: "المحارب", dmgMult: 2.0, xpMult: 2.0, goldMult: 1.5, startCash: 1500, startGold: 600, startGems: 60, unlockWeapon: 2, icon: "⚔️",
-    desc: "قوة ×2 | خبرة ×2 | ذهب +50% | يبدأ بـ 1500 💵 + unlocks قوس طويل" },
-  { level: 3, title: "البطل", dmgMult: 2.8, xpMult: 2.5, goldMult: 2.0, startCash: 4000, startGold: 1500, startGems: 120, unlockWeapon: 3, icon: "🛡️",
-    desc: "قوة ×2.8 | خبرة ×2.5 | ذهب ×2 | يبدأ بـ 4000 💵 + unlocks رمح حديدي" },
-  { level: 4, title: "الأسطورة", dmgMult: 3.5, xpMult: 3.0, goldMult: 2.5, startCash: 10000, startGold: 4000, startGems: 250, unlockWeapon: 4, icon: "🔥",
-    desc: "قوة ×3.5 | خبرة ×3 | ذهب +150% | يبدأ بـ 10000 💵 + unlocks سيف دمشقي" },
-  { level: 5, title: "الإله", dmgMult: 5.0, xpMult: 4.0, goldMult: 3.0, startCash: 25000, startGold: 10000, startGems: 500, unlockWeapon: 5, icon: "👑",
-    desc: "قوة ×5 | خبرة ×4 | ذهب ×3 | يبدأ بـ 25000 💵 + unlocks قوس ناري" },
+  { level: 1, title: "قاطع طريق", icon: "🏴", dmgMult: 1.5, xpMult: 1.5, goldMult: 1.2,
+    startCash: 500, startGold: 200, startGems: 25, unlockWeapon: 0,
+    caravanGoldBonus: 0.25,
+    desc: "قاطع طريق! قوافل الذهب تمنحك +25% ذهب إضافي عند نهبها" },
+  { level: 2, title: "تاجر", icon: "💰", dmgMult: 2.0, xpMult: 2.0, goldMult: 1.5,
+    startCash: 1500, startGold: 600, startGems: 60, unlockWeapon: 2,
+    marketDiscount: 0.15,
+    desc: "تاجر ماهر! أسعار السوق أرخص لك بنسبة 15%" },
+  { level: 3, title: "شيخ حكيم", icon: "🧙", dmgMult: 2.8, xpMult: 2.5, goldMult: 2.0,
+    startCash: 4000, startGold: 1500, startGems: 120, unlockWeapon: 3,
+    unlockSecretResearch: true,
+    desc: "شيخ حكيم! فُتحت لك 3 بحوث سرية في شجرة المعرفة" },
+  { level: 4, title: "ملك الظل", icon: "🌑", dmgMult: 3.5, xpMult: 3.0, goldMult: 2.5,
+    startCash: 10000, startGold: 4000, startGems: 250, unlockWeapon: 4,
+    goldenTitle: true,
+    desc: "ملك الظل! لقب ذهبي يظهر بجانب اسمك أينما ذهبت" },
+  { level: 5, title: "ملك الصحراء", icon: "👑", dmgMult: 5.0, xpMult: 4.0, goldMult: 3.0,
+    startCash: 25000, startGold: 10000, startGems: 500, unlockWeapon: 5,
+    goldenTitle: true, crownVisible: true,
+    desc: "ملك الصحراء! تاج ولقب يراه كل اللاعبين بجانب اسمك" },
 ];
 
 export class PrestigeManager {
@@ -40,6 +51,28 @@ export class PrestigeManager {
   get startGold() { return this.currentBonus.startGold; }
   get startGems() { return this.currentBonus.startGems; }
   get unlockWeaponLevel() { return this.currentBonus.unlockWeapon; }
+
+  /** نسبة خصم السوق (برستيج "تاجر" فأعلى) — 1 = بلا خصم */
+  get marketPriceModifier() {
+    let discount = 0;
+    for (let i = 0; i < this.level; i++) discount = Math.max(discount, PRESTIGE_BONUSES[i].marketDiscount || 0);
+    return 1 - discount;
+  }
+
+  /** مضاعف ذهب القوافل (برستيج "قاطع طريق" فأعلى) — 1 = بلا بونص */
+  get caravanGoldMultiplier() {
+    let bonus = 0;
+    for (let i = 0; i < this.level; i++) bonus = Math.max(bonus, PRESTIGE_BONUSES[i].caravanGoldBonus || 0);
+    return 1 + bonus;
+  }
+
+  get hasGoldenTitle() {
+    return this.level > 0 && !!PRESTIGE_BONUSES[this.level - 1].goldenTitle;
+  }
+
+  get hasCrown() {
+    return this.level > 0 && !!PRESTIGE_BONUSES[this.level - 1].crownVisible;
+  }
 
   get canPrestige() {
     return this.economy.level >= this.economy.maxLevel && this.level < this.maxLevel;
@@ -100,6 +133,8 @@ export class PrestigeManager {
       title: this.currentBonus.title,
       icon: this.currentBonus.icon,
       desc: this.currentBonus.desc,
+      hasGoldenTitle: this.hasGoldenTitle,
+      hasCrown: this.hasCrown,
     };
   }
 

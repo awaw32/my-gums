@@ -67,6 +67,12 @@ export const STORY_DIALOGUES = {
       { speaker: "راوي", text: "ذئب الواحة! حامي الصحراء منذ آلاف السنين!", icon: "⚡", effect: "fire" },
       { speaker: "ذئب الواحة", text: "غرررر... من أنت يا بشري لتدخل أرضي؟!", icon: "🐺", effect: "dark" },
       { speaker: "أنت", text: "أنا من سيأخذ هذه الواحة! قاتل أو انسحب!", icon: "⚔️", effect: "fire" },
+    ],
+    // 🏜️ حوار الشيخ في مشهد FTUE الافتتاحي — بعد شاشة "احترقت واحة بني هلال" السوداء
+    ftueSheikh: [
+      { speaker: "الشيخ", text: "انهض يا ولدي! لا وقت للحزن على ما احترق", icon: "🧔", effect: "shake" },
+      { speaker: "الشيخ", text: "قافلتنا نجت، لكن اللصوص لن يتركونا بسلام", icon: "🏜️", effect: "sand" },
+      { speaker: "الشيخ", text: "خذ سيفك وتحرّك... أثبت أنك جدير بحماية قومك", icon: "⚔️", effect: "fire" },
     ]
   },
   palace_ruins: {

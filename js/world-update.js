@@ -107,6 +107,18 @@ export function injectUpdateMethods(WorldMap) {
       }
     }
 
+    // 💀 استلام صندوق الموت تلقائياً عند الاقتراب — السيرفر يتحقق من المسافة
+    // فعلياً قبل إعطاء الذهب (لا يُعتمد على فحص القرب هنا إلا كمُشغِّل للطلب)
+    if (this._activeCrates && this._activeCrates.size > 0) {
+      for (const crate of this._activeCrates.values()) {
+        if (crate._claimRequested) continue;
+        if (Math.hypot(crate.x - this.leader.x, crate.y - this.leader.y) < 60) {
+          crate._claimRequested = true;
+          this._sendWS({ type: "death_crate_claim", crateId: crate.id });
+        }
+      }
+    }
+
     this.checkWipe();
     // 🎁 إعادة ظهور صناديق الكنز بعد فتحها
     for (const c of this.treasureChests) {
@@ -134,6 +146,7 @@ export function injectUpdateMethods(WorldMap) {
     }
     if (this.mode === "battle_royale") this.updateBR(dt);
     if (this._activeMode) this._activeMode.update(dt);
+    if (this._ftue?.active) this._ftue.update(dt);
 
     // 🛡️ منع الكاميرا من الخروج عن حدود الخريطة الحالية إلى فراغ (تختلف الحدود حسب النمط)
     if (typeof cam.clamp === "function") cam.clamp(this.W, this.H);

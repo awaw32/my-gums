@@ -74,6 +74,8 @@ const PlayerSaveSchema = z.object({
   completedVillages: z.array(z.string()).max(50).optional(),
   currentChapter: z.number().int().min(1).max(100).optional(),
   legendaryItems: z.array(z.string()).max(50).optional(),
+  lastFoodDecayCheck: z.number().int().min(0).optional(),
+  isNewPlayer: z.boolean().optional(),
 }).strict();
 
 function sanitizePlayerData(data) {

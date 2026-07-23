@@ -456,13 +456,23 @@
   align-items: flex-start;
 }
 .world-exit-btn {
-  width: 36px; height: 36px;
-  border-radius: 50%;
+  min-width: 48px; min-height: 48px;
+  height: 48px;
+  border-radius: 24px;
+  padding: 0 14px;
   background: var(--bg-card);
   color: var(--text-primary);
   font-size: 1.1rem;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
   border: 1px solid var(--border-light);
+}
+.world-exit-btn .world-exit-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+@media (max-width: 380px) {
+  .world-exit-btn .world-exit-label { display: none; }
+  .world-exit-btn { width: 48px; padding: 0; border-radius: 50%; }
 }
 .world-action-btn {
   width: 36px; height: 36px;

@@ -388,6 +388,7 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   transition: all 0.2s;
   position: relative;
   min-width: 56px;
+  min-height: 48px;
 }
 .circular-sub-btn:active { transform: scale(0.92); }
 .circular-sub-btn.active { color: var(--accent-red); }

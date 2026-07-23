@@ -69,6 +69,13 @@ export class StoryManager {
     await this.cinematic.playDialogue(villageId, "boss");
   }
 
+  /** 🏜️ مشهد بداية FTUE — شاشة سوداء ثم حوار الشيخ، يُستدعى مرة واحدة للاعب الجديد فقط */
+  async playFTUEIntro() {
+    if (!this.cinematic) return;
+    await this.cinematic.playFTUEBlackScreen("سنة 1400 هـ... احترقت واحة بني هلال");
+    await this.cinematic.playDialogue("wadi", "ftueSheikh");
+  }
+
   async playVictoryScene() {
     if (!this.cinematic) return;
     const villageId = this.village.currentVillageId || "wadi";

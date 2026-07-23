@@ -96,6 +96,24 @@ export class GameEconomy {
     this.heat = 0;
     this.maxThirst = 100;
     this.maxHeat = 100;
+
+    // 🌾 فساد الطعام — كل 24 ساعة، إذا تجاوز 100 وليس محفوظاً في مخزن القلعة
+    // (بيت الزعيم Lv.5+ يُحسب كمخزن قلعة آمن)، يفسد 5% منه تشجيعاً على إنفاقه
+    this.lastFoodDecayCheck = Date.now();
+  }
+
+  /** يُستدعى دورياً (وليس كل فريم) — houseLevel من _landsState['b1'].level */
+  checkFoodSpoilage(houseLevel = 1) {
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    if (now - this.lastFoodDecayCheck < oneDayMs) return false;
+    this.lastFoodDecayCheck = now;
+    const inCastleStorage = houseLevel >= 5;
+    if (!inCastleStorage && this.resources.food > 100) {
+      this.resources.food = Math.floor(this.resources.food * 0.95);
+      return true;
+    }
+    return false;
   }
 
   drainThirst(amount) {

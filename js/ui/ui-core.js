@@ -747,8 +747,10 @@ export class GameUI {
     const dl = this.dailyLogin;
     const rep = this.reputation;
     const repTitle = rep ? rep.getTitle() : { icon: '😐', name: 'محايد' };
+    const prestige = this.prestige;
     const stats = [
       { icon: repTitle.icon, label: `السمعة (${repTitle.name})`, value: rep ? (rep.score > 0 ? '+' : '') + rep.score : '0' },
+      ...(prestige?.hasGoldenTitle ? [{ icon: prestige.currentBonus.icon, label: `لقب البرستيج (${prestige.currentBonus.title})`, value: prestige.hasCrown ? '👑 يراه الجميع' : '🌑 يراه الجميع' }] : []),
       { icon: '🏅', label: 'المستوى', value: eco?.level || 1 },
       { icon: '✨', label: 'الخبرة', value: `${(eco?.xp || 0).toLocaleString()} / ${(eco?.xpToNext || 100).toLocaleString()}` },
       { icon: '⚔️', label: 'القتل', value: (eco?.kills || 0).toLocaleString() },

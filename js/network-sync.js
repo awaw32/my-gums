@@ -170,7 +170,11 @@ export class NetworkSync {
       }
     }
     for (let i = w.monsters.length - 1; i >= 0; i--) {
-      if (!newIds.has(w.monsters[i].id)) {
+      const m = w.monsters[i];
+      // 🏜️ وحوش FTUE محلية بالكامل (سيناريو اللاعب الجديد) — لا تُدار من السيرفر
+      // إطلاقاً، فتُستثنى من مسح المزامنة لتفادي اختفائها فور أول بث world_monsters
+      if (m._ftueBandit) continue;
+      if (!newIds.has(m.id)) {
         w.monsters.splice(i, 1);
       }
     }
@@ -236,6 +240,7 @@ export class NetworkSync {
           weaponGemLevel: p.weaponGemLevel || 1,
           repTitle: p.repTitle || "محايد",
           repIcon: p.repIcon || "😐",
+          prestigeLevel: p.prestigeLevel || 0,
         });
       }
     }
@@ -272,7 +277,7 @@ export class NetworkSync {
         maxHp: Math.floor(w?.leader?.maxHp || 120),
         level: w?.economy?.level || 1,
         trainingLevel: w?.army?.trainingLevel || 1,
-        prestigeLevel: w?.economy?.prestigeLevel || 0,
+        prestigeLevel: w?._prestige?.level || 0,
         armyYardLevel: w?.economy?.armyYardLevel || 1,
         knowledgeLevel: w?.economy?.knowledgeLevel || 1,
         knowledgeType: w?.economy?.knowledgeType || "economic",
@@ -368,8 +373,10 @@ export class NetworkSync {
         if (mon && mon.alive) { mon.alive = false; mon.hp = 0; mon.respawnTimer = 25; }
         if (msg.killedBy === this.username && msg.loot && w.economy) {
           const loot = msg.loot;
+          // 🏜️ برستيج "قاطع طريق" (مستوى 1+): بونص ذهب من حراس القوافل تحديداً
+          const caravanBonus = mon?.isCaravanGuard ? (w._prestige?.caravanGoldMultiplier || 1) : 1;
           if (loot.cash > 0) w.economy.addRaw('cash', loot.cash);
-          if (loot.gold > 0) w.economy.addRaw('gold', loot.gold);
+          if (loot.gold > 0) w.economy.addRaw('gold', Math.floor(loot.gold * caravanBonus));
           if (w.createDrop && mon) w.createDrop(mon.x, mon.y, loot.cash, loot.gold);
           if (msg.bossLoot) {
             const bl = msg.bossLoot;
@@ -652,6 +659,18 @@ export class NetworkSync {
       // ==================== 🏅 لوحة الشرف الحية ====================
       case "leaderboard_update":
         w._liveLeaderboard = { richestTrader: msg.richestTrader, banditSlayer: msg.banditSlayer, topAlliance: msg.topAlliance, updatedAt: msg.updatedAt };
+        break;
+      // ==================== 💀 صندوق الموت ====================
+      case "death_crate_spawn":
+        if (!w._activeCrates) w._activeCrates = new Map();
+        w._activeCrates.set(msg.id, { id: msg.id, x: msg.x, y: msg.y, goldLost: msg.goldLost, ownerId: msg.ownerId, expiresAt: msg.expiresAt });
+        if (w.store) w.store.set('notification', { text: `💰 صندوق ذهب سقط في الصحراء! ${msg.goldLost} 🪙`, t: Date.now() });
+        break;
+      case "death_crate_despawn":
+        if (w._activeCrates) w._activeCrates.delete(msg.id);
+        break;
+      case "death_crate_claim_response":
+        if (w._onDeathCrateClaimResponse) w._onDeathCrateClaimResponse(msg);
         break;
       // ==================== 🏜️ العاصفة الرملية العالمية ====================
       case "sandstorm_warning":

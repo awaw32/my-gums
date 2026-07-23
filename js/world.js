@@ -667,10 +667,13 @@ export class WorldMap {
 
       ctx.save();
       ctx.translate(p.x, p.y);
-      ctx.fillStyle = "#fff";
+      // 🏜️ برستيج "ملك الظل"/"ملك الصحراء" (مستوى 4-5): لقب ذهبي يظهر للجميع بجانب الاسم
+      const prestigeBonus = p.prestigeLevel >= 4 ? { icon: p.prestigeLevel >= 5 ? "👑" : "🌑", color: "#FFD700" } : null;
+      const nameLabel = prestigeBonus ? `${prestigeBonus.icon} ${p.username}` : p.username;
+      ctx.fillStyle = prestigeBonus ? prestigeBonus.color : "#fff";
       ctx.font = "bold 11px Cairo, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(p.username, 0, -p.radius - 10);
+      ctx.fillText(nameLabel, 0, -p.radius - 10);
       ctx.restore();
 
       const hp = p.hp ?? p._hp ?? 120;
@@ -1364,8 +1367,9 @@ export class WorldMap {
     this.worldFx.push({ x: monster.x, y: monster.y - 10, text: dmgText, color: dmgColor, life: 0.8, maxLife: 0.8, size: isCrit ? 20 : 14 });
 
     if (monster.hp <= 0) {
-      if (this._onMonsterKilled) this._onMonsterKilled();
+      if (this._onMonsterKilled) this._onMonsterKilled(monster);
       if (this._activeMode) this._activeMode.onMonsterKilled(monster);
+      if (this._ftue?.active) this._ftue.onMonsterKilled(monster);
       monster.alive = false;
       monster.respawnTimer = 25;
 

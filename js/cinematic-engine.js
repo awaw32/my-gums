@@ -29,6 +29,18 @@ export class CinematicEngine {
     this.isPlaying = false;
   }
 
+  /**
+   * 🏜️ مشهد افتتاحي FTUE — شاشة سوداء نصية ("سنة 1400 هـ احترقت واحة بني هلال")
+   * ثم حوار الشيخ (يُمرَّر من الخارج عبر playDialogue)، بدون تكرار منطق العرض.
+   */
+  async playFTUEBlackScreen(text) {
+    this.isPlaying = true;
+    await this._showScene({ duration: 3500, text, icon: "🔥", bg: "#000000", effect: "dark" });
+    await this._wait(3500);
+    await this._fadeOut(600);
+    this.isPlaying = false;
+  }
+
   async playDialogue(villageId, sceneType) {
     const dialogues = getStoryDialogue(villageId, sceneType);
     if (dialogues.length === 0) return;
