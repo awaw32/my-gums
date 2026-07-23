@@ -38,8 +38,6 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     // ═══════════════════════════════════════════════════════════════
     if (req.url === "/api/auth/login" && req.method === "POST") {
       const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress;
-      let limiter = loginLimiters.get(ip);
-      if (!limiter) { limiter = makeRateLimiter({ maxPerSec: 999 }); loginLimiters.set(ip, limiter); }
       if (!loginLimiters.has(ip + "_count")) loginLimiters.set(ip + "_count", 0);
       if (!loginLimiters.has(ip + "_time")) loginLimiters.set(ip + "_time", Date.now());
       const loginCount = loginLimiters.get(ip + "_count") + 1;
