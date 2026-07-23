@@ -49,6 +49,7 @@ GameUI.prototype.openMarket = function() {
         <button class="market-tab active" data-tab="buy">🛒 شراء</button>
         <button class="market-tab" data-tab="sell">📦 بيع</button>
         <button class="market-tab" data-tab="convert">🔄 تبادل</button>
+        <button class="market-tab" data-tab="auction">🏆 مزاد الجمعة</button>
       </div>
 
       <div id="market-tab-buy" class="market-tab-content">
@@ -101,6 +102,10 @@ GameUI.prototype.openMarket = function() {
         </div>
       </div>
 
+      <div id="market-tab-auction" class="market-tab-content" style="display:none">
+        <div id="market-auction-content"></div>
+      </div>
+
       <div class="market-footer">
         <span>رسوم السوق: 5%</span>
         <span id="market-my-listings">قوائمي: 0</span>
@@ -117,6 +122,65 @@ GameUI.prototype.openMarket = function() {
   this._renderMarketBuyListings(overlay);
   this._renderMarketSellList(overlay);
   this._bindConvert(overlay);
+  this._renderAuctionTab(overlay);
+  this._auctionRefreshTimer = setInterval(() => {
+    if (document.getElementById('market-overlay')) this._renderAuctionTab(overlay);
+    else clearInterval(this._auctionRefreshTimer);
+  }, 1000);
+};
+
+// 🏆 مزاد الجمعة الأسطوري
+GameUI.prototype._renderAuctionTab = function(overlay) {
+  const container = overlay.querySelector('#market-auction-content');
+  if (!container) return;
+  const auction = this.world?._activeAuction;
+  if (!auction) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:30px 12px;color:#7a6a5a">
+        <div style="font-size:2.2rem;margin-bottom:8px">🏆</div>
+        <div style="font-weight:700;margin-bottom:4px">لا يوجد مزاد نشط حالياً</div>
+        <div style="font-size:0.75rem">مزاد الجمعة الأسطوري يبدأ كل جمعة الساعة 8 مساءً بتوقيت السعودية!</div>
+      </div>`;
+    return;
+  }
+  const remainingMs = Math.max(0, auction.endsAt - Date.now());
+  const mins = Math.floor(remainingMs / 60000);
+  const secs = Math.floor((remainingMs % 60000) / 1000);
+  const isMe = auction.currentBidder === this.world?.username;
+  container.innerHTML = `
+    <div style="text-align:center;padding:16px 12px">
+      <div style="font-size:3rem;margin-bottom:6px">${auction.icon}</div>
+      <div style="font-weight:800;font-size:1.05rem;color:#ffd700;margin-bottom:4px">${auction.name}</div>
+      <div style="font-size:0.8rem;color:#9a8a6a;margin-bottom:10px">⏳ الوقت المتبقي: ${mins}:${String(secs).padStart(2, '0')}</div>
+      <div style="background:rgba(212,160,23,0.1);border:1px solid #d4a01755;border-radius:12px;padding:10px;margin-bottom:12px">
+        <div style="font-size:0.7rem;color:#9a8a6a">أعلى مزايدة حالياً</div>
+        <div style="font-size:1.3rem;font-weight:900;color:#ffd700">${auction.currentBid} 🪙</div>
+        <div style="font-size:0.75rem;color:${isMe ? '#4cd964' : '#f5e6c8'}">${auction.currentBidder ? `بواسطة: ${auction.currentBidder}${isMe ? ' (أنت!)' : ''}` : 'لا يوجد مزايدون بعد'}</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;align-items:center">
+        <input type="number" id="auction-bid-input" placeholder="مبلغ المزايدة" min="${auction.currentBid + 50}" style="flex:1;max-width:160px;padding:10px;border-radius:8px;border:1px solid #d4a01755;background:var(--bg-input,#1a1208);color:#f5e6c8;text-align:center;font-family:inherit" />
+        <button id="auction-bid-btn" style="padding:10px 18px;border:none;border-radius:8px;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;font-weight:800;cursor:pointer;font-family:inherit">زايد!</button>
+      </div>
+    </div>
+  `;
+  const bidBtn = container.querySelector('#auction-bid-btn');
+  const bidInput = container.querySelector('#auction-bid-input');
+  if (bidBtn && bidInput) {
+    bidBtn.addEventListener('click', () => {
+      const amount = parseInt(bidInput.value, 10) || 0;
+      if (amount < auction.currentBid + 50) {
+        this.showNotification(`❌ المزايدة يجب أن تكون ${auction.currentBid + 50} 🪙 على الأقل`);
+        return;
+      }
+      this.world?._sendWS({ type: 'auction_bid', amount });
+      this.world._onAuctionBidResponse = (res) => {
+        if (res.ok) this.showNotification('✅ تمت مزايدتك بنجاح!');
+        else if (res.reason === 'insufficient_gold') this.showNotification('❌ ذهب غير كافٍ');
+        else if (res.reason === 'bid_too_low') this.showNotification(`❌ المزايدة منخفضة جداً — الحد الأدنى ${res.minBid} 🪙`);
+        else this.showNotification('❌ تعذّرت المزايدة');
+      };
+    });
+  }
 };
 
 GameUI.prototype._bindMarketTabs = function(overlay) {

@@ -83,6 +83,7 @@ const playerSchema = new mongoose.Schema({
   pushSubscription: { type: Object, default: null },
   weeklyKills:    { type: Number, default: 0 },
   weekKey:        { type: Number, default: 0 },
+  legendaryItems: { type: Array, default: [] }, // عناصر فاز بها اللاعب من مزاد الجمعة الأسطوري
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);
@@ -116,6 +117,7 @@ function getDefaultPlayer(username) {
     completedVillages: [],
     currentChapter: 1,
     loadout: { bagLevel: 0, equippedWeapons: [], equippedItems: [] }, // 🆕 الشنطة (Loadout)
+    legendaryItems: [],
   };
 }
 

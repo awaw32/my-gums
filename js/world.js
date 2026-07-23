@@ -152,6 +152,9 @@ export class WorldMap {
     this._monsterAbilityTimers = {};
     this._sandstormActive = false;
     this._sandstormTimer = 0;
+    // 🏜️ عاصفة رملية عالمية (تختلف عن _sandstormActive أعلاه وهو تأثير قدرة وحش/زعيم
+    // ضيق) — حالة عالمية يبثّها السيرفر لكل اللاعبين معاً كل 20 دقيقة لمدة 90 ثانية.
+    this._globalSandstormActive = false;
     this._stompSlowTimer = 0;
     this._telegraphs = [];
 
@@ -967,7 +970,7 @@ export class WorldMap {
       const dist = Math.hypot(dx, dy);
 
       if (dist > h.attackRange) {
-        const slowMult = this._stompSlowTimer > 0 ? 0.5 : 1;
+        const slowMult = (this._stompSlowTimer > 0 ? 0.5 : 1) * this._thirstSlowMult();
         h.x += (dx / dist) * h.speed * dt * slowMult;
         h.y += (dy / dist) * h.speed * dt * slowMult;
       } else {
@@ -1043,10 +1046,15 @@ export class WorldMap {
     if (dist < 8) {
       h.pathIdx++;
     } else {
-      const slowMult = this._stompSlowTimer > 0 ? 0.5 : 1;
+      const slowMult = (this._stompSlowTimer > 0 ? 0.5 : 1) * this._thirstSlowMult();
       h.x += (dx / dist) * h.speed * dt * slowMult;
       h.y += (dy / dist) * h.speed * dt * slowMult;
     }
+  }
+
+  // 🏜️ العطش المنخفض (<20) يبطئ الحركة 30% — تحفيز للعودة للواحة
+  _thirstSlowMult() {
+    return this.economy && this.economy.thirst < 20 ? 0.7 : 1;
   }
 
   updateArmy(dt) {
@@ -1350,10 +1358,10 @@ export class WorldMap {
       this.engine.shake(shakeIntensity, 0.1);
     }
 
-    // نص الضرر يظهر
+    // نص الضرر يظهر — الضربة الحرجة أكبر حجماً لإحساس "juice" أوضح
     const dmgText = isCrit ? `💥 ${finalDmg}!` : `-${finalDmg}`;
     const dmgColor = isCrit ? "#ffd700" : "#ff6b35";
-    this.worldFx.push({ x: monster.x, y: monster.y - 10, text: dmgText, color: dmgColor, life: 0.8, maxLife: 0.8 });
+    this.worldFx.push({ x: monster.x, y: monster.y - 10, text: dmgText, color: dmgColor, life: 0.8, maxLife: 0.8, size: isCrit ? 20 : 14 });
 
     if (monster.hp <= 0) {
       if (this._onMonsterKilled) this._onMonsterKilled();

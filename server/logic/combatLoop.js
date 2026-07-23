@@ -3,10 +3,16 @@
 const { getEnemyForLevel, calculateEnemyPower } = require("../data/enemies");
 const metrics = require("../metrics");
 
+// 🏜️ عاصفة رملية عالمية — كل 20 دقيقة لمدة 90 ثانية، رؤية أقل ووحوش نادرة x2
+const SANDSTORM_INTERVAL_MS = 20 * 60 * 1000;
+const SANDSTORM_DURATION_MS = 90 * 1000;
+const SANDSTORM_WARNING_MS = 15 * 1000; // تحذير قبل 15 ثانية من البدء
+
 function createCombatLoop(deps) {
-  const { rooms, broadcast, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2, broadcastBus, isOwner = true } = deps;
+  const { rooms, broadcast, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2, broadcastBus, isOwner = true, caravanManager = null } = deps;
 
   let lastTickTime = performance.now();
+  let globalSandstormActive = false;
 
   function getAveragePlayerLevel() {
     const clients = Array.from(worldClients.values());
@@ -116,15 +122,21 @@ function createCombatLoop(deps) {
   }
 
   const monsterInterval = isOwner ? setInterval(() => {
+    // 🐫 حراس القافلة يتحركون كوحدة واحدة من A إلى B (وليس دورية عشوائية حول
+    // نقطة الظهور) — يُحدَّثون هنا مرة واحدة قبل حلقة الوحوش العادية.
+    if (caravanManager) caravanManager.stepCaravanGuards(0.3);
+
     for (const m of worldMonsters) {
       if (!m.alive) {
-        m.respawnTimer -= 0.3;
+        // 🏜️ أثناء العاصفة الرملية العالمية: الوحوش تُعاد x2 أسرع (أشبه بمضاعفة الظهور)
+        m.respawnTimer -= globalSandstormActive ? 0.6 : 0.3;
         if (m.respawnTimer <= 0) {
+          if (m.isCaravanGuard) continue; // حراس القافلة لا يُعاد إحياؤهم — القافلة تنتهي بموتهم
           m.alive = true; m.hp = m.maxHp;
           m.x = m.spawnX; m.y = m.spawnY;
           m._spawnTime = Date.now();
         }
-      } else {
+      } else if (!m.isCaravanGuard) {
         if (!m._patrolTarget || Math.hypot(m.x - m._patrolTarget.x, m.y - m._patrolTarget.y) < 12) {
           m._patrolTarget = {
             x: m.spawnX + (Math.random() - 0.5) * 150,
@@ -171,12 +183,39 @@ function createCombatLoop(deps) {
     });
   }, 300) : null;
 
+  // 🏜️ عاصفة رملية عالمية — تبث لجميع المتصلين، وتُدار على النسخة المالكة فقط
+  function broadcastToAll(message) {
+    const msg = JSON.stringify(message);
+    worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(msg); });
+  }
+
+  function scheduleNextSandstorm() {
+    setTimeout(() => {
+      broadcastToAll({ type: "sandstorm_warning" });
+      setTimeout(() => {
+        globalSandstormActive = true;
+        broadcastToAll({ type: "sandstorm_start", durationMs: SANDSTORM_DURATION_MS });
+        setTimeout(() => {
+          globalSandstormActive = false;
+          broadcastToAll({ type: "sandstorm_end" });
+          scheduleNextSandstorm();
+        }, SANDSTORM_DURATION_MS);
+      }, SANDSTORM_WARNING_MS);
+    }, SANDSTORM_INTERVAL_MS - SANDSTORM_WARNING_MS);
+  }
+  if (isOwner) scheduleNextSandstorm();
+
+  function isSandstormActive() {
+    return globalSandstormActive;
+  }
+
   return {
     tickTimer,
     monsterInterval,
     poisonInterval,
     initWorldMonsters,
     gameTick,
+    isSandstormActive,
   };
 }
 

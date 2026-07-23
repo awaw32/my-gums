@@ -49,10 +49,34 @@ export function injectEntitiesMethods(WorldMap) {
     ds.clear();
 
     // إضافة الوحوش
+    let caravanGuardsAlive = null;
     for (const m of this.monsters) {
       if (!m.alive) continue;
       if (!this._isEntityVisible(m.x, m.y, m.radius + 60)) continue;
       ds.add(m.x, m.y, (c) => this._drawMonsterEntity(c, m));
+      if (m.isCaravanGuard) {
+        if (!caravanGuardsAlive) caravanGuardsAlive = [];
+        caravanGuardsAlive.push(m);
+      }
+    }
+
+    // 🐫 أيقونة الجمل — تُرسم فوق حراس القافلة الأحياء لتمييزها بصرياً كقافلة تتحرك
+    if (caravanGuardsAlive && caravanGuardsAlive.length > 0) {
+      const cx = caravanGuardsAlive.reduce((s, g) => s + g.x, 0) / caravanGuardsAlive.length;
+      const cy = caravanGuardsAlive.reduce((s, g) => s + g.y, 0) / caravanGuardsAlive.length;
+      if (this._isEntityVisible(cx, cy, 80)) {
+        ds.add(cx, cy - 30, (c) => this._drawCaravanIcon(c, cx, cy - 30));
+      }
+    }
+
+    // 🆘 أيقونة نداء النجدة — حمراء لمدة 60 ثانية عند مكان النداء
+    if (this._tribeHelpMarker && Date.now() < this._tribeHelpMarker.expiresAt) {
+      const marker = this._tribeHelpMarker;
+      if (this._isEntityVisible(marker.x, marker.y, 80)) {
+        ds.add(marker.x, marker.y - 30, (c) => this._drawTribeHelpMarker(c, marker));
+      }
+    } else if (this._tribeHelpMarker) {
+      this._tribeHelpMarker = null;
     }
 
     // إضافة الـ drops
@@ -156,6 +180,41 @@ export function injectEntitiesMethods(WorldMap) {
     ctx.textAlign = "center";
     ctx.fillText(m.name, 0, -m.radius - 18);
 
+    ctx.restore();
+  };
+
+  /**
+   * 🐫 أيقونة الجمل — تمييز بصري لقافلة الذهب المتحركة (لا تستبدل رسم الحراس أنفسهم)
+   */
+  WorldMap.prototype._drawCaravanIcon = function (ctx, x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    const bob = Math.sin(Date.now() * 0.002) * 3;
+    ctx.font = "24px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("🐫", 0, bob);
+    ctx.fillStyle = "#FFD700";
+    ctx.font = "bold 10px Cairo, sans-serif";
+    ctx.fillText("قافلة ذهب", 0, -20 + bob);
+    ctx.restore();
+  };
+
+  /**
+   * 🆘 أيقونة نداء النجدة — تنبيه أحمر نابض لمكان طلب أحد أعضاء القبيلة للنجدة
+   */
+  WorldMap.prototype._drawTribeHelpMarker = function (ctx, marker) {
+    ctx.save();
+    ctx.translate(marker.x, marker.y - 30);
+    const pulse = 1 + Math.sin(Date.now() * 0.008) * 0.15;
+    ctx.scale(pulse, pulse);
+    ctx.font = "26px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("🆘", 0, 0);
+    ctx.fillStyle = "#ff4444";
+    ctx.font = "bold 10px Cairo, sans-serif";
+    ctx.fillText(`نجدة: ${marker.playerName || ""}`, 0, -22);
     ctx.restore();
   };
 

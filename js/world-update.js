@@ -1,5 +1,10 @@
 import { getBossPhaseConfig, updateBossEnrage } from "./combat/epic-bosses.js";
 
+// 🏜️ معدلات استنزاف العطش/الحرارة خارج الواحة — يفرغ العطش خلال ~125 ثانية تقريباً
+const THIRST_DRAIN_PER_SEC = 0.8;
+const HEAT_GAIN_BASE_PER_SEC = 0.5;
+const HEAT_GAIN_DEHYDRATED_PER_SEC = 1.2;
+
 export function injectUpdateMethods(WorldMap) {
   WorldMap.prototype.update = function (dt, ctx, cam) {
     this._glowTime = (this._glowTime || 0) + dt;
@@ -14,6 +19,15 @@ export function injectUpdateMethods(WorldMap) {
     if (this._spriteFrameTimer >= this._spriteFrameInterval) {
       this._spriteFrameTimer -= this._spriteFrameInterval;
       this._spriteFrame = (this._spriteFrame + 1) % 4;
+    }
+
+    // 🏜️ العطش والحرارة — يستنزفان طالما اللاعب خارج الواحة (على الخريطة).
+    // هذه الدالة لا تُستدعى إطلاقاً إلا أثناء تشغيل الخريطة (this.running)، لذا
+    // لا حاجة لشرط إضافي هنا.
+    if (this.economy) {
+      this.economy.drainThirst(THIRST_DRAIN_PER_SEC * dt);
+      const heatRate = this.economy.thirst <= 0 ? HEAT_GAIN_DEHYDRATED_PER_SEC : HEAT_GAIN_BASE_PER_SEC;
+      this.economy.gainHeat(heatRate * dt);
     }
 
     this.updateLeader(dt);
@@ -158,6 +172,8 @@ export function injectUpdateMethods(WorldMap) {
     ctx.restore();
 
     this.drawArmyHUD(dt, ctx);
+    this.drawDehydrationVignette(ctx);
+    this.drawSandstormOverlay(ctx);
     this.drawPvPMenu(ctx, cam);
     // 🛡️ واجهة BR (المؤقت/اللاعبون/القتلى) عنصر DOM واحد فقط (#br-timer/#br-players/#br-kills) — لا نسخة مكررة على الـ canvas
     if (this._activeMode) this._activeMode.drawUI(ctx);

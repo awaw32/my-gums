@@ -657,7 +657,6 @@ async function init() {
       const result = origArmyUpgrade();
       if (result) {
         achievements.updateProgress('army_level', this.unitLevel);
-        quests.updateProgress('train', 1);
         window._firstSteps?.notify('train');
       }
       return result;
@@ -897,7 +896,6 @@ async function init() {
       achievements.updateProgress('kills', 1);
       hero.addXp(15);
       economy.addXp(10);
-      quests.updateProgress('kill', 1);
       window._firstSteps?.notify('kill');
 
       // 🎁 إسقاط عناصر عشوائية من الوحوش (فرصة 15%)
@@ -956,7 +954,6 @@ async function init() {
     // توصيل الإنجازات والمهام
     economy._onGoldEarned = (amount) => {
       achievements.updateProgress('gold_earned', amount);
-      quests.updateProgress('collect', amount);
     };
     inventory._onCrafted = () => {
       achievements.updateProgress('crafts', 1);
@@ -992,11 +989,6 @@ async function init() {
       spawnGoldBurst(window.innerWidth / 2, window.innerHeight / 2);
     };
 
-    quests._onQuestCompleted = (q) => {
-      ui.showNotification(`📜 اكتملت المهمة: ${q.title} — حصلت على المكافأة!`);
-      audio.playSound('levelup');
-      spawnGoldBurst(window.innerWidth / 2, window.innerHeight / 2);
-    };
 
     // توصيل القصة — عرض مشاهد الفصل التالي بعد إكمال الفصل الحالي
     storyManager._onChapterComplete = (chapter) => {
@@ -1224,6 +1216,18 @@ async function init() {
       const { openPvPTargetsPanel } = await import('./ui/pvp-targets.js');
       openPvPTargetsPanel(world);
     });
+
+    // 🆘 زر النجدة! — يرسل موقع اللاعب لكل أعضاء قبيلته
+    document.getElementById('tribe-help-btn')?.addEventListener('click', () => {
+      world._sendWS({ type: 'tribe_help', x: world.leader.x, y: world.leader.y });
+      ui.showNotification('🆘 أرسلت نداء النجدة إلى قبيلتك!');
+    });
+    world._onTribeHelp = (x, y, playerName) => {
+      if (playerName !== world.username) {
+        ui.showNotification(`🆘 ${playerName} يطلب النجدة! اذهب لمساعدته على الخريطة`);
+        audio.playSound('levelup');
+      }
+    };
     const brVictoryBtn = document.getElementById('br-victory-btn');
     const brDefeatBtn = document.getElementById('br-defeat-btn');
     const brZoneWarningEl = document.getElementById('br-zone-warning');
@@ -1374,6 +1378,9 @@ async function init() {
 
     // تشغيل الأحداث الدورية
     const TICK_INTERVAL = 15000; // 15 ثانية لكل tick
+    // 🏜️ معدلات تعافي العطش/الحرارة داخل الواحة (أسرع من الاستنزاف لتشجيع العودة)
+    const THIRST_RECOVERY_PER_SEC = 3;
+    const HEAT_COOLDOWN_PER_SEC = 2;
     let eventTimer = 0;
     let lastPowerCheck = economy.power;
     let lastTickTime = performance.now();
@@ -1408,6 +1415,12 @@ async function init() {
       allianceManager.tickRaidCooldown(dt);
       if (warManager) warManager.tick(dt);
       hero.tick(dt);
+
+      // 🏜️ العطش والحرارة يتعافيان فقط داخل الواحة (خارج شاشة الخريطة)
+      if (!world.running) {
+        economy.restoreThirst(THIRST_RECOVERY_PER_SEC * dt);
+        economy.coolDown(HEAT_COOLDOWN_PER_SEC * dt);
+      }
       
       // الأحداث
       eventTimer += dt;

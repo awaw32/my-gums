@@ -73,6 +73,7 @@ const PlayerSaveSchema = z.object({
   researchTree: z.record(z.any()).optional(),
   completedVillages: z.array(z.string()).max(50).optional(),
   currentChapter: z.number().int().min(1).max(100).optional(),
+  legendaryItems: z.array(z.string()).max(50).optional(),
 }).strict();
 
 function sanitizePlayerData(data) {

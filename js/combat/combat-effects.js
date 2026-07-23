@@ -44,6 +44,10 @@ export function drawPathLine(worldMap, ctx, _cam) {
 // ==================== جزيئات الضربات ====================
 
 export function spawnHitEffect(worldMap, x, y, isCrit, _weaponId) {
+  // 🎯 Hit-stop بصري فقط عند الضربة الحرجة — 4 إطارات (~66ms عند 60fps)
+  if (isCrit && worldMap.engine) {
+    worldMap.engine.freeze = 4;
+  }
   const count = isCrit ? 8 : 3;
   const speedMul = isCrit ? 2 : 1;
   for (let i = 0; i < count; i++) {

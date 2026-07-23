@@ -88,6 +88,30 @@ export class GameEconomy {
     this.knowledgeType = 'economic';
     this._prestige = null; // مرجع لـ PrestigeManager للبونصات
     this._events = null; // مرجع لـ EventManager للمضاعفات
+
+    // 🏜️ العطش والحرارة — مقياسان شخصيان (0-100)، منفصلان عن مورد "الماء"
+    // التجاري (resources.water غير مستخدم بعد كمادة بناء). يستنزفان فقط
+    // خارج الواحة (شاشة الخريطة)، ويتعافيان في القرية.
+    this.thirst = 100;
+    this.heat = 0;
+    this.maxThirst = 100;
+    this.maxHeat = 100;
+  }
+
+  drainThirst(amount) {
+    this.thirst = Math.max(0, this.thirst - amount);
+  }
+
+  restoreThirst(amount) {
+    this.thirst = Math.min(this.maxThirst, this.thirst + amount);
+  }
+
+  gainHeat(amount) {
+    this.heat = Math.min(this.maxHeat, this.heat + amount);
+  }
+
+  coolDown(amount) {
+    this.heat = Math.max(0, this.heat - amount);
   }
 
   get power() {

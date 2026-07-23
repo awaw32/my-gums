@@ -177,7 +177,7 @@ export function injectRenderMethods(WorldMap) {
       const alpha = fx.life / fx.maxLife;
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fx.color;
-      ctx.font = "bold 14px Cairo, sans-serif";
+      ctx.font = `bold ${fx.size || 14}px Cairo, sans-serif`;
       ctx.textAlign = "center";
       ctx.fillText(fx.text, fx.x, fx.y - (1 - alpha) * 20);
       ctx.globalAlpha = 1;

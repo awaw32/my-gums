@@ -304,6 +304,21 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   border-color: var(--accent-red-soft);
   color: var(--accent-red);
 }
+.thirst-res {
+  background: rgba(52, 152, 219, 0.1);
+  border-color: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+}
+.thirst-res.low-warning { animation: thirstPulse 1s ease-in-out infinite; }
+.heat-res {
+  background: rgba(230, 126, 34, 0.08);
+  border-color: rgba(230, 126, 34, 0.18);
+  color: #e67e22;
+}
+@keyframes thirstPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
 .top-res .res-icon { font-size: 0.65rem; width:16px; height:16px; vertical-align:middle; }
 .inv-item-img, .lod-icon-img, .craft-res-icon { width:20px; height:20px; vertical-align:middle; border-radius:3px; object-fit:contain; }
 .ug-icon-img { width:32px; height:32px; border-radius:6px; object-fit:contain; }

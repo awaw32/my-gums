@@ -440,7 +440,13 @@ export class NetworkSync {
         if (w.store) w.store.set('notification', { text: `🚪 ${msg.username} خرج من الصحراء`, t: Date.now() });
         break;
       case "broadcast_chat":
-        if (w._onChatMessage) w._onChatMessage(msg.username, msg.message);
+        if (w._onChatMessage) w._onChatMessage(msg.username, msg.message, msg.channel);
+        break;
+      case "tribe_help":
+        // 🆘 أيقونة حمراء على الخريطة لمدة 60 ثانية عند مكان النداء
+        w._tribeHelpMarker = { x: msg.x, y: msg.y, playerName: msg.playerName, expiresAt: Date.now() + 60000 };
+        if (w.store) w.store.set('notification', { text: `🆘 ${msg.playerName} يطلب النجدة!`, t: Date.now() });
+        if (w._onTribeHelp) w._onTribeHelp(msg.x, msg.y, msg.playerName);
         break;
       case "party_created":
         if (w._onPartyCreated) w._onPartyCreated(msg.code);
@@ -605,6 +611,59 @@ export class NetworkSync {
         break;
       case "alliance_roster_updated":
         if (w._onAllianceEvent) w._onAllianceEvent("alliance_roster_updated", msg);
+        break;
+      // ==================== 🐫 رسائل القوافل ====================
+      case "caravan_spawn":
+        w._activeCaravan = { id: msg.id, x: msg.x, y: msg.y, toX: msg.toX, toY: msg.toY, gold: msg.gold };
+        if (w.store) w.store.set('notification', { text: `🐫 قافلة ذهب ظهرت في الصحراء! ادمر حراسها لتنهبها`, t: Date.now() });
+        break;
+      case "caravan_despawn":
+        if (w._activeCaravan && w._activeCaravan.id === msg.id) w._activeCaravan = null;
+        break;
+      // ==================== 🏆 مزاد الجمعة الأسطوري ====================
+      case "auction_start":
+        w._activeAuction = {
+          itemId: msg.itemId, name: msg.name, icon: msg.icon,
+          currentBid: msg.startingBid, currentBidder: null, endsAt: msg.endsAt,
+        };
+        if (w.store) w.store.set('notification', { text: `🏆 مزاد الجمعة بدأ! ${msg.icon} ${msg.name}`, t: Date.now() });
+        break;
+      case "auction_bid":
+        if (w._activeAuction && w._activeAuction.itemId === msg.itemId) {
+          w._activeAuction.currentBid = msg.currentBid;
+          w._activeAuction.currentBidder = msg.currentBidder;
+          w._activeAuction.endsAt = msg.endsAt;
+        }
+        break;
+      case "auction_end":
+        if (w._activeAuction && w._activeAuction.itemId === msg.itemId) {
+          if (w.store) {
+            const text = msg.winner
+              ? `🏆 فاز ${msg.winner} بـ ${msg.icon} ${msg.name} مقابل ${msg.finalBid} 🪙!`
+              : `🏆 انتهى مزاد ${msg.icon} ${msg.name} بلا فائز`;
+            w.store.set('notification', { text, t: Date.now() });
+          }
+          w._activeAuction = null;
+        }
+        break;
+      case "auction_bid_response":
+        if (w._onAuctionBidResponse) w._onAuctionBidResponse(msg);
+        break;
+      // ==================== 🏅 لوحة الشرف الحية ====================
+      case "leaderboard_update":
+        w._liveLeaderboard = { richestTrader: msg.richestTrader, banditSlayer: msg.banditSlayer, topAlliance: msg.topAlliance, updatedAt: msg.updatedAt };
+        break;
+      // ==================== 🏜️ العاصفة الرملية العالمية ====================
+      case "sandstorm_warning":
+        if (w.store) w.store.set('notification', { text: `🏜️ عاصفة رملية قادمة! احتموا!`, t: Date.now() });
+        break;
+      case "sandstorm_start":
+        w._globalSandstormActive = true;
+        if (w.store && msg.durationMs > 0) w.store.set('notification', { text: `🏜️ العاصفة الرملية بدأت! رؤيتك محدودة والوحوش النادرة تكثر`, t: Date.now() });
+        break;
+      case "sandstorm_end":
+        w._globalSandstormActive = false;
+        if (w.store) w.store.set('notification', { text: `☀️ انتهت العاصفة الرملية`, t: Date.now() });
         break;
       // ==================== 🏪 رسائل السوق ====================
       case "market_listing_new":

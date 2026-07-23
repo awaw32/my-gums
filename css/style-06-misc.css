@@ -862,6 +862,25 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
 }
 .daily-milestone-count { font-size: 0.62rem; color: var(--text-secondary, #7d6b5a); text-align: left; direction: ltr; }
 
+/* ====== 🏛️ مجلس الشيوخ ====== */
+.daily-council-intro { font-size: 0.75rem; color: var(--text-secondary, #7d6b5a); text-align: center; margin-bottom: 10px; }
+.daily-loyal-title {
+  background: rgba(212, 160, 23, 0.12);
+  border: 1px solid var(--gold, #d4a017);
+  border-radius: 12px; padding: 8px 12px; margin-bottom: 10px;
+  font-size: 0.72rem; color: var(--text-primary, #3b2f24); text-align: center;
+}
+.daily-wisdom {
+  font-size: 0.75rem; color: var(--text-primary, #3b2f24); text-align: center;
+  font-style: italic; padding: 8px 10px; margin-bottom: 10px;
+  border-right: 3px solid var(--gold, #d4a017);
+  background: rgba(0,0,0,0.03); border-radius: 8px;
+}
+.daily-day.daily-legendary {
+  border-color: var(--gold, #d4a017);
+  background: linear-gradient(135deg, rgba(212,160,23,0.15), rgba(255,215,0,0.08));
+}
+
 /* ====== تبويبات الترتيب ====== */
 .ranking-tabs { display: flex; gap: 8px; padding: 4px 0 10px; }
 .ranking-tab {

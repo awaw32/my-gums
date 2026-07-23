@@ -9,6 +9,17 @@ const generatePartyCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 6);
 
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c] || c); }
 
+// 🧹 فلتر كلمات عربي بسيط — يستبدل الكلمات المسيئة الشائعة بنجوم قبل البث
+const CHAT_BAD_WORDS = ["كلب", "حمار", "غبي", "خرا", "قحبة", "منيك", "زبي", "كسم"];
+function filterChatMessage(text) {
+  let out = text;
+  for (const word of CHAT_BAD_WORDS) {
+    const re = new RegExp(word, "gi");
+    out = out.replace(re, "*".repeat(word.length));
+  }
+  return out;
+}
+
 function playerColor(username) {
   let h = 0;
   for (let i = 0; i < username.length; i++) h = username.charCodeAt(i) + ((h << 5) - h);
@@ -18,7 +29,7 @@ function playerColor(username) {
 let _dropIdCounter = 0;
 const DROP_CLEANUP_MS = 60000;
 
-function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, broadcastBus }) {
+function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager }) {
 
   // تنظيف اللاعبين المنقطعين كل 10 ثوانٍ (مهلة 30 ثانية)
   setInterval(() => {
@@ -182,6 +193,27 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         });
         ws.send(JSON.stringify({ type: "world_monsters", list: worldMonsters }));
         ws.send(JSON.stringify({ type: "world_drops", list: worldDrops }));
+        // 🏜️ مزامنة العاصفة الرملية العالمية النشطة (إن وُجدت) للاعب المنضمّ حديثاً
+        if (combatSystem.isSandstormActive && combatSystem.isSandstormActive() && ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "sandstorm_start", durationMs: 0 }));
+        }
+        // 🏆 مزامنة مزاد الجمعة النشط (إن وُجد) للاعب المنضمّ حديثاً
+        if (auctionManager) {
+          const active = auctionManager.getActiveAuction();
+          if (active && ws.readyState === 1) {
+            ws.send(JSON.stringify({
+              type: "auction_start",
+              itemId: active.itemId, name: active.name, icon: active.icon,
+              startingBid: active.currentBid, endsAt: active.endsAt,
+            }));
+            if (active.currentBidder) {
+              ws.send(JSON.stringify({
+                type: "auction_bid", itemId: active.itemId,
+                currentBid: active.currentBid, currentBidder: active.currentBidder, endsAt: active.endsAt,
+              }));
+            }
+          }
+        }
         broadcastWorld();
         const joinMsg = JSON.stringify({ type: "player_joined", username });
         worldClients.forEach((c) => {
@@ -280,6 +312,15 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
               bossLoot: mon.isBoss ? { artifacts: loot.artifacts, desertGem: loot.desertGem, cashBonus: loot.cashBonus } : null,
             });
             worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(killMsg); });
+
+            // 🐫 إذا كان هذا حارس قافلة، تحقّق إن مات كل حراسها لإنهاء القافلة فوراً
+            if (mon.isCaravanGuard && caravanManager) {
+              const active = caravanManager.getActiveCaravan();
+              if (active && active.id === mon.caravanId) {
+                const anyGuardAlive = worldMonsters.some(m => active.guardIds.includes(m.id) && m.alive);
+                if (!anyGuardAlive) caravanManager.despawnCaravan("killed");
+              }
+            }
           }
         }
       } else if (msg.type === "pvp_attack" && username) {
@@ -355,10 +396,46 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         });
         worldClients.forEach((cl) => { if (cl.ws.readyState === 1) cl.ws.send(pvpMsg); });
       } else if (msg.type === "chat" && username) {
-        const chatPayload = { username: esc(username), message: esc(String(msg.message || "").slice(0, 200)) };
-        const chatMsg = JSON.stringify({ type: "broadcast_chat", ...chatPayload });
-        worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });
-        if (broadcastBus) broadcastBus.publish("chat", chatPayload);
+        // 🗨️ دردشة 3 قنوات: عام (الجميع)، قبلي (أعضاء التحالف فقط)، همس (مستلم واحد)
+        const channel = ["general", "alliance", "whisper"].includes(msg.channel) ? msg.channel : "general";
+        const cleanMessage = filterChatMessage(String(msg.message || "").slice(0, 200));
+        const chatPayload = { username: esc(username), message: esc(cleanMessage), channel };
+
+        if (channel === "whisper") {
+          const targetName = String(msg.target || "");
+          const target = worldClients.get(targetName);
+          const whisperMsg = JSON.stringify({ type: "broadcast_chat", ...chatPayload });
+          if (target && target.ws.readyState === 1) target.ws.send(whisperMsg);
+          if (ws.readyState === 1) ws.send(whisperMsg); // صدى للمرسل نفسه ليرى رسالته
+        } else if (channel === "alliance") {
+          if (allianceManager) {
+            const alliance = allianceManager.getMyAlliance(username);
+            if (alliance) {
+              allianceManager.broadcastToMembers(alliance, { type: "broadcast_chat", ...chatPayload });
+            }
+          }
+        } else {
+          const chatMsg = JSON.stringify({ type: "broadcast_chat", ...chatPayload });
+          worldClients.forEach((c) => { if (c.ws.readyState === 1) c.ws.send(chatMsg); });
+          if (broadcastBus) broadcastBus.publish("chat", chatPayload);
+        }
+      } else if (msg.type === "auction_bid" && username && auctionManager) {
+        const result = auctionManager.placeBid(username, msg.amount);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "auction_bid_response", ...result }));
+        }
+      } else if (msg.type === "tribe_help" && username && allianceManager) {
+        // 🆘 نداء نجدة — يرسل موقع اللاعب لكل أعضاء تحالفه فقط
+        const alliance = allianceManager.getMyAlliance(username);
+        if (alliance) {
+          const client = worldClients.get(username);
+          allianceManager.broadcastToMembers(alliance, {
+            type: "tribe_help",
+            x: client?.x ?? msg.x,
+            y: client?.y ?? msg.y,
+            playerName: esc(username),
+          });
+        }
       } else if (msg.type && msg.type.startsWith("war_") && warManager && username) {
         // 🏜️ معالج رسائل الحرب القبلية
         const result = warManager.handleMessage(msg, username, ws);

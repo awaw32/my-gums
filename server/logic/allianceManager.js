@@ -386,6 +386,7 @@ function createAllianceManager(deps) {
     getTribePower,
     summarize,
     handleMessage,
+    broadcastToMembers,
   };
 }
 

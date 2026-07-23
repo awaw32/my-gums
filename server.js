@@ -62,12 +62,20 @@ const WORLD_W2 = 2400, WORLD_H2 = 2400;
 const SAFE_ZONE = { x: WORLD_W2 / 2 - 120, y: WORLD_H2 / 2 - 120, w: 240, h: 240 };
 const worldClients = new Map();
 
+// 🐫 القوافل العشوائية — يجب إنشاؤها قبل combatLoop لأن حلقة الوحوش تستدعي
+// stepCaravanGuards في كل تكة (300ms) لتحريك القافلة كوحدة واحدة A→B.
+const { createCaravanManager } = require("./server/logic/caravan-manager");
+const caravanManager = createCaravanManager({
+  worldMonsters, worldClients, WORLD_W2, WORLD_H2,
+});
+
 const { createCombatLoop } = require("./server/logic/combatLoop");
 const combatSystem = createCombatLoop({
   rooms, broadcast,
   WORLD_W, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2,
-  broadcastBus, isOwner: SIM_OWNER,
+  broadcastBus, isOwner: SIM_OWNER, caravanManager,
 });
+if (SIM_OWNER) caravanManager.initCaravans();
 
 const {
   TRIBAL_RANKS, getRank, createAllianceRecord, saveAlliance, getAlliance,
@@ -95,6 +103,17 @@ const warManager = createWarManager({
   getAlliance,
 });
 
+// 🏆 مزاد الجمعة الأسطوري — نسخة واحدة فقط (SIM_OWNER) تشغّل المؤقّت لتفادي مزادات مكررة
+const { createAuctionManager } = require("./server/logic/auction-manager");
+const auctionManager = createAuctionManager({ worldClients, memStore, getDefaultPlayer, markDirty });
+if (SIM_OWNER) auctionManager.scheduleNextAuction();
+
+// 🏅 لوحة الشرف الحية — تُعاد حسابها كل 60 ثانية على نسخة واحدة فقط
+const { allianceMemStore } = require("./server/db/allianceHelper");
+const { createLeaderboardManager } = require("./server/logic/leaderboard-manager");
+const leaderboardManager = createLeaderboardManager({ worldClients, memStore, allianceMemStore, allianceManager });
+if (SIM_OWNER) leaderboardManager.start();
+
 const { createWorldHandler } = require("./server/network/worldHandler");
 const handleWorldConnection = createWorldHandler({
   rooms, worldMonsters, worldDrops, worldClients,
@@ -104,7 +123,7 @@ const handleWorldConnection = createWorldHandler({
   computeKnowledgeUpgradeCost, computeKnowledgeBonuses,
   claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades,
   applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, sanitizePlayerData,
-  warManager, allianceManager, broadcastBus,
+  warManager, allianceManager, caravanManager, broadcastBus, auctionManager,
 });
 
 // 🔔 تذكير دوري بالهدية المجانية للاعبين غير المتصلين — no-op بلا مفاتيح VAPID

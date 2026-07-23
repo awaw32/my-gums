@@ -139,6 +139,13 @@ class GameEngine {
     this._shakeOffsetX = 0;
     this._shakeOffsetY = 0;
 
+    // ─── Hit-Stop (بصري فقط) ──────────────────────────────────────
+    // freeze > 0: نمرر dt=0 لـ update() لعدد الإطارات المتبقية بدل الـ dt
+    // الحقيقي، فيتجمّد الحس البصري (حركة/رسوم متحركة) للحظة عند الضربة
+    // الحرجة، دون أي أثر على مزامنة الشبكة (تعمل بمؤقّتها الخاص المستقل
+    // تماماً عن dt، غير متأثرة إطلاقاً بهذا التجميد).
+    this.freeze = 0;
+
     // ─── Timing ─────────────────────────────────────────────────
     this.lastTime   = performance.now();
     this.deltaTime  = 0;
@@ -250,7 +257,12 @@ class GameEngine {
     this.ctx.translate(-cx, -cy);
 
     if (this._onUpdate) {
-      this._onUpdate(this.deltaTime, this.ctx, this.camera);
+      // 🎯 Hit-stop بصري فقط: نمرر dt=0 لعدد الإطارات المتبقية بدل الحقيقي —
+      // الحركة/الرسوم المتحركة تتجمّد للحظة، لكن مزامنة الشبكة (بمؤقّتها
+      // المستقل) لا تتأثر إطلاقاً.
+      const updateDt = this.freeze > 0 ? 0 : this.deltaTime;
+      if (this.freeze > 0) this.freeze--;
+      this._onUpdate(updateDt, this.ctx, this.camera);
     }
 
     this.ctx.restore();

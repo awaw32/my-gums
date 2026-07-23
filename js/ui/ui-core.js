@@ -134,14 +134,20 @@ export class GameUI {
     this._chatMessageCache = [];
     const chatInput = document.getElementById("chat-input");
     const chatSend = document.getElementById("chat-send-btn");
+    const whisperTarget = document.getElementById("chat-whisper-target");
     if (chatInput && chatSend) {
       chatSend.addEventListener("click", () => {
         const text = chatInput.value.trim();
-        if (text && this.world) {
+        if (!text || !this.world) return;
+        if (this._chatChannel === "whisper") {
+          const target = whisperTarget?.value.trim();
+          if (!target) { this.showNotification('❌ اكتب اسم المستلم أولاً'); return; }
+          this.world._sendWS({ type: "chat", message: text, channel: "whisper", target });
+        } else {
           this.world._sendWS({ type: "chat", message: text, channel: this._chatChannel });
-          chatInput.value = "";
-          if (this.achievements) this.achievements.updateProgress('chat_messages', 1);
         }
+        chatInput.value = "";
+        if (this.achievements) this.achievements.updateProgress('chat_messages', 1);
       });
       chatInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") chatSend.click();
@@ -152,6 +158,7 @@ export class GameUI {
         document.querySelectorAll(".chat-tab").forEach(t => t.classList.remove("active"));
         tab.classList.add("active");
         this._chatChannel = tab.dataset.channel;
+        if (whisperTarget) whisperTarget.classList.toggle("hidden", this._chatChannel !== "whisper");
         this._filterChatMessages();
       });
     });
@@ -485,13 +492,14 @@ export class GameUI {
     const channel = this._chatChannel || "general";
     const filtered = channel === "general"
       ? this._chatMessageCache
-      : this._chatMessageCache.filter(m => m.channel === "alliance");
+      : this._chatMessageCache.filter(m => m.channel === channel);
     this._chatMessages.innerHTML = "";
     for (const m of filtered) {
       const el = document.createElement("div");
       el.className = "chat-msg";
       const isMe = m.username === this.world?.username;
       if (m.channel === "alliance") el.style.borderRight = "2px solid #d97706";
+      if (m.channel === "whisper") el.style.borderRight = "2px solid #9b59b6";
       const author = document.createElement("span");
       author.className = "chat-author";
       author.style.color = isMe ? '#4cd964' : '#FFD700';
@@ -627,6 +635,10 @@ export class GameUI {
       foodDisplay: document.getElementById("food-display"),
       powerDisplay: document.getElementById("power-display"),
       gemsDisplay: document.getElementById("gems-display"),
+      thirstDisplay: document.getElementById("thirst-display"),
+      heatDisplay: document.getElementById("heat-display"),
+      topThirst: document.getElementById("top-thirst"),
+      topHeat: document.getElementById("top-heat"),
       levelLabel: document.getElementById("level-label"),
       levelFill: document.getElementById("level-fill"),
       levelAmount: document.getElementById("level-amount"),
@@ -649,7 +661,6 @@ export class GameUI {
     this.screens.daily = this.buildDailyLoginScreen();
     this.screens.oases = this.buildOasesScreen();
     this.screens.quests = this.buildQuestsScreen();
-    this.screens.challenges = this.buildChallengesScreen();
     this.screens.mystats = this.buildMyStatsScreen();
     this.screens.settings = this.buildSettingsScreen();
     this.screens.market = this.buildMarketScreen();
@@ -701,7 +712,7 @@ export class GameUI {
   buildDailyLoginScreen() {
     const div = document.createElement("div");
     div.className = "screen-panel";
-    div.innerHTML = `<div class="panel-header">📅 المكافآت اليومية</div><div id="daily-content"></div>`;
+    div.innerHTML = `<div class="panel-header">🏛️ مجلس الشيوخ</div><div id="daily-content"></div>`;
     return div;
   }
 
@@ -711,16 +722,6 @@ export class GameUI {
     div.innerHTML = `
       <div class="panel-header">📜 المهام</div>
       <div id="quests-content"></div>
-    `;
-    return div;
-  }
-
-  buildChallengesScreen() {
-    const div = document.createElement("div");
-    div.className = "screen-panel";
-    div.innerHTML = `
-      <div class="panel-header">⚔️ التحديات اليومية</div>
-      <div id="challenges-content"></div>
     `;
     return div;
   }
@@ -735,207 +736,15 @@ export class GameUI {
     return div;
   }
 
-  renderChallenges() {
-    const container = document.getElementById("challenges-content");
-    if (!container) return;
-    
-    // تحديات يومية عشوائية
-    const challenges = this._getDailyChallenges();
-    const completed = this._getCompletedChallenges();
-    
-    let html = '<div class="challenges-grid">';
-    for (const ch of challenges) {
-      const isCompleted = completed.includes(ch.id);
-      const progress = this._getChallengeProgress(ch);
-      const canClaim = isCompleted && !this._isChallengeClaimed(ch.id);
-      
-      html += `
-        <div class="challenge-card${isCompleted ? ' challenge-done' : ''}">
-          <div class="challenge-icon">${ch.icon}</div>
-          <div class="challenge-info">
-            <div class="challenge-title">${ch.title}</div>
-            <div class="challenge-desc">${ch.desc}</div>
-            <div class="challenge-progress">
-              <div class="challenge-progress-track">
-                <div class="challenge-progress-fill" style="width:${Math.min(100, (progress / ch.target) * 100)}%"></div>
-              </div>
-              <span class="challenge-progress-text">${progress}/${ch.target}</span>
-            </div>
-            <div class="challenge-reward">🏆 ${ch.reward}</div>
-          </div>
-          ${canClaim ? `<button class="action-btn challenge-claim-btn" data-challenge="${ch.id}">📦 استلم</button>` : ''}
-        </div>
-      `;
-    }
-    html += '</div>';
-    
-    container.innerHTML = html;
-    
-    // أزرار استلام المكافآت
-    container.querySelectorAll('.challenge-claim-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const chId = btn.dataset.challenge;
-        if (this._claimChallenge(chId)) {
-          this.showNotification('✅ تم استلام المكافأة!');
-          this.renderChallenges();
-          this.updateTopBar();
-        }
-      });
-    });
-  }
-
-  _getDailyChallenges() {
-    // تحديات يومية ثابتة (يمكن جعلها عشوائية لاحقاً)
-    return [
-      {
-        id: 'daily_kills',
-        title: 'صائد الوحوش',
-        desc: 'اقتل 20 وحشاً',
-        icon: '⚔️',
-        target: 20,
-        type: 'kills',
-        reward: '500 🪙 + 50 💎'
-      },
-      {
-        id: 'daily_pvp',
-        title: 'محترف القتال',
-        desc: 'اربح 3 معارك PvP',
-        icon: '🛡️',
-        target: 3,
-        type: 'pvp_wins',
-        reward: '1000 💰 + 30 💎'
-      },
-      {
-        id: 'daily_gold',
-        title: 'جامع الذهب',
-        desc: 'اجمع 2000 ذهب',
-        icon: '🪙',
-        target: 2000,
-        type: 'gold_earned',
-        reward: '500 🔨 + 100 📜'
-      },
-      {
-        id: 'daily_buildings',
-        title: 'المهندس',
-        desc: 'طوّر 5 مباني',
-        icon: '🏗️',
-        target: 5,
-        type: 'upgrades',
-        reward: '300 💰 + 20 💎'
-      }
-    ];
-  }
-
-  _getCompletedChallenges() {
-    // جلب من localStorage
-    try {
-      const saved = localStorage.getItem('desert_challenges');
-      if (!saved) return [];
-      const data = JSON.parse(saved);
-      const today = new Date().toDateString();
-      if (data.date !== today) {
-        localStorage.setItem('desert_challenges', JSON.stringify({ date: today, completed: [], claimed: [] }));
-        return [];
-      }
-      return data.completed || [];
-    } catch {
-      return [];
-    }
-  }
-
-  _isChallengeClaimed(chId) {
-    try {
-      const saved = localStorage.getItem('desert_challenges');
-      if (!saved) return false;
-      const data = JSON.parse(saved);
-      const today = new Date().toDateString();
-      if (data.date !== today) return false;
-      return (data.claimed || []).includes(chId);
-    } catch {
-      return false;
-    }
-  }
-
-  _getChallengeProgress(challenge) {
-    // تقدم التحدي من الإحصائيات الحالية
-    if (challenge.type === 'kills') return this.world?.sessionStats?.kills || 0;
-    if (challenge.type === 'pvp_wins') return this.world?.sessionStats?.pvpWins || 0;
-    if (challenge.type === 'gold_earned') return this.world?.sessionStats?.coinsEarned || 0;
-    if (challenge.type === 'upgrades') {
-      // حساب عدد الترقيات اليوم
-      return this._getTodayUpgrades();
-    }
-    return 0;
-  }
-
-  _getTodayUpgrades() {
-    // يمكن تتبع الترقيات في sessionStats
-    return this.world?.sessionStats?.upgradesToday || 0;
-  }
-
-  _claimChallenge(chId) {
-    const claimed = this._isChallengeClaimed(chId);
-    if (claimed) return false;
-    
-    const challenges = this._getDailyChallenges();
-    const ch = challenges.find(c => c.id === chId);
-    if (!ch) return false;
-    
-    const progress = this._getChallengeProgress(ch);
-    if (progress < ch.target) return false;
-    
-    // حفظ كـ مكتمل ومستلم
-    try {
-      const saved = localStorage.getItem('desert_challenges');
-      const data = saved ? JSON.parse(saved) : { date: new Date().toDateString(), completed: [], claimed: [] };
-      if (data.date !== new Date().toDateString()) {
-        data.date = new Date().toDateString();
-        data.completed = [];
-        data.claimed = [];
-      }
-      if (!data.completed.includes(chId)) data.completed.push(chId);
-      data.claimed.push(chId);
-      localStorage.setItem('desert_challenges', JSON.stringify(data));
-    } catch {}
-    
-    // إعطاء المكافأة
-    this._giveChallengeReward(ch);
-    return true;
-  }
-
-  _giveChallengeReward(challenge) {
-    // تحليل المكافأة من حقل reward في تعريف التحدي
-    // تنسيق reward: "500 🪙 + 50 💎" — الأرقام متبوعة بأيقونة المورد
-    const iconToResource = {
-      '🪙': 'gold', '💰': 'cash', '💎': 'gems',
-      '🔨': 'hammers', '📜': 'scrolls', '🌾': 'food',
-    };
-    const rewardText = challenge.reward || '';
-    const parts = rewardText.split('+').map(s => s.trim());
-    for (const part of parts) {
-      const match = part.match(/(\d+)\s*(.+)/);
-      if (match) {
-        const amount = parseInt(match[1], 10);
-        const icon = match[2].trim();
-        const resource = iconToResource[icon];
-        if (resource && amount > 0) {
-          this.economy.addRaw(resource, amount);
-        }
-      }
-    }
-  }
-
   renderMyStats() {
     const container = document.getElementById("mystats-content");
     if (!container) return;
     const eco = this.economy;
     const ach = this.achievements;
-    const q = this.quests;
     const w = this.world;
     const completedAch = ach ? ach.achievements.filter(a => a.completed).length : 0;
     const totalAch = ach ? ach.achievements.length : 0;
-    const dailyDone = q ? q.dailyQuests.filter(d => d.progress >= d.target).length : 0;
-    const dailyTotal = q ? q.dailyQuests.length : 0;
+    const dl = this.dailyLogin;
     const rep = this.reputation;
     const repTitle = rep ? rep.getTitle() : { icon: '😐', name: 'محايد' };
     const stats = [
@@ -947,7 +756,7 @@ export class GameUI {
       { icon: '🪙', label: 'إجمالي الذهب', value: (eco?.totalEarned?.gold || 0).toLocaleString() },
       { icon: '💎', label: 'إجمالي الجواهر', value: (eco?.totalEarned?.gems || 0).toLocaleString() },
       { icon: '🏆', label: 'الإنجازات', value: `${completedAch} / ${totalAch}` },
-      { icon: '📜', label: 'المهام اليومية', value: `${dailyDone} / ${dailyTotal}` },
+      { icon: '🏛️', label: 'سلسلة مجلس الشيوخ', value: dl ? `${dl.streak} يوم${dl.loyalTitleEarned ? ` (${dl.loyalTitle})` : ''}` : '0 يوم' },
       { icon: '🔨', label: 'التصنيعات', value: (ach?.achievements.find(a => a.type === 'crafts')?.progress || 0).toLocaleString() },
       { icon: '👑', label: 'انتصارات PvP', value: (ach?.achievements.find(a => a.type === 'pvp_wins')?.progress || 0).toLocaleString() },
       { icon: '🌴', label: 'الواحات المحتلة', value: (ach?.achievements.find(a => a.type === 'oases')?.progress || 0).toLocaleString() },
@@ -1170,8 +979,8 @@ export class GameUI {
     const storyManager = window._storyManager;
     const storyChapter = storyManager ? storyManager.currentChapterData : null;
     const canCompleteStory = storyManager ? storyManager.canCompleteChapter() : false;
-    const dailyQuests = this.quests.getDailyQuests();
-    
+    const allianceMissions = this.quests.getAllianceMissions();
+
     let html = '';
     
     // القصة الرئيسية
@@ -1195,13 +1004,13 @@ export class GameUI {
       html += '<div class="quest-story-complete">✅ أكملت جميع الفصول المتاحة!</div>';
     }
     
-    // المهام اليومية
-    html += '<div class="quests-section-title">📋 المهام اليومية</div>';
-    if (!dailyQuests || dailyQuests.length === 0) {
-      html += '<div class="empty-state" style="padding:20px"><div class="empty-state-icon">📋</div><div class="empty-state-title">لا مهام اليوم</div><div class="empty-state-desc">كل المهام اكتملت! استعد غداً لمهام جديدة.</div></div>';
+    // مهام التحالف
+    html += '<div class="quests-section-title">🤝 مهام التحالف</div>';
+    if (!allianceMissions || allianceMissions.length === 0) {
+      html += '<div class="empty-state" style="padding:20px"><div class="empty-state-icon">🤝</div><div class="empty-state-title">لا مهام تحالف</div><div class="empty-state-desc">انضم إلى تحالف لرؤية مهامه.</div></div>';
     } else {
     html += '<div class="quests-list">';
-    for (const quest of dailyQuests) {
+    for (const quest of allianceMissions) {
       const progress = Math.min(100, (quest.progress / quest.target) * 100);
       const completed = quest.progress >= quest.target;
       html += `
@@ -1214,17 +1023,15 @@ export class GameUI {
           <div class="quest-progress-track">
             <div class="quest-progress-fill" style="width:${progress}%"></div>
           </div>
-          <div class="quest-reward">🏆 ${Object.entries(quest.reward).map(([k,v]) => `${v} ${k === 'gold' ? '🪙' : k === 'gems' ? '💎' : '💵'}`).join(' + ')}</div>
+          <div class="quest-reward">🏆 ${Object.entries(quest.reward).map(([k,v]) => `${v} ${k === 'gold' ? '🪙' : k === 'alliancePoints' ? '🤝' : '💵'}`).join(' + ')}</div>
         </div>
       `;
     }
     html += '</div>';
     }
-    
+
     container.innerHTML = html;
-    
-    this._updateQuestBadge();
-    
+
     // زر إكمال الفصل
     const advanceBtn = document.getElementById('quest-advance-btn');
     if (advanceBtn) {
@@ -1238,19 +1045,6 @@ export class GameUI {
           this.showNotification('❌ أكمل جميع مباني القرية أولاً');
         }
       });
-    }
-  }
-
-  _updateQuestBadge() {
-    if (!this.quests) return;
-    const badge = document.getElementById('badge-quests');
-    if (!badge) return;
-    const completable = this.quests.dailyQuests.filter(q => q.progress >= q.target).length;
-    if (completable > 0) {
-      badge.textContent = completable;
-      badge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden');
     }
   }
 
@@ -1329,7 +1123,6 @@ export class GameUI {
       case "daily": this.renderDailyLogin(); break;
       case "oases": this.renderOases(); break;
       case "quests": this.renderQuests(); break;
-      case "challenges": this.renderChallenges(); break;
       case "mystats": this.renderMyStats(); break;
       case "settings": this.renderSettings(); break;
       case "market": this.renderMarket(); break;
@@ -1686,13 +1479,20 @@ export class GameUI {
            <div class="daily-milestone-count">${state.streak} / ${nm.streak}</div>
          </div>`
       : '';
+    const titleHtml = state.loyalTitleEarned
+      ? `<div class="daily-loyal-title">🏅 لقبك الحالي: <b>${state.loyalTitle}</b> — يا ${state.loyalTitle}، حافظ على سلسلتك لتبقيه!</div>`
+      : '';
+    const todayReward = state.rewards[state.currentDay % 7];
     container.innerHTML = `
+      <div class="daily-council-intro">🏛️ يرحب بك مجلس الشيوخ يا بطل — احضر يومياً واكسب حكمة الصحراء ومكافآتها</div>
       <div class="daily-streak${state.streak >= 3 ? ' daily-streak-hot' : ''}">🔥 سلسلتك: <b>${state.streak}</b> يوم متتالٍ${state.streakBonusPercent > 0 ? ` — مكافآتك أقوى بـ <b>+${state.streakBonusPercent}%</b>` : ''}</div>
-      <div class="daily-streak-warn">⚠️ يوم غياب واحد يُصفّر السلسلة!</div>
+      <div class="daily-streak-warn">⚠️ يوم غياب واحد يعيد سلسلتك ليوم واحد ويُفقدك لقب "${state.loyalTitle}"!</div>
+      ${titleHtml}
       ${milestoneHtml}
+      <div class="daily-wisdom">📜 حكمة اليوم: «${todayReward.wisdom}»</div>
       <div class="daily-grid">
         ${state.rewards.map((r, i) => `
-          <div class="daily-day${i === state.currentDay % 7 && state.canClaim ? ' daily-today' : ''}${i < state.currentDay % 7 ? ' daily-done' : ''}">
+          <div class="daily-day${i === state.currentDay % 7 && state.canClaim ? ' daily-today' : ''}${i < state.currentDay % 7 ? ' daily-done' : ''}${r.isLegendaryChest ? ' daily-legendary' : ''}">
             <div class="daily-day-num">اليوم ${r.day}</div>
             <div class="daily-reward-icon">${r.icon}</div>
             <div class="daily-reward-label">${r.label}</div>
@@ -1709,9 +1509,13 @@ export class GameUI {
         // ربط احتفال المعالم قبل الاستلام
         const { celebrate } = await import("../celebrations.js");
         this.dailyLogin._onMilestone = (m) => celebrate("mode_win", `🏅 ${m.label} +${m.gems} 💎`);
+        this.dailyLogin._onLoyalTitleLost = () => this.showNotification(`💔 يا شيخ، فقدت لقب "${this.dailyLogin.loyalTitle}" بسبب انقطاعك عن مجلس الشيوخ!`);
         if (this.dailyLogin.claim()) {
           const s = this.dailyLogin.getState();
-          if (s.currentDay === 7) celebrate("level_up", "🔥 أسبوع كامل من الولاء!");
+          if (s.currentDay === 7) {
+            celebrate("level_up", `🔥 أسبوع كامل من الولاء! نلت لقب "${s.loyalTitle}"`);
+            this.showNotification(`👑 مجلس الشيوخ يمنحك لقب "${s.loyalTitle}"!`);
+          }
           this.renderDailyLogin();
           this.updateTopBar();
           if (this.reputation) {
@@ -1796,6 +1600,21 @@ export class GameUI {
     if (this.els.gemsDisplay) {
       this.els.gemsDisplay.textContent = formatNumber(eco.gems || 0);
     }
+    // 🏜️ شريطا العطش/الحرارة — يظهران فقط أثناء وجود اللاعب على الخريطة (خارج الواحة)
+    const onMap = !!(this.world && this.world.running);
+    if (this.els.topThirst) {
+      this.els.topThirst.classList.toggle("hidden", !onMap);
+      this.els.topThirst.classList.toggle("low-warning", onMap && eco.thirst < 20);
+    }
+    if (this.els.topHeat) {
+      this.els.topHeat.classList.toggle("hidden", !onMap);
+    }
+    if (this.els.thirstDisplay) {
+      this.els.thirstDisplay.textContent = Math.round(eco.thirst);
+    }
+    if (this.els.heatDisplay) {
+      this.els.heatDisplay.textContent = Math.round(eco.heat);
+    }
     if (this.els.levelLabel) {
       this.els.levelLabel.textContent = `Lv.${eco.level}`;
     }
@@ -1872,14 +1691,6 @@ export class GameUI {
         .filter(id => (items[id] || 0) > 0).length;
       const badge = document.getElementById('badge-inventory');
       if (badge) badge.classList.toggle('hidden', usableCount === 0);
-    }
-    if (this.quests) {
-      const completable = this.quests.dailyQuests.filter(q => q.progress >= q.target).length;
-      const badge = document.getElementById('badge-quests');
-      if (badge) {
-        if (completable > 0) { badge.textContent = completable; badge.classList.remove('hidden'); }
-        else { badge.classList.add('hidden'); }
-      }
     }
   }
 

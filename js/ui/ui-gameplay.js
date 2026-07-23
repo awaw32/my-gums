@@ -145,6 +145,7 @@ GameUI.prototype.renderRanking = function() {
   tabs.innerHTML = `
     <button class="ranking-tab${mode === 'all' ? ' active' : ''}" data-mode="all">🏆 الأقوى</button>
     <button class="ranking-tab${mode === 'weekly' ? ' active' : ''}" data-mode="weekly">🔥 أبطال الأسبوع</button>
+    <button class="ranking-tab${mode === 'honor' ? ' active' : ''}" data-mode="honor">🏅 لوحة الشرف</button>
   `;
   tabs.querySelectorAll(".ranking-tab").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -152,6 +153,11 @@ GameUI.prototype.renderRanking = function() {
       this.renderRanking();
     });
   });
+
+  if (mode === "honor") {
+    this._renderHonorBoard(list);
+    return;
+  }
 
   list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⏳ جاري التحميل...</div>`;
   const url = mode === "weekly" ? "/api/leaderboard?sort=weekly" : "/api/leaderboard";
@@ -195,6 +201,34 @@ GameUI.prototype.renderRanking = function() {
     .catch(() => {
       list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--red)">❌ فشل التحميل</div>`;
     });
+};
+
+// 🏅 لوحة الشرف الحية — أغنى تاجر، سفّاح قطّاع الطرق، أكبر تحالف (تُحدَّث كل 60 ثانية من السيرفر)
+GameUI.prototype._renderHonorBoard = function(list) {
+  const board = this.world?._liveLeaderboard;
+  if (!board || !board.updatedAt) {
+    list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--beige-dark)">⏳ لوحة الشرف تتحدّث كل دقيقة — انتظر قليلاً...</div>`;
+    return;
+  }
+  const entries = [
+    { icon: "🪙", title: "أغنى تاجر", data: board.richestTrader, valueLabel: (v) => `${formatNumber(v)} 💵` },
+    { icon: "⚔️", title: "سفّاح قطّاع الطرق", data: board.banditSlayer, valueLabel: (v) => `${formatNumber(v)} قوة قتالية` },
+    { icon: "🏕️", title: "أكبر قبيلة", data: board.topAlliance, valueLabel: (v) => `${formatNumber(v)} قوة قبلية` },
+  ];
+  list.innerHTML = entries.map(e => {
+    const name = e.data?.username || e.data?.name;
+    if (!name) {
+      return `<div class="rank-card"><div class="rank-num">${e.icon}</div><div class="rank-info"><div class="rank-name">${e.title}</div><div class="rank-power">لا بيانات بعد</div></div></div>`;
+    }
+    return `
+      <div class="rank-card">
+        <div class="rank-num">${e.icon}</div>
+        <div class="rank-info">
+          <div class="rank-name">${e.title}: ${name}</div>
+          <div class="rank-power">${e.valueLabel(e.data.value || 0)}</div>
+        </div>
+      </div>`;
+  }).join('');
 };
 
 GameUI.prototype.renderTerritories = function() {

@@ -70,6 +70,43 @@ export function injectWipeHudMethods(WorldMap) {
     ctx.restore();
   };
 
+  // 🏜️ عند انخفاض العطش (<20) يظهر تغبيش خفيف على أطراف الشاشة (دوار من العطش)
+  // بدل فلتر blur حقيقي (مكلف على أجهزة الجوال الضعيفة) — نستخدم تدرجاً شفافاً.
+  WorldMap.prototype.drawDehydrationVignette = function (ctx) {
+    if (!this.economy || this.economy.thirst >= 20) return;
+    const intensity = 1 - this.economy.thirst / 20; // 0 عند 20، 1 عند 0
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const dpr = window.devicePixelRatio || 1;
+    ctx.scale(dpr, dpr);
+    const cw = ctx.canvas.width / dpr;
+    const ch = ctx.canvas.height / dpr;
+    const grad = ctx.createRadialGradient(cw / 2, ch / 2, ch * 0.25, cw / 2, ch / 2, ch * 0.7);
+    grad.addColorStop(0, "rgba(120,80,20,0)");
+    grad.addColorStop(1, `rgba(120,80,20,${0.55 * intensity})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.restore();
+  };
+
+  /**
+   * 🏜️ عاصفة رملية عالمية — تعتيم بني شفاف (رؤية -70%) فوق الشاشة بالكامل،
+   * تختلف عن drawDehydrationVignette (تدرج شعاعي محلي حول اللاعب) بأنها تغطية
+   * مسطحة كاملة الشاشة تعكس حالة عالمية يبثّها السيرفر لكل اللاعبين معاً.
+   */
+  WorldMap.prototype.drawSandstormOverlay = function (ctx) {
+    if (!this._globalSandstormActive) return;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const dpr = window.devicePixelRatio || 1;
+    ctx.scale(dpr, dpr);
+    const cw = ctx.canvas.width / dpr;
+    const ch = ctx.canvas.height / dpr;
+    ctx.fillStyle = "rgba(120, 90, 40, 0.5)";
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.restore();
+  };
+
   WorldMap.prototype.drawPvPMenu = function (ctx, cam) {
     const target = this._pvpTarget;
     if (!target) return;
