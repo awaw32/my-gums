@@ -251,8 +251,11 @@ function createWarManager(deps) {
     const loserName  = attackerWon ? defenderName : attackerName;
 
     // تحديث النقاط والغنائم
-    const winnerSide = war.attacker.name === winnerName ? "attacker" : 
-                       war.defender.name === winnerName ? "defender" : null;
+    // 🛡️ winnerName/loserName الآن اسم لاعب فردي (وليس اسم القبيلة) بعد إصلاح
+    // قراءة القوة من worldClients — لذا نطابق ضد أعضاء الطرف (members) بدل اسم
+    // القبيلة نفسه لتحديد أي جانب سجّل النقطة والغنيمة فعلياً.
+    const winnerSide = (war.attacker.members || []).includes(winnerName) ? "attacker" :
+                       (war.defender.members || []).includes(winnerName) ? "defender" : null;
     const _loserSide  = winnerSide === "attacker" ? "defender" : "attacker";
 
     if (winnerSide) {
