@@ -1368,18 +1368,11 @@ export class GameUI {
       </div>
     `;
 
-    // قسم القبيلة — يُعبّأ بواسطة _renderTribalAllianceSection
+    // قسم القبيلة — يُعبّأ بواسطة _renderTribalAllianceSection (يشمل ترقية
+    // القبيلة من الخزينة، الآن أن الترقية مشتركة على مستوى القبيلة الحقيقية
+    // وليست محلية للاعب الواحد)
     html += `<div id="alliance-tribal-content"></div>`;
 
-    // زر الترقية
-    if (state.canUpgrade) {
-      html += `<button class="action-btn upgrade-btn alliance-upgrade-btn" style="margin-bottom:10px">▲ ترقية (${formatNumber(state.upgradeCost)} 🪙)</button>`;
-    } else if (state.level < state.maxLevel) {
-      html += `<div class="alliance-need" style="text-align:center;padding:8px;color:var(--text-secondary);font-size:0.75rem">تحتاج ${formatNumber(state.upgradeCost)} 🪙</div>`;
-    } else {
-      html += `<div class="alliance-max" style="text-align:center;padding:8px;color:var(--gold);font-size:0.8rem">⭐⭐⭐ المستوى الأقصى</div>`;
-    }
-    
     // 🎯 قسم غارات التحالف
     html += `<div class="panel-header" style="margin-top:12px;font-size:0.9rem">🎯 غارات التحالف</div>`;
     
@@ -1444,18 +1437,7 @@ export class GameUI {
     container.innerHTML = html;
     
     this._renderTribalAllianceSection();
-    
-    // ربط الأزرار
-    const upgradeBtn = container.querySelector('.alliance-upgrade-btn');
-    if (upgradeBtn) {
-      upgradeBtn.addEventListener('click', () => {
-        if (am.upgrade()) {
-          this.renderAlliance();
-          this.updateTopBar();
-        }
-      });
-    }
-    
+
     container.querySelectorAll('.raid-start-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.dataset.raid);

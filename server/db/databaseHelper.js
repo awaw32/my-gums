@@ -50,7 +50,8 @@ const playerSchema = new mongoose.Schema({
   landsState:     { type: Object, default: {} },
   xp:            { type: Number, default: 0 },
   level:         { type: Number, default: 1 },
-  allianceLevel:  { type: Number, default: 0 },
+  allianceLevel:  { type: Number, default: 0 }, // legacy — المستوى الحقيقي أصبح على سجل Alliance المشترك
+  allianceId:     { type: String, default: "" },
   upgrades:       { type: Object, default: {} },
   oases:          { type: Array, default: [] },
   prestigeLevel:  { type: Number, default: 0 },
@@ -98,7 +99,7 @@ function getDefaultPlayer(username) {
     lastGiftClaimedTimestamp: 0,
     landsState: {},
     xp: 0, level: 1,
-    allianceLevel: 0, upgrades: {},
+    allianceLevel: 0, allianceId: "", upgrades: {},
     oases: [], prestigeLevel: 0,
     achievements: [], dailyLogin: {},
     inventory: {}, events: [], tutorial: {},

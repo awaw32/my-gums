@@ -592,35 +592,125 @@ GameUI.prototype._renderTribalAllianceSection = function() {
     return;
   }
   container.style.display = "";
+
   if (!am.tribeName) {
+    this._renderAllianceOnboarding(container, am);
+    return;
+  }
+
+  this._renderAllianceRoster(container, am);
+};
+
+// 🏜️ شاشة "بلا تحالف بعد" — إنشاء قبيلة جديدة أو البحث عن قبيلة موجودة للانضمام
+GameUI.prototype._renderAllianceOnboarding = function(container, am) {
+  const activeTab = this._allianceOnboardingTab || "create";
+
+  if (am.hasPendingJoinRequest) {
     container.innerHTML = `
-      <div class="alliance-card" style="text-align:center;padding:14px">
-        <div style="font-size:1.6rem;margin-bottom:6px">🏕️</div>
-        <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px">لم تُسمِّ قبيلتك بعد</div>
-        <div style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:10px">اختر اسماً لقبيلتك لتتمكن من إعلان الحروب القبلية والانضمام لتحالف جماعي</div>
-        <input type="text" id="tribal-name-input" placeholder="اسم القبيلة..." maxlength="30" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-surface);color:var(--text-primary);font-family:'Cairo',sans-serif;box-sizing:border-box;margin-bottom:8px" />
-        <button id="tribal-name-confirm-btn" class="action-btn upgrade-btn" style="width:100%">🏜️ تسمية القبيلة</button>
+      <div class="tribal-onboarding-card">
+        <div class="tribal-onboarding-icon">⏳</div>
+        <div class="tribal-onboarding-title">طلب انضمامك قيد المراجعة</div>
+        <div class="tribal-onboarding-desc">أرسلت طلب انضمام لقبيلة — انتظر موافقة شيخها. سيصلك إشعار فور الرد.</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="tribal-tabs">
+      <button class="tribal-tab-btn ${activeTab === "create" ? "active" : ""}" data-tab="create">🏜️ إنشاء قبيلة</button>
+      <button class="tribal-tab-btn ${activeTab === "search" ? "active" : ""}" data-tab="search">🔍 بحث/انضمام</button>
+    </div>
+    <div id="tribal-onboarding-panel"></div>
+  `;
+
+  container.querySelectorAll(".tribal-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      this._allianceOnboardingTab = btn.dataset.tab;
+      this._renderAllianceOnboarding(container, am);
+    });
+  });
+
+  const panel = document.getElementById("tribal-onboarding-panel");
+  if (activeTab === "create") {
+    panel.innerHTML = `
+      <div class="tribal-onboarding-card">
+        <div class="tribal-onboarding-icon">🏕️</div>
+        <div class="tribal-onboarding-title">أنشئ قبيلتك الخاصة</div>
+        <div class="tribal-onboarding-desc">اختر اسماً فريداً لقبيلتك — ستصبح شيخها، ويمكنك دعوة محاربين وإدارة الأعضاء والخزينة والحروب القبلية.</div>
+        <input type="text" id="tribal-name-input" class="tribal-input-full" placeholder="اسم القبيلة..." maxlength="30" />
+        <button id="tribal-name-confirm-btn" class="action-btn upgrade-btn" style="width:100%">🏜️ إنشاء القبيلة</button>
+        <div id="tribal-create-error" style="color:var(--accent-red);font-size:0.7rem;margin-top:6px"></div>
       </div>
     `;
     const input = document.getElementById("tribal-name-input");
     const btn = document.getElementById("tribal-name-confirm-btn");
-    if (btn && input) {
-      btn.addEventListener("click", () => {
-        if (am.setTribeName(input.value)) {
-          this.requestRender("alliance");
-          if (this.world?.netSync) this.world.netSync.sendWSUpdate();
-        }
+    const errorEl = document.getElementById("tribal-create-error");
+    am.onActionError = (reason) => {
+      if (errorEl) errorEl.textContent = reason === "name_taken" ? "⚠️ هذا الاسم مُستخدَم بالفعل — اختر اسماً آخر" : `⚠️ ${reason}`;
+    };
+    am.onAllianceUpdated = () => this.requestRender("alliance");
+    btn.addEventListener("click", () => {
+      const name = input.value.trim();
+      if (!name) { errorEl.textContent = "⚠️ اكتب اسماً للقبيلة"; return; }
+      am.create(name, "🏜️");
+    });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") btn.click(); });
+  } else {
+    panel.innerHTML = `
+      <div class="tribal-onboarding-card" style="text-align:right">
+        <input type="text" id="tribal-search-input" class="tribal-input-full" placeholder="ابحث باسم القبيلة..." maxlength="30" />
+        <div id="tribal-search-results" class="tribal-search-results"></div>
+      </div>
+    `;
+    const searchInput = document.getElementById("tribal-search-input");
+    const resultsEl = document.getElementById("tribal-search-results");
+
+    am.onSearchResults = (results) => {
+      if (!resultsEl) return;
+      if (results.length === 0) {
+        resultsEl.innerHTML = `<div style="text-align:center;font-size:0.72rem;color:var(--text-secondary);padding:10px">لا توجد نتائج</div>`;
+        return;
+      }
+      resultsEl.innerHTML = results.map(r => `
+        <div class="tribal-search-row">
+          <span class="tribal-search-banner">${r.banner || "🏕️"}</span>
+          <div class="tribal-search-info">
+            <div class="tribal-search-name">${r.name}</div>
+            <div class="tribal-search-meta">👥 ${r.memberCount} • 🔥 ${this._fmt(r.tribePower)}</div>
+          </div>
+          <button class="tribal-search-join-btn" data-id="${r.id}">طلب انضمام</button>
+        </div>
+      `).join("");
+      resultsEl.querySelectorAll(".tribal-search-join-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          btn.disabled = true;
+          btn.textContent = "تم الإرسال ✓";
+          am.requestJoin(btn.dataset.id);
+          setTimeout(() => this.requestRender("alliance"), 600);
+        });
       });
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") btn.click();
-      });
-    }
-    return;
+    };
+
+    let searchDebounce = null;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchDebounce);
+      const q = searchInput.value.trim();
+      if (!q) { resultsEl.innerHTML = ""; return; }
+      searchDebounce = setTimeout(() => am.search(q), 250);
+    });
   }
+};
+
+// 🏜️ لوحة القبيلة الكاملة (عضو/شيخ) — معلومات + خزينة + طلبات معلَّقة + أعضاء
+GameUI.prototype._renderAllianceRoster = function(container, am) {
   const state = am.getState();
   const myRank = state.myRank;
   const isShaykh = myRank && myRank.id === "shaykh";
   const myName = this.playerName || "???";
+
+  am.onAllianceUpdated = () => this.requestRender("alliance");
+  am.onJoinRequestReceived = () => this.requestRender("alliance");
 
   let html = `
     <div class="tribal-alliance-header">
@@ -629,7 +719,6 @@ GameUI.prototype._renderTribalAllianceSection = function() {
     </div>
   `;
 
-  // شريط معلومات القبيلة
   html += `
     <div class="tribal-alliance-info">
       <div class="tribal-info-item">👥 الأعضاء <strong>${state.memberCount}</strong></div>
@@ -638,7 +727,6 @@ GameUI.prototype._renderTribalAllianceSection = function() {
     </div>
   `;
 
-  // صندوق الخزينة — مساهمة
   html += `
     <div class="tribal-treasury-box">
       <div class="tribal-treasury-bar-track">
@@ -647,74 +735,100 @@ GameUI.prototype._renderTribalAllianceSection = function() {
       <div class="tribal-treasury-row">
         <input type="number" id="tribal-contribute-input" value="100" min="1" class="tribal-input" />
         <button id="tribal-contribute-btn" class="action-btn" style="padding:4px 12px">💰 ساهم</button>
-        ${isShaykh ? `<button id="tribal-upgrade-from-treasury-btn" class="action-btn upgrade-btn" style="padding:4px 12px;margin-right:4px">▲ ترقية من الخزينة</button>` : ""}
+        ${isShaykh && state.canUpgrade ? `<button id="tribal-upgrade-from-treasury-btn" class="action-btn upgrade-btn" style="padding:4px 12px;margin-right:4px">▲ ترقية (${this._fmt(state.upgradeCost)} 🪙)</button>` : ""}
       </div>
     </div>
   `;
 
-  // قائمة الأعضاء
+  // طلبات انضمام معلَّقة — للشيخ فقط
+  if (isShaykh && state.pendingRequests.length > 0) {
+    html += `<div class="panel-header" style="font-size:0.85rem">📨 طلبات الانضمام (${state.pendingRequests.length})</div>`;
+    html += `<div class="tribal-requests-list">`;
+    for (const r of state.pendingRequests) {
+      html += `
+        <div class="tribal-request-row">
+          <span class="tribal-request-name">${r.username}</span>
+          <button class="tribal-request-approve-btn" data-name="${r.username}">✓ قبول</button>
+          <button class="tribal-request-reject-btn" data-name="${r.username}">✕ رفض</button>
+        </div>
+      `;
+    }
+    html += `</div>`;
+  }
+
   html += `<div class="panel-header" style="margin-top:10px;font-size:0.85rem">👥 أعضاء القبيلة</div>`;
   html += `<div class="tribal-members-list">`;
   for (const m of state.members) {
     const rankInfo = am.getRank(m.rank);
     const rankIcon = rankInfo ? rankInfo.icon : "🏜️";
     const rankName = rankInfo ? rankInfo.name : m.rank;
-    const canPromote = isShaykh && m.name !== myName;
+    const isMe = m.username === myName;
+    const canManage = isShaykh && !isMe;
     html += `
       <div class="tribal-member-row">
+        <span class="tribal-member-online-dot ${m.online ? "online" : ""}" title="${m.online ? "متصل" : "غير متصل"}"></span>
         <span class="tribal-member-rank-icon">${rankIcon}</span>
-        <span class="tribal-member-name">${m.name}</span>
+        <span class="tribal-member-name">${m.username}${isMe ? " (أنت)" : ""}</span>
         <span class="tribal-member-rank-name">${rankName}</span>
         <span class="tribal-member-contribution">🪙 ${this._fmt(m.contribution || 0)}</span>
         <span class="tribal-member-power">🔥 ${this._fmt(m.power || 0)}</span>
-        ${canPromote ? `
-          <button class="tribal-promote-btn" data-name="${m.name}" title="ترقية">⬆</button>
-          <button class="tribal-demote-btn" data-name="${m.name}" title="تنزيل">⬇</button>
+        ${canManage ? `
+          <button class="tribal-promote-btn" data-name="${m.username}" title="ترقية">⬆</button>
+          <button class="tribal-demote-btn" data-name="${m.username}" title="تنزيل">⬇</button>
+          <button class="tribal-kick-btn" data-name="${m.username}" title="طرد">✕</button>
         ` : ""}
       </div>
     `;
   }
   html += `</div>`;
 
+  html += `<button id="tribal-leave-btn" class="tribal-leave-btn">🚪 مغادرة القبيلة</button>`;
+
   container.innerHTML = html;
 
-  // ربط أزرار المساهمة
   const contributeBtn = document.getElementById("tribal-contribute-btn");
   const contributeInput = document.getElementById("tribal-contribute-input");
   if (contributeBtn && contributeInput) {
     contributeBtn.addEventListener("click", () => {
       const val = parseInt(contributeInput.value, 10);
-      if (val > 0 && am.contribute(val)) {
-        this.requestRender("alliance");
-      }
+      if (val > 0) am.contribute(val);
     });
   }
 
-  // ربط زر الترقية من الخزينة
   const upgradeTreasuryBtn = document.getElementById("tribal-upgrade-from-treasury-btn");
   if (upgradeTreasuryBtn) {
-    upgradeTreasuryBtn.addEventListener("click", () => {
-      if (am.upgradeFromTreasury(true)) {
-        this.requestRender("alliance");
-      }
-    });
+    upgradeTreasuryBtn.addEventListener("click", () => am.upgradeFromTreasury(true));
   }
 
-  // ربط أزرار الترقية والتنزيل
   container.querySelectorAll(".tribal-promote-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (am.promoteMember(btn.dataset.name)) {
-        this.requestRender("alliance");
-      }
-    });
+    btn.addEventListener("click", () => am.promoteMember(btn.dataset.name));
   });
   container.querySelectorAll(".tribal-demote-btn").forEach(btn => {
+    btn.addEventListener("click", () => am.demoteMember(btn.dataset.name));
+  });
+  container.querySelectorAll(".tribal-kick-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (am.demoteMember(btn.dataset.name)) {
-        this.requestRender("alliance");
-      }
+      if (confirm(`هل تريد طرد ${btn.dataset.name} من القبيلة؟`)) am.kickMember(btn.dataset.name);
     });
   });
+
+  const approveBtns = container.querySelectorAll(".tribal-request-approve-btn");
+  approveBtns.forEach(btn => {
+    btn.addEventListener("click", () => am.approveRequest(btn.dataset.name));
+  });
+  container.querySelectorAll(".tribal-request-reject-btn").forEach(btn => {
+    btn.addEventListener("click", () => am.rejectRequest(btn.dataset.name));
+  });
+
+  const leaveBtn = document.getElementById("tribal-leave-btn");
+  if (leaveBtn) {
+    leaveBtn.addEventListener("click", () => {
+      const warning = isShaykh && state.memberCount > 1
+        ? "أنت الشيخ — سيُرقَّى عضو آخر تلقائياً ليصبح شيخاً. هل تريد المغادرة؟"
+        : "هل تريد مغادرة القبيلة؟";
+      if (confirm(warning)) am.leaveAlliance();
+    });
+  }
 };
 
 GameUI.prototype._showWarDeclareModal = function() {

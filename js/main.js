@@ -371,6 +371,13 @@ async function init() {
   world.netSync = netSync;
   netSync.world = world;
   world.store = store;
+  allianceManager.netSync = netSync;
+  allianceManager.attachToWorld(world);
+  // 🌐 اتصال WebSocket الحي يبدأ فور تسجيل الدخول (وليس فقط عند دخول شاشة
+  // الخريطة) — يلزم لعمل التحالف/الدردشة فوراً من شاشة القرية أيضاً.
+  // startMultiplayerSync() في world.js (تُستدعى لاحقاً عند دخول الخريطة)
+  // آمنة الاستدعاء المتكرر (start() تتحقق من this._ws أولاً).
+  netSync.start();
 
   // 🏜️ نظام الحرب القبلي
   const warManager = new WarManager(allianceManager, economy, army, netSync);
@@ -656,12 +663,12 @@ async function init() {
       return result;
     };
 
-    // ربط alliance_level
-    const origAllianceUpgrade = allianceManager.upgrade.bind(allianceManager);
-    allianceManager.upgrade = function() {
-      const result = origAllianceUpgrade();
-      if (result) achievements.updateProgress('alliance_level', this.level);
-      return result;
+    // ربط alliance_level — التحديث الفعلي يصل من الخادم (alliance_roster_updated/
+    // alliance_get_mine) بعد نجاح الترقية فعلياً، وليس فوراً عند الإرسال
+    const origAllianceOnChanged = allianceManager._onChanged;
+    allianceManager._onChanged = (level) => {
+      if (origAllianceOnChanged) origAllianceOnChanged(level);
+      achievements.updateProgress('alliance_level', level);
     };
 
     // ربط ترقيات الجيش/المعرفة/الدفاع/التجارة بالإنجازات

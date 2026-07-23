@@ -69,6 +69,17 @@ const combatSystem = createCombatLoop({
   broadcastBus, isOwner: SIM_OWNER,
 });
 
+const {
+  TRIBAL_RANKS, getRank, createAllianceRecord, saveAlliance, getAlliance,
+  getAllianceIdByName, nameTaken, searchAlliancesByName, deleteAlliance,
+} = require("./server/db/allianceHelper");
+const { createAllianceManager } = require("./server/logic/allianceManager");
+const allianceManager = createAllianceManager({
+  worldClients, memStore, markDirty, getDefaultPlayer,
+  TRIBAL_RANKS, getRank, createAllianceRecord, saveAlliance, getAlliance,
+  getAllianceIdByName, nameTaken, searchAlliancesByName, deleteAlliance,
+});
+
 const { createWarManager } = require("./server/logic/warManager");
 const warManager = createWarManager({
   worldClients,
@@ -79,6 +90,9 @@ const warManager = createWarManager({
     });
   },
   memStore, getDefaultPlayer, markDirty,
+  getMyAlliance: allianceManager.getMyAlliance,
+  getTribePower: allianceManager.getTribePower,
+  getAlliance,
 });
 
 const { createWorldHandler } = require("./server/network/worldHandler");
@@ -90,7 +104,7 @@ const handleWorldConnection = createWorldHandler({
   computeKnowledgeUpgradeCost, computeKnowledgeBonuses,
   claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades,
   applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, sanitizePlayerData,
-  warManager, broadcastBus,
+  warManager, allianceManager, broadcastBus,
 });
 
 // 🔔 تذكير دوري بالهدية المجانية للاعبين غير المتصلين — no-op بلا مفاتيح VAPID

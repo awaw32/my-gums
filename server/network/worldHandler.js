@@ -18,7 +18,7 @@ function playerColor(username) {
 let _dropIdCounter = 0;
 const DROP_CLEANUP_MS = 60000;
 
-function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, broadcastBus }) {
+function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, broadcastBus }) {
 
   // تنظيف اللاعبين المنقطعين كل 10 ثوانٍ (مهلة 30 ثانية)
   setInterval(() => {
@@ -170,10 +170,10 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           weaponGemLevel: equippedDef?.gemLevel || 1,
           repTitle: typeof msg.repTitle === "string" ? msg.repTitle.slice(0, 20) : "محايد",
           repIcon: typeof msg.repIcon === "string" ? msg.repIcon.slice(0, 4) : "😐",
-          // 🏜️ اسم القبيلة تصريح تجميلي من العميل (كـ repTitle) — لا يمنح أي قوة
-          // بذاته، يُستخدم فقط لمطابقة قوة اللاعبين المتصلين حالياً بنفس الاسم
-          // عند حساب قوة الحرب القبلية (getTribePower في warManager.js).
-          allianceName: typeof msg.allianceName === "string" ? msg.allianceName.slice(0, 30) : "",
+          // 🛡️ عضوية القبيلة تُقرأ من البيانات المحفوظة الموثوقة فقط — العضوية
+          // الحقيقية تُدار حصراً عبر allianceManager (طلب انضمام + موافقة الشيخ)،
+          // لا يمكن للعميل انتحال عضوية بإرسال allianceId عبر أي رسالة.
+          allianceId: persisted?.allianceId || "",
           br_hp: msg.br_hp ?? 120,
           br_alive: msg.br_alive ?? true,
           buildings: msg.buildings || {},
@@ -220,10 +220,10 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           c.kills = msg.kills ?? c.kills;
           c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
           c.armyAlive = msg.armyAlive ?? c.armyAlive;
-          // 🛡️ لا نثق بـ level/army_power من رسالة update — تبقى كما حُدّدت عند join
-          // (من memStore الموثوق) لمنع تضخيم القوة القتالية حياً أثناء الجلسة.
-          // القيم المحدّثة فعلياً تصل عند إعادة join التالية بعد حفظ REST.
-          if (typeof msg.allianceName === "string") c.allianceName = msg.allianceName.slice(0, 30);
+          // 🛡️ لا نثق بـ level/army_power/allianceId من رسالة update — تبقى كما
+          // حُدّدت عند join (من memStore الموثوق) لمنع تضخيم القوة القتالية أو
+          // انتحال عضوية قبيلة حياً أثناء الجلسة. عضوية القبيلة تتغيّر فقط عبر
+          // رسائل alliance_* المحقَّقة، وتُطبَّق مباشرة على worldClients هناك.
           if (msg.br_hp !== undefined) c.br_hp = Math.max(0, msg.br_hp);
           if (msg.br_alive !== undefined) c.br_alive = msg.br_alive;
           broadcastWorld(ws);
@@ -365,6 +365,20 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         if (result && ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "war_response", requestType: msg.type, ...result }));
         }
+      } else if (msg.type && msg.type.startsWith("alliance_") && allianceManager && username) {
+        // 🏜️ معالج رسائل التحالف/القبيلة (بحث/إنشاء/انضمام/موافقة/رتب/خزينة)
+        Promise.resolve(allianceManager.handleMessage(msg, username, ws))
+          .then((result) => {
+            if (result && ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: "alliance_response", requestType: msg.type, ...result }));
+            }
+          })
+          .catch((err) => {
+            logger.error({ err: err.message, type: msg.type, username }, "[AllianceWS] handler error");
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: "alliance_response", requestType: msg.type, ok: false, reason: "internal_error" }));
+            }
+          });
       } else if (msg.type === "party_create" && username) {
         const c = worldClients.get(username);
         if (!c) return;

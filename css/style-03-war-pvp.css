@@ -181,6 +181,95 @@
 }
 .tribal-promote-btn:hover { background: var(--green-bg); color: var(--green); border-color: var(--green); }
 .tribal-demote-btn:hover { background: var(--red-bg); color: var(--accent-red); border-color: var(--accent-red); }
+.tribal-kick-btn {
+  background: none; border: 1px solid var(--border-light);
+  border-radius: 4px; cursor: pointer; padding: 2px 5px;
+  font-size: 0.7rem; color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.tribal-kick-btn:hover { background: var(--red-bg); color: var(--accent-red); border-color: var(--accent-red); }
+.tribal-member-online-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--border-light); flex-shrink: 0;
+}
+.tribal-member-online-dot.online { background: var(--green); box-shadow: 0 0 4px var(--green); }
+
+/* ====== اختيار: إنشاء/بحث عن قبيلة (بلا تحالف بعد) ====== */
+.tribal-onboarding-card {
+  text-align: center; padding: 16px 14px;
+  border-radius: 12px; background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+}
+.tribal-onboarding-icon { font-size: 1.8rem; margin-bottom: 6px; }
+.tribal-onboarding-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-primary); }
+.tribal-onboarding-desc { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5; }
+.tribal-tabs {
+  display: flex; gap: 6px; margin-bottom: 10px;
+  background: var(--bg-surface); border-radius: 10px; padding: 3px;
+  border: 1px solid var(--border-light);
+}
+.tribal-tab-btn {
+  flex: 1; padding: 8px 6px; border-radius: 8px; border: none;
+  background: transparent; color: var(--text-secondary);
+  font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 0.78rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.tribal-tab-btn.active {
+  background: linear-gradient(135deg, rgba(243,156,18,0.25), rgba(211,84,0,0.15));
+  color: var(--gold);
+}
+.tribal-input-full {
+  width: 100%; padding: 9px 12px; border-radius: 8px;
+  border: 1px solid var(--border-light); background: var(--bg-surface);
+  color: var(--text-primary); font-family: 'Cairo', sans-serif;
+  box-sizing: border-box; margin-bottom: 8px; font-size: 0.85rem;
+}
+.tribal-search-results { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 260px; overflow-y: auto; }
+.tribal-search-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 10px;
+  background: var(--bg-surface); border: 1px solid var(--border-light);
+}
+.tribal-search-banner { font-size: 1.3rem; }
+.tribal-search-info { flex: 1; min-width: 0; }
+.tribal-search-name { font-weight: 700; font-size: 0.8rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tribal-search-meta { font-size: 0.65rem; color: var(--text-secondary); }
+.tribal-search-join-btn {
+  padding: 6px 12px; border-radius: 8px; border: none;
+  background: linear-gradient(135deg, #27ae60, #1e8449);
+  color: #fff; font-family: 'Cairo', sans-serif; font-weight: 700;
+  font-size: 0.72rem; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.tribal-search-join-btn:disabled { opacity: 0.5; cursor: default; }
+.tribal-pending-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; margin-bottom: 8px;
+  border-radius: 10px; background: rgba(243,156,18,0.1);
+  border: 1px solid rgba(243,156,18,0.3);
+  font-size: 0.75rem; color: var(--text-primary);
+}
+
+/* ====== طلبات انضمام معلَّقة (للشيخ) ====== */
+.tribal-requests-list { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 10px; }
+.tribal-request-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 9px;
+  background: rgba(46,204,113,0.08); border: 1px solid rgba(46,204,113,0.25);
+  font-size: 0.75rem;
+}
+.tribal-request-name { flex: 1; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tribal-request-approve-btn, .tribal-request-reject-btn {
+  border: none; border-radius: 6px; padding: 4px 9px;
+  font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 0.75rem; cursor: pointer;
+}
+.tribal-request-approve-btn { background: var(--green); color: #fff; }
+.tribal-request-reject-btn { background: var(--bg-surface); color: var(--accent-red); border: 1px solid var(--accent-red); }
+.tribal-leave-btn {
+  width: 100%; margin-top: 10px; padding: 8px;
+  border-radius: 8px; border: 1px solid var(--accent-red);
+  background: var(--red-bg); color: var(--accent-red);
+  font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 0.78rem; cursor: pointer;
+}
 
 /* ====== تأثير قدرات البطل ====== */
 @keyframes abilityFlash {

@@ -15,78 +15,230 @@ const ALLIANCE_RAIDS = [
 
 export { ALLIANCE_RAIDS };
 
+const TRIBAL_RANKS = [
+  { id: "shaykh",   name: "شيخ القبيلة", icon: "⚜️", authority: 3 },
+  { id: "warrior",  name: "محارب",       icon: "🗡️", authority: 2 },
+  { id: "member",   name: "عضو",         icon: "🤝",           authority: 1 },
+  { id: "novice",   name: "مستجِدّ",     icon: "🏜️",           authority: 0 },
+];
+
+/**
+ * 🏜️ مدير التحالف — Alliance Manager (Client)
+ * التحالف الحقيقي (الاسم/الأعضاء/الرتب/الخزينة/المستوى) بياناته موثوقة من
+ * الخادم فقط — يُدار عبر server/logic/allianceManager.js. هذا الصنف يرسل
+ * أوامر عبر WebSocket ويعكس آخر حالة يبثّها الخادم (مثل WarManager تماماً).
+ * نظام الغارات (raids) وحده يبقى محلياً بالكامل — تجربة PvE فردية فوق مفهوم
+ * التحالف، ليست حالة مشتركة تحتاج مزامنة.
+ */
 export class AllianceManager {
-  constructor(economy) {
+  constructor(economy, netSync = null) {
     this.economy = economy;
-    this.level = 0;
+    this.netSync = netSync;
     this._onChanged = null;
     this._raidCooldown = 0; // تايمر الغارة بالثواني
     this._raidActive = false;
     this._raidBoss = null;
     this._onRaidStateChange = null;
 
-    // 🏜️ نظام القبيلة الجماعي
-    this._tribeName = "";
-    this._tribeBanner = "🏕️";
-    this._members = [];          // [{name, rank, contribution, power}]
-    this._treasury = 0;          // صندوق القبيلة (ذهب جماعي)
+    // 🏜️ حالة التحالف الحقيقي — منسوخة من آخر بث للخادم، وليست محلية
     this._myName = "";           // اسم اللاعب الحالي (يُضبط من main.js)
+    this._alliance = null;       // { id, name, banner, level, treasury, memberCount, tribePower, members, pendingRequests }
+    this._searchResults = [];
+    this._pendingJoinRequestTo = null; // allianceId تم إرسال طلب انضمام له وننتظر رداً
+
+    // callbacks اختيارية للواجهة
+    this.onAllianceUpdated = null;   // (alliance|null) => void
+    this.onSearchResults = null;     // (results) => void
+    this.onJoinRequestReceived = null; // (msg) => void — للشيخ فقط
+    this.onActionError = null;       // (reason) => void
   }
 
-  setMyName(name) { this._myName = name; this.addMember(name, "shaykh"); }
+  setMyName(name) { this._myName = name; }
 
-  get currentTier() {
-    return ALLIANCE_TIERS[this.level] || null;
+  // ==================== ربط مع NetworkSync (نفس نمط WarManager) ====================
+  attachToWorld(world) {
+    world._onAllianceEvent = (eventType, msg) => this._handleAllianceEvent(eventType, msg);
+    world._onAllianceResponse = (requestType, msg) => this._handleAllianceResponse(requestType, msg);
+    // عند أول اتصال ناجح، اطلب حالة تحالفي الحالية من الخادم
+    this.requestMine();
   }
 
-  get maxLevel() {
-    return ALLIANCE_TIERS.length;
+  _send(msg) {
+    if (!this.netSync) return false;
+    const ws = this.netSync._ws;
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify(msg));
+      return true;
+    }
+    return false;
   }
 
-  get nextTier() {
-    return ALLIANCE_TIERS[this.level + 1] || null;
+  // ==================== أوامر الخادم ====================
+
+  requestMine() { return this._send({ type: "alliance_get_mine" }); }
+  search(query) { return this._send({ type: "alliance_search", query }); }
+  create(name, banner) { return this._send({ type: "alliance_create", name, banner }); }
+  requestJoin(allianceId) {
+    this._pendingJoinRequestTo = allianceId;
+    return this._send({ type: "alliance_request_join", allianceId });
+  }
+  approveRequest(username) {
+    if (!this._alliance) return false;
+    return this._send({ type: "alliance_approve_request", allianceId: this._alliance.id, username });
+  }
+  rejectRequest(username) {
+    if (!this._alliance) return false;
+    return this._send({ type: "alliance_reject_request", allianceId: this._alliance.id, username });
+  }
+  promoteMember(username) {
+    if (!this._alliance) return false;
+    return this._send({ type: "alliance_promote", allianceId: this._alliance.id, username });
+  }
+  demoteMember(username) {
+    if (!this._alliance) return false;
+    return this._send({ type: "alliance_demote", allianceId: this._alliance.id, username });
+  }
+  kickMember(username) {
+    if (!this._alliance) return false;
+    return this._send({ type: "alliance_kick", allianceId: this._alliance.id, username });
+  }
+  leaveAlliance() { return this._send({ type: "alliance_leave" }); }
+  contribute(amount) {
+    if (!this._alliance) return false;
+    return this._send({ type: "alliance_contribute", allianceId: this._alliance.id, amount });
+  }
+  upgradeFromTreasury(useTreasuryFirst = true) {
+    if (!this._alliance) return false;
+    return this._send({ type: "alliance_upgrade", allianceId: this._alliance.id, useTreasuryFirst });
+  }
+  upgrade() { return this.upgradeFromTreasury(false); }
+
+  // ==================== استقبال أحداث الخادم ====================
+
+  _handleAllianceEvent(eventType, msg) {
+    switch (eventType) {
+      case "alliance_join_requested":
+        if (this.onJoinRequestReceived) this.onJoinRequestReceived(msg);
+        this.requestMine(); // حدّث قائمة الطلبات المعلّقة
+        break;
+      case "alliance_request_approved":
+        this._pendingJoinRequestTo = null;
+        this.requestMine();
+        break;
+      case "alliance_request_rejected":
+        this._pendingJoinRequestTo = null;
+        break;
+      case "alliance_kicked":
+        this._alliance = null;
+        if (this.onAllianceUpdated) this.onAllianceUpdated(null);
+        break;
+      case "alliance_roster_updated":
+        this._alliance = msg.alliance;
+        if (this.onAllianceUpdated) this.onAllianceUpdated(this._alliance);
+        if (this._onChanged) this._onChanged(this.level);
+        break;
+    }
   }
 
+  _handleAllianceResponse(requestType, msg) {
+    switch (requestType) {
+      case "alliance_get_mine":
+        this._alliance = msg.alliance || null;
+        if (this.onAllianceUpdated) this.onAllianceUpdated(this._alliance);
+        if (this._onChanged) this._onChanged(this.level);
+        break;
+      case "alliance_search":
+        this._searchResults = msg.results || [];
+        if (this.onSearchResults) this.onSearchResults(this._searchResults);
+        break;
+      case "alliance_create":
+        if (msg.ok) {
+          this._alliance = msg.alliance;
+          if (this.onAllianceUpdated) this.onAllianceUpdated(this._alliance);
+        } else if (this.onActionError) {
+          this.onActionError(msg.reason);
+        }
+        break;
+      case "alliance_request_join":
+        if (!msg.ok) {
+          this._pendingJoinRequestTo = null;
+          if (this.onActionError) this.onActionError(msg.reason);
+        }
+        break;
+      case "alliance_approve_request":
+      case "alliance_reject_request":
+      case "alliance_promote":
+      case "alliance_demote":
+      case "alliance_kick":
+      case "alliance_contribute":
+      case "alliance_upgrade":
+        if (msg.ok) {
+          this.requestMine();
+        } else if (this.onActionError) {
+          this.onActionError(msg.reason);
+        }
+        break;
+      case "alliance_leave":
+        if (msg.ok) {
+          this._alliance = null;
+          this._pendingJoinRequestTo = null;
+          if (this.onAllianceUpdated) this.onAllianceUpdated(null);
+        } else if (this.onActionError) {
+          this.onActionError(msg.reason);
+        }
+        break;
+    }
+  }
+
+  // ==================== حالة التحالف (من الخادم) ====================
+
+  get tribeName()  { return this._alliance?.name  || ""; }
+  get tribeBanner(){ return this._alliance?.banner || "🏕️"; }
+  get members()    { return this._alliance?.members || []; }
+  get pendingRequests() { return this._alliance?.pendingRequests || []; }
+  get treasury()   { return this._alliance?.treasury || 0; }
+  get level()      { return this._alliance?.level || 0; }
+  get allianceId() { return this._alliance?.id || ""; }
+  get hasPendingJoinRequest() { return !!this._pendingJoinRequestTo; }
+  get searchResults() { return this._searchResults; }
+
+  get TRIBAL_RANKS() { return TRIBAL_RANKS; }
+  getRank(rankId) { return TRIBAL_RANKS.find(r => r.id === rankId) || TRIBAL_RANKS[3]; }
+  getMyRank() {
+    const me = this.members.find(m => m.username === this._myName);
+    return me ? this.getRank(me.rank) : null;
+  }
+  getMemberCount() { return this.members.length; }
+  get tribePower() { return this._alliance?.tribePower || 0; }
+
+  get currentTier() { return ALLIANCE_TIERS[this.level] || null; }
+  get maxLevel() { return ALLIANCE_TIERS.length; }
+  get nextTier() { return ALLIANCE_TIERS[this.level + 1] || null; }
   get upgradeCost() {
     const t = ALLIANCE_TIERS[this.level];
     return t ? t.cost : 0;
   }
-
   get damageBonus() {
     let total = 0;
     for (let i = 0; i < this.level; i++) total += ALLIANCE_TIERS[i].damageBonus;
     return total;
   }
-
   get defenseBonus() {
     let total = 0;
     for (let i = 0; i < this.level; i++) total += ALLIANCE_TIERS[i].defenseBonus;
     return total;
   }
-
   get incomeMult() {
     if (this.level === 0) return 1;
     return ALLIANCE_TIERS[this.level - 1].incomeMult;
   }
-
   get tierName() {
     if (this.level === 0) return "—";
     return ALLIANCE_TIERS[this.level - 1].name;
   }
-
   canUpgrade() {
-    if (this.level >= this.maxLevel) return false;
-    const cost = this.upgradeCost;
-    return this.economy.canAfford("gold", cost);
-  }
-
-  upgrade() {
-    if (this.level >= this.maxLevel) return false;
-    const cost = this.upgradeCost;
-    if (!this.economy.spend("gold", cost)) return false;
-    this.level++;
-    if (this._onChanged) this._onChanged(this.level);
-    return true;
+    if (!this._alliance || this.level >= this.maxLevel) return false;
+    return true; // التحقق الفعلي من التكلفة يقع على الخادم عند الإرسال
   }
 
   getState() {
@@ -105,137 +257,18 @@ export class AllianceManager {
       memberCount: this.getMemberCount(),
       tribePower: this.tribePower,
       myRank: this.getMyRank(),
-      members: this.members.map(m => ({ name: m.name, rank: m.rank, contribution: m.contribution, power: m.power })),
+      members: this.members,
+      pendingRequests: this.pendingRequests,
+      hasPendingJoinRequest: this.hasPendingJoinRequest,
+      searchResults: this._searchResults,
     };
   }
 
-  loadState(level) {
-    if (typeof level === "number" && level >= 0 && level <= this.maxLevel) {
-      this.level = level;
-    }
-  }
+  // loadState لم تعد ذات معنى — المستوى يأتي من سجل التحالف على الخادم،
+  // مُبقاة بلا تأثير للتوافق مع أي كود قديم قد يستدعيها
+  loadState(_level) {}
 
-  // ==================== 🏜️ نظام القبيلة الجماعي ====================
-
-  get tribeName()  { return this._tribeName  || ""; }
-  get tribeBanner(){ return this._tribeBanner || "🏕️"; }
-  get members()    { return this._members     || []; }
-  get treasury()   { return this._treasury    || 0; }
-
-  setTribeName(name) {
-    if (typeof name !== "string") return false;
-    const clean = name.trim().slice(0, 30);
-    if (!clean) return false;
-    this._tribeName = clean;
-    if (this._onChanged) this._onChanged(this.level);
-    return true;
-  }
-
-  setTribeBanner(emoji) {
-    if (typeof emoji !== "string" || emoji.length > 4) return false;
-    this._tribeBanner = emoji;
-    if (this._onChanged) this._onChanged(this.level);
-    return true;
-  }
-
-  // مساهمة في صندوق القبيلة — تُسحب من الذهب
-  contribute(amount) {
-    if (!this._treasury) this._treasury = 0;
-    amount = Math.floor(amount);
-    if (amount <= 0) return false;
-    if (!this.economy.spend("gold", amount)) return false;
-    this._treasury += amount;
-    if (this._onChanged) this._onChanged(this.level);
-    return true;
-  }
-
-  upgradeFromTreasury(useTreasuryFirst = true) {
-    if (this.level >= this.maxLevel) return false;
-    const cost = this.upgradeCost;
-    if (useTreasuryFirst && this.treasury >= cost) {
-      this._treasury -= cost;
-      this.level++;
-      if (this._onChanged) this._onChanged(this.level);
-      return true;
-    }
-    // fallback: ادفع من ذهبك الشخصي
-    return this.upgrade();
-  }
-
-  // ==================== نظام الأعضاء والرتب ====================
-
-  get TRIBAL_RANKS() {
-    return [
-      { id: "shaykh",   name: "شيخ القبيلة", icon: "⚜️", authority: 3 },
-      { id: "warrior",  name: "محارب",       icon: "🗡️", authority: 2 },
-      { id: "member",   name: "عضو",         icon: "🤝",           authority: 1 },
-      { id: "novice",   name: "مستجِدّ",     icon: "🏜️",           authority: 0 },
-    ];
-  }
-
-  getRank(rankId) {
-    return this.TRIBAL_RANKS.find(r => r.id === rankId) || this.TRIBAL_RANKS[3];
-  }
-
-  getMyRank() {
-    const me = this.members.find(m => m.name === this._myName);
-    return me ? this.getRank(me.rank) : null;
-  }
-
-  addMember(name, rank = "novice") {
-    if (!this._members) this._members = [];
-    if (this._members.find(m => m.name === name)) return false;
-    this._members.push({ name, rank, contribution: 0, power: 0, joinedAt: Date.now() });
-    if (this._onChanged) this._onChanged(this.level);
-    return true;
-  }
-
-  removeMember(name) {
-    if (!this._members) return false;
-    const before = this._members.length;
-    this._members = this._members.filter(m => m.name !== name);
-    if (this._members.length !== before) {
-      if (this._onChanged) this._onChanged(this.level);
-      return true;
-    }
-    return false;
-  }
-
-  promoteMember(name) {
-    const m = this._members.find(m => m.name === name);
-    if (!m) return false;
-    const rankIds = this.TRIBAL_RANKS.map(r => r.id);
-    const idx = rankIds.indexOf(m.rank);
-    if (idx <= 0) return false;           // لا ترقية فوق شيخ القبيلة
-    m.rank = rankIds[idx - 1];            // نرقّيه لمستوى أعلى
-    if (this._onChanged) this._onChanged(this.level);
-    return true;
-  }
-
-  demoteMember(name) {
-    const m = this._members.find(m => m.name === name);
-    if (!m) return false;
-    const rankIds = this.TRIBAL_RANKS.map(r => r.id);
-    const idx = rankIds.indexOf(m.rank);
-    if (idx >= rankIds.length - 1) return false;
-    m.rank = rankIds[idx + 1];
-    if (this._onChanged) this._onChanged(this.level);
-    return true;
-  }
-
-  getMemberCount() { return this._members ? this._members.length : 0; }
-
-  getTotalMemberPower() {
-    return (this._members || []).reduce((sum, m) => sum + (m.power || 0), 0);
-  }
-
-  // ربط القبيلة بنظام الحرب — اجمع القوة القبلية الإجمالية
-  get tribePower() {
-    const myPower = this.economy ? this.economy.power || 0 : 0;
-    return myPower + this.getTotalMemberPower();
-  }
-
-  // ==================== 🎯 نظام غارات التحالف ====================
+  // ==================== 🎯 نظام غارات التحالف (محلي بالكامل — PvE فردي) ====================
 
   get availableRaids() {
     return ALLIANCE_RAIDS.filter(r => r.level <= this.level + 1 && this.economy.power >= r.powerReq);

@@ -83,7 +83,6 @@ export class NetworkSync {
       weaponGemLevel: w._weaponGemLevel || 1,
       repTitle: w._reputation ? w._reputation.getTitle().name : "محايد",
       repIcon: w._reputation ? w._reputation.getTitle().icon : "😐",
-      allianceName: w._allianceManager?.tribeName || "",
     };
     if (w.mode === "battle_royale") {
       update.br_hp = w.leader.hp;
@@ -283,7 +282,6 @@ export class NetworkSync {
         weaponGemLevel: w?._weaponGemLevel || 1,
         repTitle: w?._reputation ? w._reputation.getTitle().name : "محايد",
         repIcon: w?._reputation ? w._reputation.getTitle().icon : "😐",
-        allianceName: w?._allianceManager?.tribeName || "",
       });
     };
 
@@ -584,6 +582,29 @@ export class NetworkSync {
         break;
       case "war_response":
         if (w._onWarResponse) w._onWarResponse(msg.requestType, msg);
+        break;
+      // ==================== 🏜️ رسائل التحالف/القبيلة ====================
+      case "alliance_response":
+        if (w._onAllianceResponse) w._onAllianceResponse(msg.requestType, msg);
+        break;
+      case "alliance_join_requested":
+        if (w.store) w.store.set('notification', { text: `🤝 ${msg.username} يطلب الانضمام لقبيلتك`, t: Date.now() });
+        if (w._onAllianceEvent) w._onAllianceEvent("alliance_join_requested", msg);
+        break;
+      case "alliance_request_approved":
+        if (w.store) w.store.set('notification', { text: `✅ تمت الموافقة على انضمامك للقبيلة!`, t: Date.now() });
+        if (w._onAllianceEvent) w._onAllianceEvent("alliance_request_approved", msg);
+        break;
+      case "alliance_request_rejected":
+        if (w.store) w.store.set('notification', { text: `❌ رُفض طلب انضمامك للقبيلة`, t: Date.now() });
+        if (w._onAllianceEvent) w._onAllianceEvent("alliance_request_rejected", msg);
+        break;
+      case "alliance_kicked":
+        if (w.store) w.store.set('notification', { text: `🚪 تم طردك من القبيلة`, t: Date.now() });
+        if (w._onAllianceEvent) w._onAllianceEvent("alliance_kicked", msg);
+        break;
+      case "alliance_roster_updated":
+        if (w._onAllianceEvent) w._onAllianceEvent("alliance_roster_updated", msg);
         break;
       // ==================== 🏪 رسائل السوق ====================
       case "market_listing_new":

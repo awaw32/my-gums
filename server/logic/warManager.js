@@ -28,6 +28,7 @@ function createWarRecord(attackerAlliance, defenderAlliance, _stats) {
   return {
     id: `war_${Date.now()}_${Math.floor(Math.random() * 9999)}`,
     attacker: {                              // القبيلة المعتدية (الغازية)
+      allianceId: attackerAlliance.allianceId || "",
       name:    attackerAlliance.name,
       leader:  attackerAlliance.leader,
       members: attackerAlliance.members || [],
@@ -36,6 +37,7 @@ function createWarRecord(attackerAlliance, defenderAlliance, _stats) {
       coinPool: 0,                             // غنائم متراكمة
     },
     defender: {                              // القبيلة المدافعة
+      allianceId: defenderAlliance.allianceId || "",
       name:    defenderAlliance.name,
       leader:  defenderAlliance.leader,
       members: defenderAlliance.members || [],
@@ -55,7 +57,7 @@ function createWarRecord(attackerAlliance, defenderAlliance, _stats) {
  * محرك الحرب الرئيسي
  */
 function createWarManager(deps) {
-  const { worldClients, broadcastChat, memStore } = deps;
+  const { worldClients, broadcastChat, memStore, getMyAlliance, getTribePower: getAllianceTribePower } = deps;
 
   // الحروب النشطة: Map<warId, warRecord>
   const activeWars = new Map();
@@ -108,23 +110,19 @@ function createWarManager(deps) {
     if (war.log.length > 50) war.log.shift();
   }
 
-  function getTribePower(allianceName) {
-    // اجمع قوة كل الأعضاء المتصلين
-    let power = 0;
-    const c = worldClients.values();
-    for (const client of c) {
-      if (client.allianceName === allianceName) {
-        power += client.army_power || 0;
-      }
-    }
-    return power;
+  // 🛡️ قوة القبيلة تُحسب دائماً عبر allianceManager الحقيقي (عضوية موافَق عليها
+  // فعلياً من الشيخ) — وليس بمطابقة اسم يعلنه العميل عن نفسه، لمنع تصادم لاعبين
+  // مختلفين يكتبان نفس الاسم ويظهران كفريق واحد بلا أي تحقق.
+  function getTribePower(allianceId) {
+    if (!getAllianceTribePower) return 0;
+    return getAllianceTribePower(allianceId);
   }
 
   // ==================== إعلان الحرب ====================
 
-  function declareWar(declarer, attackerInfo, defenderInfo) {
-    // التحقق من التبريد
-    const cooldownEnd = allianceCooldowns.get(attackerInfo.name) || 0;
+  function declareWar(declarer, attackerInfo, defenderInfo, attackerAllianceId, defenderAllianceId) {
+    // التحقق من التبريد — مفتاح التبريد الآن allianceId الحقيقي وليس اسماً قابلاً للتصادم
+    const cooldownEnd = allianceCooldowns.get(attackerAllianceId) || 0;
     if (Date.now() < cooldownEnd) {
       return { ok: false, reason: "cooldown", endsAt: cooldownEnd };
     }
@@ -133,8 +131,8 @@ function createWarManager(deps) {
     for (const [, war] of activeWars) {
       if (war.status !== "active") continue;
       const samePair =
-        (war.attacker.name === attackerInfo.name && war.defender.name === defenderInfo.name) ||
-        (war.attacker.name === defenderInfo.name && war.defender.name === attackerInfo.name);
+        (war.attacker.allianceId === attackerAllianceId && war.defender.allianceId === defenderAllianceId) ||
+        (war.attacker.allianceId === defenderAllianceId && war.defender.allianceId === attackerAllianceId);
       if (samePair) {
         return { ok: false, reason: "already_at_war", warId: war.id };
       }
@@ -146,16 +144,21 @@ function createWarManager(deps) {
     }
 
     // لا يمكن الإعلان على نفس القبيلة
-    if (attackerInfo.name === defenderInfo.name) {
+    if (attackerAllianceId && attackerAllianceId === defenderAllianceId) {
       return { ok: false, reason: "same_tribe" };
     }
 
-    const war = createWarRecord(attackerInfo, defenderInfo, null);
+    const war = createWarRecord(
+      { ...attackerInfo, allianceId: attackerAllianceId },
+      { ...defenderInfo, allianceId: defenderAllianceId },
+      null
+    );
 
-    // 🛡️ القوة القبلية تُحسب دائماً من worldClients الموثوقة — لا نثق بقيمة
-    // العميل حتى كـ fallback (getTribePower قد تُعيد 0 بأمان إن كان الجميع غير متصل).
-    war.attacker.power = getTribePower(attackerInfo.name);
-    war.defender.power = getTribePower(defenderInfo.name);
+    // 🛡️ القوة القبلية تُحسب دائماً من عضوية Alliance الحقيقية عبر allianceId —
+    // لا نثق بقيمة العميل حتى كـ fallback (قد تُعيد getTribePower صفراً بأمان
+    // إن كان الجميع غير متصل).
+    war.attacker.power = getTribePower(attackerAllianceId);
+    war.defender.power = getTribePower(defenderAllianceId);
 
     activeWars.set(war.id, war);
     addLog(war, `🗡️ ${attackerInfo.name} أعلنت الغزوة على ${defenderInfo.name}!`);
@@ -326,9 +329,9 @@ function createWarManager(deps) {
       battles: war.battles.length,
     };
 
-    // تفعيل التبريد للقبيلتين
-    allianceCooldowns.set(war.attacker.name, Date.now() + WAR_COOLDOWN_MS);
-    allianceCooldowns.set(war.defender.name, Date.now() + WAR_COOLDOWN_MS);
+    // تفعيل التبريد للقبيلتين (مفتاح allianceId الحقيقي)
+    allianceCooldowns.set(war.attacker.allianceId, Date.now() + WAR_COOLDOWN_MS);
+    allianceCooldowns.set(war.defender.allianceId, Date.now() + WAR_COOLDOWN_MS);
 
     // تحديث الترتيب القبلي
     _updateRankings(war, winner, loser);
@@ -419,20 +422,27 @@ function createWarManager(deps) {
     switch (msg.type) {
       case "war_declare": {
         if (!username) return { error: "auth_required" };
+        if (!getMyAlliance) return { error: "alliance_system_unavailable" };
+        // 🛡️ القبيلتان (اسم/أعضاء/شيخ) تُشتقّان بالكامل من سجلّ Alliance الحقيقي
+        // على الخادم — العميل يرسل فقط allianceId المستهدف، وليس أي بيانات عضوية.
+        const myAlliance = getMyAlliance(username);
+        if (!myAlliance) return { error: "not_in_alliance" };
+        const enemyAlliance = deps.getAlliance ? deps.getAlliance(msg.defenderAllianceId) : null;
+        if (!enemyAlliance) return { error: "invalid_target_alliance" };
+
         const attackerInfo = {
-          name:   msg.attackerName || "",
+          name: myAlliance.name,
           leader: username,
-          members: msg.attackerMembers || [username],
-          power:  msg.attackerPower || 0,
+          members: myAlliance.members.map(m => m.username),
+          power: 0,
         };
         const defenderInfo = {
-          name:   msg.defenderName || "",
-          leader: msg.defenderName || "",
-          members: msg.defenderMembers || [],
-          power:  msg.defenderPower || 0,
+          name: enemyAlliance.name,
+          leader: enemyAlliance.createdBy,
+          members: enemyAlliance.members.map(m => m.username),
+          power: 0,
         };
-        if (!attackerInfo.name || !defenderInfo.name) return { error: "invalid_tribes" };
-        return declareWar(username, attackerInfo, defenderInfo);
+        return declareWar(username, attackerInfo, defenderInfo, myAlliance.id, enemyAlliance.id);
       }
 
       case "war_deploy": {
