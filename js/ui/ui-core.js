@@ -4,6 +4,7 @@ import { injectGameplayMethods } from "./ui-gameplay.js";
 import { injectMarketMethods } from "./ui-market.js";
 import { ALLIANCE_RAIDS } from "../alliance-manager.js";
 import { isPushAvailable, enablePushNotifications } from "../push-subscribe.js";
+import { ENEMY_TYPES } from "../enemies.js";
 
 export class GameUI {
   constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager, reputation) {
@@ -366,7 +367,11 @@ export class GameUI {
         <h2 class="story-boss-title">${scene.title}</h2>
         <p class="story-text story-boss-text">${scene.text}</p>
         <div class="story-boss-stats">
-          <span class="story-boss-stat">⚔️ ${scene.bossId || 'Boss'}</span>
+          ${(() => {
+            const bossDef = ENEMY_TYPES[scene.bossId];
+            if (!bossDef) return '';
+            return `<span class="story-boss-stat">${bossDef.icon || '⚔️'} ${bossDef.name}</span><span class="story-boss-stat">❤️ ${bossDef.hp}</span>`;
+          })()}
         </div>
         <div class="story-buttons">
           <button class="story-btn-skip story-btn-skip-boss">تخطي</button>

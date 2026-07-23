@@ -53,7 +53,13 @@ const PlayerSaveSchema = z.object({
   achievements: z.any().optional(),
   dailyLogin: z.record(z.any()).optional(),
   inventory: z.record(z.any()).optional(),
-  events: z.array(z.any()).max(50).optional(),
+  // 🛡️ events.js يحفظ الآن {events:[...], weekKey} (لدعم دوران الأحداث
+  // الأسبوعي)، بعد أن كان مصفوفة مسطّحة قديماً — نقبل الشكلين لتفادي رفض
+  // كل عملية حفظ لأي لاعب (كان هذا يسبب فشل saveToDB الصامت بالكامل).
+  events: z.union([
+    z.array(z.any()).max(50),
+    z.object({ events: z.array(z.any()).max(50).optional(), weekKey: z.number().optional() }),
+  ]).optional(),
   tutorial: z.record(z.any()).optional(),
   story: z.record(z.any()).optional(),
   brWins: z.number().int().min(0).optional(),

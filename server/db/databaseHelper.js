@@ -58,7 +58,9 @@ const playerSchema = new mongoose.Schema({
   achievements:   { type: Array, default: [] },
   dailyLogin:     { type: Object, default: {} },
   inventory:      { type: Object, default: {} },
-  events:         { type: Array, default: [] },
+  // events.js يحفظ الآن {events:[...], weekKey} (دوران أسبوعي) بدل مصفوفة
+  // مسطّحة قديماً — Mixed يقبل الشكلين دون رفض من Mongoose
+  events:         { type: mongoose.Schema.Types.Mixed, default: [] },
   tutorial:       { type: Object, default: {} },
   story:          { type: Object, default: {} },
   brWins:         { type: Number, default: 0 },
