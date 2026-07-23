@@ -135,12 +135,36 @@ GameUI.prototype._renderAuctionTab = function(overlay) {
   if (!container) return;
   const auction = this.world?._activeAuction;
   if (!auction) {
+    const hasTicket = !!this.world?._hasAuctionTicket;
     container.innerHTML = `
       <div style="text-align:center;padding:30px 12px;color:#7a6a5a">
         <div style="font-size:2.2rem;margin-bottom:8px">🏆</div>
         <div style="font-weight:700;margin-bottom:4px">لا يوجد مزاد نشط حالياً</div>
-        <div style="font-size:0.75rem">مزاد الجمعة الأسطوري يبدأ كل جمعة الساعة 8 مساءً بتوقيت السعودية!</div>
+        <div style="font-size:0.75rem;margin-bottom:14px">مزاد الجمعة الأسطوري يبدأ كل جمعة الساعة 8 مساءً بتوقيت السعودية!</div>
+        ${hasTicket
+          ? `<div style="font-size:0.75rem;color:#4cd964">🎫 معك تذكرة — ستصلك إشعار وتُفتح لك المزايدة تلقائياً قبل بدء المزاد بـ5 دقائق!</div>`
+          : `<button id="auction-ticket-btn" style="padding:10px 18px;border:none;border-radius:8px;background:linear-gradient(135deg,#9b59b6,#6c3483);color:#fff;font-weight:800;cursor:pointer;font-family:inherit">🎫 اشترِ تذكرة مزاد (10 💎) — تذكير + دخول تلقائي، بلا أي أفضلية مزايدة</button>`
+        }
       </div>`;
+    const ticketBtn = container.querySelector('#auction-ticket-btn');
+    if (ticketBtn) {
+      ticketBtn.addEventListener('click', () => {
+        this.world?._sendWS({ type: 'auction_ticket_buy' });
+        this.world._onAuctionTicketBuyResponse = (res) => {
+          if (res.ok) {
+            this.world._hasAuctionTicket = true;
+            this.showNotification('🎫 اشتريت تذكرة المزاد! ستُنبَّه قبل البدء بـ5 دقائق');
+            this._renderAuctionTab(overlay);
+          } else if (res.reason === 'insufficient_gems') {
+            this.showNotification('❌ جواهر غير كافية');
+          } else if (res.reason === 'already_have_ticket') {
+            this.showNotification('❌ معك تذكرة بالفعل لهذا المزاد');
+          } else {
+            this.showNotification('❌ تعذّر شراء التذكرة');
+          }
+        };
+      });
+    }
     return;
   }
   const remainingMs = Math.max(0, auction.endsAt - Date.now());

@@ -7,7 +7,7 @@ const { makeRateLimiter } = require("../network/rateLimiter");
 const loginLimiters = new Map();
 const clientLogLimiters = new Map();
 
-function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, markDirty, rooms, BUILDING_DEFS, TICK_MS, claimReward }) {
+function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, markDirty, rooms, BUILDING_DEFS, TICK_MS, claimReward, analytics }) {
 
   return async function handleApiRequest(req, res) {
     if (req.headers.upgrade === "websocket") return false;
@@ -301,6 +301,10 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
               res.writeHead(409, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: progressionCheck.reason }));
               return;
+            }
+            // 📊 تحليل مجهول: انتقال isNewPlayer من true إلى false = أكمل FTUE فعلاً لأول مرة
+            if (analytics && existing.isNewPlayer !== false && data.isNewPlayer === false) {
+              analytics.track("ftue_completed");
             }
             const merged = { ...existing };
             for (const [k, v] of Object.entries(data)) {

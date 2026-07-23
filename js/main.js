@@ -295,6 +295,7 @@ async function loadFromDatabase(economy, army, village, username) {
       window._loadedDailyLogin = data.dailyLogin || null;
       window._loadedPrestige = data.prestigeLevel ?? 0;
       window._loadedIsNewPlayer = data.isNewPlayer !== false;
+      window._loadedCosmetics = data.cosmetics || null;
       window._loadedInventory = data.inventory || null;
       window._loadedLoadout = data.loadout || null;
       window._loadedMarket = data.market || null;
@@ -650,6 +651,8 @@ async function init() {
     world._upgradeTree = upgradeTree;
     world._reputation = reputation;
     world._prestige = prestige;
+    // 🎨 مظاهر بصرية بحتة — تُحمَّل من حفظ السيرفر، وتُحدَّث لاحقاً عبر cosmetic_purchase/equip
+    world._myCosmetics = window._loadedCosmetics || { swordSkin: "", camelSkin: "", titleColor: "", owned: [] };
 
     // تسجيل مصادر القوة (powerSources) — بدونه يكون power = 0 دائماً
     economy.powerSources.push(() => village.getPower());
@@ -717,9 +720,31 @@ async function init() {
     };
 
     // ربط الإنجازات اليومية (كل استلام = +1 بغض النظر عن streak)
-    dailyLogin._onClaim = (day, reward) => {
+    dailyLogin._onClaim = (day, reward, premiumReward) => {
       achievements.updateProgress('login_days', 1);
       ui.showNotification(`📅 يوم ${day}: حصلت على ${reward.label}`);
+      if (premiumReward) {
+        ui.showNotification(`🏛️ رحلة الشيخ: ${premiumReward.label}${premiumReward.wisdom ? ` — «${premiumReward.wisdom}»` : ''}`);
+      }
+    };
+    // 🏛️ رحلة الشيخ — مزامنة حالة الموسم من الخادم عند الاتصال، وتأكيد الفتح بعد الشراء
+    world._onSeasonPassState = (seasonKey, premiumUnlocked) => {
+      dailyLogin.syncSeasonState(seasonKey, premiumUnlocked);
+    };
+    world._onSeasonPassUnlockResponse = (res) => {
+      if (res.ok) {
+        economy.gems = res.gemsRemaining;
+        dailyLogin.confirmPremiumUnlocked(res.seasonKey);
+        ui.showNotification('🏛️ فُتح المسار المميز لهذا الموسم!');
+        ui.updateTopBar();
+        if (ui.currentScreen === 'daily') ui.renderDailyLogin();
+      } else if (res.reason === 'insufficient_gems') {
+        ui.showNotification('❌ جواهر غير كافية');
+      } else if (res.reason === 'already_unlocked') {
+        ui.showNotification('❌ المسار المميز مفتوح بالفعل لهذا الموسم');
+      } else {
+        ui.showNotification('❌ تعذّر فتح المسار المميز');
+      }
     };
 
     // 🔥 تحسين: dirty flag — نحفظ فقط عندما يكون هناك تغيير حقيقي
@@ -787,6 +812,7 @@ async function init() {
         completedVillages: village.completedVillages,
         currentChapter: village.currentChapter,
         isNewPlayer: window._isNewPlayer !== false,
+        cosmetics: world._myCosmetics || undefined,
         last_active: Date.now()
       }).catch(e => console.warn("[Save] saveToDB:", e.message));
     };
@@ -997,6 +1023,36 @@ async function init() {
     };
     world._onPvPReturn = async () => {
       await world.exitWorldMap();
+    };
+    // 🎫 تذكرة المزاد: دخول تلقائي لواجهة المزاد قبل بدايته بـ5 دقائق — راحة فقط
+    world._onAuctionTicketAutoOpen = () => {
+      ui.showNotification('🏆 مزاد الجمعة بدأ! فُتحت لك المزايدة تلقائياً بفضل تذكرتك');
+      ui.openMarket();
+    };
+    // 🛡️ تأمين الصندوق — 50 ذهب عادي (ليس جواهر)، يخفي الصندوق عن البقية فقط
+    world._onPlayerDiedResponse = (res) => {
+      if (!res.penalized || !res.crateId) return;
+      ui.showConfirmDialog({
+        icon: "🛡️",
+        title: "تأمين صندوق الذهب؟",
+        desc: `سقط صندوق فيه ${res.goldLost} 🪙 في مكان موتك. يمكنك إخفاءه عن بقية اللاعبين مقابل 50 ذهب من ذهبك العادي (لن يُطيل مدته الثلاث دقائق).`,
+        cost: "🛡️ 50 🪙",
+        okLabel: "🛡️ أمّن الصندوق",
+        onConfirm: () => {
+          world._sendWS({ type: 'crate_insure', crateId: res.crateId });
+          world._onCrateInsureResponse = (insureRes) => {
+            if (insureRes.ok) {
+              economy.gold -= 50;
+              ui.showNotification('🛡️ تم تأمين صندوقك — أصبح مخفياً عن الجميع سواك');
+              ui.updateTopBar();
+            } else if (insureRes.reason === 'insufficient_gold') {
+              ui.showNotification('❌ ذهب غير كافٍ للتأمين');
+            } else {
+              ui.showNotification('❌ تعذّر تأمين الصندوق');
+            }
+          };
+        },
+      });
     };
 
     // توصيل الإنجازات والمهام

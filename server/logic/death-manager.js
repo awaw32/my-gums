@@ -19,9 +19,10 @@ const WATER_LOSS_PERCENT = 0.5;
 const CRATE_DURATION_MS = 3 * 60 * 1000; // 3 دقائق
 const CRATE_WARNING_BEFORE_MS = 30 * 1000; // تحذير قبل 30 ثانية من انتهاء الصلاحية
 const CLAIM_RADIUS = 60;
+const INSURANCE_COST_GOLD = 50; // ذهب اللعبة العادي — ليس جواهر، فليست Pay-to-Win
 
 function createDeathManager(deps) {
-  const { worldClients, memStore, getDefaultPlayer, markDirty, SAFE_ZONE } = deps;
+  const { worldClients, memStore, getDefaultPlayer, markDirty, SAFE_ZONE, analytics } = deps;
 
   const activeCrates = new Map(); // id -> { id, x, y, goldLost, ownerId, expiresAt, timer }
 
@@ -61,7 +62,9 @@ function createDeathManager(deps) {
     const id = `crate_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const expiresAt = Date.now() + CRATE_DURATION_MS;
     const timer = setTimeout(() => despawnCrate(id, "expired"), CRATE_DURATION_MS);
-    activeCrates.set(id, { id, x, y, goldLost, ownerId: username, expiresAt, timer });
+    activeCrates.set(id, { id, x, y, goldLost, ownerId: username, expiresAt, timer, insured: false });
+
+    if (analytics) analytics.track("death_crate_created");
 
     // 🔔 تحذير صاحب الصندوق (إن كان غير متصل) قبل انتهاء صلاحيته بـ30 ثانية
     if (pushEnabled) {
@@ -80,13 +83,38 @@ function createDeathManager(deps) {
     }
 
     broadcastToAll({ type: "death_crate_spawn", id, x, y, goldLost, ownerId: username, expiresAt });
-    return { ok: true, penalized: true, goldLost };
+    return { ok: true, penalized: true, goldLost, crateId: id };
+  }
+
+  /**
+   * 🛡️ تأمين الصندوق — يخفيه عن خريطة بقية اللاعبين (لا يمنع انتهاء صلاحيته
+   * ولا يُطيل مدته)، بذهب اللعبة العادي فقط (ليس Gems) — ليس Pay-to-Win لأن
+   * أي لاعب يكسب الذهب مجاناً من اللعب العادي، وهذا لا يمنح أي قوة قتالية.
+   */
+  function insureCrate(username, crateId) {
+    const crate = activeCrates.get(crateId);
+    if (!crate) return { ok: false, reason: "crate_not_found" };
+    if (crate.ownerId !== username) return { ok: false, reason: "not_owner" };
+    if (crate.insured) return { ok: false, reason: "already_insured" };
+
+    const pData = memStore.get(username) || getDefaultPlayer(username);
+    if ((pData.gold || 0) < INSURANCE_COST_GOLD) return { ok: false, reason: "insufficient_gold" };
+
+    pData.gold -= INSURANCE_COST_GOLD;
+    memStore.set(username, pData);
+    markDirty(username);
+
+    crate.insured = true;
+    broadcastToAll({ type: "death_crate_despawn", id: crateId, reason: "insured" });
+    return { ok: true };
   }
 
   /** يُستدعى عند محاولة لاعب استلام صندوق — يتحقق من القرب فعلياً على الخادم */
   function claimCrate(username, crateId) {
     const crate = activeCrates.get(crateId);
     if (!crate) return { ok: false, reason: "crate_not_found" };
+    // 🛡️ الصندوق المؤمَّن مخفي عن الجميع إلا صاحبه — لا يمكن لأي لاعب آخر استلامه
+    if (crate.insured && crate.ownerId !== username) return { ok: false, reason: "crate_not_found" };
     const client = worldClients.get(username);
     if (!client) return { ok: false, reason: "not_connected" };
     const dist = Math.hypot(client.x - crate.x, client.y - crate.y);
@@ -108,6 +136,7 @@ function createDeathManager(deps) {
   return {
     handlePlayerDeath,
     claimCrate,
+    insureCrate,
     getActiveCrates,
     isInSafeZone,
   };

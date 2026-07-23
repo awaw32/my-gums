@@ -2,6 +2,7 @@ import { formatNumber } from "../economy.js";
 import { injectPromotionMethods } from "./ui-promotion.js";
 import { injectGameplayMethods } from "./ui-gameplay.js";
 import { injectMarketMethods } from "./ui-market.js";
+import { injectShopMethods } from "./ui-shop.js";
 import { ALLIANCE_RAIDS } from "../alliance-manager.js";
 import { isPushAvailable, enablePushNotifications } from "../push-subscribe.js";
 import { ENEMY_TYPES } from "../enemies.js";
@@ -664,6 +665,7 @@ export class GameUI {
     this.screens.mystats = this.buildMyStatsScreen();
     this.screens.settings = this.buildSettingsScreen();
     this.screens.market = this.buildMarketScreen();
+    this.screens.cosmetics_shop = this.buildCosmeticsShopScreen();
   }
 
   buildAllianceScreen() {
@@ -748,9 +750,12 @@ export class GameUI {
     const rep = this.reputation;
     const repTitle = rep ? rep.getTitle() : { icon: '😐', name: 'محايد' };
     const prestige = this.prestige;
+    const cosmetics = w?._myCosmetics;
+    const titleColorNames = { title_ruby: 'ياقوتي', title_emerald: 'زمرّدي', title_sapphire: 'ياقوت أزرق' };
     const stats = [
       { icon: repTitle.icon, label: `السمعة (${repTitle.name})`, value: rep ? (rep.score > 0 ? '+' : '') + rep.score : '0' },
       ...(prestige?.hasGoldenTitle ? [{ icon: prestige.currentBonus.icon, label: `لقب البرستيج (${prestige.currentBonus.title})`, value: prestige.hasCrown ? '👑 يراه الجميع' : '🌑 يراه الجميع' }] : []),
+      ...(!prestige?.hasGoldenTitle && cosmetics?.titleColor ? [{ icon: '👑', label: `لقب ملوّن (${titleColorNames[cosmetics.titleColor] || ''})`, value: '🎨 يراه الجميع' }] : []),
       { icon: '🏅', label: 'المستوى', value: eco?.level || 1 },
       { icon: '✨', label: 'الخبرة', value: `${(eco?.xp || 0).toLocaleString()} / ${(eco?.xpToNext || 100).toLocaleString()}` },
       { icon: '⚔️', label: 'القتل', value: (eco?.kills || 0).toLocaleString() },
@@ -1128,6 +1133,7 @@ export class GameUI {
       case "mystats": this.renderMyStats(); break;
       case "settings": this.renderSettings(); break;
       case "market": this.renderMarket(); break;
+      case "cosmetics_shop": this.renderCosmeticsShop(); break;
     }
   }
 
@@ -1501,7 +1507,27 @@ export class GameUI {
           </div>
         `).join('')}
       </div>
+      <div style="font-weight:800;color:#f5e6c8;margin:16px 0 6px;font-size:0.85rem;text-align:center">
+        🏛️ رحلة الشيخ — المسار المميز ${state.premiumUnlocked ? '(مفتوح هذا الموسم)' : `(${state.premiumUnlockCostGems} 💎)`}
+      </div>
+      <div style="font-size:0.68rem;color:#9a8a6a;text-align:center;margin-bottom:8px">مكافآت إضافية زخرفية بحتة — لا قوة قتالية إطلاقاً. يتجدد كل 30 يوماً.</div>
+      ${!state.premiumUnlocked ? `<button id="season-pass-unlock-btn" class="action-btn" style="width:100%;background:linear-gradient(135deg,#9b59b6,#6c3483)">🔓 افتح المسار المميز (${state.premiumUnlockCostGems} 💎)</button>` : `
+      <div class="daily-grid">
+        ${state.premiumRewards.map((r, i) => `
+          <div class="daily-day${i === state.currentDay % 7 && state.canClaim ? ' daily-today' : ''}${i < state.currentDay % 7 ? ' daily-done' : ''}" style="border-color:#9b59b6">
+            <div class="daily-day-num">اليوم ${r.day}</div>
+            <div class="daily-reward-icon">${r.icon}</div>
+            <div class="daily-reward-label">${r.label}</div>
+          </div>
+        `).join('')}
+      </div>`}
     `;
+    const unlockBtn = document.getElementById('season-pass-unlock-btn');
+    if (unlockBtn) {
+      unlockBtn.addEventListener('click', () => {
+        this.world?._sendWS({ type: 'season_pass_unlock' });
+      });
+    }
     if (state.canClaim) {
       const btn = document.createElement("button");
       btn.className = "action-btn daily-claim-btn";
@@ -1899,3 +1925,4 @@ export class GameUI {
 injectPromotionMethods(GameUI);
 injectGameplayMethods(GameUI);
 injectMarketMethods(GameUI);
+injectShopMethods(GameUI);

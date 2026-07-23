@@ -669,8 +669,11 @@ export class WorldMap {
       ctx.translate(p.x, p.y);
       // 🏜️ برستيج "ملك الظل"/"ملك الصحراء" (مستوى 4-5): لقب ذهبي يظهر للجميع بجانب الاسم
       const prestigeBonus = p.prestigeLevel >= 4 ? { icon: p.prestigeLevel >= 5 ? "👑" : "🌑", color: "#FFD700" } : null;
-      const nameLabel = prestigeBonus ? `${prestigeBonus.icon} ${p.username}` : p.username;
-      ctx.fillStyle = prestigeBonus ? prestigeBonus.color : "#fff";
+      // 🎨 لقب ملوّن من متجر المظاهر — بصري بحت، يظهر فقط إن لم يكن هناك لقب برستيج أقوى
+      const titleColorId = !prestigeBonus && p.cosmetics?.titleColor ? p.cosmetics.titleColor : null;
+      const titleColorHex = { title_ruby: "#e74c3c", title_emerald: "#2ecc71", title_sapphire: "#3498db" }[titleColorId] || null;
+      const nameLabel = prestigeBonus ? `${prestigeBonus.icon} ${p.username}` : (titleColorHex ? `👑 ${p.username}` : p.username);
+      ctx.fillStyle = prestigeBonus ? prestigeBonus.color : (titleColorHex || "#fff");
       ctx.font = "bold 11px Cairo, sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(nameLabel, 0, -p.radius - 10);

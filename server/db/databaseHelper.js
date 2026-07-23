@@ -86,6 +86,10 @@ const playerSchema = new mongoose.Schema({
   legendaryItems: { type: Array, default: [] }, // عناصر فاز بها اللاعب من مزاد الجمعة الأسطوري
   lastFoodDecayCheck: { type: Number, default: 0 },
   isNewPlayer: { type: Boolean, default: true }, // يُصبح false بعد إكمال قصة البداية FTUE
+  // 🎨 مظاهر بصرية بحتة — لا تؤثر على القوة إطلاقاً، تُشترى بالجواهر فقط
+  cosmetics: { type: Object, default: { swordSkin: "", camelSkin: "", titleColor: "", owned: [] } },
+  // 🏛️ رحلة الشيخ — حالة فتح المسار المميز الموسمي (لا قوة، فقط علم فتح)
+  seasonPass: { type: Object, default: { seasonKey: 0, premiumUnlocked: false } },
 }, { collection: "players_data", timestamps: false });
 
 const Player = mongoose.model("Player", playerSchema);
@@ -122,6 +126,8 @@ function getDefaultPlayer(username) {
     legendaryItems: [],
     lastFoodDecayCheck: 0,
     isNewPlayer: true,
+    cosmetics: { swordSkin: "", camelSkin: "", titleColor: "", owned: [] },
+    seasonPass: { seasonKey: 0, premiumUnlocked: false },
   };
 }
 

@@ -29,7 +29,7 @@ function playerColor(username) {
 let _dropIdCounter = 0;
 const DROP_CLEANUP_MS = 60000;
 
-function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager }) {
+function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager, cosmeticsShop, analytics, seasonPassManager }) {
 
   // تنظيف اللاعبين المنقطعين كل 10 ثوانٍ (مهلة 30 ثانية)
   setInterval(() => {
@@ -78,6 +78,7 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         repTitle: c.repTitle || "محايد",
         repIcon: c.repIcon || "😐",
         prestigeLevel: c.prestigeLevel || 0,
+        cosmetics: c.cosmetics || null,
         last_active: Date.now()
       });
     });
@@ -191,6 +192,8 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           buildings: msg.buildings || {},
           research: msg.research || {},
           partyCode: null,
+          // 🎨 مظاهر بصرية بحتة — تُقرأ من البيانات المحفوظة الموثوقة فقط
+          cosmetics: persisted?.cosmetics || { swordSkin: "", camelSkin: "", titleColor: "", owned: [] },
         });
         ws.send(JSON.stringify({ type: "world_monsters", list: worldMonsters }));
         ws.send(JSON.stringify({ type: "world_drops", list: worldDrops }));
@@ -215,11 +218,17 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
             }
           }
         }
-        // 💀 مزامنة صناديق الموت النشطة (إن وُجدت) للاعب المنضمّ حديثاً
+        // 💀 مزامنة صناديق الموت النشطة (إن وُجدت) للاعب المنضمّ حديثاً — الصناديق
+        // المؤمَّنة (crate_insurance) تبقى مخفية عن كل أحد سوى صاحبها فعلياً
         if (deathManager && ws.readyState === 1) {
           for (const crate of deathManager.getActiveCrates()) {
+            if (crate.insured && crate.ownerId !== username) continue;
             ws.send(JSON.stringify({ type: "death_crate_spawn", ...crate }));
           }
+        }
+        // 🏛️ مزامنة حالة رحلة الشيخ الموسمية (هل المسار المميز مفتوح لهذا الموسم؟)
+        if (seasonPassManager && ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "season_pass_state", ...seasonPassManager.getSeasonState(username) }));
         }
         broadcastWorld();
         const joinMsg = JSON.stringify({ type: "player_joined", username });
@@ -325,7 +334,10 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
               const active = caravanManager.getActiveCaravan();
               if (active && active.id === mon.caravanId) {
                 const anyGuardAlive = worldMonsters.some(m => active.guardIds.includes(m.id) && m.alive);
-                if (!anyGuardAlive) caravanManager.despawnCaravan("killed");
+                if (!anyGuardAlive) {
+                  caravanManager.despawnCaravan("killed");
+                  if (analytics) analytics.track("caravan_killed");
+                }
               }
             }
           }
@@ -435,11 +447,45 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         // 💀 موقع الموت يُقرأ من حالة اللاعب المتتبَّعة على الخادم، وليس من رسالة
         // العميل — يمنع الادّعاء بالموت خارج الواحة بينما اللاعب فعلياً بداخلها
         const client = worldClients.get(username);
-        if (client) deathManager.handlePlayerDeath(username, client.x, client.y);
+        if (client) {
+          const deathResult = deathManager.handlePlayerDeath(username, client.x, client.y);
+          if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: "player_died_response", ...deathResult }));
+          }
+        }
       } else if (msg.type === "death_crate_claim" && username && deathManager) {
         const result = deathManager.claimCrate(username, msg.crateId);
         if (ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "death_crate_claim_response", ...result }));
+        }
+      } else if (msg.type === "crate_insure" && username && deathManager) {
+        const result = deathManager.insureCrate(username, msg.crateId);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "crate_insure_response", ...result }));
+        }
+      } else if (msg.type === "auction_ticket_buy" && username && auctionManager) {
+        const result = auctionManager.buyTicket(username);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "auction_ticket_buy_response", ...result }));
+        }
+      } else if (msg.type === "cosmetic_purchase" && username && cosmeticsShop) {
+        const result = cosmeticsShop.purchase(username, msg.itemId);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "cosmetic_purchase_response", ...result }));
+        }
+      } else if (msg.type === "cosmetic_equip" && username && cosmeticsShop) {
+        const result = cosmeticsShop.equip(username, msg.itemId);
+        if (result.ok) {
+          const client = worldClients.get(username);
+          if (client) client.cosmetics = result.cosmetics;
+        }
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "cosmetic_equip_response", ...result }));
+        }
+      } else if (msg.type === "season_pass_unlock" && username && seasonPassManager) {
+        const result = seasonPassManager.unlockPremium(username);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "season_pass_unlock_response", ...result }));
         }
       } else if (msg.type === "tribe_help" && username && allianceManager) {
         // 🆘 نداء نجدة — يرسل موقع اللاعب لكل أعضاء تحالفه فقط

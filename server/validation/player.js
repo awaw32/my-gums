@@ -76,6 +76,16 @@ const PlayerSaveSchema = z.object({
   legendaryItems: z.array(z.string()).max(50).optional(),
   lastFoodDecayCheck: z.number().int().min(0).optional(),
   isNewPlayer: z.boolean().optional(),
+  cosmetics: z.object({
+    swordSkin: z.string().max(30).optional(),
+    camelSkin: z.string().max(30).optional(),
+    titleColor: z.string().max(30).optional(),
+    owned: z.array(z.string()).max(100).optional(),
+  }).optional(),
+  seasonPass: z.object({
+    seasonKey: z.number().int().min(0).optional(),
+    premiumUnlocked: z.boolean().optional(),
+  }).optional(),
 }).strict();
 
 function sanitizePlayerData(data) {

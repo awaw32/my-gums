@@ -19,6 +19,20 @@ const STREAK_MILESTONES = [
 
 const LOYAL_TITLE = "الوفي";
 
+// 🏛️ رحلة الشيخ — مكافآت المسار المميز الموازية لكل يوم في السلسلة (30 يوماً/موسم)
+// كلها زخرفية أو موارد عادية — لا قوة قتالية إطلاقاً، فقط مضاعف زخرفي للقب الوفي
+const PREMIUM_TRACK_REWARDS = [
+  { day: 1, icon: "📦", label: "صندوق إضافي صغير", reward: { gold: 50 } },
+  { day: 2, icon: "📦", label: "صندوق إضافي", reward: { cash: 200 } },
+  { day: 3, icon: "📜", label: "حكمة نادرة", wisdom: "من ملك رحلة الشيخ، عرف أسرار الصحراء التي لا تُقال لعامة الناس." },
+  { day: 4, icon: "📦", label: "صندوق إضافي", reward: { gold: 100 } },
+  { day: 5, icon: "📦", label: "صندوق إضافي", reward: { food: 100 } },
+  { day: 6, icon: "📜", label: "حكمة نادرة", wisdom: "يا شيخ الشيوخ، رحلتك المميزة تليق بمن ثبت." },
+  { day: 7, icon: "👑", label: "صندوق مميز أسطوري + مضاعف زخرفي للقب الوفي", reward: { gold: 200 }, loyalTitleDecoration: "✨" },
+];
+const SEASON_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 يوماً — نفس مدة الموسم على الخادم
+const PREMIUM_UNLOCK_COST_GEMS = 100;
+
 export class DailyLoginManager {
   constructor(economy) {
     this.economy = economy;
@@ -30,6 +44,10 @@ export class DailyLoginManager {
     this._onClaim = null;
     this._onMilestone = null;
     this._onLoyalTitleLost = null;
+    // 🏛️ رحلة الشيخ — حالة المسار المميز (الفتح نفسه سيرفر-موثوق عبر season_pass_unlock)
+    this.seasonKey = 0;
+    this.premiumUnlocked = false;
+    this._onPremiumUnlocked = null;
   }
 
   get rewards() { return DAILY_REWARDS; }
@@ -46,6 +64,30 @@ export class DailyLoginManager {
   }
 
   get loyalTitle() { return LOYAL_TITLE; }
+  get premiumRewards() { return PREMIUM_TRACK_REWARDS; }
+
+  /** مفتاح الموسم الحالي (محلياً — للعرض فقط؛ الخادم هو المصدر الموثوق للفتح) */
+  get currentSeasonKey() {
+    return Math.floor(Date.now() / SEASON_DURATION_MS);
+  }
+
+  /** يُستدعى عند استقبال season_pass_state من الخادم عند الاتصال */
+  syncSeasonState(seasonKey, premiumUnlocked) {
+    if (this.seasonKey !== seasonKey) {
+      // موسم جديد — يعاد ضبط حالة الفتح المحلية لتطابق الخادم دائماً
+      this.seasonKey = seasonKey;
+      this.premiumUnlocked = premiumUnlocked;
+    } else {
+      this.premiumUnlocked = premiumUnlocked;
+    }
+  }
+
+  /** يُستدعى بعد رد season_pass_unlock_response الناجح من الخادم فقط */
+  confirmPremiumUnlocked(seasonKey) {
+    this.seasonKey = seasonKey;
+    this.premiumUnlocked = true;
+    if (this._onPremiumUnlocked) this._onPremiumUnlocked();
+  }
 
   checkDaily() {
     const today = new Date().toDateString();
@@ -93,13 +135,22 @@ export class DailyLoginManager {
       eco.addRaw("gems", milestone.gems);
       if (this._onMilestone) this._onMilestone(milestone);
     }
-    if (this._onClaim) this._onClaim(this.currentDay, reward);
+    // 🏛️ المسار المميز — يُمنح فقط إن كان مفتوحاً فعلياً لهذا الموسم (مؤكَّد من الخادم)
+    let premiumReward = null;
+    if (this.premiumUnlocked && this.seasonKey === this.currentSeasonKey) {
+      premiumReward = PREMIUM_TRACK_REWARDS[this.currentDay - 1];
+      if (premiumReward.reward?.gold) eco.addRaw("gold", Math.floor(premiumReward.reward.gold * mult));
+      if (premiumReward.reward?.cash) eco.addRaw("cash", Math.floor(premiumReward.reward.cash * mult));
+      if (premiumReward.reward?.food) eco.addRaw("food", Math.floor(premiumReward.reward.food * mult));
+    }
+    if (this._onClaim) this._onClaim(this.currentDay, reward, premiumReward);
     return true;
   }
 
   getState() {
     const today = new Date().toDateString();
     const canClaim = this.lastClaimDate !== today;
+    const seasonActive = this.seasonKey === this.currentSeasonKey && this.premiumUnlocked;
     return {
       currentDay: this.currentDay,
       streak: this.streak,
@@ -111,6 +162,10 @@ export class DailyLoginManager {
       rewards: DAILY_REWARDS,
       loyalTitleEarned: this.loyalTitleEarned,
       loyalTitle: LOYAL_TITLE,
+      premiumRewards: PREMIUM_TRACK_REWARDS,
+      premiumUnlocked: seasonActive,
+      premiumUnlockCostGems: PREMIUM_UNLOCK_COST_GEMS,
+      seasonKey: this.currentSeasonKey,
     };
   }
 

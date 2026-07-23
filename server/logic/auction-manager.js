@@ -1,5 +1,7 @@
 "use strict";
 
+const { sendPush, enabled: pushEnabled } = require("../push");
+
 /**
  * server/logic/auction-manager.js
  * ============================================================================
@@ -7,12 +9,19 @@
  * كل يوم جمعة الساعة 8 مساءً بتوقيت السعودية (UTC+3 ثابت، بلا توقيت صيفي)
  * يبدأ مزاد لعنصر أسطوري واحد يستمر 10 دقائق. اللاعبون يزايدون بالذهب،
  * وعند الانتهاء يُخصم الذهب من الفائز فعلياً عبر memStore (مصدر موثوق سيرفرياً).
+ *
+ * 🎫 تذكرة المزاد (auction_ticket) — راحة لا قوة: أي لاعب يقدر يزايد مجاناً
+ * دون أي تذكرة. التذكرة (10 جواهر) تعطي فقط إشعار Push قبل بدء المزاد بـ5
+ * دقائق + علم client-side يفتح واجهة المزاد تلقائياً — لا تمنح أي أفضلية في
+ * المزايدة نفسها ولا خصماً على السعر.
  * ============================================================================
  */
 
 const KSA_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3 ثابت
 const AUCTION_DURATION_MS = 10 * 60 * 1000; // 10 دقائق
 const MIN_BID_INCREMENT = 50;
+const TICKET_COST_GEMS = 10;
+const TICKET_REMINDER_BEFORE_MS = 5 * 60 * 1000; // إشعار قبل 5 دقائق من بدء المزاد
 
 const LEGENDARY_ITEMS = [
   { id: "legendary_sword", name: "سيف الصحراء الأسطوري", icon: "🗡️", startingBid: 500 },
@@ -21,10 +30,12 @@ const LEGENDARY_ITEMS = [
 ];
 
 function createAuctionManager(deps) {
-  const { worldClients, memStore, getDefaultPlayer, markDirty } = deps;
+  const { worldClients, memStore, getDefaultPlayer, markDirty, analytics } = deps;
 
   let activeAuction = null; // { itemId, name, icon, currentBid, currentBidder, endsAt, timer }
   let scheduleTimer = null;
+  let reminderTimer = null;
+  const ticketHolders = new Set(); // مشترو تذكرة هذا الأسبوع فقط — تُصفَّر بعد كل مزاد
 
   function broadcastToAll(message) {
     const msg = JSON.stringify(message);
@@ -46,12 +57,49 @@ function createAuctionManager(deps) {
 
   function scheduleNextAuction() {
     if (scheduleTimer) clearTimeout(scheduleTimer);
-    const delay = nextFriday8pmKSA() - Date.now();
+    if (reminderTimer) clearTimeout(reminderTimer);
+    const nextStart = nextFriday8pmKSA();
+    const delay = nextStart - Date.now();
     // setTimeout يقبل حتى ~24.8 يوم قبل التجاوز؛ أسبوع كامل آمن هنا
     scheduleTimer = setTimeout(() => {
       startAuction();
       scheduleNextAuction();
     }, delay);
+
+    // 🔔 تذكير حاملي التذكرة قبل 5 دقائق من بدء المزاد (Push فقط، بلا فتح نافذة إجباري)
+    const reminderDelay = delay - TICKET_REMINDER_BEFORE_MS;
+    if (reminderDelay > 0) {
+      reminderTimer = setTimeout(() => {
+        if (!pushEnabled) return;
+        for (const username of ticketHolders) {
+          const pData = memStore.get(username);
+          if (pData?.pushSubscription) {
+            sendPush(pData.pushSubscription, {
+              title: "🏆 مزاد الجمعة يبدأ بعد 5 دقائق!",
+              body: "معك تذكرة مزاد — عد الآن حتى تدخل تلقائياً ولا يفوتك العنصر الأسطوري!",
+              url: "/",
+            });
+          }
+        }
+      }, reminderDelay);
+    }
+  }
+
+  /** شراء تذكرة مزاد — 10 جواهر، راحة فقط (إشعار + دخول تلقائي)، بلا أي أفضلية مزايدة */
+  function buyTicket(username) {
+    if (ticketHolders.has(username)) return { ok: false, reason: "already_have_ticket" };
+    const pData = memStore.get(username) || getDefaultPlayer(username);
+    if ((pData.gems || 0) < TICKET_COST_GEMS) return { ok: false, reason: "insufficient_gems" };
+
+    pData.gems -= TICKET_COST_GEMS;
+    memStore.set(username, pData);
+    markDirty(username);
+    ticketHolders.add(username);
+    return { ok: true };
+  }
+
+  function hasTicket(username) {
+    return ticketHolders.has(username);
   }
 
   function startAuction() {
@@ -75,6 +123,14 @@ function createAuctionManager(deps) {
       startingBid: item.startingBid,
       endsAt,
     });
+
+    // 🎫 إشعار خاص لحاملي التذكرة فقط: علم client-side يفتح واجهة المزاد تلقائياً
+    for (const username of ticketHolders) {
+      const client = worldClients.get(username);
+      if (client && client.ws.readyState === 1) {
+        client.ws.send(JSON.stringify({ type: "auction_ticket_autoopen" }));
+      }
+    }
   }
 
   function placeBid(username, amount) {
@@ -109,6 +165,7 @@ function createAuctionManager(deps) {
         pData.legendaryItems.push(itemId);
         memStore.set(currentBidder, pData);
         markDirty(currentBidder);
+        if (analytics) analytics.track("auction_won");
       }
     }
     broadcastToAll({
@@ -120,6 +177,7 @@ function createAuctionManager(deps) {
       finalBid: currentBid,
     });
     activeAuction = null;
+    ticketHolders.clear();
   }
 
   function getActiveAuction() {
@@ -132,6 +190,8 @@ function createAuctionManager(deps) {
     placeBid,
     getActiveAuction,
     nextFriday8pmKSA,
+    buyTicket,
+    hasTicket,
   };
 }
 

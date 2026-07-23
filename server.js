@@ -69,10 +69,14 @@ const caravanManager = createCaravanManager({
   worldMonsters, worldClients, WORLD_W2, WORLD_H2, memStore,
 });
 
+// 📊 تحليلات مجهولة الهوية — لا اسم مستخدم ولا IP، فقط أحداث لمعرفة نقاط ترك اللعب
+const { createAnalytics } = require("./server/logic/analytics");
+const analytics = createAnalytics();
+
 // 💀 عقوبة الموت خارج الواحة — سيرفر-موثوق بالكامل (لا economy.add على العميل)
 const { createDeathManager } = require("./server/logic/death-manager");
 const deathManager = createDeathManager({
-  worldClients, memStore, getDefaultPlayer, markDirty, SAFE_ZONE,
+  worldClients, memStore, getDefaultPlayer, markDirty, SAFE_ZONE, analytics,
 });
 
 const { createCombatLoop } = require("./server/logic/combatLoop");
@@ -111,7 +115,7 @@ const warManager = createWarManager({
 
 // 🏆 مزاد الجمعة الأسطوري — نسخة واحدة فقط (SIM_OWNER) تشغّل المؤقّت لتفادي مزادات مكررة
 const { createAuctionManager } = require("./server/logic/auction-manager");
-const auctionManager = createAuctionManager({ worldClients, memStore, getDefaultPlayer, markDirty });
+const auctionManager = createAuctionManager({ worldClients, memStore, getDefaultPlayer, markDirty, analytics });
 if (SIM_OWNER) auctionManager.scheduleNextAuction();
 
 // 🏅 لوحة الشرف الحية — تُعاد حسابها كل 60 ثانية على نسخة واحدة فقط
@@ -119,6 +123,14 @@ const { allianceMemStore } = require("./server/db/allianceHelper");
 const { createLeaderboardManager } = require("./server/logic/leaderboard-manager");
 const leaderboardManager = createLeaderboardManager({ worldClients, memStore, allianceMemStore, allianceManager });
 if (SIM_OWNER) leaderboardManager.start();
+
+// 🎨 متجر المظاهر — بصري بحت، يخصم gems فقط (لا بيع قوة إطلاقاً)
+const { createCosmeticsShop } = require("./server/logic/cosmetics-shop");
+const cosmeticsShop = createCosmeticsShop({ memStore, getDefaultPlayer, markDirty });
+
+// 🏛️ رحلة الشيخ — فتح المسار المميز الموسمي فقط، لا بيع قوة
+const { createSeasonPass } = require("./server/logic/season-pass");
+const seasonPassManager = createSeasonPass({ memStore, getDefaultPlayer, markDirty });
 
 const { createWorldHandler } = require("./server/network/worldHandler");
 const handleWorldConnection = createWorldHandler({
@@ -130,6 +142,7 @@ const handleWorldConnection = createWorldHandler({
   claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades,
   applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, sanitizePlayerData,
   warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager,
+  cosmeticsShop, analytics, seasonPassManager,
 });
 
 // 🔔 تذكير دوري بالهدية المجانية للاعبين غير المتصلين — no-op بلا مفاتيح VAPID
@@ -267,7 +280,7 @@ const { serveStatic } = require("./server/network/staticServer");
 const { createApiRoutes } = require("./server/routes/api");
 const handleApiRequest = createApiRoutes({
   mongoConnected, memStore, Player, getDefaultPlayer, markDirty,
-  rooms, BUILDING_DEFS, TICK_MS, claimReward,
+  rooms, BUILDING_DEFS, TICK_MS, claimReward, analytics,
 });
 
 server.on("request", async (req, res) => {

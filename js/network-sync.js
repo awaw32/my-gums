@@ -241,6 +241,7 @@ export class NetworkSync {
           repTitle: p.repTitle || "محايد",
           repIcon: p.repIcon || "😐",
           prestigeLevel: p.prestigeLevel || 0,
+          cosmetics: p.cosmetics || null,
         });
       }
     }
@@ -656,6 +657,13 @@ export class NetworkSync {
       case "auction_bid_response":
         if (w._onAuctionBidResponse) w._onAuctionBidResponse(msg);
         break;
+      case "auction_ticket_buy_response":
+        if (w._onAuctionTicketBuyResponse) w._onAuctionTicketBuyResponse(msg);
+        break;
+      case "auction_ticket_autoopen":
+        // 🎫 دخول تلقائي لحامل التذكرة — راحة فقط، لا يمنح أفضلية في المزايدة نفسها
+        if (w._onAuctionTicketAutoOpen) w._onAuctionTicketAutoOpen();
+        break;
       // ==================== 🏅 لوحة الشرف الحية ====================
       case "leaderboard_update":
         w._liveLeaderboard = { richestTrader: msg.richestTrader, banditSlayer: msg.banditSlayer, topAlliance: msg.topAlliance, updatedAt: msg.updatedAt };
@@ -671,6 +679,27 @@ export class NetworkSync {
         break;
       case "death_crate_claim_response":
         if (w._onDeathCrateClaimResponse) w._onDeathCrateClaimResponse(msg);
+        break;
+      case "player_died_response":
+        if (w._onPlayerDiedResponse) w._onPlayerDiedResponse(msg);
+        break;
+      case "crate_insure_response":
+        if (w._onCrateInsureResponse) w._onCrateInsureResponse(msg);
+        break;
+      // ==================== 🎨 متجر المظاهر ====================
+      case "cosmetic_purchase_response":
+        if (w._onCosmeticPurchaseResponse) w._onCosmeticPurchaseResponse(msg);
+        break;
+      case "cosmetic_equip_response":
+        if (msg.ok && msg.cosmetics) w._myCosmetics = msg.cosmetics;
+        if (w._onCosmeticEquipResponse) w._onCosmeticEquipResponse(msg);
+        break;
+      // ==================== 🏛️ رحلة الشيخ (Season Pass) ====================
+      case "season_pass_state":
+        if (w._onSeasonPassState) w._onSeasonPassState(msg.seasonKey, msg.premiumUnlocked);
+        break;
+      case "season_pass_unlock_response":
+        if (w._onSeasonPassUnlockResponse) w._onSeasonPassUnlockResponse(msg);
         break;
       // ==================== 🏜️ العاصفة الرملية العالمية ====================
       case "sandstorm_warning":
