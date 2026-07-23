@@ -152,9 +152,10 @@ function createWarManager(deps) {
 
     const war = createWarRecord(attackerInfo, defenderInfo, null);
 
-    // حساب القوة القبلية الحالية
-    war.attacker.power = getTribePower(attackerInfo.name) || attackerInfo.power || 0;
-    war.defender.power = getTribePower(defenderInfo.name) || defenderInfo.power || 0;
+    // 🛡️ القوة القبلية تُحسب دائماً من worldClients الموثوقة — لا نثق بقيمة
+    // العميل حتى كـ fallback (getTribePower قد تُعيد 0 بأمان إن كان الجميع غير متصل).
+    war.attacker.power = getTribePower(attackerInfo.name);
+    war.defender.power = getTribePower(defenderInfo.name);
 
     activeWars.set(war.id, war);
     addLog(war, `🗡️ ${attackerInfo.name} أعلنت الغزوة على ${defenderInfo.name}!`);
@@ -190,11 +191,16 @@ function createWarManager(deps) {
 
   // ==================== إرسال الجيش ====================
 
-  function deployArmy(leader, warId, armyCount, armyPower, side) {
+  function deployArmy(leader, warId, armyCount, _armyPower, side) {
     const war = activeWars.get(warId);
     if (!war || war.status !== "active") {
       return { ok: false, reason: "war_not_active" };
     }
+
+    // 🛡️ قوة الجيش تُقرأ من worldClients الموثوقة (memStore عند join) وليس من
+    // رسالة العميل — تمنع تضخيم نقاط الحرب القبلية عبر قيم قوة وهمية.
+    const leaderClient = worldClients.get(leader);
+    const armyPower = leaderClient?.army_power || 0;
 
     // التحقق من القائد
     const mySide = side || (war.attacker.name === leader ? "attacker" : "defender");
@@ -216,11 +222,21 @@ function createWarManager(deps) {
 
   // ==================== حل معركة فردية ====================
 
-  function resolveBattle(warId, attackerName, attackerPower, defenderName, defenderPower) {
+  function resolveBattle(warId, attackerName, _attackerPower, defenderName, _defenderPower) {
     const war = activeWars.get(warId);
     if (!war || war.status !== "active") {
       return { ok: false, reason: "war_not_active" };
     }
+
+    // 🛡️ قوة اللاعبَين تُقرأ من worldClients الموثوقة (memStore عند join) وليس
+    // من رسالة العميل — تمنع تلفيق نتائج معارك وغنائم عبر قيم قوة وهمية.
+    const attackerClient = worldClients.get(attackerName);
+    const defenderClient = worldClients.get(defenderName);
+    if (!attackerClient || !defenderClient) {
+      return { ok: false, reason: "player_not_found" };
+    }
+    const attackerPower = attackerClient.army_power || 0;
+    const defenderPower = defenderClient.army_power || 0;
 
     // تحديد الفائز بناءً على القوة + عشوائية بسيطة (±15%)
     const variance = 0.15;

@@ -177,4 +177,20 @@ function validateEquippedWeapon(existing, incoming) {
   return { ok: true };
 }
 
-module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta, validateWeaponsChange, validateEquippedWeapon };
+// ═══════════════════════════════════════════════════════════════════
+//  🛡️ مكافحة الغش — منع ترقية مجانية لمستوى مخزن الجيش/المعرفة
+//  المسار الشرعي الوحيد لترقيتهما هو رسائل WS "upgrade_army_yard"/
+//  "upgrade_knowledge" (محقّقة بالفعل وتخصم التكلفة). أي تغيير لهذين
+//  الحقلين عبر مسارات الحفظ العامة (/api/players و /api/upgrades) يُرفض.
+// ═══════════════════════════════════════════════════════════════════
+function validateProgressionChange(existing, incoming) {
+  if (incoming.armyYardLevel !== undefined && incoming.armyYardLevel !== (existing.armyYardLevel || 1)) {
+    return { ok: false, reason: "armyYardLevel change rejected — use upgrade_army_yard" };
+  }
+  if (incoming.knowledgeLevel !== undefined && incoming.knowledgeLevel !== (existing.knowledgeLevel || 1)) {
+    return { ok: false, reason: "knowledgeLevel change rejected — use upgrade_knowledge" };
+  }
+  return { ok: true };
+}
+
+module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange };

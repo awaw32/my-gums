@@ -275,7 +275,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             const lastActive = data.last_active || Date.now();
             const existing = memStore.get(username) || getDefaultPlayer(username);
             // مكافحة الغش — تحقق من معدل تغير الموارد
-            const { validateResourceDelta, validateWeaponsChange, validateEquippedWeapon } = require("../validation/player");
+            const { validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange } = require("../validation/player");
             const deltaCheck = validateResourceDelta(existing, data);
             if (!deltaCheck.ok) {
               logger.warn({ username, reason: deltaCheck.reason }, "AntiCheat rejection");
@@ -295,6 +295,13 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
               logger.warn({ username, reason: equipCheck.reason }, "AntiCheat rejection (equip)");
               res.writeHead(409, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: equipCheck.reason }));
+              return;
+            }
+            const progressionCheck = validateProgressionChange(existing, data);
+            if (!progressionCheck.ok) {
+              logger.warn({ username, reason: progressionCheck.reason }, "AntiCheat rejection (progression)");
+              res.writeHead(409, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: progressionCheck.reason }));
               return;
             }
             const merged = { ...existing };
@@ -404,7 +411,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
         try {
           const data = JSON.parse(body);
           const existing = memStore.get(uname) || getDefaultPlayer(uname);
-          const { validateWeaponsChange, validateEquippedWeapon } = require("../validation/player");
+          const { validateWeaponsChange, validateEquippedWeapon, validateProgressionChange } = require("../validation/player");
           const weaponsCheck = validateWeaponsChange(existing, data);
           if (!weaponsCheck.ok) {
             logger.warn({ uname, reason: weaponsCheck.reason }, "AntiCheat rejection (weapons/upgrades)");
@@ -419,9 +426,14 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             res.end(JSON.stringify({ error: equipCheck.reason }));
             return;
           }
+          const progressionCheck = validateProgressionChange(existing, data);
+          if (!progressionCheck.ok) {
+            logger.warn({ uname, reason: progressionCheck.reason }, "AntiCheat rejection (progression/upgrades)");
+            res.writeHead(409, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: progressionCheck.reason }));
+            return;
+          }
           const updated = { ...existing };
-          if (data.armyYardLevel !== undefined) updated.armyYardLevel = data.armyYardLevel;
-          if (data.knowledgeLevel !== undefined) updated.knowledgeLevel = data.knowledgeLevel;
           if (data.knowledgeType !== undefined) updated.knowledgeType = data.knowledgeType;
           if (data.equippedWeapon !== undefined) updated.equippedWeapon = data.equippedWeapon;
           if (data.weapons !== undefined) {

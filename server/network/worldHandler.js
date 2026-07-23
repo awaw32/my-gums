@@ -119,11 +119,9 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           delete existing._disconnectedAt;
           existing.x = msg.x_position ?? existing.x;
           existing.y = msg.y_position ?? existing.y;
-          existing.army_power = msg.army_power ?? existing.army_power;
+          // 🛡️ قوة الجيش/المستوى تبقى كما كانت وقت الانقطاع (من الخادم) — لا تُقرأ من رسالة العميل
           existing.hp = msg.hp ?? existing.hp;
           existing.maxHp = msg.maxHp ?? existing.maxHp;
-          existing.level = msg.level ?? existing.level;
-          existing.unitLevel = msg.unitLevel ?? existing.unitLevel;
           existing.armyAlive = msg.armyAlive ?? existing.armyAlive;
           existing.kills = msg.kills ?? existing.kills;
           existing.coinsEarned = msg.coinsEarned ?? existing.coinsEarned;
@@ -139,8 +137,9 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         const initMaxHP = msg.maxHp ?? 120;
         const { clampPosition } = require("../validation/movement");
         const initPos = clampPosition(msg.x_position || 1200, msg.y_position || 1200);
-        // 🛡️ الأسلحة تُقرأ من البيانات المحفوظة الموثوقة (memStore، مُحقَّقة عند كل حفظ)
-        // وليس مما يرسله العميل عبر رسالة join — تمنع أي تلاعب بضرر القتال الحي.
+        // 🛡️ كل إحصائيات القوة القتالية (الأسلحة، قوة الجيش، المستويات) تُقرأ من
+        // البيانات المحفوظة الموثوقة (memStore، مُحقَّقة عند كل حفظ عبر REST) وليس
+        // مما يرسله العميل عبر رسالة join — تمنع أي تلاعب بضرر القتال الحي أو PvP.
         const persisted = memStore.get(username);
         const trustedWeapons = persisted?.weapons || [];
         const trustedEquipped = trustedWeapons.some(w => w.id === persisted?.equippedWeapon)
@@ -152,19 +151,19 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           x: initPos.x,
           y: initPos.y,
           _lastMoveTs: Date.now(),
-          army_power: msg.army_power || 5000,
+          army_power: persisted?.army_power || 5000,
           kills: msg.kills || 0,
           coinsEarned: msg.coinsEarned || 0,
-          unitLevel: msg.unitLevel || 1,
+          unitLevel: persisted?.unitLevel || 1,
           armyAlive: msg.armyAlive ?? 8,
           hp: initHP,
           maxHp: initMaxHP,
-          level: msg.level || 1,
-          trainingLevel: msg.trainingLevel || 1,
-          prestigeLevel: msg.prestigeLevel || 0,
-          armyYardLevel: msg.armyYardLevel || 1,
-          knowledgeLevel: msg.knowledgeLevel || 1,
-          knowledgeType: msg.knowledgeType || "economic",
+          level: persisted?.level || 1,
+          trainingLevel: persisted?.trainingLevel || 1,
+          prestigeLevel: persisted?.prestigeLevel || 0,
+          armyYardLevel: persisted?.armyYardLevel || 1,
+          knowledgeLevel: persisted?.knowledgeLevel || 1,
+          knowledgeType: persisted?.knowledgeType || "economic",
           equippedWeapon: trustedEquipped,
           weapons: trustedWeapons,
           weaponStarLevel: equippedDef?.starLevel || 1,
@@ -217,8 +216,9 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           c.kills = msg.kills ?? c.kills;
           c.coinsEarned = msg.coinsEarned ?? c.coinsEarned;
           c.armyAlive = msg.armyAlive ?? c.armyAlive;
-          c.level = msg.level ?? c.level;
-          c.army_power = msg.army_power ?? c.army_power;
+          // 🛡️ لا نثق بـ level/army_power من رسالة update — تبقى كما حُدّدت عند join
+          // (من memStore الموثوق) لمنع تضخيم القوة القتالية حياً أثناء الجلسة.
+          // القيم المحدّثة فعلياً تصل عند إعادة join التالية بعد حفظ REST.
           if (msg.br_hp !== undefined) c.br_hp = Math.max(0, msg.br_hp);
           if (msg.br_alive !== undefined) c.br_alive = msg.br_alive;
           broadcastWorld(ws);
