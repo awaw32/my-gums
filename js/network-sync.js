@@ -277,7 +277,7 @@ export class NetworkSync {
         knowledgeLevel: w?.economy?.knowledgeLevel || 1,
         knowledgeType: w?.economy?.knowledgeType || "economic",
         equippedWeapon: w?._equippedWeapon || "",
-        weapons: w?.army?.weapons?.map(ww => ({ id: ww.id, starLevel: ww.starLevel || 1, gemLevel: ww.gemLevel || 1 })) || [],
+        weapons: w?.army?.weapons?.filter(ww => ww.owned).map(ww => ({ id: ww.id, starLevel: ww.starLevel || 1, gemLevel: ww.gemLevel || 1 })) || [],
         weaponStarLevel: w?._weaponStarLevel || 1,
         weaponGemLevel: w?._weaponGemLevel || 1,
         repTitle: w?._reputation ? w._reputation.getTitle().name : "محايد",

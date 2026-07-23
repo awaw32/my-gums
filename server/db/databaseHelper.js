@@ -254,13 +254,19 @@ try {
 
 async function savePlayer(username, data) {
   const existing = memStore.get(username) || getDefaultPlayer(username);
-  const merged = { ...existing, ...data, last_active: data.last_active || Date.now() };
+  // 🛡️ last_active: 0 صراحة (حساب جديد لم يُسجَّل له أي نشاط بعد) يجب أن
+  // يبقى 0 — وليس Date.now() — لأن validateResourceDelta تتخطّى التحقق
+  // بالكامل لأول حفظ فقط عندما تكون last_active المخزَّنة صفراً (falsy).
+  // كتابتها كطابع زمني حقيقي هنا كانت تُبطل شبكة الأمان هذه لكل حساب جديد
+  // فوراً عند التسجيل، فيُرفض أول منح موارد شرعي (كبونص الترحيب).
+  const lastActive = data.last_active === 0 ? 0 : (data.last_active || Date.now());
+  const merged = { ...existing, ...data, last_active: lastActive };
   memStore.set(username, merged);
   markDirty(username); // الآن markDirty في أعلى النطاق (متاحة دائماً)
   if (mongoConnected) {
     await Player.updateOne(
       { username },
-      { $set: { ...data, last_active: data.last_active || Date.now() } },
+      { $set: { ...data, last_active: lastActive } },
       { upsert: true }
     );
   }

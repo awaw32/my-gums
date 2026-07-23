@@ -724,7 +724,10 @@ async function init() {
         army_power: economy.power,
         unitLevel: army.unitLevel,
         trainingLevel: army.trainingLevel,
-        weapons: army.weapons.map(w => ({ id: w.id, level: w.level || 0, upgradeLevel: w.upgradeLevel || 0, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })),
+        // 🛡️ نرسل الأسلحة المملوكة فعلياً فقط — army.weapons يحتوي كل تعريفات
+        // الأسلحة (owned:false افتراضياً)، وإرسالها كلها يجعل الخادم يظنّها
+        // أسلحة جديدة ظهرت دفعة واحدة، فيرفض الحفظ بالكامل (anti-cheat).
+        weapons: army.weapons.filter(w => w.owned).map(w => ({ id: w.id, level: w.level || 0, upgradeLevel: w.upgradeLevel || 0, starLevel: w.starLevel || 1, gemLevel: w.gemLevel || 1 })),
         equippedWeapon: world._equippedWeapon || "",
         armyYardLevel: economy.armyYardLevel || 1,
         knowledgeLevel: economy.knowledgeLevel || 1,
