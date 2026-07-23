@@ -83,6 +83,7 @@ export class NetworkSync {
       weaponGemLevel: w._weaponGemLevel || 1,
       repTitle: w._reputation ? w._reputation.getTitle().name : "محايد",
       repIcon: w._reputation ? w._reputation.getTitle().icon : "😐",
+      allianceName: w._allianceManager?.tribeName || "",
     };
     if (w.mode === "battle_royale") {
       update.br_hp = w.leader.hp;
@@ -282,6 +283,7 @@ export class NetworkSync {
         weaponGemLevel: w?._weaponGemLevel || 1,
         repTitle: w?._reputation ? w._reputation.getTitle().name : "محايد",
         repIcon: w?._reputation ? w._reputation.getTitle().icon : "😐",
+        allianceName: w?._allianceManager?.tribeName || "",
       });
     };
 

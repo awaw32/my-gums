@@ -587,11 +587,36 @@ GameUI.prototype._renderTribalAllianceSection = function() {
   const container = document.getElementById("alliance-tribal-content");
   if (!container) return;
   const am = this.allianceManager;
-  if (!am || !am.tribeName) {
+  if (!am) {
     container.style.display = "none";
     return;
   }
   container.style.display = "";
+  if (!am.tribeName) {
+    container.innerHTML = `
+      <div class="alliance-card" style="text-align:center;padding:14px">
+        <div style="font-size:1.6rem;margin-bottom:6px">🏕️</div>
+        <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px">لم تُسمِّ قبيلتك بعد</div>
+        <div style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:10px">اختر اسماً لقبيلتك لتتمكن من إعلان الحروب القبلية والانضمام لتحالف جماعي</div>
+        <input type="text" id="tribal-name-input" placeholder="اسم القبيلة..." maxlength="30" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-surface);color:var(--text-primary);font-family:'Cairo',sans-serif;box-sizing:border-box;margin-bottom:8px" />
+        <button id="tribal-name-confirm-btn" class="action-btn upgrade-btn" style="width:100%">🏜️ تسمية القبيلة</button>
+      </div>
+    `;
+    const input = document.getElementById("tribal-name-input");
+    const btn = document.getElementById("tribal-name-confirm-btn");
+    if (btn && input) {
+      btn.addEventListener("click", () => {
+        if (am.setTribeName(input.value)) {
+          this.requestRender("alliance");
+          if (this.world?.netSync) this.world.netSync.sendWSUpdate();
+        }
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") btn.click();
+      });
+    }
+    return;
+  }
   const state = am.getState();
   const myRank = state.myRank;
   const isShaykh = myRank && myRank.id === "shaykh";

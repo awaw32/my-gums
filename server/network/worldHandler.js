@@ -170,6 +170,10 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           weaponGemLevel: equippedDef?.gemLevel || 1,
           repTitle: typeof msg.repTitle === "string" ? msg.repTitle.slice(0, 20) : "محايد",
           repIcon: typeof msg.repIcon === "string" ? msg.repIcon.slice(0, 4) : "😐",
+          // 🏜️ اسم القبيلة تصريح تجميلي من العميل (كـ repTitle) — لا يمنح أي قوة
+          // بذاته، يُستخدم فقط لمطابقة قوة اللاعبين المتصلين حالياً بنفس الاسم
+          // عند حساب قوة الحرب القبلية (getTribePower في warManager.js).
+          allianceName: typeof msg.allianceName === "string" ? msg.allianceName.slice(0, 30) : "",
           br_hp: msg.br_hp ?? 120,
           br_alive: msg.br_alive ?? true,
           buildings: msg.buildings || {},
@@ -219,6 +223,7 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           // 🛡️ لا نثق بـ level/army_power من رسالة update — تبقى كما حُدّدت عند join
           // (من memStore الموثوق) لمنع تضخيم القوة القتالية حياً أثناء الجلسة.
           // القيم المحدّثة فعلياً تصل عند إعادة join التالية بعد حفظ REST.
+          if (typeof msg.allianceName === "string") c.allianceName = msg.allianceName.slice(0, 30);
           if (msg.br_hp !== undefined) c.br_hp = Math.max(0, msg.br_hp);
           if (msg.br_alive !== undefined) c.br_alive = msg.br_alive;
           broadcastWorld(ws);
