@@ -19,6 +19,9 @@ const isProd = process.env.NODE_ENV === "production";
 const fs = require("fs");
 const path = require("path");
 
+const DATA_DIR = process.env.DATA_DIR || "./data";
+const BUILD_DIR = process.env.BUILD_DIR || (process.env.NODE_ENV === "production" ? "./dist" : "./");
+
 function getOrCreateJwtSecret() {
   if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
   if (isProd) {
@@ -40,8 +43,6 @@ function getOrCreateJwtSecret() {
   }
 }
 
-const DATA_DIR = process.env.DATA_DIR || "./data";
-const BUILD_DIR = process.env.BUILD_DIR || (process.env.NODE_ENV === "production" ? "./dist" : "./");
 const JWT_SECRET = getOrCreateJwtSecret();
 const JWT_EXPIRES = "24h";
 const BUILD_ID = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
