@@ -10,7 +10,11 @@
  *  3. تبادل الموارد (ذهب ↔ مال ↔ جواهر)
  *  4. تصفية وبحث في العناصر المعروضة
  *
- *  النظام يعمل عبر WebSocket — جميع اللاعبين يرون نفس السوق
+ *  🛡️ السوق سيرفر-موثوق للمال: كل عرض/شراء/إلغاء يُرسَل للخادم وينتظر رده —
+ *  القوائم لا تُضاف/تُحذف محلياً إلا بعد تأكيد الخادم. المال (cash) يُخصم من
+ *  المشتري ويُضاف للبائع فعلياً على الخادم عبر memStore — لا economy.add
+ *  مباشرة على العميل لأي طرف. المخزون (العنصر نفسه) يبقى موثوقاً من العميل
+ *  عند العرض فقط لأن المخزون لا يُحفظ فورياً على السيرفر.
  * =============================================================================
  */
 
@@ -56,7 +60,6 @@ const RARITY_COLORS = {
 
 const MARKET_FEE_PERCENT = 0.05; // 5% رسوم السوق
 const MAX_LISTINGS_PER_PLAYER = 10;
-const LISTING_DURATION = 3600 * 24; // 24 ساعة
 
 // ═══════════════════════════════════════════════════════════════════
 //  مدير سوق الصحراء
@@ -72,7 +75,7 @@ export class TradeMarket {
     // معامل السعر من السمعة (يُضبط من main.js)
     this._priceModifier = 1;
 
-    // قائمة العناصر المعروضة للبيع
+    // قائمة العناصر المعروضة للبيع — تُملأ فقط من ردود/بث الخادم
     this.listings = [];
 
     // سجل المعاملات الأخيرة
@@ -83,9 +86,13 @@ export class TradeMarket {
     this._onListingSold = null;
     this._onListingRemoved = null;
     this._onError = null;
+    this._onSaleEarned = null; // يُستدعى عند بيع أحد عناصرك أنت تحديداً
 
     // تصفية الحالية
     this._filter = { category: "all", rarity: "all", sort: "newest" };
+
+    // طلبات معلّقة بانتظار رد الخادم — تمنع إرسال طلبات مكررة قبل الرد
+    this._pendingListItem = null;
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -123,84 +130,80 @@ export class TradeMarket {
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  //  📦 عرض عنصر للبيع
+  //  📦 عرض عنصر للبيع — يُرسَل للخادم وينتظر تأكيده قبل خصم المخزون فعلياً
   // ═══════════════════════════════════════════════════════════════════
 
   listItem(itemId, quantity, pricePerUnit) {
-    // تحقق من صحة البيانات
     if (!itemId || quantity <= 0 || pricePerUnit <= 0) {
       if (this._onError) this._onError("بيانات غير صحيحة");
       return false;
     }
-
-    // تحقق من أن العنصر قابل للبيع
     const tradeDef = TRADEABLE_ITEMS.find(t => t.id === itemId);
     if (!tradeDef) {
       if (this._onError) this._onError("هذا العنصر غير متاح للبيع في السوق");
       return false;
     }
-
-    // تحقق من أن اللاعب لديه العنصر الكافي
     const owned = this.inventory?.items?.[itemId];
     if (!owned || owned.count < quantity) {
       if (this._onError) this._onError("ليس لديك كمية كافية");
       return false;
     }
-
-    // تحقق من الحد الأقصى للقوائم
     const myListings = this.listings.filter(l => l.seller === this.username && !l.sold);
     if (myListings.length >= MAX_LISTINGS_PER_PLAYER) {
       if (this._onError) this._onError(`الحد الأقصى ${MAX_LISTINGS_PER_PLAYER} عناصر معروضة`);
       return false;
     }
-
-    // تحقق من السعر المعقول (50% - 300% من السعر المقترح)
-    const suggested = this.getSuggestedPrice(itemId, owned.level || 1);
-    const minPrice = Math.floor(suggested * 0.5);
-    const maxPrice = Math.floor(suggested * 3);
-    if (pricePerUnit < minPrice || pricePerUnit > maxPrice) {
-      if (this._onError) this._onError(`السعر يجب أن يكون بين ${minPrice} و ${maxPrice} 💵`);
+    if (this._pendingListItem) {
+      if (this._onError) this._onError("طلب عرض سابق لا يزال قيد المعالجة");
       return false;
     }
 
-    // خصم العنصر من المخزون
-    this.inventory.items[itemId].count -= quantity;
-    if (this.inventory.items[itemId].count <= 0) {
-      delete this.inventory.items[itemId];
-    }
+    const level = owned.level || 1;
+    this._pendingListItem = { itemId, quantity, pricePerUnit, level };
 
-    // إنشاء القائمة
-    const listing = {
-      id: `listing_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      itemId,
-      itemName: tradeDef.name,
-      itemIcon: tradeDef.icon,
-      itemCategory: tradeDef.category,
-      itemRarity: tradeDef.rarity,
-      quantity,
-      pricePerUnit,
-      totalPrice: quantity * pricePerUnit,
-      seller: this.username,
-      sellerLevel: this.economy?.level || 1,
-      level: owned.level || 1,
-      sold: false,
-      listedAt: Date.now(),
-      expiresAt: Date.now() + LISTING_DURATION * 1000,
-    };
-
-    this.listings.push(listing);
-
-    // إرسال للسيرفر
     if (this.netSync) {
-      this.netSync.send({ type: "market_list", listing });
+      this.netSync.send({
+        type: "market_list",
+        listing: {
+          itemId, itemName: tradeDef.name, itemIcon: tradeDef.icon,
+          itemCategory: tradeDef.category, itemRarity: tradeDef.rarity,
+          quantity, pricePerUnit, level,
+        },
+      });
     }
-
-    if (this._onListingAdded) this._onListingAdded(listing);
     return true;
   }
 
+  /** يُستدعى من handleNetMessage عند وصول market_list_response */
+  _handleListItemResponse(msg) {
+    const pending = this._pendingListItem;
+    this._pendingListItem = null;
+    if (!msg.ok) {
+      const reasons = {
+        price_out_of_range: `السعر يجب أن يكون بين ${msg.minPrice} و ${msg.maxPrice} 💵`,
+        too_many_listings: `الحد الأقصى ${MAX_LISTINGS_PER_PLAYER} عناصر معروضة`,
+        unknown_item: "هذا العنصر غير متاح للبيع في السوق",
+        invalid_data: "بيانات غير صحيحة",
+      };
+      if (this._onError) this._onError(reasons[msg.reason] || "تعذّر عرض العنصر");
+      return;
+    }
+    if (!pending) return;
+    // ✅ تأكيد الخادم وصل — الآن فقط نخصم من المخزون المحلي فعلياً
+    if (this.inventory?.items?.[pending.itemId]) {
+      this.inventory.items[pending.itemId].count -= pending.quantity;
+      if (this.inventory.items[pending.itemId].count <= 0) {
+        delete this.inventory.items[pending.itemId];
+      }
+    }
+    if (msg.listing) {
+      this.listings.push(msg.listing);
+      if (this._onListingAdded) this._onListingAdded(msg.listing);
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════
-  //  🛒 شراء عنصر من السوق
+  //  🛒 شراء عنصر من السوق — المال يُخصم فعلياً على الخادم فقط
   // ═══════════════════════════════════════════════════════════════════
 
   buyListing(listingId, quantity = 1) {
@@ -209,113 +212,91 @@ export class TradeMarket {
       if (this._onError) this._onError("العنصر غير متاح");
       return false;
     }
-
-    // لا تشتري من نفسك
     if (listing.seller === this.username) {
       if (this._onError) this._onError("لا يمكنك شراء من نفسك");
       return false;
     }
-
-    // تحقق من الكمية
     if (quantity > listing.quantity) {
       if (this._onError) this._onError("الكمية غير متوفرة");
       return false;
     }
-
-    // 💰 معامل السعر (سمعة + برستيج "التاجر" إن وُجد) يُطبَّق على تكلفة الشراء فقط
     const priceMod = typeof this._priceModifier === "function" ? this._priceModifier() : (this._priceModifier || 1);
-    const totalCost = Math.floor(listing.pricePerUnit * quantity * priceMod);
-
-    // تحقق من أن اللاعب لديه المال الكافي
-    if (!this.economy.canAfford("cash", totalCost)) {
+    const estimatedCost = Math.floor(listing.pricePerUnit * quantity * priceMod);
+    if (!this.economy.canAfford("cash", estimatedCost)) {
       if (this._onError) this._onError("ليس لديك مال كافٍ");
       return false;
     }
 
-    // خصم المال
-    this.economy.spend("cash", totalCost);
-
-    // حساب رسوم السوق
-    const fee = Math.floor(totalCost * MARKET_FEE_PERCENT);
-    const sellerEarnings = totalCost - fee;
-
-    // إضافة العنصر للمشتري
-    if (!this.inventory.items[listing.itemId]) {
-      this.inventory.items[listing.itemId] = { count: 0, level: listing.level };
-    }
-    this.inventory.items[listing.itemId].count += quantity;
-    this.inventory.items[listing.itemId].level = Math.max(
-      this.inventory.items[listing.itemId].level || 1,
-      listing.level
-    );
-
-    // تحديث القائمة
-    listing.quantity -= quantity;
-    if (listing.quantity <= 0) listing.sold = true;
-
-    // تسجيل المعاملة
-    const transaction = {
-      id: `tx_${Date.now()}`,
-      itemId: listing.itemId,
-      itemName: listing.itemName,
-      itemIcon: listing.itemIcon,
-      quantity,
-      pricePerUnit: listing.pricePerUnit,
-      totalCost,
-      fee,
-      sellerEarnings,
-      buyer: this.username,
-      seller: listing.seller,
-      timestamp: Date.now(),
-    };
-    this.transactionLog.push(transaction);
-
-    // إرسال للسيرفر
     if (this.netSync) {
-      this.netSync.send({
-        type: "market_buy",
-        listingId,
-        quantity,
-        buyer: this.username,
-        seller: listing.seller,
-        totalCost,
-        fee,
-      });
+      this.netSync.send({ type: "market_buy", listingId, quantity });
     }
-
-    if (this._onListingSold) this._onListingSold(transaction);
     return true;
   }
 
+  /** يُستدعى من handleNetMessage عند وصول market_buy_response (للمشتري نفسه فقط) */
+  _handleBuyResponse(msg) {
+    if (!msg.ok) {
+      const reasons = {
+        insufficient_cash: "ليس لديك مال كافٍ",
+        listing_not_found: "العنصر غير متاح",
+        cannot_buy_own: "لا يمكنك شراء من نفسك",
+        invalid_quantity: "الكمية غير متوفرة",
+      };
+      if (this._onError) this._onError(reasons[msg.reason] || "تعذّر الشراء");
+      return;
+    }
+    // ✅ الخادم خصم المال فعلياً — الآن نطبّق النتيجة محلياً (المخزون + سجل المعاملة)
+    this.economy.spend("cash", msg.totalCost);
+    if (!this.inventory.items[msg.item.itemId]) {
+      this.inventory.items[msg.item.itemId] = { count: 0, level: 1 };
+    }
+    this.inventory.items[msg.item.itemId].count += msg.quantity;
+
+    const transaction = {
+      id: `tx_${Date.now()}`,
+      itemId: msg.item.itemId,
+      itemName: msg.item.itemName,
+      quantity: msg.quantity,
+      totalCost: msg.totalCost,
+      fee: msg.fee,
+      buyer: this.username,
+      timestamp: Date.now(),
+    };
+    this.transactionLog.push(transaction);
+    if (this._onListingSold) this._onListingSold(transaction);
+  }
+
   // ═══════════════════════════════════════════════════════════════════
-  //  ❌ إلغاء عرض
+  //  ❌ إلغاء عرض — يُرسَل للخادم وينتظر تأكيده قبل إعادة العنصر للمخزون
   // ═══════════════════════════════════════════════════════════════════
 
   removeListing(listingId) {
     const listing = this.listings.find(l => l.id === listingId && !l.sold);
     if (!listing) return false;
-
-    // فقط البائع يمكنه الإلغاء
     if (listing.seller !== this.username) {
       if (this._onError) this._onError("لا يمكنك إلغاء عرض شخص آخر");
       return false;
     }
-
-    // إعادة العنصر للمخزون
-    if (!this.inventory.items[listing.itemId]) {
-      this.inventory.items[listing.itemId] = { count: 0, level: listing.level };
-    }
-    this.inventory.items[listing.itemId].count += listing.quantity;
-
-    // حذف القائمة
-    listing.sold = true; // نعلمها كمبيعة لإخفائها
-
     if (this.netSync) {
       this.netSync.send({ type: "market_remove", listingId });
     }
-
-    if (this._onListingRemoved) this._onListingRemoved(listing);
     return true;
+  }
+
+  /** يُستدعى من handleNetMessage عند وصول market_remove_response (للبائع نفسه فقط) */
+  _handleRemoveResponse(msg) {
+    if (!msg.ok) {
+      if (this._onError) this._onError("تعذّر إلغاء العرض");
+      return;
+    }
+    const listing = this.listings.find(l => l.id === msg.listingId);
+    if (listing) listing.sold = true;
+    // ✅ تأكيد الخادم وصل — الآن نعيد العنصر للمخزون المحلي فعلياً
+    if (!this.inventory.items[msg.itemId]) {
+      this.inventory.items[msg.itemId] = { count: 0, level: 1 };
+    }
+    this.inventory.items[msg.itemId].count += msg.quantity;
+    if (listing && this._onListingRemoved) this._onListingRemoved(listing);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -425,6 +406,15 @@ export class TradeMarket {
   handleNetMessage(msg) {
     if (!msg || !msg.type) return;
     switch (msg.type) {
+      case "market_list_response":
+        this._handleListItemResponse(msg);
+        break;
+      case "market_buy_response":
+        this._handleBuyResponse(msg);
+        break;
+      case "market_remove_response":
+        this._handleRemoveResponse(msg);
+        break;
       case "market_listing_new":
         if (msg.listing && msg.listing.seller !== this.username) {
           this.listings.push(msg.listing);
@@ -435,15 +425,28 @@ export class TradeMarket {
         if (msg.listingId) {
           const listing = this.listings.find(l => l.id === msg.listingId);
           if (listing) {
-            listing.sold = true;
-            if (this._onListingSold) this._onListingSold(msg);
+            listing.quantity = msg.remainingQuantity ?? 0;
+            listing.sold = !!msg.fullySold;
           }
         }
+        break;
+      case "market_sale_earned":
+        // 🔔 بِعت عنصراً من عروضك — المال وصل فعلياً على الخادم بالفعل
+        this.economy.addRaw("cash", msg.sellerEarnings);
+        if (this._onSaleEarned) this._onSaleEarned(msg);
         break;
       case "market_listing_removed":
         if (msg.listingId) {
           const listing = this.listings.find(l => l.id === msg.listingId);
           if (listing) listing.sold = true;
+          // 🕐 انتهت صلاحية عرض لأحد آخر (أو لك وأُلغي من مكان آخر) — لا نلمس مخزوننا
+          // إلا إذا كان هذا فعلاً عرضنا نحن ولم نكن من طلب الإلغاء (مثال: انتهت صلاحيته)
+          if (listing && listing.seller === this.username && msg.reason === "expired") {
+            if (!this.inventory.items[msg.itemId]) {
+              this.inventory.items[msg.itemId] = { count: 0, level: 1 };
+            }
+            this.inventory.items[msg.itemId].count += msg.quantity;
+          }
         }
         break;
       case "market_listings_sync":
@@ -460,35 +463,21 @@ export class TradeMarket {
 
   getSaveData() {
     return {
-      listings: this.listings.filter(l => !l.sold),
-      transactionLog: this.transactionLog.slice(-50), // آخر 50 معاملة
+      transactionLog: this.transactionLog.slice(-50), // آخر 50 معاملة — القوائم نفسها من الخادم دائماً
     };
   }
 
   loadState(data) {
     if (!data) return;
-    if (data.listings) this.listings = data.listings;
     if (data.transactionLog) this.transactionLog = data.transactionLog;
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  //  🧹 تنظيف القوائم المنتهية الصلاحية
+  //  🧹 تنظيف — التنظيف الفعلي (إعادة العناصر المنتهية) يتم على الخادم الآن
   // ═══════════════════════════════════════════════════════════════════
 
   cleanup() {
-    const now = Date.now();
-    for (const listing of this.listings) {
-      if (!listing.sold && listing.expiresAt < now) {
-        // إعادة العنصر للمخزون
-        if (listing.seller === this.username) {
-          if (!this.inventory.items[listing.itemId]) {
-            this.inventory.items[listing.itemId] = { count: 0, level: listing.level };
-          }
-          this.inventory.items[listing.itemId].count += listing.quantity;
-        }
-        listing.sold = true;
-      }
-    }
+    // لا شيء — الخادم هو من يبث market_listing_removed عند انتهاء الصلاحية فعلياً
   }
 
   // ═══════════════════════════════════════════════════════════════════

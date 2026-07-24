@@ -132,6 +132,11 @@ const cosmeticsShop = createCosmeticsShop({ memStore, getDefaultPlayer, markDirt
 const { createSeasonPass } = require("./server/logic/season-pass");
 const seasonPassManager = createSeasonPass({ memStore, getDefaultPlayer, markDirty });
 
+// 🏪 سوق الصحراء — المال سيرفر-موثوق بالكامل (خصم من المشتري + إضافة فعلية للبائع)
+const { createMarketManager } = require("./server/logic/market-manager");
+const marketManager = createMarketManager({ worldClients, memStore, getDefaultPlayer, markDirty });
+setInterval(() => marketManager.cleanupExpired(), 5 * 60 * 1000); // فحص القوائم المنتهية كل 5 دقائق
+
 const { createWorldHandler } = require("./server/network/worldHandler");
 const handleWorldConnection = createWorldHandler({
   rooms, worldMonsters, worldDrops, worldClients,
@@ -142,7 +147,7 @@ const handleWorldConnection = createWorldHandler({
   claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades,
   applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, sanitizePlayerData,
   warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager,
-  cosmeticsShop, analytics, seasonPassManager,
+  cosmeticsShop, analytics, seasonPassManager, marketManager,
 });
 
 // 🔔 تذكير دوري بالهدية المجانية للاعبين غير المتصلين — no-op بلا مفاتيح VAPID

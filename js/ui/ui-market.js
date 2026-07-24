@@ -287,7 +287,7 @@ GameUI.prototype._renderMarketBuyListings = function(overlay) {
     `;
   }).join('');
 
-  // ربط أزرار الشراء
+  // ربط أزرار الشراء — التأكيد الفعلي يصل من الخادم عبر market_buy_response
   container.querySelectorAll('.market-buy-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -295,11 +295,13 @@ GameUI.prototype._renderMarketBuyListings = function(overlay) {
       const listing = listings.find(l => l.id === listingId);
       if (!listing) return;
       if (confirm(`شراء ${listing.itemName} × ${listing.quantity} بـ ${listing.totalPrice} 💵؟`)) {
-        if (this._tradeMarket.buyListing(listingId, listing.quantity)) {
-          this.showNotification(`✅ تم شراء ${listing.itemName}!`);
-          this._renderMarketBuyListings(overlay);
-          this._renderMarketSellList(overlay);
-        }
+        this._tradeMarket._onListingSold = (tx) => {
+          this.showNotification(`✅ تم شراء ${tx.itemName}!`);
+          this.updateTopBar();
+          if (document.getElementById('market-overlay')) this._renderMarketBuyListings(overlay);
+        };
+        this._tradeMarket._onError = (err) => this.showNotification(`❌ ${err}`);
+        this._tradeMarket.buyListing(listingId, listing.quantity);
       }
     });
   });
@@ -342,7 +344,7 @@ GameUI.prototype._renderMarketSellList = function(overlay) {
     </div>
   `).join('');
 
-  // ربط أزرار البيع
+  // ربط أزرار البيع — التأكيد الفعلي يصل من الخادم عبر market_list_response
   container.querySelectorAll('.market-sell-list-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const itemId = btn.dataset.itemId;
@@ -351,11 +353,15 @@ GameUI.prototype._renderMarketSellList = function(overlay) {
       const item = sellable.find(s => s.id === itemId);
       if (!item) return;
       if (confirm(`عرض ${item.name} × ${item.count} بـ ${price} 💵 لكل وحدة؟`)) {
-        if (this._tradeMarket.listItem(itemId, item.count, price)) {
-          this.showNotification(`📦 تم عرض ${item.name} في السوق!`);
-          this._renderMarketBuyListings(overlay);
-          this._renderMarketSellList(overlay);
-        }
+        this._tradeMarket._onListingAdded = (listing) => {
+          this.showNotification(`📦 تم عرض ${listing.itemName} في السوق!`);
+          if (document.getElementById('market-overlay')) {
+            this._renderMarketBuyListings(overlay);
+            this._renderMarketSellList(overlay);
+          }
+        };
+        this._tradeMarket._onError = (err) => this.showNotification(`❌ ${err}`);
+        this._tradeMarket.listItem(itemId, item.count, price);
       }
     });
   });
@@ -364,6 +370,52 @@ GameUI.prototype._renderMarketSellList = function(overlay) {
   const myListings = this._tradeMarket.listings.filter(l => l.seller === this._tradeMarket.username && !l.sold);
   const myListingsEl = overlay.querySelector('#market-my-listings');
   if (myListingsEl) myListingsEl.textContent = `قوائمي: ${myListings.length}/10`;
+
+  this._renderMarketMyListings(overlay, myListings);
+};
+
+// 📋 عروضي النشطة حالياً في السوق — مع إمكانية إلغاء أي عرض لم يُبَع بعد
+GameUI.prototype._renderMarketMyListings = function(overlay, myListings) {
+  let container = overlay.querySelector('#market-my-listings-list');
+  if (!container) {
+    const sellTab = overlay.querySelector('#market-tab-sell');
+    if (!sellTab) return;
+    container = document.createElement('div');
+    container.id = 'market-my-listings-list';
+    sellTab.appendChild(container);
+  }
+  if (!myListings || myListings.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = `
+    <div style="font-weight:700;color:#f5e6c8;margin:14px 0 8px;font-size:0.8rem">📋 عروضي النشطة</div>
+    ${myListings.map(l => `
+      <div class="market-sell-item" data-listing-id="${l.id}">
+        <span class="market-sell-icon">${l.itemIcon}</span>
+        <div class="market-sell-info">
+          <div class="market-sell-name">${l.itemName}</div>
+          <div class="market-sell-count">الكمية: ${l.quantity} — ${l.pricePerUnit} 💵/وحدة</div>
+        </div>
+        <button class="market-cancel-btn" data-listing-id="${l.id}" style="padding:8px 14px;border:1px solid var(--accent-red,#c0392b);border-radius:8px;background:transparent;color:var(--accent-red,#c0392b);font-weight:700;font-size:0.7rem;cursor:pointer;font-family:inherit">✕ إلغاء</button>
+      </div>
+    `).join('')}
+  `;
+  container.querySelectorAll('.market-cancel-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const listingId = btn.dataset.listingId;
+      if (!confirm('إلغاء هذا العرض وإعادة العنصر لمخزونك؟')) return;
+      this._tradeMarket._onListingRemoved = () => {
+        this.showNotification('✅ أُلغي العرض وأُعيد العنصر لمخزونك');
+        if (document.getElementById('market-overlay')) {
+          this._renderMarketBuyListings(overlay);
+          this._renderMarketSellList(overlay);
+        }
+      };
+      this._tradeMarket._onError = (err) => this.showNotification(`❌ ${err}`);
+      this._tradeMarket.removeListing(listingId);
+    });
+  });
 };
 
 GameUI.prototype._bindConvert = function(overlay) {

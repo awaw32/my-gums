@@ -29,7 +29,7 @@ function playerColor(username) {
 let _dropIdCounter = 0;
 const DROP_CLEANUP_MS = 60000;
 
-function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager, cosmeticsShop, analytics, seasonPassManager }) {
+function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager, cosmeticsShop, analytics, seasonPassManager, marketManager }) {
 
   // تنظيف اللاعبين المنقطعين كل 10 ثوانٍ (مهلة 30 ثانية)
   setInterval(() => {
@@ -229,6 +229,10 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         // 🏛️ مزامنة حالة رحلة الشيخ الموسمية (هل المسار المميز مفتوح لهذا الموسم؟)
         if (seasonPassManager && ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "season_pass_state", ...seasonPassManager.getSeasonState(username) }));
+        }
+        // 🏪 مزامنة قوائم السوق النشطة (إن وُجدت) للاعب المنضمّ حديثاً
+        if (marketManager && ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "market_listings_sync", listings: marketManager.getActiveListings() }));
         }
         broadcastWorld();
         const joinMsg = JSON.stringify({ type: "player_joined", username });
@@ -486,6 +490,21 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         const result = seasonPassManager.unlockPremium(username);
         if (ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "season_pass_unlock_response", ...result }));
+        }
+      } else if (msg.type === "market_list" && username && marketManager) {
+        const result = marketManager.listItem(username, msg.listing || {});
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "market_list_response", ...result }));
+        }
+      } else if (msg.type === "market_buy" && username && marketManager) {
+        const result = marketManager.buyListing(username, msg.listingId, msg.quantity);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "market_buy_response", ...result }));
+        }
+      } else if (msg.type === "market_remove" && username && marketManager) {
+        const result = marketManager.removeListing(username, msg.listingId);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "market_remove_response", ...result }));
         }
       } else if (msg.type === "tribe_help" && username && allianceManager) {
         // 🆘 نداء نجدة — يرسل موقع اللاعب لكل أعضاء تحالفه فقط

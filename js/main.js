@@ -1009,6 +1009,12 @@ async function init() {
       economy.addXp(25);
     };
     world._onPvPLose = () => audio.playSound('hit');
+    // 🏪 بِعت عنصراً من عروضك في السوق — المال أُضيف فعلياً على الخادم بالفعل قبل هذا الإشعار
+    tradeMarket._onSaleEarned = (msg) => {
+      ui.showNotification(`💰 باع ${msg.buyer} عنصرك "${msg.itemName}" × ${msg.quantity}! حصلت على ${msg.sellerEarnings} 💵`);
+      audio.playSound('collect');
+      ui.updateTopBar();
+    };
     // 💰 استجابة استلام صندوق الموت — الذهب يُضاف فقط بعد تأكيد الخادم فعلياً
     world._onDeathCrateClaimResponse = (res) => {
       if (res.ok) {

@@ -63,7 +63,7 @@
 .empty-state-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary, #3d2b1a); margin-bottom: 6px; }
 .empty-state-desc { font-size: 0.75rem; color: var(--text-secondary, #8b7355); line-height: 1.5; max-width: 220px; }
 .empty-state-cta {
-  margin-top: 14px; padding: 10px 24px; min-height: 44px;
+  margin-top: 14px; padding: 10px 24px; min-height: 48px;
   background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff;
   border: none; border-radius: 12px; font-size: 0.8rem; font-weight: 700;
   cursor: pointer; font-family: inherit;
@@ -793,7 +793,7 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
 }
 .party-share-row { display: flex; gap: 8px; justify-content: center; margin: 10px 0 6px; }
 .party-share-btn {
-  padding: 10px 14px; min-height: 44px; border: none; border-radius: 12px;
+  padding: 10px 14px; min-height: 48px; border: none; border-radius: 12px;
   font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
   background: var(--bg-page, #f5ead9); color: var(--text-primary, #3b2f24);
   border: 1px solid var(--border-light, #e0d0b8);
@@ -884,7 +884,7 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
 /* ====== تبويبات الترتيب ====== */
 .ranking-tabs { display: flex; gap: 8px; padding: 4px 0 10px; }
 .ranking-tab {
-  flex: 1; padding: 10px; min-height: 44px; border-radius: 12px;
+  flex: 1; padding: 10px; min-height: 48px; border-radius: 12px;
   border: 1.5px solid var(--border-light, #e0d0b8);
   background: var(--bg-card, #fff8f0); color: var(--text-secondary, #7d6b5a);
   font-family: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer;
@@ -985,7 +985,7 @@ body.screen-shake { animation: screen-shake-kf 0.5s ease-in-out; }
 .pvpt-badge.pvpt-even { background: rgba(212,160,23,0.2); color: #b8860b; }
 .pvpt-badge.pvpt-hard { background: rgba(231,76,60,0.18); color: #c0392b; }
 .pvpt-attack-btn {
-  flex-shrink: 0; padding: 10px 14px; min-height: 44px; border: none; border-radius: 12px;
+  flex-shrink: 0; padding: 10px 14px; min-height: 48px; border: none; border-radius: 12px;
   background: linear-gradient(135deg, #c0392b, #e74c3c);
   color: #fff; font-family: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer;
 }

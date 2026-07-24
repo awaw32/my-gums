@@ -718,6 +718,10 @@ export class NetworkSync {
       case "market_listing_sold":
       case "market_listing_removed":
       case "market_listings_sync":
+      case "market_list_response":
+      case "market_buy_response":
+      case "market_remove_response":
+      case "market_sale_earned":
         if (window._tradeMarket) window._tradeMarket.handleNetMessage(msg);
         break;
     }
