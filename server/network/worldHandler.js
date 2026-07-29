@@ -326,6 +326,17 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
             mon.alive = false;
             mon.respawnTimer = 25;
             const loot = computeMonsterReward(mon, c);
+            // 🛡️ تطبيق مكافآت القتل على الخادم — بدون هذا لا توجد مكافآت حقيقية
+            const pData = memStore.get(username);
+            if (pData) {
+              pData.cash = (pData.cash || 0) + loot.cash;
+              pData.gold = (pData.gold || 0) + loot.gold;
+              if (loot.artifacts) pData.artifacts = (pData.artifacts || 0) + loot.artifacts;
+              if (loot.desertGem) pData.desertGem = (pData.desertGem || 0) + loot.desertGem;
+              if (loot.cashBonus) pData.cash = (pData.cash || 0) + loot.cashBonus;
+              memStore.set(username, pData);
+              markDirty(username);
+            }
             const killMsg = JSON.stringify({
               type: "monster_killed", id: msg.id, killedBy: esc(username),
               loot: { cash: loot.cash, gold: loot.gold },
@@ -380,6 +391,22 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         const loserClient = won ? tc : c;
         const winnerGain = Math.min(computeLoot(loserClient.army_power || 5000, true).cash, 25000);
         const loserLoss = Math.min(computeLoot(loserClient.army_power || 5000, false).cash, 50000);
+
+        // 🛡️ تطبيق المكافآت/الخسائر على الخادم — بدون هذا، لا توجد عواقب اقتصادية حقيقية لـ PvP
+        const winnerName = won ? username : targetName;
+        const loserN = won ? targetName : username;
+        const winnerData = memStore.get(winnerName);
+        const loserData = memStore.get(loserN);
+        if (winnerData) {
+          winnerData.cash = (winnerData.cash || 0) + winnerGain;
+          memStore.set(winnerName, winnerData);
+          markDirty(winnerName);
+        }
+        if (loserData) {
+          loserData.cash = Math.max(0, (loserData.cash || 0) - loserLoss);
+          memStore.set(loserN, loserData);
+          markDirty(loserN);
+        }
 
         // رسالة موحّدة غير ملتبسة لكل طرف: cashDelta موقّع (موجب = ربح، سالب = خسارة)
         if (tc.ws.readyState === 1) {
