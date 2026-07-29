@@ -6,9 +6,10 @@ import { createWarManager } from '../server/logic/warManager.js';
 // ذلك قراءة قوة اللاعبين من worldClients الموثوقة بدل رسالة العميل (مكافحة الغش).
 function createTestEnv() {
   const worldClients = new Map();
-  // 🏜️ محاكاة بسيطة لخريطة allianceId -> [أعضاء]، تُستخدم فقط لحساب getTribePower
-  // في هذه الاختبارات — التحقق الفعلي من allianceManager.js الحقيقي يقع في
-  // tests/alliance-manager.test.js المنفصل.
+  // 🏜️ محاكاة بسيطة لخريطة allianceId -> [أعضاء]، تُستخدم لحساب getTribePower
+  // وأيضاً لمحاكاة getMyAlliance (عضوية اللاعب) — بدون هذه الأخيرة كان فحص
+  // isWarParticipant الجديد في warManager.js سيرفض كل استدعاء handleMessage
+  // في هذه الاختبارات بصمت (لأن getMyAlliance غائبة)، فيُخفي أي رجوع مستقبلي.
   const allianceMembers = new Map(); // allianceId -> [usernames]
   function getTribePower(allianceId) {
     const members = allianceMembers.get(allianceId) || [];
@@ -16,7 +17,13 @@ function createTestEnv() {
     for (const u of members) power += worldClients.get(u)?.army_power || 0;
     return power;
   }
-  return { worldClients, allianceMembers, getTribePower };
+  function getMyAlliance(username) {
+    for (const [allianceId, members] of allianceMembers) {
+      if (members.includes(username)) return { id: allianceId, name: allianceId };
+    }
+    return null;
+  }
+  return { worldClients, allianceMembers, getTribePower, getMyAlliance };
 }
 
 function addClient(worldClients, username, armyPower) {
@@ -28,11 +35,16 @@ function addClient(worldClients, username, armyPower) {
 }
 
 describe('🏜️ نظام الحرب القبلية (server/logic/warManager.js الحقيقي)', () => {
-  let worldClients, allianceMembers, getTribePower, wm;
+  let worldClients, allianceMembers, getTribePower, getMyAlliance, memStore, wm;
+
+  function getDefaultPlayer(username) {
+    return { username, cash: 0 };
+  }
 
   beforeEach(() => {
-    ({ worldClients, allianceMembers, getTribePower } = createTestEnv());
-    wm = createWarManager({ worldClients, broadcastChat: null, memStore: new Map(), getTribePower });
+    ({ worldClients, allianceMembers, getTribePower, getMyAlliance } = createTestEnv());
+    memStore = new Map();
+    wm = createWarManager({ worldClients, broadcastChat: null, memStore, markDirty: () => {}, getDefaultPlayer, getTribePower, getMyAlliance });
   });
 
   describe('إعلان الحرب', () => {
@@ -140,10 +152,34 @@ describe('🏜️ نظام الحرب القبلية (server/logic/warManager.js
       expect(endResult.loser).toBe("تعادل");
     });
 
+    it('يوزّع غنائم الحرب فعلياً على أعضاء القبيلة الفائزة عند انتهاء الحرب', () => {
+      addClient(worldClients, "warriorA", 100000);
+      addClient(worldClients, "warriorB", 1000);
+      memStore.set("warriorA", { username: "warriorA", cash: 0 });
+      memStore.set("memberA2", { username: "memberA2", cash: 0 });
+      memStore.set("warriorB", { username: "warriorB", cash: 500 });
+      const r1 = wm.declareWar(
+        "warriorA",
+        { name: "A", leader: "warriorA", members: ["warriorA", "memberA2"], power: 100000 },
+        { name: "B", leader: "warriorB", members: ["warriorB"], power: 1000 },
+        "alliance_a", "alliance_b"
+      );
+      const battle = wm.resolveBattle(r1.warId, "warriorA", 100000, "warriorB", 1000);
+      const endResult = wm.endWar(r1.warId);
+      expect(endResult.winner).toBe("A");
+      // الغنائم تُقسَّم بالتساوي على كل أعضاء القبيلة الفائزة (اثنان هنا)
+      const expectedShare = Math.floor(endResult.winnerLoot / 2);
+      expect(memStore.get("warriorA").cash).toBe(expectedShare);
+      expect(memStore.get("memberA2").cash).toBe(expectedShare);
+      // القبيلة الخاسرة لا تكسب شيئاً من coinPool الفائز
+      expect(memStore.get("warriorB").cash).toBe(500);
+      expect(battle.loot).toBeGreaterThan(0);
+    });
+
     it('يجب أن يحدّث الترتيب بعد انتهاء الحرب', () => {
       addClient(worldClients, "warriorA", 100000);
       addClient(worldClients, "warriorB", 1000);
-      const r1 = wm.declareWar("warriorA", { name: "A", leader: "warriorA", members: ["warriorA"], power: 100000 }, { name: "B", leader: "warriorB", members: ["warriorB"], power: 1000 });
+      const r1 = wm.declareWar("warriorA", { name: "A", leader: "warriorA", members: ["warriorA"], power: 100000 }, { name: "B", leader: "warriorB", members: ["warriorB"], power: 1000 }, "alliance_a", "alliance_b");
       wm.resolveBattle(r1.warId, "warriorA", 100000, "warriorB", 1000);
       wm.endWar(r1.warId);
       const rankings = wm.getRankings();
@@ -161,11 +197,11 @@ describe('🏜️ نظام الحرب القبلية (server/logic/warManager.js
       addClient(worldClients, "wC", 200000);
       addClient(worldClients, "wD", 5000);
       // حرب 1: A تفوز
-      const r1 = wm.declareWar("wA", { name: "A", leader: "wA", members: ["wA"], power: 100000 }, { name: "B", leader: "wB", members: ["wB"], power: 1000 });
+      const r1 = wm.declareWar("wA", { name: "A", leader: "wA", members: ["wA"], power: 100000 }, { name: "B", leader: "wB", members: ["wB"], power: 1000 }, "alliance_a", "alliance_b");
       wm.resolveBattle(r1.warId, "wA", 100000, "wB", 1000);
       wm.endWar(r1.warId);
       // حرب 2: C تفوز — الخاسر D له قوة أكبر → غنائم أكبر
-      const r2 = wm.declareWar("wC", { name: "C", leader: "wC", members: ["wC"], power: 200000 }, { name: "D", leader: "wD", members: ["wD"], power: 5000 });
+      const r2 = wm.declareWar("wC", { name: "C", leader: "wC", members: ["wC"], power: 200000 }, { name: "D", leader: "wD", members: ["wD"], power: 5000 }, "alliance_c", "alliance_d");
       wm.resolveBattle(r2.warId, "wC", 200000, "wD", 5000);
       wm.endWar(r2.warId);
       const rankings = wm.getRankings();
@@ -206,7 +242,8 @@ describe('🏜️ نظام الحرب القبلية (server/logic/warManager.js
   describe('🛡️ مكافحة الغش — قوة الحرب من worldClients فقط', () => {
     it('deployArmy يستخدم قوة اللاعب الحقيقية وليس القيمة المُرسلة', () => {
       addClient(worldClients, "leader1", 1500);
-      const r1 = wm.declareWar("leader1", { name: "A", leader: "leader1", power: 1500 }, { name: "B", leader: "p2", power: 1000 });
+      allianceMembers.set("alliance_a", ["leader1"]);
+      const r1 = wm.declareWar("leader1", { name: "A", leader: "leader1", power: 1500 }, { name: "B", leader: "p2", power: 1000 }, "alliance_a", "alliance_b");
       const result = wm.handleMessage(
         { type: "war_deploy", warId: r1.warId, armyCount: 8, armyPower: 999999999, side: "attacker" },
         "leader1",
@@ -219,7 +256,9 @@ describe('🏜️ نظام الحرب القبلية (server/logic/warManager.js
     it('resolveBattle عبر handleMessage يتجاهل القوة المزيفة في الرسالة تماماً', () => {
       addClient(worldClients, "weak1", 500);
       addClient(worldClients, "strong1", 999999);
-      const r1 = wm.declareWar("weak1", { name: "A", leader: "weak1", power: 500 }, { name: "B", leader: "strong1", power: 999999 });
+      allianceMembers.set("alliance_a", ["weak1"]);
+      allianceMembers.set("alliance_b", ["strong1"]);
+      const r1 = wm.declareWar("weak1", { name: "A", leader: "weak1", power: 500 }, { name: "B", leader: "strong1", power: 999999 }, "alliance_a", "alliance_b");
       let attackerWins = 0;
       const trials = 15;
       for (let i = 0; i < trials; i++) {
@@ -232,6 +271,50 @@ describe('🏜️ نظام الحرب القبلية (server/logic/warManager.js
       }
       // اللاعب الضعيف فعلياً (500) لا يجب أن يفوز رغم ادّعائه قوة مزيفة ضخمة
       expect(attackerWins).toBeLessThan(trials * 0.3);
+    });
+  });
+
+  describe('🛡️ تفويض الحرب — لا يمكن لطرف خارج القبيلتين التأثير على الحرب', () => {
+    it('يرفض war_deploy من لاعب ليس عضواً في أي من القبيلتين المتحاربتين', () => {
+      addClient(worldClients, "leader1", 1500);
+      addClient(worldClients, "outsider", 9999);
+      allianceMembers.set("alliance_a", ["leader1"]);
+      const r1 = wm.declareWar("leader1", { name: "A", leader: "leader1", power: 1500 }, { name: "B", leader: "p2", power: 1000 }, "alliance_a", "alliance_b");
+      const result = wm.handleMessage(
+        { type: "war_deploy", warId: r1.warId, armyCount: 8, armyPower: 1, side: "attacker" },
+        "outsider",
+        null
+      );
+      expect(result.error).toBe("not_war_participant");
+    });
+
+    it('يرفض war_resolve_battle من لاعب ليس عضواً في أي من القبيلتين', () => {
+      addClient(worldClients, "weak1", 500);
+      addClient(worldClients, "strong1", 999999);
+      addClient(worldClients, "outsider", 1);
+      allianceMembers.set("alliance_a", ["weak1"]);
+      allianceMembers.set("alliance_b", ["strong1"]);
+      const r1 = wm.declareWar("weak1", { name: "A", leader: "weak1", power: 500 }, { name: "B", leader: "strong1", power: 999999 }, "alliance_a", "alliance_b");
+      const result = wm.handleMessage(
+        { type: "war_resolve_battle", warId: r1.warId, attackerName: "weak1", attackerPower: 1, defenderName: "strong1", defenderPower: 1 },
+        "outsider",
+        null
+      );
+      expect(result.error).toBe("not_war_participant");
+    });
+
+    it('يرفض war_end من لاعب ليس عضواً في أي من القبيلتين', () => {
+      allianceMembers.set("alliance_a", ["p1"]);
+      allianceMembers.set("alliance_b", ["p2"]);
+      const r1 = wm.declareWar("p1", { name: "A", leader: "p1", power: 1000 }, { name: "B", leader: "p2", power: 1000 }, "alliance_a", "alliance_b");
+      const result = wm.handleMessage(
+        { type: "war_end", warId: r1.warId },
+        "outsider",
+        null
+      );
+      expect(result.error).toBe("not_war_participant");
+      // الحرب يجب أن تبقى نشطة فعلياً — لم تُنهَ رغم محاولة الطرف الخارجي
+      expect(wm.getActiveWars().some(w => w.id === r1.warId)).toBe(true);
     });
   });
 });

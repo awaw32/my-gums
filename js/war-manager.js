@@ -117,6 +117,12 @@ export class WarManager {
         break;
       case "war_ended":
         this.lastWarResult = msg;
+        // 🛡️ lootShare هو المبلغ الفعلي الذي أضافه الخادم بالفعل لرصيدي في
+        // memStore (0 إن لم أكن في القبيلة الفائزة) — بدون تطبيقه هنا محلياً،
+        // كان autosave التالي يرسل economy.cash القديمة فيطمس زيادة الخادم.
+        if (msg.lootShare > 0 && this.economy) {
+          this.economy.addRaw('cash', msg.lootShare);
+        }
         if (this.onWarEnded) this.onWarEnded(msg);
         break;
     }

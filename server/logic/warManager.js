@@ -57,7 +57,7 @@ function createWarRecord(attackerAlliance, defenderAlliance, _stats) {
  * محرك الحرب الرئيسي
  */
 function createWarManager(deps) {
-  const { worldClients, broadcastChat, memStore, getMyAlliance, getTribePower: getAllianceTribePower } = deps;
+  const { worldClients, broadcastChat, memStore, markDirty, getDefaultPlayer, getMyAlliance, getTribePower: getAllianceTribePower } = deps;
 
   // الحروب النشطة: Map<warId, warRecord>
   const activeWars = new Map();
@@ -74,6 +74,16 @@ function createWarManager(deps) {
     const c = worldClients.get(username);
     if (!c || c.ws.readyState !== 1) return null;
     return c;
+  }
+
+  // 🛡️ يمنع أي لاعب مصادَق عليه من التأثير على حرب قبليّة ليس طرفاً فيها —
+  // بدون هذا كان أي لاعب يستطيع حسم معارك (war_resolve_battle) أو إنهاء
+  // (war_end) أو نشر جيوش (war_deploy) لحرب بين قبيلتين لا ينتمي لأيّ منهما.
+  function isWarParticipant(war, username) {
+    if (!war || !username || !getMyAlliance) return false;
+    const myAlliance = getMyAlliance(username);
+    if (!myAlliance) return false;
+    return myAlliance.id === war.attacker.allianceId || myAlliance.id === war.defender.allianceId;
   }
 
   function broadcastToTribe(members, message) {
@@ -211,7 +221,9 @@ function createWarManager(deps) {
 
     // عدّ المشاركين في هذه الحرب
     war[mySide].score += Math.floor(armyPower * 0.01);
-    war[mySide].power = getTribePower(war[mySide].name);
+    // 🛡️ getTribePower تتوقع allianceId وليس الاسم — تمريره الاسم كان يُرجع صفراً
+    // دائماً (bug)، فتظل قوة الطرف معروضة صفراً في الواجهة بعد أي نشر جيش.
+    war[mySide].power = getTribePower(war[mySide].allianceId);
 
     addLog(war, `⚔️ ${leader} أرسل جيشاً بقوة ${armyPower} لدعم ${war[mySide].name}`);
 
@@ -336,19 +348,38 @@ function createWarManager(deps) {
     // تحديث الترتيب القبلي
     _updateRankings(war, winner, loser);
 
+    // 🛡️ توزيع غنائم الحرب فعلياً على أعضاء القبيلة الفائزة — بدون هذا كانت
+    // coinPool تُحسب وتُبث للعميل بلا أي أثر اقتصادي حقيقي على الخادم.
+    // التوزيع: تقسيم متساوٍ على كل أعضاء القبيلة الفائزة (وليس فقط المتصلين
+    // الآن أو من شارك فعلياً في معركة)، بنفس نمط "قراءة-تعديل-كتابة + markDirty".
+    let lootShare = 0;
+    if (winner && war[winner].coinPool > 0 && memStore && markDirty) {
+      const members = war[winner].members || [];
+      if (members.length > 0) {
+        lootShare = Math.floor(war[winner].coinPool / members.length);
+        if (lootShare > 0) {
+          for (const member of members) {
+            const pData = memStore.get(member) || (getDefaultPlayer ? getDefaultPlayer(member) : null);
+            if (!pData) continue;
+            pData.cash = (pData.cash || 0) + lootShare;
+            memStore.set(member, pData);
+            markDirty(member);
+          }
+        }
+      }
+    }
+
     // نقل لأرشيف التاريخ
     warHistory.push({ ...result, log: war.log.slice(-10) });
     if (warHistory.length > 100) warHistory.shift();
 
     activeWars.delete(warId);
 
-    // بث نتيجة الحرب للعالم
-    const endMsg = {
-      type: "war_ended",
-      ...result,
-    };
-    broadcastToTribe(war.attacker.members, endMsg);
-    broadcastToTribe(war.defender.members, endMsg);
+    // بث نتيجة الحرب للعالم — lootShare يُرسَل فقط لأعضاء القبيلة الفائزة (0
+    // للخاسرة/في حال التعادل) ليطبّقه العميل محلياً على economy.cash مباشرة،
+    // دون أن يحتاج لمقارنة اسم قبيلته باسم الفائز (أسماء قد تتصادم — علة #20).
+    broadcastToTribe(war.attacker.members, { type: "war_ended", ...result, lootShare: winner === "attacker" ? lootShare : 0 });
+    broadcastToTribe(war.defender.members, { type: "war_ended", ...result, lootShare: winner === "defender" ? lootShare : 0 });
 
     broadcastToAll({
       type: "broadcast_chat",
@@ -363,26 +394,29 @@ function createWarManager(deps) {
 
   // ==================== الترتيب القبلي ====================
 
+  // 🛡️ الترتيب مفتاحه allianceId الحقيقي (وليس الاسم) — قبيلتان بنفس الاسم أو
+  // قبيلة أعادت تسمية نفسها كانتا ستدمجان سجل الانتصارات/الخسائر خطأً.
   function _updateRankings(war, winner, loser) {
-    // القبيلة المعتدية
-    _ensureRanking(war.attacker.name);
-    _ensureRanking(war.defender.name);
+    _ensureRanking(war.attacker.allianceId, war.attacker.name);
+    _ensureRanking(war.defender.allianceId, war.defender.name);
 
     if (winner) {
-      tribeRankings.get(war[winner].name).wins++;
-      tribeRankings.get(war[winner].name).totalLoot += war[winner].coinPool || 0;
+      tribeRankings.get(war[winner].allianceId).wins++;
+      tribeRankings.get(war[winner].allianceId).totalLoot += war[winner].coinPool || 0;
     }
     if (loser) {
-      tribeRankings.get(war[loser].name).losses++;
+      tribeRankings.get(war[loser].allianceId).losses++;
     }
 
-    tribeRankings.get(war.attacker.name).warCount++;
-    tribeRankings.get(war.defender.name).warCount++;
+    tribeRankings.get(war.attacker.allianceId).warCount++;
+    tribeRankings.get(war.defender.allianceId).warCount++;
   }
 
-  function _ensureRanking(name) {
-    if (!tribeRankings.has(name)) {
-      tribeRankings.set(name, { name, wins: 0, losses: 0, totalLoot: 0, warCount: 0 });
+  function _ensureRanking(allianceId, name) {
+    if (!tribeRankings.has(allianceId)) {
+      tribeRankings.set(allianceId, { name, wins: 0, losses: 0, totalLoot: 0, warCount: 0 });
+    } else {
+      tribeRankings.get(allianceId).name = name; // القبيلة قد تُعيد تسمية نفسها لاحقاً
     }
   }
 
@@ -447,16 +481,25 @@ function createWarManager(deps) {
 
       case "war_deploy": {
         if (!username) return { error: "auth_required" };
+        const deployWar = activeWars.get(msg.warId);
+        if (!isWarParticipant(deployWar, username)) return { error: "not_war_participant" };
         return deployArmy(username, msg.warId, msg.armyCount || 0, msg.armyPower || 0, msg.side);
       }
 
       case "war_resolve_battle": {
         if (!username) return { error: "auth_required" };
+        const battleWar = activeWars.get(msg.warId);
+        if (!isWarParticipant(battleWar, username)) return { error: "not_war_participant" };
+        if (username !== msg.attackerName && username !== msg.defenderName) {
+          return { error: "not_battle_participant" };
+        }
         return resolveBattle(msg.warId, msg.attackerName, msg.attackerPower, msg.defenderName, msg.defenderPower);
       }
 
       case "war_end": {
         if (!username) return { error: "auth_required" };
+        const endTargetWar = activeWars.get(msg.warId);
+        if (!isWarParticipant(endTargetWar, username)) return { error: "not_war_participant" };
         return endWar(msg.warId, msg.reason);
       }
 
