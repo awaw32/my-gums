@@ -39,9 +39,13 @@ const playerData = new Map();
 
 try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) { logger.warn({ err: e.message }, "Cannot create DATA_DIR"); }
 
+const databaseHelper = require("./server/db/databaseHelper");
 const {
-  mongoConnected, memStore, Player, getDefaultPlayer, markDirty,
-} = require("./server/db/databaseHelper");
+  memStore, Player, getDefaultPlayer, markDirty,
+} = databaseHelper;
+// 🛡️ mongoConnected مُصدَّرة كـ getter لأن الاتصال يكتمل بشكل غير متزامن بعد
+// التحميل — فك تفكيكها هنا كان يجمّد قيمتها الأولية (false) للأبد.
+// اقرأها دائماً كـ databaseHelper.mongoConnected مباشرة، وليس كمتغير مُفكَّك.
 
 const {
   computeArmyYardUpgradeCost, computeArmyYardStats,
@@ -89,13 +93,13 @@ if (SIM_OWNER) caravanManager.initCaravans();
 
 const {
   TRIBAL_RANKS, getRank, createAllianceRecord, saveAlliance, getAlliance,
-  getAllianceIdByName, nameTaken, searchAlliancesByName, deleteAlliance,
+  getAllianceIdByName, nameTaken, searchAlliancesByName, deleteAlliance, escapeHtml,
 } = require("./server/db/allianceHelper");
 const { createAllianceManager } = require("./server/logic/allianceManager");
 const allianceManager = createAllianceManager({
   worldClients, memStore, markDirty, getDefaultPlayer,
   TRIBAL_RANKS, getRank, createAllianceRecord, saveAlliance, getAlliance,
-  getAllianceIdByName, nameTaken, searchAlliancesByName, deleteAlliance,
+  getAllianceIdByName, nameTaken, searchAlliancesByName, deleteAlliance, escapeHtml,
 });
 
 const { createWarManager } = require("./server/logic/warManager");
@@ -284,7 +288,7 @@ setInterval(() => {
 const { serveStatic } = require("./server/network/staticServer");
 const { createApiRoutes } = require("./server/routes/api");
 const handleApiRequest = createApiRoutes({
-  mongoConnected, memStore, Player, getDefaultPlayer, markDirty,
+  databaseHelper, memStore, Player, getDefaultPlayer, markDirty,
   rooms, BUILDING_DEFS, TICK_MS, claimReward, analytics,
 });
 

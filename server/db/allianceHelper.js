@@ -3,7 +3,9 @@
 const mongoose = require("mongoose");
 const { nanoid } = require("nanoid");
 const logger = require("../logger");
-const { mongoConnected: isMongoConnected } = require("./databaseHelper");
+const databaseHelper = require("./databaseHelper");
+// 🛡️ mongoConnected getter — لا تفكّكها هنا، الاتصال يكتمل بعد التحميل بشكل
+// غير متزامن فتتجمّد القيمة المفكَّكة على false للأبد (نفس علة api.js).
 
 // ═══════════════════════════════════════════════════════════════════
 //  🏜️ التحالفات (Alliances) — كيان مستقل عن اللاعبين، بنفس نمط
@@ -47,11 +49,26 @@ function makeAllianceId() {
   return "alliance_" + nanoid(10);
 }
 
+// 🛡️ تعقيم HTML — اسم التحالف يُبث لكل لاعب متصل (alliance_roster_updated وغيرها)
+// ويُعرض عبر innerHTML على العميل الذي لا يملك أي دالة تعقيم؛ بلا هذا كان اسم
+// تحالف مثل <img src=x onerror=...> يُنفَّذ في متصفح كل من يشاهد قائمة التحالفات.
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// الاسم يُعقَّم هنا مرة واحدة فقط — الاستدعاء من allianceManager.create() يمرّر
+// الاسم المُعقَّم بالفعل إلى nameTaken() قبل الوصول لهذه الدالة، فيبقى المقارَن
+// والمُخزَّن متطابقين دائماً (وإلا لَفشلت nameTaken في مطابقة نسختها المُخزَّنة).
 function createAllianceRecord(name, banner, createdBy) {
   return {
     id: makeAllianceId(),
     name: String(name).trim().slice(0, 30),
-    banner: typeof banner === "string" && banner.length <= 4 ? banner : "🏕️",
+    banner: typeof banner === "string" && banner.length <= 4 ? escapeHtml(banner) : "🏕️",
     level: 0,
     treasury: 0,
     createdAt: Date.now(),
@@ -175,7 +192,7 @@ async function saveAlliance(record) {
   allianceMemStore.set(record.id, record);
   allianceNameIndex.set(normalizeName(record.name), record.id);
   markAllianceDirty(record.id);
-  if (isMongoConnected) {
+  if (databaseHelper.mongoConnected) {
     await Alliance.updateOne({ id: record.id }, { $set: record }, { upsert: true });
   }
 }
@@ -212,7 +229,7 @@ async function deleteAlliance(id) {
   if (sqliteAvailable) {
     try { sqliteDb.prepare("DELETE FROM alliances WHERE id = ?").run(id); } catch {}
   }
-  if (isMongoConnected) {
+  if (databaseHelper.mongoConnected) {
     await Alliance.deleteOne({ id });
   }
 }
@@ -222,6 +239,7 @@ module.exports = {
   getRank,
   allianceMemStore,
   Alliance,
+  escapeHtml,
   createAllianceRecord,
   saveAlliance,
   getAlliance,

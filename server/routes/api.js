@@ -31,7 +31,7 @@ setInterval(() => {
   }
 }, LIMITER_CLEANUP_INTERVAL_MS).unref();
 
-function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, markDirty, rooms, BUILDING_DEFS, TICK_MS, claimReward, analytics }) {
+function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, markDirty, rooms, BUILDING_DEFS, TICK_MS, claimReward, analytics }) {
 
   return async function handleApiRequest(req, res) {
     if (req.headers.upgrade === "websocket") return false;
@@ -195,7 +195,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
 
     if (req.url === "/api/players" || req.url.startsWith("/api/players?")) {
       if (req.method === "GET") {
-        if (!mongoConnected) {
+        if (!databaseHelper.mongoConnected) {
           const safe = Array.from(memStore.values()).map(p => ({
             username: p.username,
             army_power: p.army_power || 0,
@@ -228,7 +228,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       const username = raw;
 
       if (req.method === "GET") {
-        if (!mongoConnected) {
+        if (!databaseHelper.mongoConnected) {
           let data = { ...(memStore.get(username) || getDefaultPlayer(username)) };
           delete data.password;
           delete data.token;
@@ -345,7 +345,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             }
             memStore.set(username, merged);
             markDirty(username);
-            if (mongoConnected) {
+            if (databaseHelper.mongoConnected) {
               await Player.updateOne(
                 { username },
                 { $set: merged },
@@ -372,7 +372,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       if (sortBy === "weekly") {
         const nowWeek = Math.floor(Date.now() / (7 * 24 * 3600 * 1000));
         const weeklyValue = (p) => (p.weekKey === nowWeek ? (p.weeklyKills || 0) : 0);
-        const source = mongoConnected
+        const source = databaseHelper.mongoConnected
           ? await Player.find({}, { username: 1, weeklyKills: 1, weekKey: 1, army_power: 1, _id: 0 }).lean().catch(() => [])
           : Array.from(memStore.values());
         const sorted = source
@@ -385,7 +385,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       }
 
       const sortField = sortBy === "kills" ? "kills" : sortBy === "level" ? "level" : sortBy === "oases" ? "oases" : "army_power";
-      if (!mongoConnected) {
+      if (!databaseHelper.mongoConnected) {
         const sorted = Array.from(memStore.values())
           .sort((a, b) => (b[sortField] || 0) - (a[sortField] || 0))
           .slice(0, 50)
@@ -483,7 +483,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
           }
           memStore.set(uname, updated);
           markDirty(uname);
-          if (mongoConnected) {
+          if (databaseHelper.mongoConnected) {
             await Player.updateOne({ username: uname }, { $set: updated }, { upsert: true });
           }
           res.writeHead(200, { "Content-Type": "application/json" });
@@ -528,7 +528,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       const result = claimReward(pData);
       memStore.set(uname, pData);
       markDirty(uname);
-      if (result.claimed && mongoConnected) {
+      if (result.claimed && databaseHelper.mongoConnected) {
         await Player.updateOne({ username: uname }, { $set: pData }, { upsert: true });
       }
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -593,7 +593,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
           existing.pushSubscription = subscription;
           memStore.set(username, existing);
           markDirty(username);
-          if (mongoConnected) {
+          if (databaseHelper.mongoConnected) {
             await Player.updateOne({ username }, { $set: { pushSubscription: subscription } }, { upsert: true });
           }
           res.writeHead(200, { "Content-Type": "application/json" });
@@ -640,7 +640,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
     if (req.url === "/health") {
       const healthData = {
         status: "ok",
-        mongo: mongoConnected ? "connected" : "unavailable",
+        mongo: databaseHelper.mongoConnected ? "connected" : "unavailable",
         rooms: rooms.size,
         players: Array.from(rooms.values()).reduce((acc, r) => acc + r.players.size, 0),
         uptime: process.uptime(),
