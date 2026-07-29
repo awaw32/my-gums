@@ -1,5 +1,6 @@
 import { formatNumber } from "../economy.js";
 import { ITEM_DEFS } from "../inventory.js";
+import { escapeHtml } from "../dom-utils.js";
 
 export function injectGameplayMethods(GameUI) {
 
@@ -189,7 +190,7 @@ GameUI.prototype.renderRanking = function() {
           <div class="rank-num">${medal}</div>
           <div class="rank-avatar">${isMe ? "🐪" : "🧙"}</div>
           <div class="rank-info">
-            <div class="rank-name">${isMe ? "⭐ " : ""}${p.username}${isMe ? " (أنت)" : ""}</div>
+            <div class="rank-name">${isMe ? "⭐ " : ""}${escapeHtml(p.username)}${isMe ? " (أنت)" : ""}</div>
             <div class="rank-power">${mode === "weekly"
               ? `⚔️ ${formatNumber(p.weeklyKills || 0)} قتلة هذا الأسبوع`
               : `👊 ${formatNumber(p.army_power || 0)} | 💵 ${formatNumber(p.cash || 0)}`}</div>
@@ -781,7 +782,7 @@ GameUI.prototype._renderAllianceRoster = function(container, am) {
     for (const r of state.pendingRequests) {
       html += `
         <div class="tribal-request-row">
-          <span class="tribal-request-name">${r.username}</span>
+          <span class="tribal-request-name">${escapeHtml(r.username)}</span>
           <button class="tribal-request-approve-btn" data-name="${r.username}">✓ قبول</button>
           <button class="tribal-request-reject-btn" data-name="${r.username}">✕ رفض</button>
         </div>
@@ -802,7 +803,7 @@ GameUI.prototype._renderAllianceRoster = function(container, am) {
       <div class="tribal-member-row">
         <span class="tribal-member-online-dot ${m.online ? "online" : ""}" title="${m.online ? "متصل" : "غير متصل"}"></span>
         <span class="tribal-member-rank-icon">${rankIcon}</span>
-        <span class="tribal-member-name">${m.username}${isMe ? " (أنت)" : ""}</span>
+        <span class="tribal-member-name">${escapeHtml(m.username)}${isMe ? " (أنت)" : ""}</span>
         <span class="tribal-member-rank-name">${rankName}</span>
         <span class="tribal-member-contribution">🪙 ${this._fmt(m.contribution || 0)}</span>
         <span class="tribal-member-power">🔥 ${this._fmt(m.power || 0)}</span>

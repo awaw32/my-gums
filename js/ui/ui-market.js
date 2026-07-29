@@ -4,6 +4,8 @@
  * واجهة سوق الصحراء — تتصل بنظام TradeMarket
  */
 
+import { escapeHtml } from "../dom-utils.js";
+
 export function injectMarketMethods(GameUI) {
 
 GameUI.prototype.buildMarketScreen = function() {
@@ -275,13 +277,13 @@ GameUI.prototype._renderMarketBuyListings = function(overlay) {
     const rarity = RARITY_COLORS[l.itemRarity] || RARITY_COLORS.common;
     return `
       <div class="market-item-card" data-listing-id="${l.id}">
-        <div class="market-item-icon">${l.itemIcon}</div>
-        <div class="market-item-name">${l.itemName}</div>
+        <div class="market-item-icon">${escapeHtml(l.itemIcon)}</div>
+        <div class="market-item-name">${escapeHtml(l.itemName)}</div>
         <div class="market-item-rarity" style="color:${rarity.color};background:${rarity.color}15">${rarity.label}</div>
         <div class="market-item-level">Lv.${l.level}</div>
         <div class="market-item-qty">الكمية: ${l.quantity}</div>
         <div class="market-item-price">${l.pricePerUnit} 💵</div>
-        <div class="market-item-seller">البائع: ${l.seller}</div>
+        <div class="market-item-seller">البائع: ${escapeHtml(l.seller)}</div>
         <button class="market-buy-btn" data-listing-id="${l.id}">🛒 شراء</button>
       </div>
     `;
@@ -392,9 +394,9 @@ GameUI.prototype._renderMarketMyListings = function(overlay, myListings) {
     <div style="font-weight:700;color:#f5e6c8;margin:14px 0 8px;font-size:0.8rem">📋 عروضي النشطة</div>
     ${myListings.map(l => `
       <div class="market-sell-item" data-listing-id="${l.id}">
-        <span class="market-sell-icon">${l.itemIcon}</span>
+        <span class="market-sell-icon">${escapeHtml(l.itemIcon)}</span>
         <div class="market-sell-info">
-          <div class="market-sell-name">${l.itemName}</div>
+          <div class="market-sell-name">${escapeHtml(l.itemName)}</div>
           <div class="market-sell-count">الكمية: ${l.quantity} — ${l.pricePerUnit} 💵/وحدة</div>
         </div>
         <button class="market-cancel-btn" data-listing-id="${l.id}" style="padding:8px 14px;border:1px solid var(--accent-red,#c0392b);border-radius:8px;background:transparent;color:var(--accent-red,#c0392b);font-weight:700;font-size:0.7rem;cursor:pointer;font-family:inherit">✕ إلغاء</button>

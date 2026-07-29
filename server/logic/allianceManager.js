@@ -23,7 +23,7 @@ function createAllianceManager(deps) {
   const {
     worldClients, memStore, markDirty, getDefaultPlayer,
     TRIBAL_RANKS, getRank, createAllianceRecord, saveAlliance, getAlliance,
-    getAllianceIdByName, nameTaken, searchAlliancesByName,
+    getAllianceIdByName, nameTaken, searchAlliancesByName, escapeHtml,
   } = deps;
 
   // ==================== أدوات مساعدة ====================
@@ -103,7 +103,7 @@ function createAllianceManager(deps) {
   async function create(username, name, banner) {
     const pData = memStore.get(username) || getDefaultPlayer(username);
     if (pData.allianceId) return { ok: false, reason: "already_in_alliance" };
-    const clean = String(name || "").trim().slice(0, 30);
+    const clean = escapeHtml(String(name || "").trim().slice(0, 30));
     if (!clean) return { ok: false, reason: "invalid_name" };
     if (nameTaken(clean)) return { ok: false, reason: "name_taken" };
 

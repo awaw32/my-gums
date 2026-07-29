@@ -64,10 +64,19 @@ function createTestEnv() {
 
   function markDirty() {}
 
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   const manager = createAllianceManager({
     worldClients, memStore, markDirty, getDefaultPlayer,
     TRIBAL_RANKS, getRank, createAllianceRecord, saveAlliance, getAlliance,
-    getAllianceIdByName, nameTaken, searchAlliancesByName, deleteAlliance,
+    getAllianceIdByName, nameTaken, searchAlliancesByName, deleteAlliance, escapeHtml,
   });
 
   return { worldClients, memStore, allianceStore, manager };

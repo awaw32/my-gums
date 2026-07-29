@@ -17,17 +17,20 @@
  * ============================================================================
  */
 
+// 🛡️ يطابق js/trade-market.js حرفياً — الاسم/الأيقونة/الفئة/الندرة تُشتق من هنا
+// حصراً عند العرض، وليس من قيم itemName/itemIcon/... التي يرسلها العميل، لأن
+// تلك كانت تُبث بلا تعقيم إلى innerHTML على كل عميل متصل (XSS مخزّن).
 const TRADEABLE_ITEMS = {
-  bandage: { name: "باندج", basePrice: 15 },
-  heal_potion: { name: "جرعة علاج", basePrice: 30 },
-  fire_sword: { name: "سيف ناري", basePrice: 150 },
-  iron_sword: { name: "سيف حديدي", basePrice: 400 },
-  desert_shield: { name: "درع صحراوي", basePrice: 200 },
-  power_helmet: { name: "خوذة القوة", basePrice: 350 },
-  xp_scroll: { name: "لفافة خبرة", basePrice: 80 },
-  power_gem: { name: "جوهرة القوة", basePrice: 800 },
-  arena_ticket: { name: "تذكرة ساحة", basePrice: 60 },
-  tower_blueprint: { name: "مخطط برج", basePrice: 500 },
+  bandage: { name: "باندج", icon: "🩹", category: "healing", rarity: "common", basePrice: 15 },
+  heal_potion: { name: "جرعة علاج", icon: "🧪", category: "healing", rarity: "common", basePrice: 30 },
+  fire_sword: { name: "سيف ناري", icon: "🗡️", category: "weapon", rarity: "uncommon", basePrice: 150 },
+  iron_sword: { name: "سيف حديدي", icon: "🗡️", category: "weapon", rarity: "rare", basePrice: 400 },
+  desert_shield: { name: "درع صحراوي", icon: "🛡️", category: "defense", rarity: "uncommon", basePrice: 200 },
+  power_helmet: { name: "خوذة القوة", icon: "⛑️", category: "buff", rarity: "rare", basePrice: 350 },
+  xp_scroll: { name: "لفافة خبرة", icon: "📜", category: "resource", rarity: "common", basePrice: 80 },
+  power_gem: { name: "جوهرة القوة", icon: "💎", category: "buff", rarity: "epic", basePrice: 800 },
+  arena_ticket: { name: "تذكرة ساحة", icon: "🎫", category: "special", rarity: "uncommon", basePrice: 60 },
+  tower_blueprint: { name: "مخطط برج", icon: "📐", category: "special", rarity: "rare", basePrice: 500 },
 };
 
 const MARKET_FEE_PERCENT = 0.05;
@@ -56,8 +59,9 @@ function createMarketManager(deps) {
     return Math.floor(def.basePrice * (1 + (level - 1) * 0.5));
   }
 
-  /** عرض عنصر — العنصر نفسه موثوق من العميل، لكن السعر يُتحقَّق منه ضمن حدود معقولة */
-  function listItem(username, { itemId, itemName, itemIcon, itemCategory, itemRarity, quantity, pricePerUnit, level }) {
+  /** عرض عنصر — itemId فقط موثوق من العميل؛ الاسم/الأيقونة/الفئة/الندرة تُشتق
+   *  من TRADEABLE_ITEMS الخادم حصراً (لا تُقبل نصوص عرض من العميل إطلاقاً) */
+  function listItem(username, { itemId, quantity, pricePerUnit, level }) {
     const def = TRADEABLE_ITEMS[itemId];
     if (!def) return { ok: false, reason: "unknown_item" };
 
@@ -81,10 +85,10 @@ function createMarketManager(deps) {
     const id = `listing_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const listing = {
       id, itemId,
-      itemName: typeof itemName === "string" ? itemName.slice(0, 60) : def.name,
-      itemIcon: typeof itemIcon === "string" ? itemIcon.slice(0, 10) : "📦",
-      itemCategory: typeof itemCategory === "string" ? itemCategory.slice(0, 20) : "",
-      itemRarity: typeof itemRarity === "string" ? itemRarity.slice(0, 20) : "common",
+      itemName: def.name,
+      itemIcon: def.icon,
+      itemCategory: def.category,
+      itemRarity: def.rarity,
       quantity: qty,
       pricePerUnit: price,
       totalPrice: qty * price,
