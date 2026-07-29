@@ -319,7 +319,7 @@ async function loadFromDatabase(economy, army, village, username) {
       if (import.meta.env?.DEV) { console.log("✅ [API] تم استعادة بياناتك من قاعدة البيانات!"); }
     }
   } catch (err) {
-    console.warn("⚠️ [API] لم يتم العثور على بيانات سابقة، سنبدأ من الصفر:", err.message);
+    errorLogger.logWarning("loadFromDatabase", "لم يتم العثور على بيانات سابقة، سنبدأ من الصفر", { error: err.message });
   }
 }
 
@@ -814,7 +814,7 @@ async function init() {
         isNewPlayer: window._isNewPlayer !== false,
         cosmetics: world._myCosmetics || undefined,
         last_active: Date.now()
-      }).catch(e => console.warn("[Save] saveToDB:", e.message));
+      }).catch(e => errorLogger.logWarning("saveToDB", "فشل حفظ بيانات اللاعب", { error: e.message }));
     };
 
     // 🏜️ يُستدعى مرة واحدة عند اكتمال FTUE — يحفظ isNewPlayer=false فوراً (محلياً وسيرفرياً)
@@ -1676,7 +1676,7 @@ async function init() {
         if (import.meta.env?.DEV) { console.log("💾 [DB] قاعدة البيانات متصلة ✅"); }
         ui.setDbStatus(true);
       } else {
-        console.warn("💾 [DB] قاعدة البيانات غير متصلة — الحفظ في الذاكرة مؤقتاً");
+        errorLogger.logWarning("checkHealth", "قاعدة البيانات غير متصلة — الحفظ في الذاكرة مؤقتاً");
       }
     });
 
@@ -1697,7 +1697,7 @@ async function init() {
 
 
 const loadingTimer = setTimeout(() => {
-  console.warn("⚠️ [LOAD] تجاوزت 20 ثانية تحميل — نعرض شاشة الخطأ");
+  errorLogger.logWarning("init", "تجاوز التحميل 20 ثانية — عرض شاشة الخطأ");
   showLoadingError();
 }, 20000);
 

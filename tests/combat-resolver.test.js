@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeOneHitDamage, resolveMonsterKill, simulatePvPFull, computeLoot, computeMonsterReward, WEAPON_COMBAT_STATS } from '../server/logic/combatResolver.js';
+import { WEAPON_COMBAT_STATS as CLIENT_WEAPON_COMBAT_STATS } from '../js/combat-engine.js';
 
 describe('Combat Resolver (Server-Authoritative)', () => {
   const basePlayer = () => ({
@@ -161,10 +162,14 @@ describe('Combat Resolver (Server-Authoritative)', () => {
     expect(reward.gold).toBeGreaterThanOrEqual(0);
   });
 
-  it('should have weapon stats matching client definitions', () => {
-    expect(WEAPON_COMBAT_STATS.w1.baseDamage).toBe(4);
-    expect(WEAPON_COMBAT_STATS.w6.critMultiplier).toBe(3.0);
-    expect(WEAPON_COMBAT_STATS.w5.range).toBe('ranged');
+  it('should have weapon stats matching client definitions exactly (anti-drift check)', () => {
+    // 🛡️ نسختا الخادم والعميل من WEAPON_COMBAT_STATS منفصلتان بالضرورة (الخادم
+    // CommonJS، العميل ES module للمتصفح) — هذا الاختبار يقارنهما فعلياً بدل
+    // تكرار جدول ثالث هنا، فيكتشف أي انحراف حقيقي بين النسختين مباشرة.
+    expect(Object.keys(WEAPON_COMBAT_STATS).sort()).toEqual(Object.keys(CLIENT_WEAPON_COMBAT_STATS).sort());
+    for (const weaponId of Object.keys(WEAPON_COMBAT_STATS)) {
+      expect(WEAPON_COMBAT_STATS[weaponId]).toEqual(CLIENT_WEAPON_COMBAT_STATS[weaponId]);
+    }
   });
 
   it('should reject invalid monster kill (not alive)', () => {
@@ -194,14 +199,26 @@ describe('Combat Resolver (Server-Authoritative)', () => {
       const monster = baseMonster();
       monster.enemyId = 'palace_boss';
       monster._shieldTimer = 3;
-      // Shield halves damage: force a no-crit, full-HP hit
-      const shieldResult = resolveMonsterKill(player, monster, Date.now());
-      expect(shieldResult.sandstormActive).toBe(false);
-      expect(shieldResult.wasPhased).toBe(false);
-      expect(shieldResult.wasDodged).toBe(false);
-      // With shield at half damage, the final damage must be ≤ the raw damage
-      const rawResult = resolveMonsterKill(player, { ...monster, _shieldTimer: 0 }, Date.now());
-      expect(shieldResult.damage).toBeLessThanOrEqual(rawResult.damage);
+
+      // 🛡️ تثبيت Math.random لضمان عدم تأثير عشوائي على النتيجة
+      const origRandom = Math.random;
+      let callIdx = 0;
+      const randomValues = [0.5, 0.5, 0.5, 0.5, 0.5]; // لا يُسبب أي قدرة عشوائية (كلها > chance)
+      Math.random = () => randomValues[callIdx++ % randomValues.length];
+
+      try {
+        const shieldResult = resolveMonsterKill(player, monster, Date.now());
+        expect(shieldResult.sandstormActive).toBe(false);
+        expect(shieldResult.wasPhased).toBe(false);
+        expect(shieldResult.wasDodged).toBe(false);
+        // Shield halves damage: compute raw damage without shield
+        const rawMonster = { ...monster, _shieldTimer: 0 };
+        const rawResult = resolveMonsterKill(player, rawMonster, Date.now());
+        expect(shieldResult.damage).toBeLessThanOrEqual(rawResult.damage);
+        expect(rawResult.damage).toBeGreaterThan(0);
+      } finally {
+        Math.random = origRandom;
+      }
     });
 
     it('phase should make damage 0', () => {

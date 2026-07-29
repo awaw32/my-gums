@@ -12,16 +12,14 @@ import { performanceMonitor } from "./performance-monitor.js";
  *  - Camera system with zoom + viewport culling
  *  - Pointer input (one-finger drag=pan, tap=command)
  *  - Pinch-to-zoom (two-finger)
- *  - n8n event integration
  * =============================================================================
  */
 
 class GameEngine {
   /**
    * @param {string|HTMLCanvasElement} canvasEl
-   * @param {string} [n8nWebhookUrl=""]
    */
-  constructor(canvasEl, n8nWebhookUrl = "") {
+  constructor(canvasEl) {
     // ─── Canvas ───────────────────────────────────────────────
     this.canvas = typeof canvasEl === "string"
       ? document.getElementById(canvasEl)
@@ -166,10 +164,6 @@ class GameEngine {
     this._touchPoints = new Map();
     this._pinch = { active: false, dist: 0, startZoom: 1 };
 
-    // ─── n8n ────────────────────────────────────────────────────
-    this.n8nUrl    = n8nWebhookUrl;
-    this.playerId  = "pl_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-
     // ─── Callbacks ──────────────────────────────────────────────
     this._onUpdate = null;   // fn(dt, ctx, camera)
     this._onTap    = null;   // fn(worldX, worldY)
@@ -182,7 +176,6 @@ class GameEngine {
     window.addEventListener("orientationchange", this._boundResize);
 
     this.resize();
-    this._sendEvent("engine_init");
   }
 
   resize() {
@@ -205,7 +198,6 @@ class GameEngine {
     this.running   = true;
     this.lastTime  = performance.now();
     this._loop(performance.now());
-    this._sendEvent("engine_start");
   }
 
   stop() {
@@ -218,7 +210,6 @@ class GameEngine {
     if (this.canvas) {
       this._unbindPointerEvents();
     }
-    this._sendEvent("engine_stop");
   }
 
   _loop(now) {
@@ -436,25 +427,6 @@ class GameEngine {
     }
   }
 
-  async _sendEvent(eventName, payload = {}) {
-    if (!this.n8nUrl) return null;
-    try {
-      const res = await fetch(this.n8nUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: eventName,
-          playerId: this.playerId,
-          timestamp: Date.now(),
-          ...payload,
-        }),
-      });
-      return await res.json();
-    } catch (e) {
-      console.warn(`[n8n] ${eventName}:`, e.message);
-      return null;
-    }
-  }
 }
 
 export { GameEngine };

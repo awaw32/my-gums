@@ -7,7 +7,6 @@
 export class NetworkManager {
   constructor(apiBase = '') {
     this.apiBase = apiBase;
-    this.requestQueue = new Map();
     this.saveLock = false;
     this.maxRetries = 3;
     this.retryDelay = 1000; // ms
@@ -159,7 +158,6 @@ export class NetworkManager {
         {
           timeout: this.requestTimeout.save,
           retries: 2,
-          tag: 'save_game',
         }
       );
 
@@ -180,7 +178,6 @@ export class NetworkManager {
       {
         timeout: this.requestTimeout.load,
         retries: 3,
-        tag: 'load_game',
       }
     );
   }
@@ -198,7 +195,6 @@ export class NetworkManager {
       {
         timeout: this.requestTimeout.quick,
         retries: 2,
-        tag: 'auth',
       }
     );
   }
@@ -235,58 +231,11 @@ export class NetworkManager {
   }
 
   /**
-   * Handle rate limit response
-   * @private
-   */
-  handleRateLimit(endpoint, resetAfter) {
-    const key = `_ratelimit_${endpoint}`;
-    sessionStorage.setItem(
-      key,
-      JSON.stringify({
-        resetAt: Date.now() + resetAfter,
-      })
-    );
-  }
-
-  /**
    * Delay utility
    * @private
    */
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Get request stats
-   * @returns {Object}
-   */
-  getStats() {
-    return {
-      activeSaves: this.saveLock ? 1 : 0,
-      queuedRequests: this.requestQueue.size,
-    };
-  }
-
-  /**
-   * Cancel pending request
-   * @param {string} tag - Request tag
-   */
-  cancelRequest(tag) {
-    if (this.requestQueue.has(tag)) {
-      const controller = this.requestQueue.get(tag);
-      controller.abort();
-      this.requestQueue.delete(tag);
-    }
-  }
-
-  /**
-   * Cancel all pending requests
-   */
-  cancelAll() {
-    for (const [tag, controller] of this.requestQueue.entries()) {
-      controller.abort();
-      this.requestQueue.delete(tag);
-    }
   }
 }
 

@@ -1,6 +1,6 @@
 "use strict";
 
-const fs = require("fs");
+const fs = require("fs/promises");
 const path = require("path");
 const { STATIC_EXTS, BUILD_DIR } = require("../config");
 const rootDir = path.resolve(__dirname, "../../", BUILD_DIR);
@@ -12,16 +12,18 @@ function cachePolicy(ext) {
   return "public, max-age=86400, must-revalidate";
 }
 
-function computeETag(filePath) {
+async function computeETag(filePath) {
   try {
-    const stat = fs.statSync(filePath);
+    const stat = await fs.stat(filePath);
     const mtime = stat.mtimeMs;
     const size = stat.size;
     return `"${size.toString(16)}-${mtime.toString(16)}"`;
   } catch { return null; }
 }
 
-function serveStatic(rawUrl, req, res) {
+// 🚀 قراءة الملفات غير متزامنة — القراءة المتزامنة كانت توقف حلقة الحدث
+// الوحيدة لـ Node (بما فيها منطق اللعبة الحي عبر WebSocket) أثناء كل قراءة قرص.
+async function serveStatic(rawUrl, req, res) {
   const url = decodeURIComponent(rawUrl.split("?")[0]);
   const isRoot = url === "/";
   const ext = isRoot ? ".html" : path.extname(url).toLowerCase();
@@ -34,22 +36,22 @@ function serveStatic(rawUrl, req, res) {
   let filePath = safePath;
   let content = null;
   try {
-    content = fs.readFileSync(safePath);
+    content = await fs.readFile(safePath);
   } catch {
     const pubPath = path.resolve(rootDir, "public", cleanPath);
     if (pubPath.startsWith(rootDir)) {
-      try { content = fs.readFileSync(pubPath); filePath = pubPath; } catch {}
+      try { content = await fs.readFile(pubPath); filePath = pubPath; } catch {}
     }
     if (!content) {
       const rootPath = path.resolve(projectRoot, cleanPath);
       if (rootPath.startsWith(projectRoot)) {
-        try { content = fs.readFileSync(rootPath); filePath = rootPath; } catch { return false; }
+        try { content = await fs.readFile(rootPath); filePath = rootPath; } catch { return false; }
       } else {
         return false;
       }
     }
   }
-  const etag = computeETag(filePath);
+  const etag = await computeETag(filePath);
   if (etag && req.headers["if-none-match"] === etag) {
     res.writeHead(304);
     res.end();

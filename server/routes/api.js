@@ -6,6 +6,30 @@ const metrics = require("../metrics");
 const { makeRateLimiter } = require("../network/rateLimiter");
 const loginLimiters = new Map();
 const clientLogLimiters = new Map();
+const clientLogLimitersLastUsed = new Map(); // IP -> آخر وقت استُخدم فيه limiter الخاص به
+
+// 🧹 تنظيف دوري لمنع تسرّب الذاكرة — بلا هذا، كل IP جديد يحاول تسجيل الدخول
+// أو إرسال سجل خطأ يضيف إدخالاً دائماً لا يُحذف أبداً طوال عمر العملية.
+const LIMITER_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // كل 10 دقائق
+const LIMITER_STALE_AFTER_MS = 5 * 60 * 1000; // إدخال لم يُستخدم منذ 5 دقائق يُعتبر منتهياً
+setInterval(() => {
+  const now = Date.now();
+  for (const key of loginLimiters.keys()) {
+    if (!key.endsWith("_time")) continue;
+    const time = loginLimiters.get(key);
+    if (now - time > LIMITER_STALE_AFTER_MS) {
+      const ip = key.slice(0, -"_time".length);
+      loginLimiters.delete(ip + "_time");
+      loginLimiters.delete(ip + "_count");
+    }
+  }
+  for (const [ip, lastUsed] of clientLogLimitersLastUsed) {
+    if (now - lastUsed > LIMITER_STALE_AFTER_MS) {
+      clientLogLimiters.delete(ip);
+      clientLogLimitersLastUsed.delete(ip);
+    }
+  }
+}, LIMITER_CLEANUP_INTERVAL_MS).unref();
 
 function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, markDirty, rooms, BUILDING_DEFS, TICK_MS, claimReward, analytics }) {
 
@@ -444,7 +468,17 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
             if (newWeapon) {
               const { WEAPON_DEFS } = require("../db/databaseHelper");
               const def = WEAPON_DEFS.find(d => d.id === newWeapon.id);
-              if (def) updated.cash = Math.max(0, (existing.cash || 0) - def.cashPrice);
+              if (def) {
+                // 🛡️ تحقق من توفر الكاش الكافي قبل شراء السلاح
+                const currentCash = existing.cash || 0;
+                if (currentCash < def.cashPrice) {
+                  logger.warn({ uname, cash: currentCash, price: def.cashPrice }, "AntiCheat rejection (insufficient cash for weapon)");
+                  res.writeHead(409, { "Content-Type": "application/json" });
+                  res.end(JSON.stringify({ error: `لا تملك ما يكفي من الكاش. تحتاج ${def.cashPrice}، لديك ${currentCash}` }));
+                  return;
+                }
+                updated.cash = currentCash - def.cashPrice;
+              }
             }
           }
           memStore.set(uname, updated);
@@ -579,6 +613,7 @@ function createApiRoutes({ mongoConnected, memStore, Player, getDefaultPlayer, m
       const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress;
       let limiter = clientLogLimiters.get(ip);
       if (!limiter) { limiter = makeRateLimiter({ maxPerSec: 2 }); clientLogLimiters.set(ip, limiter); }
+      clientLogLimitersLastUsed.set(ip, Date.now());
       if (!limiter()) {
         res.writeHead(429, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "too many requests" }));

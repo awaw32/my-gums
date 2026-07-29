@@ -307,7 +307,7 @@ server.on("request", async (req, res) => {
   };
 
   const urlPath = req.url === "/" ? "/index.html" : req.url;
-  if (!serveStatic(urlPath, req, res)) {
+  if (!(await serveStatic(urlPath, req, res))) {
     res.writeHead(404, { "Content-Type": "text/plain" });
     res.end("404 Not Found");
   }
