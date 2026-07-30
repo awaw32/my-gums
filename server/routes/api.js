@@ -31,7 +31,7 @@ setInterval(() => {
   }
 }, LIMITER_CLEANUP_INTERVAL_MS).unref();
 
-function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, markDirty, rooms, BUILDING_DEFS, TICK_MS, claimReward, analytics }) {
+function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, markDirty, BUILDING_DEFS, TICK_MS, claimReward, analytics }) {
 
   return async function handleApiRequest(req, res) {
     if (req.headers.upgrade === "websocket") return false;
@@ -641,8 +641,6 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
       const healthData = {
         status: "ok",
         mongo: databaseHelper.mongoConnected ? "connected" : "unavailable",
-        rooms: rooms.size,
-        players: Array.from(rooms.values()).reduce((acc, r) => acc + r.players.size, 0),
         uptime: process.uptime(),
         tickRate: 1000 / TICK_MS,
       };

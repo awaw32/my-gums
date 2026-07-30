@@ -34,8 +34,6 @@ if (USE_HTTPS) {
 }
 
 const wss = new WebSocketServer({ server });
-const rooms = new Map();
-const playerData = new Map();
 
 try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) { logger.warn({ err: e.message }, "Cannot create DATA_DIR"); }
 
@@ -57,7 +55,6 @@ const { applyWeaponUpgrade, computeWeaponDamageWithUpgrades } = require("./serve
 const { applyBuildingUpgrade, BUILDING_DEFS } = require("./server/db/buildings");
 const { applyResearchUpgrade } = require("./server/db/research");
 const { sanitizePlayerData } = require("./server/validation/player");
-const NetworkServer = require("./server/network/networkServer");
 const metrics = require("./server/metrics");
 
 const worldMonsters = [];
@@ -85,7 +82,6 @@ const deathManager = createDeathManager({
 
 const { createCombatLoop } = require("./server/logic/combatLoop");
 const combatSystem = createCombatLoop({
-  rooms, broadcast,
   WORLD_W, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2,
   broadcastBus, isOwner: SIM_OWNER, caravanManager,
 });
@@ -143,8 +139,7 @@ setInterval(() => marketManager.cleanupExpired(), 5 * 60 * 1000); // فحص ال
 
 const { createWorldHandler } = require("./server/network/worldHandler");
 const handleWorldConnection = createWorldHandler({
-  rooms, worldMonsters, worldDrops, worldClients,
-  broadcast,
+  worldMonsters, worldDrops, worldClients,
   combatSystem, memStore, getDefaultPlayer, markDirty,
   computeArmyYardUpgradeCost, computeArmyYardStats,
   computeKnowledgeUpgradeCost, computeKnowledgeBonuses,
@@ -190,26 +185,23 @@ broadcastBus.init((event) => {
   }
 });
 
-const { createArenaHandler } = require("./server/network/arenaHandler");
-const handleArenaConnection = createArenaHandler({ rooms, playerData });
-
-const onlineCore = new NetworkServer();
-
 wss.on("connection", (ws, req) => {
   const url = req.url || "/";
-
-  // Require valid token for world and online connections
-  const { wsAuth } = require("./server/network/auth");
   const targetPath = url.split("?")[0];
 
-  if (targetPath === "/ws/world" || targetPath === "/ws/online" || targetPath === "/ws/arena") {
-    const authResult = wsAuth(req);
-    if (!authResult.authenticated) {
-      ws.close(4001, "Authentication required");
-      return;
-    }
-    ws.authUsername = authResult.username;
+  if (targetPath !== "/ws/world") {
+    ws.close(1008, "Unknown endpoint");
+    return;
   }
+
+  // Require valid token for world connections
+  const { wsAuth } = require("./server/network/auth");
+  const authResult = wsAuth(req);
+  if (!authResult.authenticated) {
+    ws.close(4001, "Authentication required");
+    return;
+  }
+  ws.authUsername = authResult.username;
 
   ws.isAlive = true;
   ws.lastPingTs = 0;
@@ -221,17 +213,7 @@ wss.on("connection", (ws, req) => {
     }
   });
 
-  if (targetPath === "/ws/world") {
-    handleWorldConnection(ws, req);
-    return;
-  }
-
-  if (targetPath === "/ws/online") {
-    onlineCore.handleConnection(ws, req);
-    return;
-  }
-
-  handleArenaConnection(ws, req);
+  handleWorldConnection(ws, req);
 });
 
 const HEARTBEAT_INTERVAL = setInterval(() => {
@@ -241,9 +223,6 @@ const HEARTBEAT_INTERVAL = setInterval(() => {
     ws.lastPingTs = performance.now();
     ws.ping();
   });
-  if (metrics.enabled) {
-    metrics.setRoomsActive(rooms.size);
-  }
 }, 30000);
 
 wss.on("close", () => clearInterval(HEARTBEAT_INTERVAL));
@@ -256,16 +235,6 @@ const SECURITY_HEADERS = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Content-Security-Policy": "default-src 'self' data: blob:; connect-src 'self' ws: wss: https://d-king.online https://www.d-king.online wss://d-king.online wss://www.d-king.online https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; media-src 'self'",
 };
-
-function broadcast(roomCode, message, excludeId) {
-  const room = rooms.get(roomCode);
-  if (!room) return;
-  const data = JSON.stringify(message);
-  room.players.forEach((player, id) => {
-    if (id === excludeId) return;
-    if (player.ws.readyState === 1) player.ws.send(data);
-  });
-}
 
 function rateLimiter(ip) {
   const now = Date.now();
@@ -289,7 +258,7 @@ const { serveStatic } = require("./server/network/staticServer");
 const { createApiRoutes } = require("./server/routes/api");
 const handleApiRequest = createApiRoutes({
   databaseHelper, memStore, Player, getDefaultPlayer, markDirty,
-  rooms, BUILDING_DEFS, TICK_MS, claimReward, analytics,
+  BUILDING_DEFS, TICK_MS, claimReward, analytics,
 });
 
 server.on("request", async (req, res) => {

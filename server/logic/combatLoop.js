@@ -9,7 +9,7 @@ const SANDSTORM_DURATION_MS = 90 * 1000;
 const SANDSTORM_WARNING_MS = 15 * 1000; // تحذير قبل 15 ثانية من البدء
 
 function createCombatLoop(deps) {
-  const { rooms, broadcast, TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2, broadcastBus, isOwner = true, caravanManager = null } = deps;
+  const { TICK_MS, worldMonsters, worldClients, SAFE_ZONE, WORLD_W2, WORLD_H2, broadcastBus, isOwner = true, caravanManager = null } = deps;
 
   let lastTickTime = performance.now();
   let globalSandstormActive = false;
@@ -55,42 +55,8 @@ function createCombatLoop(deps) {
     }
     lastTickTime = now;
 
-    // Dynamic tick: إذا مافي غرف نشطة ولا عملاء عالم، نوفر CPU
-    const hasActiveRooms = Array.from(rooms.values()).some(r => r.matchStarted && r.players.size > 0);
-    const hasWorldClients = worldClients.size > 0;
-    if (!hasActiveRooms && !hasWorldClients) return;
-
-    rooms.forEach((room, roomCode) => {
-      if (!room.matchStarted) return;
-      for (const [, player] of room.players) {
-        if (!player.alive) continue;
-        if (player.moveTarget && player.moveTarget.length > 0) {
-          const target = player.moveTarget[0];
-          const dx = target.x - player.x;
-          const dy = target.y - player.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist < 5) {
-            player.moveTarget.shift();
-            player.moving = false;
-          } else {
-            player.x += (dx / dist) * player.speed * (TICK_MS / 1000);
-            player.y += (dy / dist) * player.speed * (TICK_MS / 1000);
-            player.moving = true;
-          }
-        } else {
-          player.moving = false;
-        }
-      }
-      broadcast(roomCode, {
-        type: "state_update",
-        tick: room.tick,
-        players: Array.from(room.players.entries()).map(([id, p]) => ({
-          id, name: p.name, x: Math.round(p.x), y: Math.round(p.y),
-          hp: p.hp, alive: p.alive, kills: p.kills, moving: p.moving,
-        })),
-      });
-      room.tick++;
-    });
+    // Dynamic tick: إذا ما فيه عملاء عالم، نوفر CPU
+    if (worldClients.size === 0) return;
   }
 
   function initWorldMonsters() {
