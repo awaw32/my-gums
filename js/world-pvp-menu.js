@@ -1,4 +1,4 @@
-import { aStar, simplifyPath } from "./pathfinding.js";
+import { computePath } from "./pathfinding.js";
 import { drawPathLine } from "./combat/combat-effects.js";
 import { showPvPMenu, hidePvPMenu } from "./ui/context-menu.js";
 
@@ -10,8 +10,7 @@ export function injectPvPMenuMethods(WorldMap) {
     this._pvpAttackTarget = target;
     this._pvpFledTarget = null;
 
-    const path = aStar(this.leader.x, this.leader.y, target.x, target.y, this.W, this.H);
-    this.leader.path = simplifyPath(path);
+    this.leader.path = computePath(this.leader.x, this.leader.y, target.x, target.y);
     this.leader.pathIdx = 0;
     this._moveTargetX = target.x;
     this._moveTargetY = target.y;
@@ -77,8 +76,7 @@ export function injectPvPMenuMethods(WorldMap) {
     this._pvpFledTarget = null;
     this._pvpParticles = [];
 
-    const path = aStar(this.leader.x, this.leader.y, target.x, target.y, this.W, this.H);
-    this.leader.path = simplifyPath(path);
+    this.leader.path = computePath(this.leader.x, this.leader.y, target.x, target.y);
     this.leader.pathIdx = 0;
     this._moveTargetX = target.x;
     this._moveTargetY = target.y;
@@ -94,13 +92,18 @@ export function injectPvPMenuMethods(WorldMap) {
   };
 
   WorldMap.prototype.findMonsterAt = function (x, y) {
+    // 🛡️ نصف قطر الالتقاط = نصف قطر الوحش + هامش لمسة معقول (وليس 120px ثابتة
+    // للجميع) — كانت لمسة قريبة من وحش (أو حتى نقرة لتحريك الجيش) تُفسَّر خطأً
+    // كأمر هجوم على وحش لم يقصده اللاعب، خاصة حول وحوش صغيرة (نصف قطرها ~12-16px).
+    const TOUCH_MARGIN = 36;
     let closest = null;
-    let minDist = 120;
+    let closestDist = Infinity;
     for (const m of this.monsters) {
       if (!m.alive) continue;
+      const maxDist = (m.radius || 16) + TOUCH_MARGIN;
       const d = Math.hypot(m.x - x, m.y - y);
-      if (d < minDist) {
-        minDist = d;
+      if (d < maxDist && d < closestDist) {
+        closestDist = d;
         closest = m;
       }
     }
@@ -110,6 +113,12 @@ export function injectPvPMenuMethods(WorldMap) {
   WorldMap.prototype.engageMonster = function (monster) {
     this.leader.fighting = monster;
     this.armyUnits.forEach(u => u.fighting = monster);
+    // 🛡️ نفس نمط _startPvPPursuit — نحسب مساراً حقيقياً (A*) نحو الوحش بدل ترك
+    // updateLeader يسير بخط مستقيم (كان يُعلق القائد في أي صخرة/عائق بالطريق).
+    // updateLeader يتبع هذا المسار أثناء الاقتراب، ويتحول لخط مستقيم قصير فقط
+    // عند الاقتراب الفعلي ضمن مدى الهجوم (المسافة قصيرة جداً بحيث لا تحتاج مساراً).
+    this.leader.path = computePath(this.leader.x, this.leader.y, monster.x, monster.y);
+    this.leader.pathIdx = 0;
   };
 
   WorldMap.prototype.drawPathLine = function (ctx, cam) {

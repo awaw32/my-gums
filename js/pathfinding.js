@@ -167,6 +167,18 @@ export function simplifyPath(path) {
   return result;
 }
 
+// 🛡️ aStar تُرجع null عندما لا يوجد مسار (هدف غير قابل للوصول ضمن نصف قطر
+// findNearestWalkable الافتراضي) — كان استخدامها المباشر في كل نقاط النقر
+// يترك leader.path = null صامتاً، فتبدو اللمسة بلا أي أثر (القائد "متجمّد").
+// هذه الدالة تُغلِّف aStar+simplifyPath وتُرجع مساراً مباشراً (خط مستقيم) كحل
+// احتياطي بدل تركه بلا مسار إطلاقاً — أفضل من التجمّد الصامت حتى لو لم يتفادَ عائقاً.
+export function computePath(startX, startY, endX, endY) {
+  const raw = aStar(startX, startY, endX, endY);
+  const simplified = simplifyPath(raw);
+  if (simplified) return simplified;
+  return [{ x: endX, y: endY }];
+}
+
 export function findNearestWalkable(x, y, maxRadius = 5) {
   const center = gridPos(x, y);
   for (let r = 0; r <= maxRadius; r++) {

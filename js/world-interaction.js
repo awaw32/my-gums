@@ -1,4 +1,4 @@
-import { aStar, simplifyPath } from "./pathfinding.js";
+import { computePath } from "./pathfinding.js";
 
 export function injectInteractionMethods(WorldMap) {
   WorldMap.prototype.findDropAt = function (x, y) {
@@ -116,8 +116,7 @@ export function injectInteractionMethods(WorldMap) {
     this.leader.fighting = null;
     this.armyUnits.forEach(u => u.fighting = null);
 
-    const path = aStar(this.leader.x, this.leader.y, wx, wy, this.W, this.H);
-    this.leader.path = simplifyPath(path);
+    this.leader.path = computePath(this.leader.x, this.leader.y, wx, wy);
     this.leader.pathIdx = 0;
     this._moveTargetX = wx;
     this._moveTargetY = wy;
@@ -131,8 +130,7 @@ export function injectInteractionMethods(WorldMap) {
     if (!this.leader) return;
     this.leader.fighting = null;
     this.armyUnits.forEach(u => u.fighting = null);
-    const path = aStar(this.leader.x, this.leader.y, x, y, this.W, this.H);
-    this.leader.path = simplifyPath(path);
+    this.leader.path = computePath(this.leader.x, this.leader.y, x, y);
     this.leader.pathIdx = 0;
     this._moveTargetX = x;
     this._moveTargetY = y;

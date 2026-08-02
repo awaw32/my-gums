@@ -970,6 +970,15 @@ export class WorldMap {
     h._posHistory.push({ x: h.x, y: h.y });
     if (h._posHistory.length > h._maxHist) h._posHistory.shift();
 
+    if (h.fighting && !h.fighting.alive) {
+      // 🛡️ الهدف الميت (respawn يعيد استخدام نفس الكائن) لم يكن يُصفَّر أبداً —
+      // فيعاود القائد/الجيش الاشتباك تلقائياً مع نفس الوحش عند عودته للحياة
+      // بلا أي أمر جديد من اللاعب. الآن يُصفَّر فور موت الهدف.
+      const deadTarget = h.fighting;
+      h.fighting = null;
+      this.armyUnits.forEach(u => { if (u.fighting === deadTarget) u.fighting = null; });
+    }
+
     if (h.fighting && h.fighting.alive) {
       const dx = h.fighting.x - h.x;
       const dy = h.fighting.y - h.y;
@@ -977,8 +986,25 @@ export class WorldMap {
 
       if (dist > h.attackRange) {
         const slowMult = (this._stompSlowTimer > 0 ? 0.5 : 1) * this._thirstSlowMult();
-        h.x += (dx / dist) * h.speed * dt * slowMult;
-        h.y += (dy / dist) * h.speed * dt * slowMult;
+        // 🛡️ نتبع المسار المحسوب فعلياً (A*, من engageMonster) بدل الاندفاع بخط
+        // مستقيم نحو الهدف — كان هذا يُعلِّق القائد على أي صخرة/عائق بالطريق.
+        // نتحول لخط مستقيم فقط في الاقتراب الأخير القصير (لا مسار متبقٍّ، أو
+        // المسافة أقل من خطوة واحدة) حيث لا حاجة لتفادي عوائق فعلياً.
+        const hasPath = h.path && h.pathIdx < h.path.length;
+        if (hasPath) {
+          const wp = h.path[h.pathIdx];
+          const wdx = wp.x - h.x, wdy = wp.y - h.y;
+          const wdist = Math.hypot(wdx, wdy);
+          if (wdist < 8) {
+            h.pathIdx++;
+          } else {
+            h.x += (wdx / wdist) * h.speed * dt * slowMult;
+            h.y += (wdy / wdist) * h.speed * dt * slowMult;
+          }
+        } else {
+          h.x += (dx / dist) * h.speed * dt * slowMult;
+          h.y += (dy / dist) * h.speed * dt * slowMult;
+        }
       } else {
         h.attackCD -= dt;
         if (h.attackCD <= 0) {
@@ -1142,6 +1168,10 @@ export class WorldMap {
         }
         continue;
       }
+
+      // 🛡️ نفس إصلاح تصفير الهدف الميت عند القائد — بدون هذا يعاود الجيش
+      // الاشتباك تلقائياً مع نفس الوحش عند إعادة إحيائه (respawn).
+      if (unit.fighting && !unit.fighting.alive) { unit.fighting = null; }
 
       // ── اشتباك مع الوحوش (مع crit + أدوار) ──
       if (unit.fighting && unit.fighting.alive) {
