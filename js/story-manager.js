@@ -82,12 +82,6 @@ export class StoryManager {
     await this.cinematic.playVictory(villageId);
   }
 
-  async playChapterIntro() {
-    if (!this.cinematic) return;
-    const villageId = this.village.currentVillageId || "wadi";
-    await this.cinematic.playDialogue(villageId, "intro");
-  }
-
   isChapterUnlocked(chapterId) {
     const chapter = STORY_CHAPTERS.find(ch => ch.id === chapterId);
     if (!chapter) return false;
@@ -256,10 +250,6 @@ export class StoryManager {
 
   canShowStory() {
     return this.hasMoreScenes();
-  }
-
-  shouldShowIntro() {
-    return this.economy.level === 1 && this.completedChapters.length === 0;
   }
 
   showChapterScenes(callback) {

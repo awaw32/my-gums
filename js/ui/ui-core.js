@@ -181,10 +181,15 @@ export class GameUI {
         this._positionTooltip(e.clientX, e.clientY);
       }
     });
+    // 🛡️ لا نستدعي preventDefault() في touchstart — كان هذا يُلغي تمرير/سحب
+    // المتصفح الطبيعي لكامل الإيماءة (اللمسة "تموت" حتى الرفع)، فيصبح أي عنصر
+    // فيه data-tooltip (بطاقات الأسلحة، عناصر المخزون) عائقاً أمام السحب داخل
+    // اللوحات القابلة للتمرير. بدلاً من ذلك: نعرض التلميح فوراً، ونُخفيه بأول
+    // touchmove حقيقي (سحب) بدل منع السحب أصلاً.
     document.addEventListener("touchstart", (e) => {
       const target = e.target?.closest?.("[data-tooltip]");
-      if (target) { e.preventDefault(); this._showTooltip(target, e.touches[0]); }
-    }, { passive: false });
+      if (target) this._showTooltip(target, e.touches[0]);
+    }, { passive: true });
     document.addEventListener("touchend", () => this._hideTooltip());
     document.addEventListener("touchmove", () => this._hideTooltip());
   }
@@ -351,6 +356,12 @@ export class GameUI {
 
     skipBtn.onclick = () => {
       overlay.remove();
+      // 🛡️ "تخطي" كان يزيل النافذة فقط بلا تقديم currentScene — فتُعرض نفس
+      // المشاهد المتبقية من جديد في الدخول التالي. الآن يتخطى كل المشاهد
+      // المتبقية في هذا الفصل فعلياً (نفس أثر مشاهدتها جميعاً بلا مكافآت خيارات).
+      while (storyManager.hasMoreScenes()) {
+        storyManager.getNextScene();
+      }
       if (callback) callback();
     };
   }

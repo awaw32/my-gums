@@ -103,9 +103,10 @@ export function loadGame(economy, village, army) {
       if (totalGold > 0) economy.resources.gold = (economy.resources.gold || 0) + Math.floor(totalGold);
     }
 
-    if (data.storyState && typeof window !== "undefined" && window._storyManager) {
-      window._storyManager.loadState(data.storyState);
-    }
+    // 🛡️ استعادة تقدّم القصة الفعلية تتم لاحقاً في main.js عبر window._loadedStory
+    // (بعد إنشاء storyManager) — لا تكرار هنا. حذفنا محاولة قراءة data.storyState
+    // القديمة لأن window._storyManager لم يكن مُنشَأً بعد عند استدعاء loadGame()،
+    // فكانت هذه الشرط دائماً false وتُسقِط تقدّم القصة صامتة عند أي اعتماد عليها.
     // استعادة بيانات الشنطة
     if (data.loadout) {
       const loadoutMgr = _getLoadoutManager();
