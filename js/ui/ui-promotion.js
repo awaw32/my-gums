@@ -650,12 +650,9 @@ GameUI.prototype._openWeaponDetail = function(weaponId) {
   overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.add("hidden"); };
   const upBtn = document.getElementById("wd-upgrade-btn");
   if (upBtn && !isMax) {
-    upBtn.onclick = () => {
-      this._upgradeWeapon(w.id);
-      this._openWeaponDetail(w.id);
-      this.renderPromotion();
-      this.updateTopBar();
-    };
+    // 🛡️ لا نُعيد الرسم هنا — الترقية سيرفر-موثوقة وغير متزامنة الآن (تنتظر
+    // تأكيد الخادم)؛ _upgradeWeapon نفسها تُعيد رسم كل شيء عند وصول التأكيد.
+    upBtn.onclick = () => this._upgradeWeapon(w.id);
   }
 };
 
@@ -668,11 +665,23 @@ GameUI.prototype._upgradeWeapon = function(weaponId) {
     this.showNotification(`❌ الموارد غير كافية! تحتاج: 💵 ${costs?.cash || 0} 💎 ${costs?.gems || 0} 🏺 ${costs?.artifact || 0} 💠 ${costs?.desertGem || 0}`);
     return;
   }
+  // 🛡️ سيرفر-موثوق بالكامل عبر weapon_upgrade — لا خصم محلي (كان يخصم مرتين:
+  // محلياً هنا ثم على الخادم، ويترك upgradeLevel غير متزامن يمنع الحفظ لاحقاً)
   const doUpgrade = () => {
-    w.upgrade(this.economy, houseLevel);
-    this.showNotification(`⬆️ ${w.name} → المستوى ${w.level}/${w.maxLevel}`);
-    this.renderPromotion();
-    this.updateTopBar();
+    const netSync = this.world?.netSync;
+    if (!netSync || !netSync.isConnected) {
+      this.showNotification('❌ لا يوجد اتصال بالخادم — حاول مجدداً');
+      return;
+    }
+    netSync._onWeaponUpgraded = (msg) => {
+      if (msg.weaponId !== w.id) return;
+      this.showNotification(`⬆️ ${w.name} → المستوى ${w.level}/${w.maxLevel}`);
+      this._openWeaponDetail(w.id);
+      this.renderPromotion();
+      this.updateTopBar();
+      this._onSave?.();
+    };
+    netSync.send({ type: "weapon_upgrade", weaponId: w.id });
   };
   if (costs.gems > 0) {
     this.showConfirmDialog({

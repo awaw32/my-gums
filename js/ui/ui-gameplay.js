@@ -1444,11 +1444,23 @@ GameUI.prototype._renderWeaponUpgradeModal = function() {
     btn.addEventListener('click', () => {
       const wid = btn.dataset.wid;
       const weapon = weapons.find(w => w.id === wid);
-      if (weapon && weapon.upgrade(this.economy, houseLevel)) {
+      if (!weapon) return;
+      // 🛡️ سيرفر-موثوق بالكامل عبر weapon_upgrade — لا خصم محلي هنا (كان يخصم
+      // مرتين: محلياً ثم على الخادم، ويترك upgradeLevel غير متزامن يمنع الحفظ)
+      if (!weapon.canUpgrade(this.economy, houseLevel)) return;
+      const netSync = this.world?.netSync;
+      if (!netSync || !netSync.isConnected) {
+        this.showNotification('❌ لا يوجد اتصال بالخادم — حاول مجدداً');
+        return;
+      }
+      netSync._onWeaponUpgraded = (msg) => {
+        if (msg.weaponId !== weapon.id) return;
         this._renderWeaponUpgradeModal();
         this.updateTopBar();
         this.showNotification(`⬆️ ${weapon.name} → ⭐${weapon.level}`);
-      }
+        this._onSave?.();
+      };
+      netSync.send({ type: "weapon_upgrade", weaponId: weapon.id });
     });
   });
 };
@@ -1585,7 +1597,12 @@ GameUI.prototype.showUpgradeModal = function(b) {
       <button id="modal-action-btn" class="w-full py-3 rounded-xl font-bold text-base transition-transform active:scale-95" style="background:${canAfford ? 'var(--accent-red)' : 'var(--text-muted)'};color:#fff;border:none;cursor:${canAfford ? 'pointer' : 'default'};font-family:inherit" ${canAfford ? '' : 'disabled'}>
         ▲ ترقية (${costStr})
       </button>` : `
-      <div style="color:var(--accent-red);font-weight:bold;font-size:0.85rem;padding:8px 0">⭐⭐⭐ المستوى الأقصى</div>`}
+      <div style="text-align:center;padding:8px 0">
+        <div style="color:var(--accent-red);font-weight:bold;font-size:0.85rem">⭐⭐⭐ المستوى الأقصى لهذه القرية (${b.maxLevel})</div>
+        <div style="color:var(--text-secondary);font-size:0.7rem;margin-top:4px">
+          ${this.village?.nextVillage ? '🏜️ انتقل للقرية التالية لرفع الحد الأقصى للمباني' : '🏆 هذه آخر قرية — لا يوجد حد أعلى'}
+        </div>
+      </div>`}
     </div>
   `;
   overlay.classList.remove("hidden");

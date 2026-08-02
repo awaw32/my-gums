@@ -174,8 +174,14 @@ function validateWeaponsChange(existing, incoming) {
         (newWeapon.gemLevel || 1) > 1 || (newWeapon.upgradeLevel || 0) > 1) {
       return { ok: false, reason: "new weapon must start at level 1" };
     }
-    const playerLevel = incoming.level ?? existing.level ?? 1;
-    if (playerLevel < def.requireLevel) return { ok: false, reason: "player level too low for this weapon" };
+    // 🛡️ requireLevel يُقاس بمستوى مبنى "خيمة القائد" (landsState.b1.level) — هذا
+    // بالضبط ما يتحقق منه العميل قبل إظهار زر الشراء (js/ui/ui-promotion.js:
+    // houseLevel = this._landsState?.['b1']?.level)، وما يُرسَل فعلياً في كل
+    // حفظ عبر حقل landsState. كان هذا الشرط يستخدم مستوى خبرة اللاعب
+    // (economy.level) خطأً — قيمة لا علاقة لها بشرط العميل إطلاقاً — فيرفض
+    // الخادم شراء أي سلاح requireLevel>1 بصمت رغم أن العميل يسمح بالشراء.
+    const houseLevel = Math.max(1, (existing.landsState?.b1?.level) || 1);
+    if (houseLevel < def.requireLevel) return { ok: false, reason: "house level too low for this weapon" };
     const oldCash = existing.cash || 0;
     const newCash = incoming.cash !== undefined ? incoming.cash : oldCash;
     const cashSpent = oldCash - newCash;
