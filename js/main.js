@@ -538,7 +538,12 @@ async function init() {
 
   // حساب المكافآت غير المتصلة (Offline Rewards)
   if (lastSave && lastSave > 0) {
-    const offlineSeconds = Math.floor((Date.now() - lastSave) / 1000);
+    // 🛡️ حد أقصى 4 ساعات على حساب المكافأة (نفس نمط save.js) — بدونه غياب طويل
+    // (يوم أو أكثر) كان يمنح ملايين الذهب/المال دفعة واحدة عبر ضرب معدل الدخل
+    // بثوانٍ غير محدودة. realOfflineSeconds يبقى الوقت الحقيقي لعرضه للاعب فقط.
+    const MAX_OFFLINE_SECONDS = 4 * 3600;
+    const realOfflineSeconds = Math.floor((Date.now() - lastSave) / 1000);
+    const offlineSeconds = Math.min(realOfflineSeconds, MAX_OFFLINE_SECONDS);
     if (offlineSeconds > 60) {
       const incomeRate = village.getIncomeRate();
       const oasisIncome = oasisManager.totalIncome;
@@ -556,8 +561,8 @@ async function init() {
         const offlinePopup = document.getElementById("offline-rewards-popup");
 
         if (offlineTimeText) {
-          const hours = Math.floor(offlineSeconds / 3600);
-          const mins = Math.floor((offlineSeconds % 3600) / 60);
+          const hours = Math.floor(realOfflineSeconds / 3600);
+          const mins = Math.floor((realOfflineSeconds % 3600) / 60);
           offlineTimeText.textContent = hours > 0
             ? `لقد غبت لمدة ${hours} ساعة و ${mins} دقيقة`
             : `لقد غبت لمدة ${mins} دقيقة`;
@@ -627,11 +632,12 @@ async function init() {
         world._ftue.start();
       });
     }, 1000);
-  } else if (storyManager.shouldShowIntro()) {
-    setTimeout(() => {
-      storyManager.playChapterIntro();
-    }, 2000);
   }
+  // 🛡️ لا مشهد ترحيب ثانٍ هنا — GameUI.initStory() (بعد إنشاء ui أدناه) يعرض
+  // مشاهد الفصل الأول (wadi_intro) بنفسها، وهي المحفوظة فعلياً عبر currentScene
+  // على الخادم. كان استدعاء storyManager.playChapterIntro() هنا يعرض نصاً
+  // مطابقاً تقريباً ("سافرت لأيام عبر الصحراء...") لكن بلا أي علم "شوهد" — يتكرر
+  // في كل دخول لأي لاعب لا يزال بالمستوى 1.
 
   let ui;
   try {
@@ -643,6 +649,19 @@ async function init() {
     errorLogger.logError({ type: 'gameInit', message: 'GameUI constructor threw', stack: err?.stack, original: err?.message });
     throw err;
   }
+  // 🧭 ربط الضغط على بانر "خطواتك الأولى" بالتنقل الفعلي لمكان تنفيذ كل مهمة
+  firstSteps._onGoto = (stepId) => {
+    if (stepId === "equip") {
+      ui.showScreen("promotion");
+      ui._openWeaponsLibrary();
+    } else if (stepId === "kill") {
+      world.enterWorldMap();
+    } else if (stepId === "train") {
+      document.getElementById("quick-panel")?.classList.add("open");
+      document.getElementById("panel-toggle")?.classList.add("open");
+      ui.updateQuickUpgrades();
+    }
+  };
     world.onExit = () => ui.exitWorldMap();
     world._onBeforeExit = () => { saveToDB(); persistGameSession(economy, village, army); };
 
@@ -915,26 +934,34 @@ async function init() {
           }
           break;
 
-        default:
+        default: {
           const weapon = army.weapons.find(w => w.id === item);
-          if (weapon) {
-            const houseLevel = ui._landsState?.['b1']?.level || 1;
-            if (weapon.upgrade(economy, houseLevel)) {
-              achievements.updateProgress('weapon_max', weapon.level);
-              audio.playSound('upgrade');
-              world.syncWeaponVisuals();
-              // إرسال الترقية عبر WebSocket للمزامنة مع الخادم
-              if (world.netSync && world.netSync.isConnected) {
-                world.netSync.send({ type: "weapon_upgrade", weaponId: weapon.id });
-              }
-              saveToDB(); persistGameSession(economy, village, army);
-              ui.updateTopBar();
-              ui.showNotification(`⬆️ ${weapon.name} → المستوى ${weapon.level}/5 ⭐`);
-            } else {
-              ui.showNotification(`❌ مجوهرات غير كافية أو مستوى بيت الزعيم منخفض`);
-            }
+          if (!weapon) break;
+          const houseLevel = ui._landsState?.['b1']?.level || 1;
+          // 🛡️ فحص محلي للتغذية الراجعة الفورية فقط (لا يخصم شيئاً) — الترقية
+          // الفعلية سيرفر-موثوقة بالكامل عبر weapon_upgrade، لتفادي خصم مزدوج
+          // (كان الخصم يحدث محلياً هنا ثم مرة أخرى على الخادم)، ولتفادي حقول
+          // upgradeLevel/starLevel المتضاربة التي كانت تمنع أي حفظ لاحق للاعب.
+          if (!weapon.canUpgrade(economy, houseLevel)) {
+            ui.showNotification(`❌ مجوهرات غير كافية أو مستوى بيت الزعيم منخفض`);
+            break;
           }
+          if (!world.netSync || !world.netSync.isConnected) {
+            ui.showNotification(`❌ لا يوجد اتصال بالخادم — حاول مجدداً`);
+            break;
+          }
+          world.netSync._onWeaponUpgraded = (msg) => {
+            if (msg.weaponId !== weapon.id) return;
+            achievements.updateProgress('weapon_max', weapon.level);
+            audio.playSound('upgrade');
+            world.syncWeaponVisuals();
+            saveToDB(); persistGameSession(economy, village, army);
+            ui.updateTopBar();
+            ui.showNotification(`⬆️ ${weapon.name} → المستوى ${weapon.level}/5 ⭐`);
+          };
+          world.netSync.send({ type: "weapon_upgrade", weaponId: weapon.id });
           break;
+        }
       }
     });
 
@@ -1513,7 +1540,11 @@ async function init() {
     
     function runGameTick() {
       const now = performance.now();
-      const dt = (now - lastTickTime) / 1000; // الوقت الفعلي بالثواني
+      // 🛡️ حد أقصى 60 ثانية لـ dt — التبويب المُعلَّق في الخلفية (background tab
+      // throttling) أو نوم الجهاز يمكن أن يجعل الفارق الحقيقي دقائق أو ساعات؛
+      // بدون هذا الحد كانت oasisManager.tick تضرب دخل الواحات بـdt ضخماً فتمنح
+      // كمية هائلة من الذهب دفعة واحدة (نفس علة دخل الغياب في نقطة الدخول).
+      const dt = Math.min((now - lastTickTime) / 1000, 60);
       lastTickTime = now;
       
       // استرداد تدريجي لمضاعف القوة بعد خسائر PvP

@@ -16,6 +16,9 @@ export class FirstStepsManager {
   constructor(economy) {
     this.economy = economy;
     this.stepIndex = 0;
+    // 🛡️ يُستدعى بمعرّف الخطوة الحالية عند الضغط على البانر — main.js يربطها
+    // بالتنقل الفعلي (فتح مكتبة الأسلحة، اللوحة السريعة، خريطة العالم..)
+    this._onGoto = null;
     this._load();
   }
 
@@ -64,6 +67,7 @@ export class FirstStepsManager {
       banner = document.createElement("div");
       banner.id = "first-steps-banner";
       banner.className = "first-steps-banner";
+      banner.style.cursor = "pointer";
       document.body.appendChild(banner);
     }
     banner.innerHTML = `
@@ -74,5 +78,8 @@ export class FirstStepsManager {
       </span>
       <span class="fs-progress">${this.stepIndex + 1}/${FIRST_STEPS.length}</span>
     `;
+    // 🛡️ الضغط على البانر ينقل اللاعب فعلياً لمكان تنفيذ المهمة — كان البانر
+    // زخرفياً بالكامل بلا أي معالج ضغط رغم أن hint يصف وجهة واضحة كل مرة.
+    banner.onclick = () => { if (this._onGoto) this._onGoto(step.id); };
   }
 }
