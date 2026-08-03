@@ -369,6 +369,10 @@ async function init() {
   const researchTree = new ResearchTree(economy);
   const allianceManager = new AllianceManager(economy);
   allianceManager.setMyName(PLAYER_USERNAME);
+  // 🛡️ يربط مكافأة دخل مستوى التحالف (incomeMult) فعلياً بدخل القرية/الواحات —
+  // كانت محسوبة ومعروضة في الواجهة بلا أي تأثير فعلي على أي دخل حقيقي.
+  village.setAllianceManager(allianceManager);
+  oasisManager.setAllianceManager(allianceManager);
   const quests = new QuestManager(economy, army, village);
   const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE, army);
   const store = new GameStore();

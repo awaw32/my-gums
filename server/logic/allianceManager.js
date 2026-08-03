@@ -19,6 +19,41 @@ const logger = require("../logger");
 const ALLIANCE_TIER_COSTS = [100, 200, 400, 800];
 const MAX_ALLIANCE_LEVEL = ALLIANCE_TIER_COSTS.length;
 
+// 🛡️ مطابقة تماماً لـ ALLIANCE_TIERS في js/alliance-manager.js — كانت هذه
+// المكافآت (ضرر/دفاع/دخل) تُطبَّق محلياً على العميل فقط (قتال العالم المفتوح
+// عبر world.js) بلا أي تطبيق أو تحقق سيرفري، فلا تؤثر إطلاقاً على PvP أو
+// مكافآت قتل الوحوش التي يحسمها الخادم — عضوية تحالف قوي كانت وعداً بصرياً
+// فقط. الفهرس مطابق لـ ALLIANCE_TIER_COSTS: alliance.level=1 → index 0.
+const ALLIANCE_TIER_BONUSES = [
+  { damageBonus: 2,  defenseBonus: 1, incomeMult: 1.1 },
+  { damageBonus: 5,  defenseBonus: 2, incomeMult: 1.2 },
+  { damageBonus: 10, defenseBonus: 4, incomeMult: 1.3 },
+  { damageBonus: 20, defenseBonus: 8, incomeMult: 1.5 },
+];
+
+/**
+ * 🛡️ مكافآت مستوى التحالف — دالة نقية (خارج المصنع) لتُستخدَم أيضاً من
+ * formulas.js دون الحاجة لنسخة allianceManager الكاملة (المُنشأة بـ deps
+ * وقت التشغيل فقط). getAlliance تُمرَّر كمعامل — نفس الدالة المُصدَّرة من
+ * server/db/allianceHelper.js في كلا موضعي الاستخدام.
+ * damageBonus/defenseBonus تراكميتان (مجموع كل الرُّتب حتى المستوى الحالي)،
+ * incomeMult قيمة الرتبة الحالية فقط (وليست تراكمية) — بنفس منطق
+ * js/alliance-manager.js تماماً (damageBonus/defenseBonus getters، incomeMult getter).
+ */
+function getAllianceBonuses(allianceId, getAlliance) {
+  if (!allianceId || !getAlliance) return { damageBonus: 0, defenseBonus: 0, incomeMult: 1 };
+  const alliance = getAlliance(allianceId);
+  const level = alliance ? alliance.level : 0;
+  if (!level || level <= 0) return { damageBonus: 0, defenseBonus: 0, incomeMult: 1 };
+  let damageBonus = 0, defenseBonus = 0;
+  for (let i = 0; i < level && i < ALLIANCE_TIER_BONUSES.length; i++) {
+    damageBonus += ALLIANCE_TIER_BONUSES[i].damageBonus;
+    defenseBonus += ALLIANCE_TIER_BONUSES[i].defenseBonus;
+  }
+  const incomeMult = ALLIANCE_TIER_BONUSES[Math.min(level, ALLIANCE_TIER_BONUSES.length) - 1].incomeMult;
+  return { damageBonus, defenseBonus, incomeMult };
+}
+
 function createAllianceManager(deps) {
   const {
     worldClients, memStore, markDirty, getDefaultPlayer,
@@ -66,6 +101,12 @@ function createAllianceManager(deps) {
       if (c) power += c.army_power || 0;
     }
     return power;
+  }
+
+  // ملاحظة: getAllianceBonuses (الدالة النقية) مُعرَّفة على مستوى الوحدة أعلاه
+  // لتُستخدَم أيضاً من formulas.js — هنا فقط نربطها بـ getAlliance من deps.
+  function getMyAllianceBonuses(allianceId) {
+    return getAllianceBonuses(allianceId, getAlliance);
   }
 
   function summarize(alliance) {
@@ -384,10 +425,11 @@ function createAllianceManager(deps) {
     upgrade,
     getMyAlliance,
     getTribePower,
+    getAllianceBonuses: getMyAllianceBonuses,
     summarize,
     handleMessage,
     broadcastToMembers,
   };
 }
 
-module.exports = { createAllianceManager, ALLIANCE_TIER_COSTS, MAX_ALLIANCE_LEVEL };
+module.exports = { createAllianceManager, ALLIANCE_TIER_COSTS, MAX_ALLIANCE_LEVEL, ALLIANCE_TIER_BONUSES, getAllianceBonuses };

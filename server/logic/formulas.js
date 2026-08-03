@@ -4,6 +4,8 @@ const { WEAPON_DEFS } = require("../db/databaseHelper");
 const { getAllBuildingEffects } = require("../db/buildings");
 const { getResearchEffects } = require("../db/research");
 const { computeWeaponDamageWithUpgrades } = require("./weaponUpgrade");
+const { getAllianceBonuses } = require("./allianceManager");
+const { getAlliance } = require("../db/allianceHelper");
 
 const KNOWLEDGE_ECONOMIC_BUFFS = {
   resourceSpeed: [1.0, 1.08, 1.16, 1.25, 1.35, 1.50],
@@ -47,12 +49,18 @@ function computePlayerStats(data) {
     + barracksHp;
 
   const weaponStats = computeWeaponDamageWithUpgrades(data);
+  // 🛡️ مكافأة ضرر مستوى التحالف — كانت تُطبَّق على العميل فقط (js/combat-engine.js
+  // computePlayerDamage: totalDamage += allianceManager.damageBonus) بلا أي
+  // تطبيق سيرفري، فلا تؤثر إطلاقاً على PvP/قتل الوحوش التي يحسمها الخادم.
+  // نفس الصيغة بالضبط: إضافة مباشرة (flat) على totalDamage.
+  const allianceBonuses = getAllianceBonuses(data.allianceId, getAlliance);
   let totalDamage = baseDMG
     + Math.floor(armyPower / 10)
     + playerLevel
     + unitLevel * 2
     + prestigeLevel * 3
-    + weaponStats.weaponDamage;
+    + weaponStats.weaponDamage
+    + allianceBonuses.damageBonus;
 
   let critChance = weaponStats.critChance;
   let critMultiplier = weaponStats.critMultiplier;
@@ -85,6 +93,7 @@ function computePlayerStats(data) {
     resourceSpeed,
     researchEndurance,
     depotProtectPercent,
+    allianceIncomeMult: allianceBonuses.incomeMult,
     weaponDamage: weaponStats.weaponDamage || 0,
     weaponStarLevel: weaponStats.starLevel || 1,
     weaponGemLevel: weaponStats.gemLevel || 1,

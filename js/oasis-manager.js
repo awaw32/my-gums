@@ -12,12 +12,21 @@ export class OasisManager {
     this.oases = OASIS_DATA.map(o => ({ ...o, captured: o.status === "free" }));
     this._onOasesChanged = null;
     this._events = null; // مرجع لـ EventManager
+    this._allianceManager = null;
     this._accGold = 0;
     this._payoutInterval = 15; // كل 15 ثانية
   }
 
+  // 🛡️ مكافأة دخل مستوى التحالف (incomeMult) — كانت مُحسَبة على العميل
+  // (js/alliance-manager.js) لكن معروضة فقط بلا أي تطبيق فعلي على أي دخل.
+  setAllianceManager(allianceManager) {
+    this._allianceManager = allianceManager;
+  }
+
   get totalIncome() {
-    return this.oases.reduce((sum, o) => o.captured ? sum + o.income : sum, 0);
+    const base = this.oases.reduce((sum, o) => o.captured ? sum + o.income : sum, 0);
+    const incomeMult = this._allianceManager?.incomeMult || 1;
+    return base * incomeMult;
   }
 
   get capturedCount() {

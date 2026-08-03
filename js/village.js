@@ -150,7 +150,14 @@ export class GameVillage {
     this.currentChapter = 1;
     this._savedOnBuilt = null;
     this._savedOnUpgraded = null;
+    this._allianceManager = null;
     this.initVillage("wadi");
+  }
+
+  // 🛡️ مكافأة دخل مستوى التحالف (incomeMult) — كانت مُحسَبة على العميل
+  // (js/alliance-manager.js) لكن معروضة فقط بلا أي تطبيق فعلي على أي دخل.
+  setAllianceManager(allianceManager) {
+    this._allianceManager = allianceManager;
   }
 
   initVillage(villageId) {
@@ -232,6 +239,12 @@ export class GameVillage {
         for (const [resource, amount] of Object.entries(b.productionRate)) {
           totalIncome[resource] = (totalIncome[resource] || 0) + amount;
         }
+      }
+    }
+    const incomeMult = this._allianceManager?.incomeMult || 1;
+    if (incomeMult !== 1) {
+      for (const resource of Object.keys(totalIncome)) {
+        totalIncome[resource] *= incomeMult;
       }
     }
     return totalIncome;
