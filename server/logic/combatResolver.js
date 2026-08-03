@@ -2,15 +2,22 @@
 
 const { computePlayerStats } = require("./formulas");
 const { ENEMY_TYPES } = require("../data/enemies");
+const { WEAPON_DEFS } = require("../db/databaseHelper");
 
-const WEAPON_COMBAT_STATS = {
-  w1: { baseDamage: 4,  damagePerLevel: 3,  range: "melee",  critChance: 0.05, critMultiplier: 1.5 },
-  w2: { baseDamage: 6,  damagePerLevel: 4,  range: "ranged", critChance: 0.08, critMultiplier: 1.8 },
-  w3: { baseDamage: 9,  damagePerLevel: 6,  range: "melee",  critChance: 0.10, critMultiplier: 2.0 },
-  w4: { baseDamage: 13, damagePerLevel: 8,  range: "melee",  critChance: 0.12, critMultiplier: 2.2 },
-  w5: { baseDamage: 18, damagePerLevel: 10, range: "ranged", critChance: 0.15, critMultiplier: 2.5 },
-  w6: { baseDamage: 24, damagePerLevel: 14, range: "melee",  critChance: 0.18, critMultiplier: 3.0 },
-};
+// 🛡️ لم تكن هذه النسخة مقروءة من أي منطق قتال فعلي في هذا الملف (الضرر الحقيقي
+// يمر عبر computePlayerStats → weaponUpgrade.js)، بل كانت نسخة ثامنة منفصلة
+// يستوردها اختبار مقارنة قديم فقط — فتحمي زوجاً خاملاً بدل الزوج الحي فعلياً.
+// أصبحت مُشتقة من WEAPON_DEFS (مصدر الحقيقة الوحيد) بدل تكرارها يدوياً.
+const WEAPON_COMBAT_STATS = {};
+for (const def of WEAPON_DEFS) {
+  WEAPON_COMBAT_STATS[def.id] = {
+    baseDamage: def.baseDamage,
+    damagePerLevel: def.damagePerLevel,
+    range: def.range,
+    critChance: def.critChance,
+    critMultiplier: def.critMultiplier,
+  };
+}
 
 function computeOneHitDamage(playerData) {
   const stats = computePlayerStats(playerData);

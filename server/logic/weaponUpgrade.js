@@ -5,15 +5,22 @@
  * متوافق مع client-side army.js — level (0-5 نجوم) مع UPGRADE_COSTS
  */
 
+const { WEAPON_DEFS } = require("../db/databaseHelper");
+
 const MAX_LEVEL = 5;
 
 // تكاليف الترقية لكل مستوى نجمي (0→1, 1→2, 2→3, 3→4, 4→5) — مطابق لـ UPGRADE_COSTS في army.js
+// 🛡️ كانت هذه القيم أعلى بكثير من نسخة العميل (حتى +567% عند 5⭐) بعد أن خُفِّضت
+// أسعار العميل في تعديل توازن لاحق لم يصل لهذا الملف — الخادم كان يخصم أكثر
+// مما يعرضه العميل صامتاً، ويرفض شراء أزراراً تظهر مفعّلة (العميل يظن السعر أرخص).
+// القيم أدناه الآن مطابقة لـ js/army.js حرفياً (مصدر التوازن الأحدث)، ومحمية
+// باختبار مقارنة حقيقي في tests/weapon-upgrade-costs.test.js.
 const UPGRADE_COSTS = [
-  { cash: 500,  gems: 10,  artifact: 0,  desertGem: 0, label: "1⭐" },
-  { cash: 2000, gems: 30,  artifact: 1,  desertGem: 0, label: "2⭐" },
-  { cash: 8000, gems: 80,  artifact: 2,  desertGem: 0, label: "3⭐" },
-  { cash: 25000, gems: 200, artifact: 4, desertGem: 1, label: "4⭐" },
-  { cash: 80000, gems: 500, artifact: 8, desertGem: 3, label: "5⭐" },
+  { cash: 300,   gems: 8,   artifact: 0,  desertGem: 0, label: "1⭐" },
+  { cash: 800,   gems: 20,  artifact: 1,  desertGem: 0, label: "2⭐" },
+  { cash: 2000,  gems: 50,  artifact: 2,  desertGem: 0, label: "3⭐" },
+  { cash: 5000,  gems: 120, artifact: 4,  desertGem: 1, label: "4⭐" },
+  { cash: 12000, gems: 300, artifact: 8,  desertGem: 3, label: "5⭐" },
 ];
 
 /**
@@ -26,8 +33,12 @@ function canUpgradeWeapon(playerData, weaponId, _houseLevel) {
   const currentLevel = w.level || 0;
   if (currentLevel >= MAX_LEVEL) return { allowed: false, reason: "السلاح في أقصى مستوياته (5⭐)" };
   
-  // houseLevel يُحدد من بيت الزعيم في اللعبة — الخادم يأخذه من buildings.chiefPalace
-  const effectiveHouseLevel = Math.max(1, (playerData.buildings?.chiefPalace) || 1);
+  // 🛡️ houseLevel من مبنى "خيمة القائد" — landsState.b1.level، نفس الحقل بالضبط
+  // الذي يتحقق منه العميل (js/ui/ui-promotion.js) ومسار الشراء
+  // (server/validation/player.js). كان هذا الملف يقرأ buildings.chiefPalace
+  // (حقل خادم منفصل لا يُملؤه أي كود عميل إطلاقاً — يبقى دائماً افتراضياً 1)،
+  // فيرفض ترقية أي سلاح requireLevel>1 حتى لو استوفى اللاعب الشرط الحقيقي.
+  const effectiveHouseLevel = Math.max(1, (playerData.landsState?.b1?.level) || 1);
   
   // نأخذ requireLevel من وزن السلاح (افتراضياً 1-6)
   const requireLevel = weaponId === 'w1' ? 1
@@ -108,18 +119,11 @@ function computeWeaponDamageWithUpgrades(data) {
   const weaponId = data.equippedWeapon || "";
   const weapons = data.weapons || [];
   if (!weaponId) return { weaponDamage: 0, critChance: 0, critMultiplier: 1, range: "melee", damageMult: 1 };
-  
-  // إحصائيات الأسلحة (متزامنة مع WEAPON_DATA في army.js)
-  const WEAPON_STATS = {
-    w1: { baseDamage: 4, damagePerLevel: 3, range: "melee", critChance: 0.05, critMultiplier: 1.5 },
-    w2: { baseDamage: 6, damagePerLevel: 4, range: "ranged", critChance: 0.08, critMultiplier: 1.8 },
-    w3: { baseDamage: 9, damagePerLevel: 6, range: "melee", critChance: 0.10, critMultiplier: 2.0 },
-    w4: { baseDamage: 13, damagePerLevel: 8, range: "melee", critChance: 0.12, critMultiplier: 2.2 },
-    w5: { baseDamage: 18, damagePerLevel: 10, range: "ranged", critChance: 0.15, critMultiplier: 2.5 },
-    w6: { baseDamage: 24, damagePerLevel: 14, range: "melee", critChance: 0.18, critMultiplier: 3.0 },
-  };
-  
-  const def = WEAPON_STATS[weaponId];
+
+  // 🛡️ إحصائيات الأسلحة تُشتق من WEAPON_DEFS (databaseHelper.js) حصراً — كانت
+  // مكرَّرة هنا كنسخة سابعة منفصلة (نفس القيم لكن بلا أي رابط)، فقد تنحرف
+  // بصمت لو عُدِّلت إحدى النسختين دون الأخرى دون أن يفشل أي اختبار.
+  const def = WEAPON_DEFS.find(w => w.id === weaponId);
   if (!def) return { weaponDamage: 0, critChance: 0, critMultiplier: 1, range: "melee", damageMult: 1 };
   
   const wp = weapons.find(w => w.id === weaponId);

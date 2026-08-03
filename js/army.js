@@ -15,7 +15,9 @@ export const WEAPON_DATA = [
 
 // تكاليف الترقية لكل مستوى نجمي (0→1, 1→2, 2→3, 3→4, 4→5)
 // منحنى تدريجي: كل قفزة ~2.5-3x (ليس 4x كما كان سابقاً)
-const UPGRADE_COSTS = [
+// 🛡️ مُصدَّرة عمداً — مطابقة تماماً لـ UPGRADE_COSTS في server/logic/weaponUpgrade.js
+// (الجدول الذي يخصم الموارد فعلياً)، ومحمية باختبار مقارنة حقيقي.
+export const UPGRADE_COSTS = [
   { cash: 300,   gems: 8,   artifact: 0,  desertGem: 0, label: "1⭐" },
   { cash: 800,   gems: 20,  artifact: 1,  desertGem: 0, label: "2⭐" },
   { cash: 2000,  gems: 50,  artifact: 2,  desertGem: 0, label: "3⭐" },

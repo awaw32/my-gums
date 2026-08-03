@@ -87,7 +87,11 @@ function canUpgradeResearch(playerData, categoryId, skillId) {
   if (currentLevel >= maxFromAcademy) {
     return { allowed: false, reason: `مستوى خيمة الحكيم (${academyLevel}) يحدد أقصى مستوى بحث بـ ${maxFromAcademy}` };
   }
-  const palaceLevel = (playerData.buildings || {}).chiefPalace || 0;
+  // 🛡️ buildings.chiefPalace لا يملؤه أي كود عميل إطلاقاً (نظام buildings.js
+  // منفصل تماماً عن landsState الذي يستخدمه العميل فعلياً) — كان يبقى 0 دائماً،
+  // فيمنع currentLevel >= 0 كل ترقية بحث من أول مستوى للأبد لكل لاعب. المصدر
+  // الصحيح landsState.b1.level (خيمة القائد)، نفس ما تتحقق منه شاشات الترقية.
+  const palaceLevel = (playerData.landsState?.b1?.level) || 1;
   if (currentLevel >= palaceLevel) {
     return { allowed: false, reason: `مستوى بيت الزعيم (${palaceLevel}) يمنع ترقية البحث أكثر` };
   }
