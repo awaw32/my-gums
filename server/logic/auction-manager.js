@@ -133,6 +133,9 @@ function createAuctionManager(deps) {
     }
   }
 
+  /** ⚠️ متزامنة synchronous تماماً بالتصميم — لا يوجد قفل صريح بين قراءة
+   *  pData.gold وتعديله. لا تُضِف await هنا (استدعاء DB إلخ) دون قفل صريح
+   *  أولاً، وإلا يفتح نافذة سباق تسمح بمزايدتين متزامنتين من رصيد واحد. */
   function placeBid(username, amount) {
     if (!activeAuction) return { ok: false, reason: "no_active_auction" };
     const amt = Math.floor(Number(amount) || 0);

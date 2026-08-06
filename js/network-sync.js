@@ -701,6 +701,17 @@ export class NetworkSync {
       case "season_pass_unlock_response":
         if (w._onSeasonPassUnlockResponse) w._onSeasonPassUnlockResponse(msg);
         break;
+      // ==================== 🏛️ مجلس الشيوخ (Daily Login) ====================
+      case "daily_login_state_sync":
+        if (w._onDailyLoginStateSync) w._onDailyLoginStateSync(msg);
+        break;
+      case "daily_login_claim_response":
+        if (window._dailyLoginRef) window._dailyLoginRef._handleClaimResponse(msg);
+        break;
+      // ==================== 🏆 مكافآت المعركة الملكية ====================
+      case "br_claim_reward_response":
+        if (w._handleBRRewardResponse) w._handleBRRewardResponse(msg);
+        break;
       // ==================== 🏜️ العاصفة الرملية العالمية ====================
       case "sandstorm_warning":
         if (w.store) w.store.set('notification', { text: `🏜️ عاصفة رملية قادمة! احتموا!`, t: Date.now() });

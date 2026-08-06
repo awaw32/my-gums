@@ -7,6 +7,9 @@ const { computeWeaponDamageWithUpgrades } = require("./weaponUpgrade");
 const { getAllianceBonuses } = require("./allianceManager");
 const { getAlliance } = require("../db/allianceHelper");
 
+// 🛡️ مكرَّرة عمداً في js/economy.js (KNOWLEDGE_BUFFS) — server/ من نوع CommonJS،
+// js/ من نوع ESM؛ لا يمكن استيراد وحدة واحدة مشتركة بينهما دون خطوة بناء.
+// التطابق محمي فعلياً باختبار حقيقي في tests/knowledge-buffs-parity.test.js.
 const KNOWLEDGE_ECONOMIC_BUFFS = {
   resourceSpeed: [1.0, 1.08, 1.16, 1.25, 1.35, 1.50],
 };
@@ -145,17 +148,21 @@ function computeKnowledgeBonuses(data) {
   };
 }
 
+const INITIAL_ARMY_POWER = 5000;
+// 🛡️ حد أدنى مطلق للقوة القتالية الفعلية — 10% من INITIAL_ARMY_POWER (وليس
+// رقماً سحرياً 500 منفصلاً). كان هذا الرقم ثابتاً بمعزل عن INITIAL_ARMY_POWER،
+// فلو غُيِّر الأخير مستقبلاً (تعديل توازن) لن يتحرك هذا الحد الأدنى تلقائياً معه.
+const MIN_EFFECTIVE_POWER = Math.floor(INITIAL_ARMY_POWER * 0.1);
+
 function computeEffectivePower(totalPower, currentHp, maxHp) {
   if (!maxHp || maxHp <= 0) return totalPower;
   const ratio = Math.max(0, Math.min(1, (currentHp || 0) / maxHp));
-  return Math.max(500, Math.floor(totalPower * ratio));
+  return Math.max(MIN_EFFECTIVE_POWER, Math.floor(totalPower * ratio));
 }
 
 function applyDefeatPenalty(armyPower) {
-  return Math.max(500, Math.floor(armyPower * 0.9));
+  return Math.max(MIN_EFFECTIVE_POWER, Math.floor(armyPower * 0.9));
 }
-
-const INITIAL_ARMY_POWER = 5000;
 
 module.exports = {
   computePlayerStats,
@@ -168,6 +175,7 @@ module.exports = {
   computeEffectivePower,
   applyDefeatPenalty,
   INITIAL_ARMY_POWER,
+  MIN_EFFECTIVE_POWER,
   WEAPON_DEFS,
   KNOWLEDGE_ECONOMIC_BUFFS,
   KNOWLEDGE_MILITARY_BUFFS,

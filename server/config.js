@@ -9,6 +9,11 @@ const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "";
 const REDIS_URL = process.env.REDIS_URL || "";
+// 🛡️ لا نثق بهيدر X-Forwarded-For إلا إذا صرّح المشغّل أن هناك reverse proxy
+// موثوق أمام الخادم (Nginx/Cloudflare) يُصفّي هذا الهيدر فعلياً من الزوار.
+// بدون هذا، أي مهاجم يرسل قيمة عشوائية للهيدر مع كل طلب ويحصل على حد "5
+// محاولات/دقيقة" جديد في كل مرة — يُبطل حماية rate limiting من brute-force.
+const TRUST_PROXY = process.env.TRUST_PROXY === "true" || process.env.TRUST_PROXY === "1";
 const SIM_OWNER = process.env.SIM_OWNER !== "false"; // افتراضياً true (نسخة واحدة تشغّل المحاكاة كالسابق)
 const crypto = require("crypto");
 const isProd = process.env.NODE_ENV === "production";
@@ -75,6 +80,7 @@ module.exports = {
   VAPID_PRIVATE_KEY,
   VAPID_SUBJECT,
   REDIS_URL,
+  TRUST_PROXY,
   SIM_OWNER,
   BUILD_ID,
   DATA_DIR,

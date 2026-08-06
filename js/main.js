@@ -398,7 +398,8 @@ async function init() {
   window._audio = audio;
   const hero = new GameHero();
   const achievements = new AchievementManager(economy);
-  const dailyLogin = new DailyLoginManager(economy);
+  const dailyLogin = new DailyLoginManager(economy, netSync);
+  window._dailyLoginRef = dailyLogin;
   const storyManager = new StoryManager(economy, village, army, allianceManager, hero);
   window._storyManager = storyManager;
   window._army = army;
@@ -743,16 +744,25 @@ async function init() {
     };
 
     // ربط الإنجازات اليومية (كل استلام = +1 بغض النظر عن streak)
-    dailyLogin._onClaim = (day, reward, premiumReward) => {
+    // 🛡️ مُسلسَل (chained) وليس استبدالاً — شاشات الواجهة (ui-core/ui-promotion)
+    // تضيف معالجها الخاص فوق هذا لاحقاً بنفس الأسلوب، فلا يُفقد أي منهما
+    dailyLogin._onClaim = ((orig) => (day, reward, premiumReward) => {
+      if (orig) orig(day, reward, premiumReward);
       achievements.updateProgress('login_days', 1);
       ui.showNotification(`📅 يوم ${day}: حصلت على ${reward.label}`);
       if (premiumReward) {
         ui.showNotification(`🏛️ رحلة الشيخ: ${premiumReward.label}${premiumReward.wisdom ? ` — «${premiumReward.wisdom}»` : ''}`);
       }
-    };
+    })(dailyLogin._onClaim);
     // 🏛️ رحلة الشيخ — مزامنة حالة الموسم من الخادم عند الاتصال، وتأكيد الفتح بعد الشراء
     world._onSeasonPassState = (seasonKey, premiumUnlocked) => {
       dailyLogin.syncSeasonState(seasonKey, premiumUnlocked);
+    };
+    // 🏛️ مجلس الشيوخ — مزامنة lastClaimDate/streak الموثوقة سيرفرياً عند الاتصال
+    // (تتجاوز أي حالة محلية قديمة محمَّلة من localStorage/الحفظ القديم)
+    world._onDailyLoginStateSync = (state) => {
+      dailyLogin.syncServerState(state);
+      if (ui.currentScreen === 'daily') ui.renderDailyLogin();
     };
     world._onSeasonPassUnlockResponse = (res) => {
       if (res.ok) {
@@ -1440,11 +1450,15 @@ async function init() {
         if (titleEl) titleEl.textContent = titleText;
         const iconEl = brVictoryScreen?.querySelector('.victory-icon');
         if (iconEl) iconEl.textContent = icon;
-        // 🛡️ مسار الإخلاء (extraction) يمنح مكافأته بالفعل في world.js._doBRExtraction() —
-        // لا نكررها هنا؛ فقط "آخر لاعب صامد" يحصل على المكافأة الثابتة من هذا المسار
-        if (result.reason !== "extraction") {
-          economy.addRaw('gems', (result.bonusGems || 0) + 100 + (result.kills || 0) * 10);
-          economy.addRaw('gold', (result.bonusGold || 0) + 50 + (result.kills || 0) * 5);
+        // 🛡️ مسار الإخلاء (extraction) يطلب مكافأته بالفعل في world.js._doBRExtraction() —
+        // لا نكررها هنا؛ فقط "آخر لاعب صامد" يطلب المكافأة الثابتة من هذا المسار.
+        // المكافأة تُطلب من الخادم (حد أقصى يومي) بدل تطبيقها محلياً مباشرة —
+        // انظر server/logic/battleRoyaleRewards.js
+        if (result.reason !== "extraction" && world._requestBRReward) {
+          world._requestBRReward(
+            (result.bonusGems || 0) + 100 + (result.kills || 0) * 10,
+            (result.bonusGold || 0) + 50 + (result.kills || 0) * 5,
+          );
         }
         if (reputation) {
           const r = reputation.addScore(10 + (result.kills || 0) * 2, "br_win");

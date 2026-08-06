@@ -49,6 +49,44 @@ const RESEARCH_DEFS = {
       },
     },
   },
+  // 🏜️ بحوث سرية — تُقفل حتى يصل اللاعب برستيج "شيخ حكيم" (المستوى 3). كانت
+  // معرَّفة على العميل (js/research-tree.js) فقط دون أي مقابل هنا، فيرفضها
+  // canUpgradeResearch دائماً بـ"مهارة بحث غير معروفة" حتى لو دفع اللاعب
+  // الموارد المطلوبة — ميزة برستيج كاملة كانت معطوبة تماماً على أرض الواقع.
+  secret: {
+    id: "secret",
+    name: "البحوث السرية",
+    prestigeRequired: 3,
+    skills: {
+      mirage: {
+        id: "mirage",
+        name: "سراب الصحراء",
+        maxLevel: 10,
+        baseCost: { cash: 500, gold: 20, desertGem: 1 },
+        costScale: 1.3,
+        effectDesc: "فرصة تفادي +2% لكل مستوى",
+        effectPerLevel: { dodgePercent: 2 },
+      },
+      ancientWisdom: {
+        id: "ancientWisdom",
+        name: "حكمة القدماء",
+        maxLevel: 10,
+        baseCost: { cash: 500, gold: 20, desertGem: 1 },
+        costScale: 1.3,
+        effectDesc: "خبرة +5% لكل مستوى",
+        effectPerLevel: { xpBonusPercent: 5 },
+      },
+      forbiddenAlchemy: {
+        id: "forbiddenAlchemy",
+        name: "الخيمياء المحرَّمة",
+        maxLevel: 10,
+        baseCost: { cash: 500, gold: 20, desertGem: 1 },
+        costScale: 1.3,
+        effectDesc: "إنتاج الجواهر +3% لكل مستوى",
+        effectPerLevel: { gemProduction: 3 },
+      },
+    },
+  },
 };
 
 function getResearchCategory(categoryId) {
@@ -76,6 +114,12 @@ function computeResearchCost(categoryId, skillId, currentLevel) {
 function canUpgradeResearch(playerData, categoryId, skillId) {
   const def = getResearchSkill(categoryId, skillId);
   if (!def) return { allowed: false, reason: "مهارة بحث غير معروفة" };
+  // 🛡️ فئات مقفلة ببرستيج (مثل secret) — نفس شرط isCategoryUnlocked على العميل
+  const cat = getResearchCategory(categoryId);
+  const prestigeRequired = cat?.prestigeRequired || 0;
+  if (prestigeRequired > 0 && (playerData.prestigeLevel || 0) < prestigeRequired) {
+    return { allowed: false, reason: `يتطلب برستيج مستوى ${prestigeRequired}` };
+  }
   const research = playerData.research || {};
   const skillKey = `${categoryId}.${skillId}`;
   const currentLevel = research[skillKey] || 0;
@@ -126,7 +170,7 @@ function applyResearchUpgrade(playerData, categoryId, skillId) {
 
 function getResearchEffects(playerData) {
   const research = playerData.research || {};
-  const effects = { defensePercent: 0, moveSpeedPercent: 0, endurancePercent: 0, goldProduction: 0, crystalProduction: 0, buildSpeed: 0 };
+  const effects = { defensePercent: 0, moveSpeedPercent: 0, endurancePercent: 0, goldProduction: 0, crystalProduction: 0, buildSpeed: 0, dodgePercent: 0, xpBonusPercent: 0, gemProduction: 0 };
   for (const [catId, cat] of Object.entries(RESEARCH_DEFS)) {
     for (const [skillId, skill] of Object.entries(cat.skills)) {
       const skillKey = `${catId}.${skillId}`;

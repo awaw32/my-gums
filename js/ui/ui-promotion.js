@@ -1097,11 +1097,17 @@ GameUI.prototype._renderFullRewardsPage = function() {
   html += `</div></div>`;
   container.innerHTML = html;
   document.getElementById("rw-daily-claim")?.addEventListener("click", () => {
-    if (dl && dl.claim()) {
+    if (!dl) return;
+    // 🛡️ الاستلام الفعلي يتم على الخادم — هذا الـ callback يُستدعى فقط بعد
+    // التأكيد. مُسلسَل فوق معالج main.js (الإنجازات) بدل استبداله.
+    const origOnClaim = dl._onClaim;
+    dl._onClaim = (day, reward, premiumReward) => {
+      if (origOnClaim) origOnClaim(day, reward, premiumReward);
       this._renderFullRewardsPage();
       this.updateTopBar();
       this.showNotification('✅ تم استلام المكافأة اليومية!');
-    } else {
+    };
+    if (!dl.claim()) {
       this.showNotification('❌ المكافأة مستلمة مسبقاً');
     }
   });

@@ -131,21 +131,36 @@ export function injectBRMethods(WorldMap) {
     this.matchEnded = true;
     this.matchStarted = false;
     const kills = this.brKills;
-    const bonusGems = 50 + kills * 25;
-    const bonusGold = 100 + kills * 30;
-    if (this.economy) {
-      this.economy.addRaw("gems", bonusGems);
-      this.economy.addRaw("gold", bonusGold);
-    }
+    const requestedGems = 50 + kills * 25;
+    const requestedGold = 100 + kills * 30;
+    // 🛡️ المكافأة تُطلب من الخادم (حد أقصى يومي سيرفري) بدل تطبيقها محلياً
+    // مباشرة — انظر server/logic/battleRoyaleRewards.js للتفاصيل
+    this._requestBRReward(requestedGems, requestedGold);
     if (this._onBRMatchEnd) {
-      this._onBRMatchEnd({ winner: true, kills, reason: "extraction", bonusGems, bonusGold });
+      this._onBRMatchEnd({ winner: true, kills, reason: "extraction", bonusGems: requestedGems, bonusGold: requestedGold });
     }
     this._sendWS({ type: "br_match_end", winner: this.username, kills, reason: "extraction" });
     if (this.store) {
       this.store.set('notification', {
-        text: `🚁 إخلاء ناجح! +${bonusGems} 💎 +${bonusGold} 🪙 مع ${kills} قتل!`,
+        text: `🚁 إخلاء ناجح! +${requestedGems} 💎 +${requestedGold} 🪙 مع ${kills} قتل!`,
         t: Date.now()
       });
+    }
+  };
+
+  /** يرسل طلب مكافأة BR للخادم — الموارد الفعلية تُضاف فقط بعد رد
+   *  br_claim_reward_response (قد تُقصّ إن تجاوز اللاعب السقف اليومي) */
+  WorldMap.prototype._requestBRReward = function (gems, gold) {
+    this._sendWS({ type: "br_claim_reward", gems, gold });
+  };
+
+  /** يُستدعى من handleNetMessage عند وصول br_claim_reward_response */
+  WorldMap.prototype._handleBRRewardResponse = function (msg) {
+    if (!msg.ok || !this.economy) return;
+    if (msg.grantedGems) this.economy.addRaw("gems", msg.grantedGems);
+    if (msg.grantedGold) this.economy.addRaw("gold", msg.grantedGold);
+    if (msg.capped && this.store) {
+      this.store.set('notification', { text: `⚠️ بلغت الحد الأقصى اليومي لمكافآت المعركة الملكية`, t: Date.now() });
     }
   };
 

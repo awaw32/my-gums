@@ -4,6 +4,19 @@ const logger = require("../logger");
 const { sanitizePlayerData } = require("../validation/player");
 const metrics = require("../metrics");
 const { makeRateLimiter } = require("../network/rateLimiter");
+const { TRUST_PROXY } = require("../config");
+
+/** عنوان IP الحقيقي للطلب — لا يثق بـ X-Forwarded-For إلا إذا TRUST_PROXY=true
+ *  صراحة (يعني وجود reverse proxy موثوق يُصفّي هذا الهيدر من الزوار فعلياً).
+ *  بدون هذا الشرط، أي زائر يزوّر الهيدر ليحصل على حد rate limit جديد كل مرة. */
+function getClientIp(req) {
+  if (TRUST_PROXY) {
+    const forwarded = req.headers["x-forwarded-for"]?.split(",")[0]?.trim();
+    if (forwarded) return forwarded;
+  }
+  return req.socket.remoteAddress;
+}
+
 const loginLimiters = new Map();
 const clientLogLimiters = new Map();
 const clientLogLimitersLastUsed = new Map(); // IP -> آخر وقت استُخدم فيه limiter الخاص به
@@ -61,7 +74,7 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
     //    - السيرفر يُرجع passwordUpgraded: true عند ترقية حساب قديم
     // ═══════════════════════════════════════════════════════════════
     if (req.url === "/api/auth/login" && req.method === "POST") {
-      const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress;
+      const ip = getClientIp(req);
       if (!loginLimiters.has(ip + "_count")) loginLimiters.set(ip + "_count", 0);
       if (!loginLimiters.has(ip + "_time")) loginLimiters.set(ip + "_time", Date.now());
       const loginCount = loginLimiters.get(ip + "_count") + 1;
@@ -610,7 +623,7 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
     //  🛡️ استقبال أخطاء العميل (بديل Sentry عند غياب SENTRY_DSN)
     // ═══════════════════════════════════════════════════════════════
     if (req.url === "/api/logs" && req.method === "POST") {
-      const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress;
+      const ip = getClientIp(req);
       let limiter = clientLogLimiters.get(ip);
       if (!limiter) { limiter = makeRateLimiter({ maxPerSec: 2 }); clientLogLimiters.set(ip, limiter); }
       clientLogLimitersLastUsed.set(ip, Date.now());
@@ -660,7 +673,16 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
         return true;
       }
       const adminKey = process.env.ADMIN_KEY;
-      if (adminKey) {
+      // 🛡️ في الإنتاج بلا ADMIN_KEY، /metrics كانت تصبح عامة بالكامل بلا أي
+      // مصادقة (تكشف latency/tick drift/حالة التشغيل لأي زائر) — الآن تُرفض
+      // بالكامل (fail closed) بدل السماح المفتوح (fail open) عند غياب المفتاح
+      if (!adminKey) {
+        if (isProd) {
+          res.writeHead(404, { "Content-Type": "text/plain" });
+          res.end("Metrics disabled");
+          return true;
+        }
+      } else {
         const authHeader = req.headers["authorization"];
         if (!authHeader || authHeader !== `Bearer ${adminKey}`) {
           res.writeHead(401, { "Content-Type": "application/json" });

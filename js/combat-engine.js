@@ -1,3 +1,9 @@
+// 🛡️ بونص الضرر لكل نجمة ترقية سلاح — مكرَّر عمداً في server/logic/weaponUpgrade.js
+// (server/ من نوع CommonJS، js/ من نوع ESM؛ لا يمكن استيراد وحدة واحدة مشتركة
+// بينهما دون خطوة بناء). التطابق بين النسختين محمي فعلياً باختبار حقيقي في
+// tests/star-bonus-parity.test.js — أي انحراف مستقبلي سيفشل ذلك الاختبار فوراً.
+export const STAR_DAMAGE_BONUS_PER_LEVEL = 0.3;
+
 export const COMBAT_CONSTANTS = {
   LEADER_BASE_HP: 120,
   LEADER_BASE_DMG: 12,
@@ -35,7 +41,7 @@ function _computeWeaponDamageInternal(equippedWeaponId, weapons) {
   }
   const wp = weapons.find(w => w.id === equippedWeaponId);
   const level = (wp && typeof wp.level === 'number') ? wp.level : 0;
-  const starBonus = level * 0.3;
+  const starBonus = level * STAR_DAMAGE_BONUS_PER_LEVEL;
   const baseDamage = def.baseDamage + Math.floor(def.damagePerLevel * level / 2);
   const weaponDamage = Math.floor(baseDamage * (1 + starBonus));
   return {

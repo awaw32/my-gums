@@ -24,6 +24,10 @@ export function formatNumber(n) {
   return Math.floor(n).toLocaleString();
 }// ==================== 🧠 بونص المعرفة (مدمج من knowledge-system.js) ====================
 
+// 🛡️ مكرَّرة عمداً في server/logic/formulas.js (KNOWLEDGE_ECONOMIC_BUFFS/
+// KNOWLEDGE_MILITARY_BUFFS) — server/ من نوع CommonJS، js/ من نوع ESM؛ لا يمكن
+// استيراد وحدة واحدة مشتركة بينهما دون خطوة بناء. التطابق محمي فعلياً باختبار
+// حقيقي في tests/knowledge-buffs-parity.test.js.
 export const KNOWLEDGE_BUFFS = {
   resourceSpeed: [1.0, 1.08, 1.16, 1.25, 1.35, 1.50],
   moveSpeedPercent: [0, 3, 5, 8, 10, 12],
@@ -47,6 +51,12 @@ export function computeKnowledgeBonuses(data) {
     defensePercent: KNOWLEDGE_BUFFS.defensePercent[idx],
   };
 }
+
+// 🛡️ حد أقصى لتراكم الطعام — بلا هذا، لاعب غير متصل لفترات طويلة متكررة (فسخ
+// الفساد فقط 5% مرة واحدة كل 24 ساعة، وليس تراكمياً لكل يوم فائت فعلياً) يمكن
+// أن يتراكم طعامه لأرقام هائلة تُبطل الغرض من آلية الفساد بالكامل (تشجيع
+// الإنفاق). سخي بما يكفي لأي لعب طبيعي (أضعاف أكبر مكافأة طعام فردية معروفة).
+export const MAX_FOOD = 50000;
 
 export function getXpForLevel(level) {
   if (level <= 0) return 100;
@@ -172,7 +182,7 @@ export class GameEconomy {
   set herbs(v) { this.resources.herbs = Math.max(0, v); }
 
   get food() { return this.resources.food; }
-  set food(v) { this.resources.food = Math.max(0, v); }
+  set food(v) { this.resources.food = Math.min(MAX_FOOD, Math.max(0, v)); }
   get cashFormatted() { return formatNumber(this.cash); }
   get goldFormatted() { return formatNumber(this.gold); }
   get foodFormatted() { return formatNumber(this.food); }
@@ -190,6 +200,7 @@ export class GameEconomy {
   add(type, amt) {
     if (this.resources[type] !== undefined) {
       this.resources[type] += amt * this.multiplier;
+      if (type === "food") this.resources.food = Math.min(MAX_FOOD, this.resources.food);
       if (type === "cash" && amt > 0 && this._onCashEarned) {
         this._onCashEarned(amt);
       }
@@ -222,6 +233,7 @@ export class GameEconomy {
       }
       this.resources[type] += finalAmt;
       if (this.resources[type] < 0) this.resources[type] = 0;
+      if (type === "food" && this.resources.food > MAX_FOOD) this.resources.food = MAX_FOOD;
       if (amt > 0 && this.totalEarned[type] !== undefined) this.totalEarned[type] += finalAmt;
       if (type === "gold" && amt > 0 && this._onGoldEarned) {
         this._onGoldEarned(amt); // نبعت المبلغ الأصلي للإنجاز (بدون مضاعف)

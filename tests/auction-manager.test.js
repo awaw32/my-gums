@@ -223,4 +223,19 @@ describe('🏆 مزاد الجمعة الأسطوري (server/logic/auction-mana
       expect(manager.getActiveAuction().currentBid).toBe(minBid);
     });
   });
+
+  describe('🛡️ حارس ضد race condition مستقبلي (double-spend)', () => {
+    it('placeBid يجب أن تبقى دالة متزامنة (synchronous) تماماً بلا await', () => {
+      // حماية double-spend في placeBid تعتمد بالكامل على أنها متزامنة صرفة —
+      // أي تحويل مستقبلي لـ async/await دون قفل صريح يفتح نافذة سباق حقيقية
+      // تسمح بمزايدتين متزامنتين من رصيد واحد. هذا الاختبار يفشل فوراً إن
+      // حدث ذلك، كتذكير إلزامي لإضافة قفل أولاً.
+      expect(manager.placeBid.constructor.name).not.toBe('AsyncFunction');
+      manager.startAuction();
+      setGold(memStore, 'p1', 100000);
+      const result = manager.placeBid('p1', manager.getActiveAuction().currentBid + 50);
+      expect(result).not.toBeInstanceOf(Promise);
+      expect(result.ok).toBe(true);
+    });
+  });
 });

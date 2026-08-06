@@ -3,17 +3,17 @@
 /**
  * server/logic/market-manager.js
  * ============================================================================
- * 🏪 سوق الصحراء — Trade Market (سيرفر-موثوق للمال، عنصر-موثوق من العميل)
+ * 🏪 سوق الصحراء — Trade Market (سيرفر-موثوق بالكامل: مال + عنصر)
  * قبل هذا الملف كان trade-market.js (العميل) يدير كل شيء محلياً بلا أي
  * معالجة سيرفرية إطلاقاً — يعني السوق بين لاعبين حقيقيين لم يكن يعمل فعلياً
  * (لا مزامنة، والبائع لا يستلم ماله). هذا الملف يصلح ذلك:
  *   - المال (cash) سيرفر-موثوق بالكامل: يُخصم من المشتري ويُضاف للبائع فعلياً
  *     عبر memStore عند البيع — لا economy.add على العميل مباشرة لأي طرف.
- *   - العنصر نفسه (item) موثوق من العميل عند العرض فقط (مع تحقق خفيف: يجب أن
- *     يكون معرَّفاً في TRADEABLE_ITEMS والسعر ضمن حدود معقولة) لأن المخزون لا
- *     يُحفظ فورياً على السيرفر (فقط عند autosave الدوري) — قرار مقصود لتفادي
- *     رفض عرض عنصر جمعه اللاعب للتو ولم يُحفظ بعد. الخصم الفعلي من مخزون
- *     البائع والإضافة لمخزون المشتري تبقى client-side كما كانت.
+ *   - العنصر (item) سيرفر-موثوق بالكامل أيضاً: عند العرض يُخصم فوراً من
+ *     memStore.inventory الخاص بالبائع (وليس بانتظار autosave أو تصريح
+ *     العميل)، وعند الشراء يُضاف فعلياً لمخزون المشتري على الخادم، وعند
+ *     الإلغاء/الانتهاء يعود للبائع. هذا يمنع عرض عنصر غير مملوك فعلياً وبيعه
+ *     لعدة مشترين حقيقيين (توليد كاش من عدم) — كانت هذه ثغرة اقتصادية حرجة.
  * ============================================================================
  */
 
@@ -59,27 +59,63 @@ function createMarketManager(deps) {
     return Math.floor(def.basePrice * (1 + (level - 1) * 0.5));
   }
 
+  /** ينزع qty من inventory.items[itemId] الموثوق سيرفرياً؛ يعيد false إن لم
+   *  تكن الكمية كافية فعلياً (لا يعدّل شيئاً في تلك الحالة) */
+  function deductOwnedItem(username, itemId, qty) {
+    const pData = memStore.get(username) || getDefaultPlayer(username);
+    const items = pData.inventory && typeof pData.inventory === "object" ? pData.inventory.items : null;
+    const owned = items && items[itemId];
+    const ownedCount = Math.floor(Number(owned?.count) || 0);
+    if (ownedCount < qty) return { ok: false, level: owned?.level || 1 };
+
+    const level = owned.level || 1;
+    owned.count = ownedCount - qty;
+    if (owned.count <= 0) delete items[itemId];
+    memStore.set(username, pData);
+    markDirty(username);
+    return { ok: true, level };
+  }
+
+  /** يعيد qty من itemId لمخزون username الموثوق سيرفرياً (إلغاء/انتهاء/شراء) */
+  function creditOwnedItem(username, itemId, qty, level = 1) {
+    const pData = memStore.get(username) || getDefaultPlayer(username);
+    if (!pData.inventory || typeof pData.inventory !== "object") pData.inventory = {};
+    if (!pData.inventory.items || typeof pData.inventory.items !== "object") pData.inventory.items = {};
+    const items = pData.inventory.items;
+    if (!items[itemId]) items[itemId] = { count: 0, level: level || 1 };
+    items[itemId].count = Math.floor(Number(items[itemId].count) || 0) + qty;
+    memStore.set(username, pData);
+    markDirty(username);
+  }
+
   /** عرض عنصر — itemId فقط موثوق من العميل؛ الاسم/الأيقونة/الفئة/الندرة تُشتق
-   *  من TRADEABLE_ITEMS الخادم حصراً (لا تُقبل نصوص عرض من العميل إطلاقاً) */
-  function listItem(username, { itemId, quantity, pricePerUnit, level }) {
+   *  من TRADEABLE_ITEMS الخادم حصراً (لا تُقبل نصوص عرض من العميل إطلاقاً).
+   *  الكمية تُخصم فعلياً من inventory الموثوق على الخادم فوراً — لا يمكن عرض
+   *  عنصر غير مملوك فعلياً ولا عرضه أكثر من مرة. */
+  function listItem(username, { itemId, quantity, pricePerUnit }) {
     const def = TRADEABLE_ITEMS[itemId];
     if (!def) return { ok: false, reason: "unknown_item" };
 
     const qty = Math.floor(Number(quantity) || 0);
     const price = Math.floor(Number(pricePerUnit) || 0);
-    const lvl = Math.max(1, Math.floor(Number(level) || 1));
     if (qty <= 0 || qty > MAX_QUANTITY || price <= 0) return { ok: false, reason: "invalid_data" };
+
+    const myActiveListings = Array.from(listings.values()).filter(l => l.seller === username && !l.sold);
+    if (myActiveListings.length >= MAX_LISTINGS_PER_PLAYER) {
+      return { ok: false, reason: "too_many_listings" };
+    }
+
+    // 🛡️ خصم فعلي وفوري من المخزون الموثوق سيرفرياً — يمنع بيع عنصر لا يملكه
+    const deduction = deductOwnedItem(username, itemId, qty);
+    if (!deduction.ok) return { ok: false, reason: "insufficient_quantity" };
+    const lvl = Math.max(1, Math.floor(Number(deduction.level) || 1));
 
     const suggested = getSuggestedPrice(itemId, lvl);
     const minPrice = Math.floor(suggested * 0.5);
     const maxPrice = Math.floor(suggested * 3);
     if (price < minPrice || price > maxPrice) {
+      creditOwnedItem(username, itemId, qty, lvl); // 🔄 استرجاع فوري — العرض رُفض
       return { ok: false, reason: "price_out_of_range", minPrice, maxPrice };
-    }
-
-    const myActiveListings = Array.from(listings.values()).filter(l => l.seller === username && !l.sold);
-    if (myActiveListings.length >= MAX_LISTINGS_PER_PLAYER) {
-      return { ok: false, reason: "too_many_listings" };
     }
 
     const id = `listing_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -104,7 +140,16 @@ function createMarketManager(deps) {
     return { ok: true, listing };
   }
 
-  /** شراء — المال سيرفر-موثوق بالكامل: يُخصم من المشتري ويُضاف للبائع فعلياً */
+  /** شراء — المال سيرفر-موثوق بالكامل (يُخصم من المشتري ويُضاف للبائع)
+   *  والعنصر سيرفر-موثوق أيضاً (يُضاف فعلياً لمخزون المشتري على الخادم)
+   *
+   *  ⚠️ حماية double-spend هنا تعتمد بالكامل على كون هذه الدالة **متزامنة
+   *  synchronous تماماً** (Node.js أحادي الخيط لا يقاطع تنفيذها في المنتصف).
+   *  لا يوجد قفل صريح (mutex/transaction) بين قراءة listing/memStore وتعديلها.
+   *  ‼️ لا تُضِف أي `await` داخل هذه الدالة (استدعاء DB، I/O، إلخ) بين قراءة
+   *  الحالة وتعديلها دون إضافة قفل صريح أولاً — أي `await` كهذا يفتح نافذة
+   *  سباق حقيقية تسمح بشراء نفس الكمية مرتين من رصيد واحد (انظر guard test
+   *  في tests/market-manager.test.js الذي يتحقق من عدم وجود await هنا). */
   function buyListing(username, listingId, quantity) {
     const listing = listings.get(listingId);
     if (!listing || listing.sold) return { ok: false, reason: "listing_not_found" };
@@ -129,6 +174,10 @@ function createMarketManager(deps) {
     memStore.set(listing.seller, sellerData);
     markDirty(listing.seller);
 
+    // 🛡️ العنصر المُشترى يُضاف فعلياً لمخزون المشتري الموثوق سيرفرياً — كان
+    // البائع (الأصلي) قد فُصل مخزونه فعلياً عند العرض في listItem أعلاه
+    creditOwnedItem(username, listing.itemId, qty, listing.level);
+
     listing.quantity -= qty;
     if (listing.quantity <= 0) listing.sold = true;
 
@@ -147,13 +196,15 @@ function createMarketManager(deps) {
     return { ok: true, totalCost, fee, item: { itemId: listing.itemId, itemName: listing.itemName }, quantity: qty };
   }
 
-  /** إلغاء عرض — البائع فقط، لا يمس المال (العنصر يعود لمخزون العميل client-side) */
+  /** إلغاء عرض — البائع فقط، لا يمس المال؛ العنصر يعود فعلياً لمخزون البائع
+   *  الموثوق سيرفرياً (كان قد خُصم منه فعلياً عند العرض في listItem) */
   function removeListing(username, listingId) {
     const listing = listings.get(listingId);
     if (!listing || listing.sold) return { ok: false, reason: "listing_not_found" };
     if (listing.seller !== username) return { ok: false, reason: "not_your_listing" };
 
     listing.sold = true;
+    creditOwnedItem(username, listing.itemId, listing.quantity, listing.level);
     broadcastToAll({ type: "market_listing_removed", listingId, itemId: listing.itemId, quantity: listing.quantity, reason: "cancelled" });
     return { ok: true, itemId: listing.itemId, quantity: listing.quantity };
   }
@@ -162,12 +213,13 @@ function createMarketManager(deps) {
     return Array.from(listings.values()).filter(l => !l.sold && l.expiresAt > Date.now());
   }
 
-  /** تنظيف دوري — القوائم المنتهية تُعاد للبائع (client-side عند استلام الحدث) */
+  /** تنظيف دوري — القوائم المنتهية تُعاد فعلياً لمخزون البائع الموثوق سيرفرياً */
   function cleanupExpired() {
     const now = Date.now();
     for (const listing of listings.values()) {
       if (!listing.sold && listing.expiresAt <= now) {
         listing.sold = true;
+        creditOwnedItem(listing.seller, listing.itemId, listing.quantity, listing.level);
         broadcastToAll({ type: "market_listing_removed", listingId: listing.id, itemId: listing.itemId, quantity: listing.quantity, reason: "expired" });
       }
     }

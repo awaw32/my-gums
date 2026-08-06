@@ -1549,11 +1549,15 @@ export class GameUI {
         const { celebrate } = await import("../celebrations.js");
         this.dailyLogin._onMilestone = (m) => celebrate("mode_win", `🏅 ${m.label} +${m.gems} 💎`);
         this.dailyLogin._onLoyalTitleLost = () => this.showNotification(`💔 يا شيخ، فقدت لقب "${this.dailyLogin.loyalTitle}" بسبب انقطاعك عن مجلس الشيوخ!`);
-        if (this.dailyLogin.claim()) {
-          const s = this.dailyLogin.getState();
-          if (s.currentDay === 7) {
-            celebrate("level_up", `🔥 أسبوع كامل من الولاء! نلت لقب "${s.loyalTitle}"`);
-            this.showNotification(`👑 مجلس الشيوخ يمنحك لقب "${s.loyalTitle}"!`);
+        // 🛡️ الاستلام الفعلي يتم على الخادم — هذا الـ callback يُستدعى فقط بعد
+        // تأكيد الخادم فعلياً (وليس فوراً عند النقر). مُسلسَل فوق معالج main.js
+        // (الإنجازات) بدل استبداله — وإلا يُفقد تحديث الإنجازات بصمت.
+        const origOnClaim = this.dailyLogin._onClaim;
+        this.dailyLogin._onClaim = (currentDay, reward, premiumReward) => {
+          if (origOnClaim) origOnClaim(currentDay, reward, premiumReward);
+          if (currentDay === 7) {
+            celebrate("level_up", `🔥 أسبوع كامل من الولاء! نلت لقب "${this.dailyLogin.loyalTitle}"`);
+            this.showNotification(`👑 مجلس الشيوخ يمنحك لقب "${this.dailyLogin.loyalTitle}"!`);
           }
           this.renderDailyLogin();
           this.updateTopBar();
@@ -1561,7 +1565,8 @@ export class GameUI {
             const r = this.reputation.addScore(5, "daily_login");
             if (r.changed) this.showNotification(`${this.reputation.getTitle().icon} أصبحت ${r.newTitle}!`);
           }
-        }
+        };
+        this.dailyLogin.claim();
       });
       container.appendChild(btn);
     } else {

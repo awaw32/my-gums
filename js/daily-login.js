@@ -34,8 +34,9 @@ const SEASON_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 يوماً — نفس
 const PREMIUM_UNLOCK_COST_GEMS = 100;
 
 export class DailyLoginManager {
-  constructor(economy) {
+  constructor(economy, netSync = null) {
     this.economy = economy;
+    this.netSync = netSync;
     this.currentDay = 0;
     this.lastClaimDate = "";
     this.streak = 0;
@@ -44,6 +45,8 @@ export class DailyLoginManager {
     this._onClaim = null;
     this._onMilestone = null;
     this._onLoyalTitleLost = null;
+    // 🛡️ طلب استلام معلّق بانتظار رد الخادم — يمنع نقر متكرر يرسل طلبات مكررة
+    this._pendingClaim = false;
     // 🏛️ رحلة الشيخ — حالة المسار المميز (الفتح نفسه سيرفر-موثوق عبر season_pass_unlock)
     this.seasonKey = 0;
     this.premiumUnlocked = false;
@@ -109,42 +112,64 @@ export class DailyLoginManager {
     return true;
   }
 
+  /** يرسل طلب استلام للخادم — الموارد لا تُطبَّق هنا إطلاقاً، فقط بعد تأكيد
+   *  الخادم عبر _handleClaimResponse. كان هذا محسوباً بالكامل محلياً من قبل،
+   *  ما يعني أن أي تلاعب بحالة العميل (localStorage) يمنح موارد غير محدودة
+   *  يومياً دون أي رصد سيرفري — أصبح الآن lastClaimDate/streak/الموارد كلها
+   *  تُقرأ وتُكتب حصراً على الخادم (memStore.dailyLogin). */
   claim() {
+    if (this._pendingClaim) return false;
     if (!this.checkDaily()) return false;
-    const today = new Date().toDateString();
-    this.lastClaimDate = today;
-    this.currentDay = (this.currentDay % 7) + 1;
-    this.streak++;
-    const reward = DAILY_REWARDS[this.currentDay - 1];
+    if (!this.netSync || !this.netSync.isConnected) return false;
+    this._pendingClaim = true;
+    this.netSync.send({ type: "daily_login_claim" });
+    return true;
+  }
+
+  /** يُستدعى من handleNetMessage عند وصول daily_login_claim_response */
+  _handleClaimResponse(msg) {
+    this._pendingClaim = false;
+    if (!msg.ok) return;
+    // ✅ تأكيد الخادم وصل — الموارد أُضيفت فعلياً هناك؛ نطبّق النتيجة محلياً فقط للعرض
+    this.lastClaimDate = new Date().toDateString();
+    this.currentDay = msg.currentDay;
+    this.streak = msg.streak;
+    if (msg.loyalTitleLost && this._onLoyalTitleLost) this._onLoyalTitleLost();
+    this.loyalTitleEarned = !!msg.loyalTitleEarned;
+
     const eco = this.economy;
-    // مضاعف السلسلة: كل يوم متتالٍ يزيد المكافأة 5% (حتى الضعف)
-    const mult = 1 + this.streakBonusPercent / 100;
-    if (reward.reward.gold) eco.addRaw("gold", Math.floor(reward.reward.gold * mult));
-    if (reward.reward.cash) eco.addRaw("cash", Math.floor(reward.reward.cash * mult));
-    if (reward.reward.gems) eco.addRaw("gems", Math.floor(reward.reward.gems * mult));
-    if (reward.reward.food) eco.addRaw("food", Math.floor(reward.reward.food * mult));
-    if (reward.isLegendaryChest) {
-      this.loyalTitleEarned = true;
+    const granted = msg.granted || {};
+    for (const [res, amount] of Object.entries(granted)) {
+      eco.addRaw(res, amount);
     }
-    // معالم السلسلة — جوائز جواهر ضخمة لمرة واحدة
-    const milestone = STREAK_MILESTONES.find(
-      m => this.streak >= m.streak && !this.claimedMilestones.includes(m.streak)
-    );
-    if (milestone) {
-      this.claimedMilestones.push(milestone.streak);
-      eco.addRaw("gems", milestone.gems);
-      if (this._onMilestone) this._onMilestone(milestone);
+    const reward = DAILY_REWARDS[this.currentDay - 1];
+
+    if (msg.milestone) {
+      this.claimedMilestones.push(msg.milestone.streak);
+      if (this._onMilestone) this._onMilestone(msg.milestone);
     }
-    // 🏛️ المسار المميز — يُمنح فقط إن كان مفتوحاً فعلياً لهذا الموسم (مؤكَّد من الخادم)
+    // 🏛️ المسار المميز يبقى زخرفياً بحتاً (لا موارد حسّاسة) — يُمنح محلياً فقط
+    // إن كان مفتوحاً فعلياً لهذا الموسم (الفتح نفسه مؤكَّد سيرفرياً مسبقاً)
     let premiumReward = null;
     if (this.premiumUnlocked && this.seasonKey === this.currentSeasonKey) {
+      const mult = 1 + this.streakBonusPercent / 100;
       premiumReward = PREMIUM_TRACK_REWARDS[this.currentDay - 1];
       if (premiumReward.reward?.gold) eco.addRaw("gold", Math.floor(premiumReward.reward.gold * mult));
       if (premiumReward.reward?.cash) eco.addRaw("cash", Math.floor(premiumReward.reward.cash * mult));
       if (premiumReward.reward?.food) eco.addRaw("food", Math.floor(premiumReward.reward.food * mult));
     }
     if (this._onClaim) this._onClaim(this.currentDay, reward, premiumReward);
-    return true;
+  }
+
+  /** يُستدعى عند الاتصال إن كان للخادم حالة محفوظة (lastClaimDate/streak) —
+   *  تطابق سيرفرية دائماً، تتجاوز أي حالة محلية قديمة (localStorage) */
+  syncServerState(state) {
+    if (!state) return;
+    this.currentDay = state.currentDay || 0;
+    this.lastClaimDate = state.lastClaimDate || "";
+    this.streak = state.streak || 0;
+    this.claimedMilestones = state.claimedMilestones || [];
+    this.loyalTitleEarned = !!state.loyalTitleEarned;
   }
 
   getState() {

@@ -35,6 +35,10 @@ if (USE_HTTPS) {
 
 const wss = new WebSocketServer({ server });
 
+// 🛡️ حد أقصى لعدد اتصالات WebSocket المتزامنة من نفس IP — انظر التعليق في الملف
+const { createConnectionLimiter } = require("./server/network/connectionLimiter");
+const wsConnectionLimiter = createConnectionLimiter();
+
 try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) { logger.warn({ err: e.message }, "Cannot create DATA_DIR"); }
 
 const databaseHelper = require("./server/db/databaseHelper");
@@ -137,6 +141,14 @@ const { createMarketManager } = require("./server/logic/market-manager");
 const marketManager = createMarketManager({ worldClients, memStore, getDefaultPlayer, markDirty });
 setInterval(() => marketManager.cleanupExpired(), 5 * 60 * 1000); // فحص القوائم المنتهية كل 5 دقائق
 
+// 🏛️ مجلس الشيوخ — مكافآت العودة اليومية سيرفر-موثوقة بالكامل (lastClaimDate/streak في memStore)
+const { createDailyLoginManager } = require("./server/logic/dailyLoginManager");
+const dailyLoginManager = createDailyLoginManager({ memStore, getDefaultPlayer, markDirty });
+
+// 🏆 مكافآت المعركة الملكية — حد أقصى يومي سيرفري (BR نفسها تبقى محاكاة عميلية)
+const { createBattleRoyaleRewards } = require("./server/logic/battleRoyaleRewards");
+const battleRoyaleRewards = createBattleRoyaleRewards({ memStore, getDefaultPlayer, markDirty });
+
 const { createWorldHandler } = require("./server/network/worldHandler");
 const handleWorldConnection = createWorldHandler({
   worldMonsters, worldDrops, worldClients,
@@ -146,7 +158,7 @@ const handleWorldConnection = createWorldHandler({
   claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades,
   applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, sanitizePlayerData,
   warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager,
-  cosmeticsShop, analytics, seasonPassManager, marketManager,
+  cosmeticsShop, analytics, seasonPassManager, marketManager, dailyLoginManager, battleRoyaleRewards,
 });
 
 // 🔔 تذكير دوري بالهدية المجانية للاعبين غير المتصلين — no-op بلا مفاتيح VAPID
@@ -202,6 +214,15 @@ wss.on("connection", (ws, req) => {
     return;
   }
   ws.authUsername = authResult.username;
+
+  // 🛡️ حد أقصى لعدد الاتصالات المتزامنة من نفس IP — يمنع مضاعفة معدل الطلبات
+  // الكلي عبر فتح عشرات الاتصالات (حسابات ضيوف) من جهاز واحد
+  const connIp = req.socket.remoteAddress;
+  if (!wsConnectionLimiter.tryAcquire(connIp)) {
+    ws.close(1008, "Too many connections from this address");
+    return;
+  }
+  ws.on("close", () => wsConnectionLimiter.release(connIp));
 
   ws.isAlive = true;
   ws.lastPingTs = 0;

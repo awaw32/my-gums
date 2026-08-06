@@ -9,6 +9,12 @@ const { WEAPON_DEFS } = require("../db/databaseHelper");
 
 const MAX_LEVEL = 5;
 
+// 🛡️ بونص الضرر لكل نجمة ترقية سلاح — مكرَّر عمداً في js/combat-engine.js
+// (server/ من نوع CommonJS، js/ من نوع ESM؛ لا يمكن استيراد وحدة واحدة مشتركة
+// بينهما دون خطوة بناء). التطابق بين النسختين محمي فعلياً باختبار حقيقي في
+// tests/star-bonus-parity.test.js — أي انحراف مستقبلي سيفشل ذلك الاختبار فوراً.
+const STAR_DAMAGE_BONUS_PER_LEVEL = 0.3;
+
 // تكاليف الترقية لكل مستوى نجمي (0→1, 1→2, 2→3, 3→4, 4→5) — مطابق لـ UPGRADE_COSTS في army.js
 // 🛡️ كانت هذه القيم أعلى بكثير من نسخة العميل (حتى +567% عند 5⭐) بعد أن خُفِّضت
 // أسعار العميل في تعديل توازن لاحق لم يصل لهذا الملف — الخادم كان يخصم أكثر
@@ -129,7 +135,7 @@ function computeWeaponDamageWithUpgrades(data) {
   const wp = weapons.find(w => w.id === weaponId);
   const level = (wp && typeof wp.level === 'number') ? wp.level : 0;
   const baseDamage = def.baseDamage + Math.floor(def.damagePerLevel * level / 2);
-  const bonus = level * 0.3; // كل نجمة +30%
+  const bonus = level * STAR_DAMAGE_BONUS_PER_LEVEL;
   const weaponDamage = Math.floor(baseDamage * (1 + bonus));
   
   return {
@@ -145,6 +151,7 @@ function computeWeaponDamageWithUpgrades(data) {
 module.exports = {
   MAX_LEVEL,
   UPGRADE_COSTS,
+  STAR_DAMAGE_BONUS_PER_LEVEL,
   canUpgradeWeapon,
   applyWeaponUpgrade,
   computeWeaponDamageWithUpgrades,

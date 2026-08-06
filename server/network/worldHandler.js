@@ -29,7 +29,7 @@ function playerColor(username) {
 let _dropIdCounter = 0;
 const DROP_CLEANUP_MS = 60000;
 
-function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager, cosmeticsShop, analytics, seasonPassManager, marketManager }) {
+function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager, cosmeticsShop, analytics, seasonPassManager, marketManager, dailyLoginManager, battleRoyaleRewards }) {
 
   // تنظيف اللاعبين المنقطعين كل 10 ثوانٍ (مهلة 30 ثانية)
   setInterval(() => {
@@ -234,6 +234,15 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         if (marketManager && ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "market_listings_sync", listings: marketManager.getActiveListings() }));
         }
+        // 🏛️ مزامنة حالة مجلس الشيوخ (lastClaimDate/streak) الموثوقة سيرفرياً — تلافي
+        // اعتماد العميل على localStorage وحده كمصدر وحيد للحقيقة
+        if (dailyLoginManager && ws.readyState === 1) {
+          const pDataForSync = memStore.get(username);
+          const dlState = pDataForSync?.dailyLogin;
+          if (dlState) {
+            ws.send(JSON.stringify({ type: "daily_login_state_sync", ...dlState }));
+          }
+        }
         broadcastWorld();
         const joinMsg = JSON.stringify({ type: "player_joined", username });
         worldClients.forEach((c) => {
@@ -361,8 +370,13 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         const target = msg.target;
         const attacker = username;
         const tc = worldClients.get(target);
+        // 🛡️ القوة المعروضة للضحية تُقرأ من حالة المهاجم الموثوقة سيرفرياً
+        // (مضبوطة عند join من memStore) وليس من ادّعاء msg.myPower — كان
+        // العميل يستطيع إرسال أي رقم هنا لتضليل الضحية نفسياً/اجتماعياً
+        // (لا تأثير اقتصادي مباشر، لكنه لا يزال ادّعاءً كاذباً غير موثوق).
+        const ac = worldClients.get(attacker);
         if (tc && tc.ws.readyState === 1) {
-          tc.ws.send(JSON.stringify({ type: "pvp_notify", attacker: esc(attacker), power: msg.myPower || 0 }));
+          tc.ws.send(JSON.stringify({ type: "pvp_notify", attacker: esc(attacker), power: ac?.army_power || 0 }));
         }
       } else if (msg.type === "resolve_pvp" && username) {
         // 🛡️ PvP محسوب بالكامل من الخادم — اللاعب لا يقرر الفائز
@@ -533,6 +547,11 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         if (ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "market_remove_response", ...result }));
         }
+      } else if (msg.type === "daily_login_claim" && username && dailyLoginManager) {
+        const result = dailyLoginManager.claim(username);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "daily_login_claim_response", ...result }));
+        }
       } else if (msg.type === "tribe_help" && username && allianceManager) {
         // 🆘 نداء نجدة — يرسل موقع اللاعب لكل أعضاء تحالفه فقط
         const alliance = allianceManager.getMyAlliance(username);
@@ -613,6 +632,12 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         const endMsg = JSON.stringify({ type: "br_match_end", winner: msg.winner, kills: msg.kills });
         worldClients.forEach((c) => { if (c.partyCode === brClient.partyCode && c.ws.readyState === 1) c.ws.send(endMsg); });
         if (broadcastBus) broadcastBus.publish("br_match_end", { partyCode: brClient.partyCode, winner: msg.winner, kills: msg.kills });
+      } else if (msg.type === "br_claim_reward" && username && battleRoyaleRewards) {
+        // 🛡️ حد أقصى يومي سيرفري على مكافآت BR — انظر التعليق في battleRoyaleRewards.js
+        const result = battleRoyaleRewards.claimReward(username, msg.gems, msg.gold);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "br_claim_reward_response", ...result }));
+        }
       } else if (msg.type === "equip_weapon" && username) {
         const c = worldClients.get(username);
         if (c) {
