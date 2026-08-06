@@ -2,6 +2,7 @@
 
 const { PLAYER_COLORS } = require("../config");
 const logger = require("../logger");
+const { captureException } = require("../sentry");
 const { resolveMonsterKill, simulatePvPFull, computeLoot, computeMonsterReward } = require("../logic/combatResolver");
 const { sendPush } = require("../push");
 const { customAlphabet } = require("nanoid");
@@ -29,7 +30,7 @@ function playerColor(username) {
 let _dropIdCounter = 0;
 const DROP_CLEANUP_MS = 60000;
 
-function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager, cosmeticsShop, analytics, seasonPassManager, marketManager, dailyLoginManager, battleRoyaleRewards }) {
+function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSystem, memStore, getDefaultPlayer, markDirty, computeArmyYardUpgradeCost, computeArmyYardStats, computeKnowledgeUpgradeCost, computeKnowledgeBonuses, claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades, applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager, cosmeticsShop, analytics, seasonPassManager, marketManager, dailyLoginManager, battleRoyaleRewards, pveModeRewards, achievementRewards }) {
 
   // تنظيف اللاعبين المنقطعين كل 10 ثوانٍ (مهلة 30 ثانية)
   setInterval(() => {
@@ -115,6 +116,13 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
       if (raw.length > 10240) { ws.close(1009, "Message too large"); return; }
       let msg;
       try { msg = JSON.parse(raw); } catch { return; }
+
+      // 🛡️ استثناء غير متوقع داخل أي معالج رسالة (خطأ برمجي حقيقي) كان يُبتلع
+      // بصمت تام (لا تسجيل، لا Sentry) أو يتسبب بانهيار العملية بالكامل
+      // (uncaughtException يوقف الخادم لكل اللاعبين بسبب رسالة واحدة فاسدة من
+      // عميل واحد). الآن يُسجَّل ويُرسَل لـ Sentry مع نوع الرسالة، والاتصال
+      // نفسه فقط يتأثر (بقية اللاعبين والخادم يستمران بلا انقطاع).
+      try {
 
       if (msg.type === "join") {
         username = msg.username;
@@ -638,6 +646,24 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         if (ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "br_claim_reward_response", ...result }));
         }
+      } else if (msg.type === "pve_claim_reward" && username && pveModeRewards) {
+        // 🛡️ حد أقصى يومي سيرفري + فحص معقولية على مكافآت Horde/Cave/Extraction
+        const result = pveModeRewards.claimModeReward(username, msg.mode, msg.payload || {});
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "pve_claim_reward_response", mode: msg.mode, ...result }));
+        }
+      } else if (msg.type === "alliance_raid_claim_reward" && username && pveModeRewards) {
+        // 🛡️ جدول مكافآت ثابت سيرفرياً حسب مستوى الغارة + حد أقصى يومي
+        const result = pveModeRewards.claimAllianceRaidReward(username, msg.raidLevel);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "alliance_raid_claim_reward_response", ...result }));
+        }
+      } else if (msg.type === "achievement_claim_reward" && username && achievementRewards) {
+        // 🛡️ جدول مكافآت ثابت سيرفرياً + استلام واحد فقط لكل إنجاز + سقف كلي
+        const result = achievementRewards.claimAchievement(username, msg.achievementId);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "achievement_claim_reward_response", ...result }));
+        }
       } else if (msg.type === "equip_weapon" && username) {
         const c = worldClients.get(username);
         if (c) {
@@ -828,6 +854,11 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
           const reply = JSON.stringify({ type: "upgrade_research_ack", ...result });
           if (c.ws.readyState === 1) c.ws.send(reply);
         }
+      }
+
+      } catch (err) {
+        logger.error({ err: err.message, stack: err.stack, msgType: msg?.type, username }, "[WorldWS] unhandled error in message handler");
+        captureException(err, { tags: { where: "worldHandler.message" }, extra: { msgType: msg?.type, username } });
       }
     });
 

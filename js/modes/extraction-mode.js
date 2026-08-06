@@ -171,8 +171,15 @@ export class ExtractionMode {
       this._extractionActive = false;
       const bonus = this._totalDeposited > 0 ? Math.floor(this._totalDeposited * 0.2) : 0;
       if (bonus > 0) {
+        // 🛡️ مكافأة إتمام الوقت تُطلب من الخادم بدل تطبيقها محلياً مباشرة
+        if (w._sendWS) {
+          w._sendWS({
+            type: "pve_claim_reward", mode: "extraction",
+            payload: { gold: bonus, deposited: this._totalDeposited },
+          });
+        }
         w.sessionStats.coinsEarned += bonus;
-        w.worldFx.push({ x: w.leader.x, y: w.leader.y, text: `⏰ انتهى الوقت! مكافأة: +${bonus} 💵`, color: "#FFD700", life: 3, maxLife: 3 });
+        w.worldFx.push({ x: w.leader.x, y: w.leader.y, text: `⏰ انتهى الوقت! مكافأة: +${bonus} 💵 (بانتظار تأكيد الخادم)`, color: "#FFD700", life: 3, maxLife: 3 });
       }
       if (typeof document !== "undefined") {
         showModeResultScreen(w, {
@@ -244,12 +251,16 @@ export class ExtractionMode {
     const rewardMult = 1 + (this._currentUpgrades.depositReward - 1) * 0.25;
     const deposited = Math.floor(this._carryingGold * rewardMult);
     this._totalDeposited += deposited;
-    if (w.economy) {
-      w.economy.addRaw("gold", deposited);
-      const xpGain = Math.floor(deposited * 0.5);
-      w.economy.addXp(xpGain);
-      this._extractionXp += xpGain;
+    const xpGain = Math.floor(deposited * 0.5);
+    // 🛡️ الذهب/الخبرة الحقيقيان يُطلبان من الخادم بدل تطبيقهما محلياً مباشرة —
+    // مستوى الاستخراج المحلي (_extractionXp) يبقى تقدماً زخرفياً للوضع نفسه فقط
+    if (w._sendWS) {
+      w._sendWS({
+        type: "pve_claim_reward", mode: "extraction",
+        payload: { gold: deposited, xp: xpGain, deposited: this._totalDeposited },
+      });
     }
+    this._extractionXp += xpGain;
     // تأثير تسليم احترافي
     for (let i = 0; i < 5; i++) {
       setTimeout(() => {
@@ -407,9 +418,12 @@ export class ExtractionMode {
     w.monsters = [];
     w.drops = [];
     w.treasureChests = [];
-    // حفظ الذهب الذي تم تسليمه قبل الخروج
-    if (this._totalDeposited > 0 && w.economy) {
-      w.economy.addRaw("gold", Math.floor(this._totalDeposited * 0.1));
+    // 🛡️ مكافأة الخروج المبكر تُطلب من الخادم بدل تطبيقها محلياً مباشرة
+    if (this._totalDeposited > 0 && w._sendWS) {
+      w._sendWS({
+        type: "pve_claim_reward", mode: "extraction",
+        payload: { gold: Math.floor(this._totalDeposited * 0.1), deposited: this._totalDeposited },
+      });
     }
     this._carryingGold = 0;
     this._totalDeposited = 0;

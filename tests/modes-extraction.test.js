@@ -26,6 +26,10 @@ function createMockWorld() {
       },
       addXp() {},
     },
+    // 🛡️ المكافآت الحقيقية تُطلب من الخادم الآن (server/logic/pveModeRewards.js)
+    // بدل economy.addRaw المباشر — هذا الـ mock يسجّل الطلبات المُرسَلة فقط
+    _sentMessages: [],
+    _sendWS(data) { this._sentMessages.push(data); },
     initArmyUnits() {},
     createMonster(id, x, y, override) {
       return {
@@ -177,13 +181,27 @@ describe("ExtractionMode", () => {
     expect(mode._extractionActive).toBe(false);
   });
 
-  it("should exit cleanly and give bonus", () => {
+  it("should exit cleanly and request exit bonus from the server (not apply it locally)", () => {
     mode.init();
     mode._totalDeposited = 1000;
     const goldBefore = world.economy.gold;
     mode.exit();
     expect(world.mode).toBe("campaign");
     expect(world._pvpDisabled).toBe(false);
-    expect(world.economy.gold).toBe(goldBefore + 100);
+    // 🛡️ المكافأة لم تعد تُطبَّق محلياً مباشرة — فقط تُطلَب من الخادم
+    expect(world.economy.gold).toBe(goldBefore);
+    const req = world._sentMessages.find(m => m.type === "pve_claim_reward" && m.mode === "extraction");
+    expect(req).toBeTruthy();
+    expect(req.payload.gold).toBe(100);
+    expect(req.payload.deposited).toBe(1000);
+  });
+
+  it("should request the deposit reward from the server instead of crediting it locally", () => {
+    mode.init();
+    mode._carryingGold = 200;
+    mode._depositGold();
+    const req = world._sentMessages.find(m => m.type === "pve_claim_reward" && m.mode === "extraction");
+    expect(req).toBeTruthy();
+    expect(req.payload.deposited).toBeGreaterThanOrEqual(200);
   });
 });

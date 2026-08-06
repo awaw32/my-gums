@@ -3,6 +3,9 @@
 const { computePlayerStats } = require("./formulas");
 const { ENEMY_TYPES } = require("../data/enemies");
 const { WEAPON_DEFS } = require("../db/databaseHelper");
+const { getAllianceBonuses } = require("./allianceManager");
+const { getAlliance } = require("../db/allianceHelper");
+const { computeUpgradeTreeEffects } = require("../db/upgradeTree");
 
 // 🛡️ لم تكن هذه النسخة مقروءة من أي منطق قتال فعلي في هذا الملف (الضرر الحقيقي
 // يمر عبر computePlayerStats → weaponUpgrade.js)، بل كانت نسخة ثامنة منفصلة
@@ -176,6 +179,17 @@ function resolveMonsterKill(playerData, monster, now) {
   };
 }
 
+// 🛡️ سقف أقصى لتخفيض الضرر عبر defenseBuff (معرفة عسكرية + بحث + تحالف) —
+// يمنع أي تراكم مستقبلي للمكافآت من جعل لاعب غير قابل للقتل فعلياً (0 ضرر)
+const MAX_DEFENSE_REDUCTION_PERCENT = 60;
+
+/** يحوّل defenseBuff (نسبة مئوية، قد تتجاوز 100 نظرياً) إلى معامل تخفيض ضرر
+ *  محصور بين 0 و(1 - سقف الحماية الأقصى) */
+function defenseDamageMultiplier(defenseBuffPercent) {
+  const clampedPercent = Math.max(0, Math.min(MAX_DEFENSE_REDUCTION_PERCENT, defenseBuffPercent || 0));
+  return 1 - clampedPercent / 100;
+}
+
 function simulatePvPFull(attacker, defender) {
   const aStats = computePlayerStats(attacker);
   const bStats = computePlayerStats(defender);
@@ -186,6 +200,11 @@ function simulatePvPFull(attacker, defender) {
   const aDmg = Math.max(1, Math.floor(aStats.totalDamage * 0.6));
   const bDmg = Math.max(1, Math.floor(bStats.totalDamage * 0.6));
 
+  // 🛡️ defenseBuff (معرفة عسكرية + بحث + دفاع مستوى التحالف) يخفّض فعلياً
+  // الضرر الوارد على كل طرف — كان محسوباً ومُخزَّناً بلا أي استهلاك حقيقي هنا
+  const aDefenseMult = defenseDamageMultiplier(aStats.defenseBuff);
+  const bDefenseMult = defenseDamageMultiplier(bStats.defenseBuff);
+
   let aCur = aHp, bCur = bHp;
   let rounds = 0;
   const maxRounds = 50;
@@ -193,8 +212,8 @@ function simulatePvPFull(attacker, defender) {
   while (aCur > 0 && bCur > 0 && rounds < maxRounds) {
     const aCrit = Math.random() < aStats.critChance;
     const bCrit = Math.random() < bStats.critChance;
-    const aHit = aCrit ? Math.floor(aDmg * aStats.critMultiplier) + 12 : aDmg;
-    const bHit = bCrit ? Math.floor(bDmg * bStats.critMultiplier) + 12 : bDmg;
+    const aHit = Math.max(1, Math.floor((aCrit ? Math.floor(aDmg * aStats.critMultiplier) + 12 : aDmg) * bDefenseMult));
+    const bHit = Math.max(1, Math.floor((bCrit ? Math.floor(bDmg * bStats.critMultiplier) + 12 : bDmg) * aDefenseMult));
     bCur -= aHit;
     aCur -= bHit;
     rounds++;
@@ -232,6 +251,26 @@ function computeMonsterReward(monster, playerData) {
   const powerCap = Math.floor(power * 0.15);
   cash = Math.min(cash, powerCap);
   gold = Math.min(gold, Math.floor(powerCap * 0.3));
+  // 🛡️ دخل مستوى التحالف (allianceIncomeMult) — كان محسوباً في formulas.js
+  // ومُعاداً ضمن computePlayerStats لكن غير مستخدَم في أي مصدر دخل حقيقي على
+  // الخادم؛ يُطبَّق هنا على مكافأة قتل الوحوش (المصدر الفعلي الوحيد للدخل
+  // الذي يحسمه الخادم) بعد سقف القوة، حتى لا يفلت من حد الأمان.
+  const incomeMult = getAllianceBonuses(playerData.allianceId, getAlliance).incomeMult;
+  if (incomeMult > 1) {
+    cash = Math.floor(cash * incomeMult);
+    gold = Math.floor(gold * incomeMult);
+  }
+  // 🛡️ مساري "المعرفة" و"التجارة" من شجرة الترقيات — نفس المشكلة بالضبط
+  // (js/main.js: economy.knowledgeGoldBonus/tradeIncomeBonus مضروبة محلياً
+  // فقط في economy.addRaw). knowledgeGoldMult على الذهب حصراً وtradeIncomeMult
+  // على المال حصراً — نفس التخصيص بالضبط في js/economy.js addRaw().
+  const upgradeTreeEffects = computeUpgradeTreeEffects(playerData);
+  if (upgradeTreeEffects.knowledgeGoldMult > 1) {
+    gold = Math.floor(gold * upgradeTreeEffects.knowledgeGoldMult);
+  }
+  if (upgradeTreeEffects.tradeIncomeMult > 1) {
+    cash = Math.floor(cash * upgradeTreeEffects.tradeIncomeMult);
+  }
   const artifacts = monster.isBoss ? 1 + Math.floor(Math.random() * 2) : 0;
   const desertGem = monster.enemyId === "final_boss" ? 1 : 0;
   const cashBonus = monster.isBoss ? Math.floor(cash * 0.5) : 0;
@@ -245,4 +284,6 @@ module.exports = {
   computeLoot,
   computeMonsterReward,
   WEAPON_COMBAT_STATS,
+  defenseDamageMultiplier,
+  MAX_DEFENSE_REDUCTION_PERCENT,
 };

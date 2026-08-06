@@ -99,6 +99,12 @@ async function getOrPromptUsername() {
       <p style="font-size:0.6rem;color:var(--text-secondary);margin-top:8px">
         الحسابات القديمة: أدخل كلمة مرور جديدة لترقية حسابك
       </p>
+      <p style="font-size:0.6rem;color:var(--text-secondary);margin-top:6px">
+        بمتابعتك أنت توافق على
+        <a href="/terms.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">شروط الاستخدام</a>
+        و
+        <a href="/privacy.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">سياسة الخصوصية</a>
+      </p>
     </div>
   `;
   Object.assign(overlay.style, {
@@ -379,6 +385,7 @@ async function init() {
   const netSync = new NetworkSync(API_BASE, PLAYER_USERNAME);
   world.netSync = netSync;
   netSync.world = world;
+  window._netSync = netSync; // 🛡️ يتيح زر "إعادة المحاولة" في مؤشر الانقطاع استدعاء retryConnection()
   world.store = store;
   allianceManager.netSync = netSync;
   allianceManager.attachToWorld(world);
@@ -397,7 +404,8 @@ async function init() {
   const audio = new AudioManager();
   window._audio = audio;
   const hero = new GameHero();
-  const achievements = new AchievementManager(economy);
+  const achievements = new AchievementManager(economy, netSync);
+  window._achievements = achievements; // 🛡️ يتيح توجيه رد الخادم achievement_claim_reward_response إليها
   const dailyLogin = new DailyLoginManager(economy, netSync);
   window._dailyLoginRef = dailyLogin;
   const storyManager = new StoryManager(economy, village, army, allianceManager, hero);

@@ -1323,11 +1323,18 @@ export class GameUI {
         if (btn) {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (this.achievements.claim(a.id)) {
-              this.renderAchievements();
-              this.updateTopBar();
-              this.showNotification(`🏆 حصلت على ${rewardStr}`);
-            }
+            // 🛡️ الاستلام الفعلي يتم على الخادم — هذا الـ callback يُستدعى فقط
+            // بعد تأكيد الخادم فعلياً (وليس فوراً عند النقر)
+            this.achievements._onClaimResponse = (msg) => {
+              if (msg.ok) {
+                this.renderAchievements();
+                this.updateTopBar();
+                this.showNotification(`🏆 حصلت على ${rewardStr}`);
+              } else if (msg.reason !== 'already_claimed') {
+                this.showNotification('❌ تعذّر استلام المكافأة');
+              }
+            };
+            this.achievements.claim(a.id);
           });
         }
       }

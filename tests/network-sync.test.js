@@ -179,4 +179,63 @@ describe('NetworkSync', () => {
       expect(() => ns.send({ type: 'test' })).not.toThrow();
     });
   });
+
+  describe('🛡️ طابور الأوامر المعلَّقة أثناء الانقطاع (كانت الأوامر تُفقد بصمت تماماً)', () => {
+    it('يخزّن رسالة قابلة للطابور (queueable) في الطابور عند غياب اتصال مفتوح', () => {
+      ns.send({ type: 'market_buy', listingId: 'x' });
+      expect(ns._pendingQueue).toHaveLength(1);
+      expect(ns._pendingQueue[0].type).toBe('market_buy');
+    });
+
+    it('لا يخزّن رسالة صُرِّح صراحة بعدم تخزينها (queueable:false)', () => {
+      ns.send({ type: 'update', x_position: 100 }, { queueable: false });
+      expect(ns._pendingQueue).toHaveLength(0);
+    });
+
+    it('لا يتجاوز الطابور حده الأقصى — يُسقِط الأقدم أولاً', () => {
+      for (let i = 0; i < ns._MAX_QUEUE_SIZE + 10; i++) {
+        ns.send({ type: 'test', seq: i });
+      }
+      expect(ns._pendingQueue.length).toBe(ns._MAX_QUEUE_SIZE);
+      // أول عنصر متبقٍّ يجب أن يكون قد تجاوز العناصر الأقدم المُسقَطة
+      expect(ns._pendingQueue[0].seq).toBeGreaterThan(0);
+    });
+
+    it('_flushPendingQueue يرسل كل ما تراكم عبر الاتصال المفتوح ويُفرغ الطابور', () => {
+      const sent = [];
+      ns._ws = { readyState: WebSocket.OPEN, send: (data) => sent.push(JSON.parse(data)) };
+      ns._pendingQueue = [{ type: 'a' }, { type: 'b' }];
+      ns._flushPendingQueue();
+      expect(sent.map(m => m.type)).toEqual(['a', 'b']);
+      expect(ns._pendingQueue).toHaveLength(0);
+    });
+
+    it('_flushPendingQueue لا يفعل شيئاً إن كان الطابور فارغاً', () => {
+      const sent = [];
+      ns._ws = { readyState: WebSocket.OPEN, send: (data) => sent.push(data) };
+      ns._flushPendingQueue();
+      expect(sent).toHaveLength(0);
+    });
+  });
+
+  describe('🛡️ إعادة الاتصال — retryConnection وحالة الفشل النهائي', () => {
+    it('retryConnection يعيد ضبط عداد المحاولات إلى صفر', () => {
+      ns._wsReconnectCount = 7;
+      ns._connectWS = () => {}; // تعطيل الاتصال الفعلي لهذا الاختبار
+      ns.retryConnection();
+      expect(ns._wsReconnectCount).toBe(0);
+    });
+
+    it('retryConnection يلغي أي مؤقت إعادة اتصال معلَّق قبل المحاولة الفورية', () => {
+      let cleared = false;
+      ns._wsReconnectTimer = setTimeout(() => {}, 100000);
+      const originalClear = global.clearTimeout;
+      global.clearTimeout = (t) => { cleared = true; originalClear(t); };
+      ns._connectWS = () => {};
+      ns.retryConnection();
+      global.clearTimeout = originalClear;
+      expect(cleared).toBe(true);
+      expect(ns._wsReconnectTimer).toBeNull();
+    });
+  });
 });

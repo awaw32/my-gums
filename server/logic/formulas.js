@@ -6,6 +6,7 @@ const { getResearchEffects } = require("../db/research");
 const { computeWeaponDamageWithUpgrades } = require("./weaponUpgrade");
 const { getAllianceBonuses } = require("./allianceManager");
 const { getAlliance } = require("../db/allianceHelper");
+const { computeUpgradeTreeEffects } = require("../db/upgradeTree");
 
 // 🛡️ مكرَّرة عمداً في js/economy.js (KNOWLEDGE_BUFFS) — server/ من نوع CommonJS،
 // js/ من نوع ESM؛ لا يمكن استيراد وحدة واحدة مشتركة بينهما دون خطوة بناء.
@@ -57,13 +58,18 @@ function computePlayerStats(data) {
   // تطبيق سيرفري، فلا تؤثر إطلاقاً على PvP/قتل الوحوش التي يحسمها الخادم.
   // نفس الصيغة بالضبط: إضافة مباشرة (flat) على totalDamage.
   const allianceBonuses = getAllianceBonuses(data.allianceId, getAlliance);
+  // 🛡️ تأثير مسار "الجيش" من شجرة الترقيات — نفس المشكلة تماماً بالضبط
+  // (js/combat-engine.js: totalDamage += upgradeTree.getEffect("army"))، والمستوى
+  // مُحصَر هنا ضمن الحد الحقيقي الأقصى (5 مستويات) بغض النظر عمّا يرسله الحفظ.
+  const upgradeTreeEffects = computeUpgradeTreeEffects(data);
   let totalDamage = baseDMG
     + Math.floor(armyPower / 10)
     + playerLevel
     + unitLevel * 2
     + prestigeLevel * 3
     + weaponStats.weaponDamage
-    + allianceBonuses.damageBonus;
+    + allianceBonuses.damageBonus
+    + upgradeTreeEffects.armyDamageBonus;
 
   let critChance = weaponStats.critChance;
   let critMultiplier = weaponStats.critMultiplier;
@@ -76,9 +82,14 @@ function computePlayerStats(data) {
     ? (KNOWLEDGE_MILITARY_BUFFS.moveSpeedPercent[Math.min(knowledgeLevel, KNOWLEDGE_MILITARY_BUFFS.moveSpeedPercent.length - 1)] || 0)
     : 0) + researchMoveSpeed;
 
+  // 🛡️ دفاع مستوى التحالف (allianceBonuses.defenseBonus) ودفاع مسار "الدفاع"
+  // من شجرة الترقيات (upgradeTreeEffects.defensePercent) يُضافان هنا فعلياً —
+  // كانا محسوبين على العميل فقط بلا أي استهلاك سيرفري، فبقيا وعداً بصرياً بحتاً
+  // رغم أن اللاعب يدفع ذهباً حقيقياً لترقيتهما. النسبة النهائية تبقى محصورة
+  // بسقف MAX_DEFENSE_REDUCTION_PERCENT في combatResolver.js عند الاستهلاك.
   const defenseBuff = (knowledgeType === "military"
     ? (KNOWLEDGE_MILITARY_BUFFS.defensePercent[Math.min(knowledgeLevel, KNOWLEDGE_MILITARY_BUFFS.defensePercent.length - 1)] || 0)
-    : 0) + researchDefense;
+    : 0) + researchDefense + allianceBonuses.defenseBonus + upgradeTreeEffects.defensePercent;
 
   const resourceSpeed = (knowledgeType === "economic"
     ? (KNOWLEDGE_ECONOMIC_BUFFS.resourceSpeed[Math.min(knowledgeLevel, KNOWLEDGE_ECONOMIC_BUFFS.resourceSpeed.length - 1)] || 1)

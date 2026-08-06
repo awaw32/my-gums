@@ -326,15 +326,22 @@ export class CaveMode {
     const w = this.world;
     let bonus = Math.floor(this._caveScore * 0.2 + this._rareItemsCollected * 50 + this._caveDepth * 30);
     if (this._caveVictoryAchieved) bonus *= 2; // مضاعفة المكافأة لمن هزم حارس الكهف الأخير
-    if (w.economy) {
-      w.economy.addRaw("gold", bonus);
-      w.economy.addXp(Math.floor(this._caveScore * 0.3));
+    const xpGain = Math.floor(this._caveScore * 0.3);
+
+    // 🛡️ المكافأة تُطلب من الخادم (حد أقصى يومي + فحص معقولية depth/rareItems)
+    // بدل تطبيقها محلياً مباشرة — انظر server/logic/pveModeRewards.js
+    if (w._sendWS) {
+      w._sendWS({
+        type: "pve_claim_reward", mode: "cave",
+        payload: { gold: bonus, xp: xpGain, depth: this._caveDepth, rareItems: this._rareItemsCollected },
+      });
     }
+
     w.worldFx.push({
       x: w.leader.x, y: w.leader.y - 30,
       text: this._caveVictoryAchieved
-        ? `🏆 انتصار! خرجت منتصراً بمكافأة مضاعفة: ${bonus} 🪙 | جوهرات نادرة: ${this._rareItemsCollected} 💎`
-        : `🚪 خرجت من الكهف! مكافأة: ${bonus} 🪙 | جوهرات نادرة: ${this._rareItemsCollected} 💎`,
+        ? `🏆 انتصار! خرجت منتصراً بمكافأة مضاعفة: ${bonus} 🪙 | جوهرات نادرة: ${this._rareItemsCollected} 💎 (بانتظار تأكيد الخادم)`
+        : `🚪 خرجت من الكهف! مكافأة: ${bonus} 🪙 | جوهرات نادرة: ${this._rareItemsCollected} 💎 (بانتظار تأكيد الخادم)`,
       color: "#FFD700", life: 3, maxLife: 3
     });
     if (typeof document !== "undefined") {

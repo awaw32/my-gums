@@ -126,16 +126,38 @@ function validateResourceDelta(existing, incoming) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  🛡️ مكافحة الغش — Prestige (js/prestige.js) لا مسار WS له، يُحسب محلياً
+//  بالكامل ثم يُحفَظ عبر /api/players مباشرة. دالة مشتركة بين validateWeapons
+//  Change وvalidateProgressionChange لتفادي رفض حفظة Prestige شرعية (تُصفِّر
+//  مستويات الأسلحة إلى 0 كجزء طبيعي من إعادة التعيين) مع بقاء الحماية ضد أي
+//  prestigeLevel مزيَّف لا يرافقه بلوغ فعلي للمستوى الأقصى.
+// ═══════════════════════════════════════════════════════════════════
+const PLAYER_MAX_LEVEL = 110; // مطابق تماماً لـ economy.maxLevel في js/economy.js
+
+function isValidPrestigeTransition(existing, incoming) {
+  const existingPrestige = existing.prestigeLevel || 0;
+  return (
+    incoming.prestigeLevel === existingPrestige + 1 &&
+    (existing.level || 1) >= PLAYER_MAX_LEVEL &&
+    incoming.level === 1
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  🛡️ مكافحة الغش — التحقق من تغييرات مصفوفة الأسلحة (weapons)
 //  المسار الشرعي الوحيد لترقية سلاح مملوك هو رسالة WS "weapon_upgrade"
 //  (applyWeaponUpgrade في weaponUpgrade.js، محقّقة بالفعل). هذا التحقق
 //  يمنع أي محاولة لتعديل مستوى سلاح موجود أو إضافة سلاح دون دفع ثمنه
-//  عبر مسارات الحفظ العامة (/api/players و /api/upgrades).
+//  عبر مسارات الحفظ العامة (/api/players و /api/upgrades) — باستثناء حفظة
+//  Prestige شرعية حقيقية (isValidPrestigeTransition)، التي تُصفِّر كل مستويات
+//  الأسلحة عمداً كجزء من إعادة التعيين الموثَّقة في js/prestige.js.
 // ═══════════════════════════════════════════════════════════════════
 function validateWeaponsChange(existing, incoming) {
   if (incoming.weapons === undefined) return { ok: true };
   const incomingWeapons = incoming.weapons;
   if (!Array.isArray(incomingWeapons)) return { ok: false, reason: "invalid weapons format" };
+
+  const isPrestigeReset = incoming.prestigeLevel !== undefined && isValidPrestigeTransition(existing, incoming);
 
   const existingWeapons = existing.weapons || [];
   const existingById = new Map(existingWeapons.map(w => [w.id, w]));
@@ -152,6 +174,7 @@ function validateWeaponsChange(existing, incoming) {
       newWeapon = w;
       continue;
     }
+    if (isPrestigeReset) continue; // 🛡️ إعادة تعيين Prestige شرعية — تخطَّ فحص تغيير المستوى لهذا السلاح
     // سلاح مملوك مسبقاً — يُمنع تغيير مستواه هنا؛ الترقية فقط عبر weapon_upgrade
     if ((w.level || 0) !== (old.level || 0) ||
         (w.starLevel || 1) !== (old.starLevel || 1) ||
@@ -193,6 +216,58 @@ function validateWeaponsChange(existing, incoming) {
   return { ok: true };
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  🛡️ مكافحة الغش — التحقق من السيطرة على الواحات (oases)
+//  js/oasis-manager.js لا مسار WS له إطلاقاً — capture() تُحسب بالكامل محلياً
+//  (قوة + خصم ذهب) ثم تُحفَظ عبر /api/players مباشرة (captured:true). عميل
+//  خبيث يستطيع إرسال captured:true لكل الواحات المعادية (حتى 3000 قوة مطلوبة
+//  واقعياً) بلا دفع الذهب فعلياً ولا امتلاك القوة الحقيقية — دخل إضافي حتى
+//  ~500/ثانية إضافية بلا أي تكلفة، لا يُكتشف بسقف معدل الموارد العام لأنه
+//  يبدو كدخل طبيعي مرتفع. الجدول أدناه مطابق حرفياً لـ OASIS_DATA في
+//  js/oasis-manager.js.
+// ═══════════════════════════════════════════════════════════════════
+const OASIS_CAPTURE_DATA = {
+  1: { status: "free", capturePower: 0, cost: 0 },
+  2: { status: "hostile", capturePower: 200, cost: 200 },
+  3: { status: "hostile", capturePower: 500, cost: 300 },
+  4: { status: "hostile", capturePower: 1200, cost: 400 },
+  5: { status: "hostile", capturePower: 3000, cost: 500 },
+};
+
+function validateOasesChange(existing, incoming) {
+  if (incoming.oases === undefined) return { ok: true };
+  if (!Array.isArray(incoming.oases)) return { ok: false, reason: "invalid oases format" };
+
+  const existingById = new Map((existing.oases || []).map(o => [o.id, o]));
+  const newlyCaptured = [];
+  for (const o of incoming.oases) {
+    if (!o || typeof o.id !== "number") continue;
+    const def = OASIS_CAPTURE_DATA[o.id];
+    if (!def) continue; // id غير معروف — يُتجاهل بلا رفض الحفظة كاملة (توافقية)
+    const wasCaptured = existingById.get(o.id)?.captured === true;
+    if (o.captured === true && !wasCaptured && def.status === "hostile") {
+      newlyCaptured.push({ id: o.id, def });
+    }
+  }
+  if (newlyCaptured.length === 0) return { ok: true };
+
+  const power = incoming.army_power !== undefined ? incoming.army_power : (existing.army_power || 0);
+  const oldGold = existing.gold || 0;
+  const newGold = incoming.gold !== undefined ? incoming.gold : oldGold;
+  const goldSpent = oldGold - newGold;
+  let requiredCost = 0;
+  for (const { id, def } of newlyCaptured) {
+    if (power < def.capturePower) {
+      return { ok: false, reason: `oasis ${id} capture rejected — insufficient power` };
+    }
+    requiredCost += def.cost;
+  }
+  if (goldSpent < requiredCost - 0.01) {
+    return { ok: false, reason: "insufficient gold decrease for oasis capture" };
+  }
+  return { ok: true };
+}
+
 function validateEquippedWeapon(existing, incoming) {
   if (incoming.equippedWeapon === undefined) return { ok: true };
   if (incoming.equippedWeapon === "") return { ok: true };
@@ -215,7 +290,19 @@ function validateProgressionChange(existing, incoming) {
   if (incoming.knowledgeLevel !== undefined && incoming.knowledgeLevel !== (existing.knowledgeLevel || 1)) {
     return { ok: false, reason: "knowledgeLevel change rejected — use upgrade_knowledge" };
   }
+  // 🛡️ Prestige (js/prestige.js) لا مسار WS له إطلاقاً — يُحسب ويُطبَّق بالكامل
+  // محلياً (level→1، موارد ابتدائية، dmgMult/xpMult) ثم يُحفَظ مباشرة عبر
+  // /api/players. prestigeLevel يُستهلَك فعلياً في computePlayerStats
+  // (totalDamage += prestigeLevel*3، maxHp += prestigeLevel*5) — أي عميل خبيث
+  // يرسل prestigeLevel مزيَّفاً يحصل على ضرر/صحة إضافيين حقيقيين في أي معركة
+  // PvP يحسمها الخادم، بلا أي حاجة للوصول الفعلي للمستوى 110.
+  const existingPrestige = existing.prestigeLevel || 0;
+  if (incoming.prestigeLevel !== undefined && incoming.prestigeLevel !== existingPrestige) {
+    if (!isValidPrestigeTransition(existing, incoming)) {
+      return { ok: false, reason: "prestigeLevel change rejected — requires reaching max level once" };
+    }
+  }
   return { ok: true };
 }
 
-module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange };
+module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange, PLAYER_MAX_LEVEL, OASIS_CAPTURE_DATA };

@@ -61,11 +61,15 @@ const ACHIEVEMENTS = [
 ];
 
 export class AchievementManager {
-  constructor(economy) {
+  constructor(economy, netSync = null) {
     this.economy = economy;
+    this.netSync = netSync;
     this.achievements = ACHIEVEMENTS.map(a => ({ ...a, completed: false, claimed: false, progress: 0 }));
     this.listeners = [];
     this._onUnlock = null;
+    // 🛡️ معرّفات معلَّقة بانتظار رد الخادم — تمنع نقر متكرر يرسل طلبات مكررة
+    this._pendingClaims = new Set();
+    this._onClaimResponse = null;
   }
 
   getAll() { return this.achievements; }
@@ -89,15 +93,34 @@ export class AchievementManager {
     }
   }
 
+  /** يرسل طلب استلام للخادم — الموارد لا تُطبَّق هنا إطلاقاً، فقط بعد تأكيد
+   *  الخادم عبر _handleClaimResponse. كان claim() يمنح الموارد محلياً فوراً
+   *  بمجرد ادّعاء العميل completed=true بلا أي تحقق سيرفري. */
   claim(id) {
     const a = this.achievements.find(x => x.id === id);
     if (!a || !a.completed || a.claimed) return false;
-    a.claimed = true;
-    const eco = this.economy;
-    if (a.reward.gold) eco.addRaw("gold", a.reward.gold);
-    if (a.reward.gems) eco.addRaw("gems", a.reward.gems);
-    if (a.reward.cash) eco.addRaw("cash", a.reward.cash);
+    if (this._pendingClaims.has(id)) return false;
+    if (!this.netSync || !this.netSync.isConnected) return false;
+    this._pendingClaims.add(id);
+    this.netSync.send({ type: "achievement_claim_reward", achievementId: id });
     return true;
+  }
+
+  /** يُستدعى من handleNetMessage عند وصول achievement_claim_reward_response */
+  _handleClaimResponse(msg) {
+    this._pendingClaims.delete(msg.achievementId);
+    if (!msg.ok) {
+      if (this._onClaimResponse) this._onClaimResponse(msg);
+      return;
+    }
+    const a = this.achievements.find(x => x.id === msg.achievementId);
+    if (a) a.claimed = true;
+    const eco = this.economy;
+    const granted = msg.granted || {};
+    if (granted.gold) eco.addRaw("gold", granted.gold);
+    if (granted.gems) eco.addRaw("gems", granted.gems);
+    if (granted.cash) eco.addRaw("cash", granted.cash);
+    if (this._onClaimResponse) this._onClaimResponse(msg);
   }
 
   loadState(saved) {

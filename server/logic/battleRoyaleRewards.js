@@ -24,6 +24,14 @@ const MAX_GEMS_PER_DAY = 3000;
 const MAX_GOLD_PER_DAY = 6000;
 // حد أدنى بين مطالبتين — يمنع إغراق الخادم بمئات الطلبات في الثانية
 const MIN_CLAIM_INTERVAL_MS = 5000;
+// 🛡️ حد أقصى للقتلى المقبولة في مطالبة واحدة — brKills عداد محلي غير موثوق
+// (يُحسب من رسائل بث بين الأقران أنفسهم، بلا تحقق خادمي للمباراة نفسها).
+// بدون هذا الحد، لاعب يضخّم brKills محلياً (استدعاء منطق القتل وهمياً) يقدر
+// يستنزف سقفه اليومي بالكامل بمطالبة واحدة "مباراة وهمية" بدل ~15 مباراة حقيقية.
+// 20 قتيل أعلى بكثير من أي مباراة واقعية بحجم الحفلات في هذه اللعبة.
+const MAX_KILLS_PER_CLAIM = 20;
+const MAX_GEMS_PER_CLAIM = 50 + MAX_KILLS_PER_CLAIM * 25;
+const MAX_GOLD_PER_CLAIM = 100 + MAX_KILLS_PER_CLAIM * 30;
 
 function createBattleRoyaleRewards(deps) {
   const { memStore, getDefaultPlayer, markDirty } = deps;
@@ -50,8 +58,12 @@ function createBattleRoyaleRewards(deps) {
       return { ok: false, reason: "too_frequent" };
     }
 
-    const reqGems = Math.max(0, Math.floor(Number(requestedGems) || 0));
-    const reqGold = Math.max(0, Math.floor(Number(requestedGold) || 0));
+    const rawGems = Math.max(0, Math.floor(Number(requestedGems) || 0));
+    const rawGold = Math.max(0, Math.floor(Number(requestedGold) || 0));
+    // 🛡️ يُقصّ لحد المطالبة الواحدة أولاً — قبل أي فحص للسقف اليومي — كي لا
+    // يستطيع طلب واحد "بمباراة وهمية" استنزاف كل الحصة اليومية دفعة واحدة
+    const reqGems = Math.min(MAX_GEMS_PER_CLAIM, rawGems);
+    const reqGold = Math.min(MAX_GOLD_PER_CLAIM, rawGold);
 
     const gemsRemaining = Math.max(0, MAX_GEMS_PER_DAY - state.gemsToday);
     const goldRemaining = Math.max(0, MAX_GOLD_PER_DAY - state.goldToday);
@@ -71,15 +83,25 @@ function createBattleRoyaleRewards(deps) {
     memStore.set(username, pData);
     markDirty(username);
 
+    // 🛡️ capped يقارن بالطلب الأصلي (قبل أي قصّ) — يعكس أي تخفيض حقيقي حدث،
+    // سواء من حد المطالبة الواحدة أو من الحد اليومي المتبقي
     return {
       ok: true,
       grantedGems,
       grantedGold,
-      capped: grantedGems < reqGems || grantedGold < reqGold,
+      capped: grantedGems < rawGems || grantedGold < rawGold,
     };
   }
 
   return { claimReward };
 }
 
-module.exports = { createBattleRoyaleRewards, MAX_GEMS_PER_DAY, MAX_GOLD_PER_DAY, MIN_CLAIM_INTERVAL_MS };
+module.exports = {
+  createBattleRoyaleRewards,
+  MAX_GEMS_PER_DAY,
+  MAX_GOLD_PER_DAY,
+  MIN_CLAIM_INTERVAL_MS,
+  MAX_KILLS_PER_CLAIM,
+  MAX_GEMS_PER_CLAIM,
+  MAX_GOLD_PER_CLAIM,
+};

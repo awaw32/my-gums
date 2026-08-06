@@ -1114,11 +1114,18 @@ GameUI.prototype._renderFullRewardsPage = function() {
   container.querySelectorAll(".rw-ach-claim-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.achId;
-      if (ach && ach.claim(id)) {
-        this._renderFullRewardsPage();
-        this.updateTopBar();
-        this.showNotification('✅ تم استلام مكافأة الإنجاز!');
-      }
+      if (!ach) return;
+      // 🛡️ الاستلام الفعلي يتم على الخادم — هذا الـ callback يُستدعى فقط بعد التأكيد
+      ach._onClaimResponse = (msg) => {
+        if (msg.ok) {
+          this._renderFullRewardsPage();
+          this.updateTopBar();
+          this.showNotification('✅ تم استلام مكافأة الإنجاز!');
+        } else if (msg.reason !== 'already_claimed') {
+          this.showNotification('❌ تعذّر استلام المكافأة');
+        }
+      };
+      ach.claim(id);
     });
   });
 };

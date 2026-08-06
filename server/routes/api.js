@@ -1,6 +1,7 @@
 "use strict";
 
 const logger = require("../logger");
+const { captureException } = require("../sentry");
 const { sanitizePlayerData } = require("../validation/player");
 const metrics = require("../metrics");
 const { makeRateLimiter } = require("../network/rateLimiter");
@@ -223,6 +224,8 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(players));
         } catch (err) {
+          logger.error({ err: err.message }, "API /api/players list query failed");
+          captureException(err, { tags: { where: "api.players.list" } });
           res.writeHead(500, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: err.message }));
         }
@@ -275,6 +278,8 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(data));
         } catch (err) {
+          logger.error({ err: err.message }, "API /api/players/:username GET query failed");
+          captureException(err, { tags: { where: "api.players.get" } });
           res.writeHead(500, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: err.message }));
         }
@@ -310,7 +315,7 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
             const lastActive = data.last_active || Date.now();
             const existing = memStore.get(username) || getDefaultPlayer(username);
             // مكافحة الغش — تحقق من معدل تغير الموارد
-            const { validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange } = require("../validation/player");
+            const { validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange } = require("../validation/player");
             const deltaCheck = validateResourceDelta(existing, data);
             if (!deltaCheck.ok) {
               logger.warn({ username, reason: deltaCheck.reason }, "AntiCheat rejection");
@@ -337,6 +342,13 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
               logger.warn({ username, reason: progressionCheck.reason }, "AntiCheat rejection (progression)");
               res.writeHead(409, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: progressionCheck.reason }));
+              return;
+            }
+            const oasesCheck = validateOasesChange(existing, data);
+            if (!oasesCheck.ok) {
+              logger.warn({ username, reason: oasesCheck.reason }, "AntiCheat rejection (oases)");
+              res.writeHead(409, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: oasesCheck.reason }));
               return;
             }
             // 📊 تحليل مجهول: انتقال isNewPlayer من true إلى false = أكمل FTUE فعلاً لأول مرة
@@ -417,6 +429,8 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(entries));
       } catch (err) {
+        logger.error({ err: err.message }, "API /api/leaderboard query failed");
+        captureException(err, { tags: { where: "api.leaderboard" } });
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: err.message }));
       }
@@ -450,7 +464,7 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
         try {
           const data = JSON.parse(body);
           const existing = memStore.get(uname) || getDefaultPlayer(uname);
-          const { validateWeaponsChange, validateEquippedWeapon, validateProgressionChange } = require("../validation/player");
+          const { validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange } = require("../validation/player");
           const weaponsCheck = validateWeaponsChange(existing, data);
           if (!weaponsCheck.ok) {
             logger.warn({ uname, reason: weaponsCheck.reason }, "AntiCheat rejection (weapons/upgrades)");
@@ -470,6 +484,13 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
             logger.warn({ uname, reason: progressionCheck.reason }, "AntiCheat rejection (progression/upgrades)");
             res.writeHead(409, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: progressionCheck.reason }));
+            return;
+          }
+          const oasesCheck = validateOasesChange(existing, data);
+          if (!oasesCheck.ok) {
+            logger.warn({ uname, reason: oasesCheck.reason }, "AntiCheat rejection (oases/upgrades)");
+            res.writeHead(409, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: oasesCheck.reason }));
             return;
           }
           const updated = { ...existing };

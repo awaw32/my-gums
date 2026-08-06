@@ -51,6 +51,12 @@
   width: 8px; height: 8px; border-radius: 50%;
   background: #fff; animation: offline-blink 1s ease-in-out infinite;
 }
+#offline-indicator-retry {
+  background: #fff; color: #b91c1c; border: none; border-radius: 999px;
+  padding: 4px 12px; font-size: 0.7rem; font-weight: 800; cursor: pointer;
+  font-family: inherit;
+}
+#offline-indicator-retry.hidden { display: none !important; }
 @keyframes offline-pulse { 0%, 100% { box-shadow: 0 4px 16px rgba(220,38,38,0.3); } 50% { box-shadow: 0 4px 24px rgba(220,38,38,0.5); } }
 @keyframes offline-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 

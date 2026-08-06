@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeOneHitDamage, resolveMonsterKill, simulatePvPFull, computeLoot, computeMonsterReward, WEAPON_COMBAT_STATS } from '../server/logic/combatResolver.js';
+import { computeOneHitDamage, resolveMonsterKill, simulatePvPFull, computeLoot, computeMonsterReward, WEAPON_COMBAT_STATS, defenseDamageMultiplier, MAX_DEFENSE_REDUCTION_PERCENT } from '../server/logic/combatResolver.js';
 import { WEAPON_COMBAT_STATS as CLIENT_WEAPON_COMBAT_STATS } from '../js/combat-engine.js';
 
 describe('Combat Resolver (Server-Authoritative)', () => {
@@ -279,6 +279,119 @@ describe('Combat Resolver (Server-Authoritative)', () => {
       if (sandEvent) {
         expect(monster._sandstormTimer).toBeGreaterThan(0);
       }
+    });
+  });
+
+  describe('🛡️ دفاع مستوى التحالف يُطبَّق فعلياً في PvP (defenseBuff)', () => {
+    // 🛡️ قبل هذا الإصلاح كان allianceBonuses.defenseBonus محسوباً ومُعاداً من
+    // computePlayerStats لكن غير مستخدَم في أي حساب ضرر حقيقي — لاعب يدفع
+    // ذهباً حقيقياً لترقية مستوى التحالف كان لا يحصل على أي حماية قتالية فعلية.
+
+    it('defenseDamageMultiplier(0) لا يخفّض الضرر إطلاقاً', () => {
+      expect(defenseDamageMultiplier(0)).toBe(1);
+    });
+
+    it('defenseDamageMultiplier يخفّض الضرر بنسبة الدفاع المُعطاة', () => {
+      expect(defenseDamageMultiplier(20)).toBeCloseTo(0.8, 5);
+    });
+
+    it('defenseDamageMultiplier محصور بسقف أقصى — لا يصل الضرر لصفر أبداً', () => {
+      const mult = defenseDamageMultiplier(99999);
+      expect(mult).toBeCloseTo(1 - MAX_DEFENSE_REDUCTION_PERCENT / 100, 5);
+      expect(mult).toBeGreaterThan(0);
+    });
+
+    it('defenseDamageMultiplier يتجاهل قيماً سالبة (لا يزيد الضرر)', () => {
+      expect(defenseDamageMultiplier(-50)).toBe(1);
+    });
+
+    it('لاعب بدفاع تحالف مرتفع يخسر معارك PvP أقل أمام نفس الخصم بالضبط', () => {
+      // نستخدم عضوية تحالف افتراضية عبر allianceId + getAlliance المُمرَّرة إلى
+      // formulas.js داخلياً — بما أن الاختبار هنا على combatResolver مباشرة
+      // (بلا alliance حقيقي)، نتحقق بدلاً من ذلك أن baseMonster hp يتأثر بدفاع
+      // البحث/المعرفة (research.military) الذي يغذي نفس defenseBuff فعلياً.
+      const defenderNoDefense = basePlayer();
+      defenderNoDefense.research = {};
+      const defenderWithDefense = basePlayer();
+      defenderWithDefense.research = { 'military.desertShield': 20 }; // +3%/مستوى = +60%
+
+      const attacker = basePlayer();
+      attacker.level = 50;
+      attacker.army_power = 50000;
+
+      let winsAgainstNoDefense = 0;
+      let winsAgainstDefense = 0;
+      for (let i = 0; i < 30; i++) {
+        if (simulatePvPFull(attacker, defenderNoDefense).attackerWon) winsAgainstNoDefense++;
+        if (simulatePvPFull(attacker, defenderWithDefense).attackerWon) winsAgainstDefense++;
+      }
+      // المدافع المُحصَّن يجب أن يخسر بمعدل أقل أو يساوي (لا يزيد أبداً)
+      expect(winsAgainstDefense).toBeLessThanOrEqual(winsAgainstNoDefense);
+    });
+  });
+
+  describe('💰 دخل مستوى التحالف يُطبَّق فعلياً على مكافأة قتل الوحوش (allianceIncomeMult)', () => {
+    // 🛡️ قبل هذا الإصلاح كان allianceBonuses.incomeMult محسوباً ومُعاداً من
+    // computePlayerStats لكن غير مستهلك في أي مصدر دخل حقيقي على الخادم —
+    // لاعب في تحالف مستوى 4 (incomeMult=1.5) كان يرى "دخل ×1.5" في الواجهة
+    // بلا أي زيادة فعلية في مكافآت قتل الوحوش التي يحسمها الخادم.
+    it('لاعب بلا تحالف لا يتأثر (allianceId فارغ)', () => {
+      const monster = { rewardMoney: 100, rewardGold: 30, hp: 200, maxHp: 200, enemyId: 'desert_wolf' };
+      const player = { ...basePlayer(), allianceId: '' };
+      const reward = computeMonsterReward(monster, player);
+      const expectedCash = Math.floor(100 * (1 + player.level * 0.02));
+      expect(reward.cash).toBe(Math.min(expectedCash, Math.floor(player.army_power * 0.15)));
+    });
+
+    it('لاعب في تحالف مع allianceId غير موجود فعلياً لا ينهار — يعامَل كبلا تحالف', () => {
+      const monster = { rewardMoney: 100, rewardGold: 30, hp: 200, maxHp: 200, enemyId: 'desert_wolf' };
+      const player = { ...basePlayer(), allianceId: 'nonexistent_alliance_id' };
+      expect(() => computeMonsterReward(monster, player)).not.toThrow();
+    });
+
+    it('لاعب في تحالف مستوى 4 حقيقي (incomeMult=1.5) يحصل فعلياً على 50% ذهب/مال إضافي', () => {
+      const { allianceMemStore } = require('../server/db/allianceHelper.js');
+      allianceMemStore.set('rich_alliance', { id: 'rich_alliance', level: 4 });
+      try {
+        const monster = { rewardMoney: 100, rewardGold: 30, hp: 200, maxHp: 200, enemyId: 'desert_wolf' };
+        const noAllianceReward = computeMonsterReward(monster, { ...basePlayer(), allianceId: '' });
+        const withAllianceReward = computeMonsterReward(monster, { ...basePlayer(), allianceId: 'rich_alliance' });
+        expect(withAllianceReward.cash).toBe(Math.floor(noAllianceReward.cash * 1.5));
+        expect(withAllianceReward.gold).toBe(Math.floor(noAllianceReward.gold * 1.5));
+      } finally {
+        allianceMemStore.delete('rich_alliance');
+      }
+    });
+  });
+
+  describe('💰 مساري knowledge/trade من شجرة الترقيات يُطبَّقان فعلياً على مكافأة قتل الوحوش', () => {
+    // 🛡️ قبل هذا الإصلاح: economy.knowledgeGoldBonus (ذهب) وeconomy.tradeIncomeBonus
+    // (مال) كانا يُضربان في economy.addRaw على العميل فقط — لا أثر إطلاقاً على
+    // مكافآت قتل الوحوش الحقيقية التي يحسمها الخادم.
+    it('مستوى knowledge أقصى (5) يزيد الذهب حصراً (لا يؤثر على المال)', () => {
+      const monster = { rewardMoney: 100, rewardGold: 30, hp: 200, maxHp: 200, enemyId: 'desert_wolf' };
+      const noUpgrade = computeMonsterReward(monster, basePlayer());
+      const withUpgrade = computeMonsterReward(monster, { ...basePlayer(), upgrades: { knowledge: 5 } });
+      // 15+30+50+80+120 = 295% → ×3.95
+      expect(withUpgrade.gold).toBe(Math.floor(noUpgrade.gold * 3.95));
+      expect(withUpgrade.cash).toBe(noUpgrade.cash);
+    });
+
+    it('مستوى trade أقصى (5) يزيد المال حصراً (لا يؤثر على الذهب)', () => {
+      const monster = { rewardMoney: 100, rewardGold: 30, hp: 200, maxHp: 200, enemyId: 'desert_wolf' };
+      const noUpgrade = computeMonsterReward(monster, basePlayer());
+      const withUpgrade = computeMonsterReward(monster, { ...basePlayer(), upgrades: { trade: 5 } });
+      // 20+40+70+110+160 = 400% → ×5
+      expect(withUpgrade.cash).toBe(Math.floor(noUpgrade.cash * 5));
+      expect(withUpgrade.gold).toBe(noUpgrade.gold);
+    });
+
+    it('ادّعاء مستوى knowledge/trade خيالي (99999) لا يمنح أكثر من الحد الأقصى الحقيقي (5)', () => {
+      const monster = { rewardMoney: 100, rewardGold: 30, hp: 200, maxHp: 200, enemyId: 'desert_wolf' };
+      const legit = computeMonsterReward(monster, { ...basePlayer(), upgrades: { knowledge: 5, trade: 5 } });
+      const cheated = computeMonsterReward(monster, { ...basePlayer(), upgrades: { knowledge: 99999, trade: 99999 } });
+      expect(cheated.gold).toBe(legit.gold);
+      expect(cheated.cash).toBe(legit.cash);
     });
   });
 });

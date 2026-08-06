@@ -179,6 +179,22 @@ export class WorldMap {
     if (this.netSync) this.netSync.send(data);
   }
 
+  /** يُستدعى من handleNetMessage عند وصول pve_claim_reward_response — يُطبِّق
+   *  مكافأة Horde/Cave/Extraction فعلياً فقط بعد تأكيد الخادم (حد أقصى يومي) */
+  _handlePveRewardResponse(msg) {
+    if (!msg.ok || !this.economy) {
+      if (msg.reason === "daily_cap_reached" && this.store) {
+        this.store.set('notification', { text: `⚠️ بلغت الحد الأقصى اليومي لمكافآت هذا الوضع`, t: Date.now() });
+      }
+      return;
+    }
+    if (msg.grantedGold) this.economy.addRaw("gold", msg.grantedGold);
+    if (msg.grantedXp) this.economy.addXp(msg.grantedXp);
+    if (msg.capped && this.store) {
+      this.store.set('notification', { text: `⚠️ جزء من المكافأة قُصّ بسبب الحد الأقصى اليومي`, t: Date.now() });
+    }
+  }
+
   _preloadImages() {
     if (typeof window === "undefined" || typeof Image === "undefined") return;
     const v = window._buildId || Date.now();

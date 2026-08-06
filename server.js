@@ -149,6 +149,16 @@ const dailyLoginManager = createDailyLoginManager({ memStore, getDefaultPlayer, 
 const { createBattleRoyaleRewards } = require("./server/logic/battleRoyaleRewards");
 const battleRoyaleRewards = createBattleRoyaleRewards({ memStore, getDefaultPlayer, markDirty });
 
+// 🛡️ مكافآت أوضاع PvE الفردية (Horde/Cave/Extraction) + غارات التحالف —
+// حد أقصى يومي سيرفري (الأوضاع نفسها تبقى محاكاة عميلية)
+const { createPveModeRewards } = require("./server/logic/pveModeRewards");
+const pveModeRewards = createPveModeRewards({ memStore, getDefaultPlayer, markDirty });
+
+// 🛡️ مكافآت الإنجازات (59 إنجازاً) — استلام واحد لكل id + سقف كلي مطابق لأقصى
+// ما هو ممكن فعلياً (شروط الإنجاز نفسها تبقى محسوبة على العميل)
+const { createAchievementRewards } = require("./server/logic/achievementRewards");
+const achievementRewards = createAchievementRewards({ memStore, getDefaultPlayer, markDirty });
+
 const { createWorldHandler } = require("./server/network/worldHandler");
 const handleWorldConnection = createWorldHandler({
   worldMonsters, worldDrops, worldClients,
@@ -158,7 +168,7 @@ const handleWorldConnection = createWorldHandler({
   claimReward, applyWeaponUpgrade, computeWeaponDamageWithUpgrades,
   applyBuildingUpgrade, BUILDING_DEFS, applyResearchUpgrade, sanitizePlayerData,
   warManager, allianceManager, caravanManager, broadcastBus, auctionManager, deathManager,
-  cosmeticsShop, analytics, seasonPassManager, marketManager, dailyLoginManager, battleRoyaleRewards,
+  cosmeticsShop, analytics, seasonPassManager, marketManager, dailyLoginManager, battleRoyaleRewards, pveModeRewards, achievementRewards,
 });
 
 // 🔔 تذكير دوري بالهدية المجانية للاعبين غير المتصلين — no-op بلا مفاتيح VAPID

@@ -199,29 +199,33 @@ export class HordeMode {
     this._hordeOver = true;
     this._hordeActive = false;
     const w = this.world;
-    
+
     let bonus;
     if (won) {
       bonus = Math.floor(this._hordeScore * 0.2 + this._wave * 30 + this._hordeKills * 10 + 500);
     } else {
       bonus = Math.floor(this._hordeScore * 0.1 + this._wave * 20 + this._hordeKills * 5);
     }
-    
-    if (w.economy) {
-      w.economy.addRaw("gold", bonus);
-      w.economy.addXp(Math.floor(this._hordeScore * 0.5));
+    const xpGain = Math.floor(this._hordeScore * 0.5);
+
+    // 🛡️ المكافأة تُطلب من الخادم (حد أقصى يومي + فحص معقولية wave/kills) بدل
+    // تطبيقها محلياً مباشرة — انظر server/logic/pveModeRewards.js
+    if (w._sendWS) {
+      w._sendWS({
+        type: "pve_claim_reward", mode: "horde",
+        payload: { gold: bonus, xp: xpGain, wave: this._wave, kills: this._hordeKills },
+      });
     }
-    
-    const resultMsg = won 
-      ? `🎉 انتصرت في الحشد! كل ${this._maxWave} موجة` 
+
+    const resultMsg = won
+      ? `🎉 انتصرت في الحشد! كل ${this._maxWave} موجة`
       : `💀 انتهت الحشد! وصلت للموجة ${this._wave}`;
-    
+
     w.worldFx.push({
       x: w.leader.x, y: w.leader.y - 30,
-      text: `${resultMsg} | ${this._hordeKills} قتلى | مكافأة ${bonus} 🪙`,
+      text: `${resultMsg} | ${this._hordeKills} قتلى | مكافأة ${bonus} 🪙 (بانتظار تأكيد الخادم)`,
       color: "#FFD700", life: 4, maxLife: 4
     });
-    w.sessionStats.coinsEarned += bonus;
 
     // 🏆 شاشة نتيجة مخصصة بدل الاعتماد على النص العائم فقط
     if (typeof document !== "undefined") {

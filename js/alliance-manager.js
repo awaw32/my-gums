@@ -324,22 +324,34 @@ export class AllianceManager {
   _completeRaid() {
     const raid = ALLIANCE_RAIDS[this._raidBoss.raidIndex];
     if (!raid) return;
-    // منح المكافآت
-    const rewards = raid.reward;
-    for (const [res, amt] of Object.entries(rewards)) {
-      if (res === 'artifacts' && this.economy.resources.artifacts !== undefined) {
-        this.economy.addRaw('artifacts', amt);
-      } else if (res === 'desertGem' && this.economy.resources.desertGem !== undefined) {
-        this.economy.addRaw('desertGem', amt);
-      } else if (this.economy.resources[res] !== undefined) {
-        this.economy.addRaw(res, amt);
-      }
+    // 🛡️ المكافأة تُطلب من الخادم (جدول ثابت حسب raidLevel + حد أقصى يومي)
+    // بدل تطبيقها محلياً مباشرة — كان يمكن استدعاء _completeRaid() من console
+    // المتصفح مباشرة بلا أي قتال فعلي لمنح حتى 250,000 cash فوراً. انظر
+    // server/logic/pveModeRewards.js
+    if (this.netSync) {
+      this.netSync.send({ type: "alliance_raid_claim_reward", raidLevel: raid.level });
     }
     this._raidActive = false;
     this._raidCooldown = 3600; // 1 ساعة تبريد
     this._raidBoss = null;
     if (this._onRaidStateChange) this._onRaidStateChange(null);
     if (this._onChanged) this._onChanged(this.level);
+  }
+
+  /** يُستدعى من handleNetMessage عند وصول alliance_raid_claim_reward_response —
+   *  الموارد الفعلية تُضاف فقط بعد تأكيد الخادم */
+  _handleRaidRewardResponse(msg) {
+    if (!msg.ok || !msg.granted) {
+      if (msg.reason === "daily_cap_reached" && this._onActionError) {
+        this._onActionError("بلغت الحد الأقصى اليومي لمكافآت الغارات");
+      }
+      return;
+    }
+    for (const [res, amt] of Object.entries(msg.granted)) {
+      if (this.economy.resources[res] !== undefined) {
+        this.economy.addRaw(res, amt);
+      }
+    }
   }
 
   tickRaidCooldown(dt) {

@@ -12,6 +12,14 @@ export class NetworkSync {
     this._posInterval = null;
     this._boundUnload = null;
 
+    // 🛡️ طابور أوامر معلَّقة أثناء انقطاع الاتصال — بدون هذا، كل أمر لاعب حقيقي
+    // (شراء، ترقية، استلام مكافأة) يُرسَل أثناء الانقطاع كان يُفقد بصمت تماماً
+    // (send() كانت تتجاهله فوراً بلا أي تخزين). يُعاد إرسال ما تراكم فور نجاح
+    // إعادة الاتصال وإرسال join. محدود الحجم لتفادي تراكم غير منطقي لو طالت
+    // مدة الانقطاع كثيراً — الأوامر القديمة جداً تُسقَط (rare edge case فقط).
+    this._pendingQueue = [];
+    this._MAX_QUEUE_SIZE = 50;
+
     this.onBRMatchEnd = null;
   }
 
@@ -54,9 +62,31 @@ export class NetworkSync {
     return !!(this._ws && this._ws.readyState === WebSocket.OPEN);
   }
 
-  send(data) {
+  /** يرسل رسالة فوراً إن كان الاتصال مفتوحاً؛ وإلا يُضيفها لطابور معلَّق (ما لم
+   *  يُطلب صراحة عدم ذلك عبر queueable:false — للتحديثات الدورية الزائلة
+   *  كالموقع، حيث لا معنى لإعادة إرسال قيم قديمة بعد إعادة الاتصال) */
+  send(data, { queueable = true } = {}) {
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
       this._ws.send(JSON.stringify(data));
+      return;
+    }
+    if (queueable) {
+      this._pendingQueue.push(data);
+      if (this._pendingQueue.length > this._MAX_QUEUE_SIZE) {
+        this._pendingQueue.shift(); // الأقدم يُسقَط أولاً
+      }
+    }
+  }
+
+  /** يُستدعى بعد نجاح join عند إعادة الاتصال — يعيد إرسال كل ما تراكم أثناء الانقطاع */
+  _flushPendingQueue() {
+    if (this._pendingQueue.length === 0) return;
+    const queued = this._pendingQueue;
+    this._pendingQueue = [];
+    for (const data of queued) {
+      if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+        this._ws.send(JSON.stringify(data));
+      }
     }
   }
 
@@ -300,26 +330,57 @@ export class NetworkSync {
 
     this._ws.onclose = () => {
       console.warn("[WS] قطع الاتصال، إعادة محاولة...");
-      this._setOfflineIndicator(true);
       this._ws = null;
       this._wsReconnectCount = (this._wsReconnectCount || 0) + 1;
       if (this._wsReconnectCount > 10) {
-        console.warn("[WS] فشل 10 محاولات — توقف");
+        // 🛡️ كان اللاعب يبقى عالقاً بصمت تماماً هنا بلا أي رسالة أو زر — لا
+        // شيء يخبره أن اللعبة توقفت عن المزامنة فعلياً. الآن رسالة صريحة تطلب
+        // إعادة التحميل، مع زر لإعادة المحاولة فوراً دون الحاجة لتحديث الصفحة.
+        console.warn("[WS] فشلت 10 محاولات إعادة اتصال — توقف تلقائي");
+        this._setOfflineIndicator(true, { failed: true });
         return;
       }
-      this._wsReconnectTimer = setTimeout(() => this._connectWS(), 2000);
+      this._setOfflineIndicator(true, { attempt: this._wsReconnectCount });
+      // 🛡️ تأخير تصاعدي (exponential backoff) بدل تأخير ثابت 2 ثانية — يقلل
+      // الضغط على الخادم عند انقطاع جماعي، ومحصور بحد أقصى 20 ثانية
+      const delay = Math.min(20000, 1000 * Math.pow(1.7, this._wsReconnectCount - 1));
+      this._wsReconnectTimer = setTimeout(() => this._connectWS(), delay);
     };
 
     this._ws.onerror = () => { this._setOfflineIndicator(true); };
   }
 
-  _setOfflineIndicator(offline) {
+  /** يعيد محاولة الاتصال فوراً — يُستدعى من زر "إعادة المحاولة" بعد فشل نهائي */
+  retryConnection() {
+    if (this._wsReconnectTimer) {
+      clearTimeout(this._wsReconnectTimer);
+      this._wsReconnectTimer = null;
+    }
+    this._wsReconnectCount = 0;
+    this._connectWS();
+  }
+
+  _setOfflineIndicator(offline, { failed = false, attempt = null } = {}) {
     const el = document.getElementById("offline-indicator");
+    const textEl = document.getElementById("offline-indicator-text");
+    const retryBtn = document.getElementById("offline-indicator-retry");
     if (!el) return;
-    if (offline) {
-      el.classList.remove("hidden");
-    } else {
+    if (!offline) {
       el.classList.add("hidden");
+      return;
+    }
+    el.classList.remove("hidden");
+    if (textEl) {
+      if (failed) {
+        textEl.textContent = "⚠️ انقطع الاتصال بالخادم — أعد تحميل الصفحة أو أعد المحاولة";
+      } else if (attempt) {
+        textEl.textContent = `🌪️ عاصفة رملية قطعت الاتصال... جاري إعادة الاتصال (محاولة ${attempt}/10)`;
+      } else {
+        textEl.textContent = "🌪️ عاصفة رملية قطعت الاتصال... جاري إعادة الاتصال";
+      }
+    }
+    if (retryBtn) {
+      retryBtn.classList.toggle("hidden", !failed);
     }
   }
 
@@ -333,6 +394,9 @@ export class NetworkSync {
         break;
       case "world_monsters":
         this.syncMonsters(msg.list || []);
+        // 🛡️ أول رسالة يرسلها الخادم بعد نجاح join فعلياً (اتصال جديد أو إعادة
+        // اتصال) — نقطة موثوقة لإعادة إرسال أي أوامر تراكمت أثناء الانقطاع
+        this._flushPendingQueue();
         break;
       case "monster_hit": {
         const mh = w.monsters.find(m => m.id === msg.id);
@@ -711,6 +775,20 @@ export class NetworkSync {
       // ==================== 🏆 مكافآت المعركة الملكية ====================
       case "br_claim_reward_response":
         if (w._handleBRRewardResponse) w._handleBRRewardResponse(msg);
+        break;
+      // ==================== 🛡️ مكافآت أوضاع PvE (Horde/Cave/Extraction) ====================
+      case "pve_claim_reward_response":
+        if (w._handlePveRewardResponse) w._handlePveRewardResponse(msg);
+        break;
+      case "alliance_raid_claim_reward_response":
+        if (window._allianceManager?._handleRaidRewardResponse) {
+          window._allianceManager._handleRaidRewardResponse(msg);
+        }
+        break;
+      case "achievement_claim_reward_response":
+        if (window._achievements?._handleClaimResponse) {
+          window._achievements._handleClaimResponse(msg);
+        }
         break;
       // ==================== 🏜️ العاصفة الرملية العالمية ====================
       case "sandstorm_warning":
