@@ -268,6 +268,49 @@ function validateOasesChange(existing, incoming) {
   return { ok: true };
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  🛡️ مكافحة الغش — تغييرات landsState (مستويات مباني القرى/الأراضي)
+//  js/village.js's VillageBuilding.upgrade() لا مسار WS له إطلاقاً — الترقية
+//  تُحسب وتُطبَّق بالكامل محلياً (خصم موارد + زيادة level) ثم تُحفَظ مباشرة
+//  عبر landsState. حقل level هنا يُستخدم لاحقاً كبوابة سيرفر حقيقية في 3
+//  أماكن منفصلة: شراء أسلحة جديدة (requireLevel أعلاه)، ترقية نجوم الأسلحة
+//  (server/logic/weaponUpgrade.js)، وسقف ترقية البحث (server/db/research.js)
+//  — عميل خبيث يرسل landsState:{b1:{level:999}} بلا دفع أي تكلفة يفتح فوراً
+//  كل الأسلحة وكل ترقيات النجوم وكل أبحاث اللعبة. لا يوجد جدول تكلفة مشترك
+//  بين العميل (js/story.js، ESM) والخادم (CommonJS) للتحقق من التكلفة الدقيقة
+//  المدفوعة لكل ترقية، لذا نطبّق سقفاً واقعياً (أعلى maxLevel عبر كل القرى
+//  الخمس لكل مبنى = 30) ونمنع قفزة أكثر من مستوى واحد لكل حفظة كحد أدنى
+//  للحماية العملية، تماشياً مع أسلوب isValidPrestigeTransition أعلاه.
+// ═══════════════════════════════════════════════════════════════════
+const LANDS_BUILDING_MAX_LEVEL = 30;
+
+function validateLandsStateChange(existing, incoming) {
+  if (incoming.landsState === undefined) return { ok: true };
+  if (typeof incoming.landsState !== "object" || incoming.landsState === null || Array.isArray(incoming.landsState)) {
+    return { ok: false, reason: "invalid landsState format" };
+  }
+  const existingLands = existing.landsState || {};
+  for (const [buildingId, entry] of Object.entries(incoming.landsState)) {
+    if (!entry || typeof entry !== "object") continue;
+    const newLevel = entry.level;
+    if (newLevel === undefined) continue;
+    if (typeof newLevel !== "number" || !Number.isInteger(newLevel) || newLevel < 0) {
+      return { ok: false, reason: `landsState.${buildingId}.level invalid` };
+    }
+    if (newLevel > LANDS_BUILDING_MAX_LEVEL) {
+      return { ok: false, reason: `landsState.${buildingId}.level exceeds max` };
+    }
+    // 🛡️ +3 وليس +1: saveToDB يُستدعى فور كل economy.spend، لكن حفظات متعددة
+    // متتابعة بسرعة (شبكة بطيئة/إعادة محاولة) قد تتجمّع قبل وصول الأولى فعلياً
+    // — سقف صغير يمتص هذا بلا فتح ثغرة قفزة مستويات ضخمة دفعة واحدة.
+    const oldLevel = existingLands[buildingId]?.level || 0;
+    if (newLevel > oldLevel + 3) {
+      return { ok: false, reason: `landsState.${buildingId}.level jump rejected` };
+    }
+  }
+  return { ok: true };
+}
+
 function validateEquippedWeapon(existing, incoming) {
   if (incoming.equippedWeapon === undefined) return { ok: true };
   if (incoming.equippedWeapon === "") return { ok: true };
@@ -305,4 +348,4 @@ function validateProgressionChange(existing, incoming) {
   return { ok: true };
 }
 
-module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange, PLAYER_MAX_LEVEL, OASIS_CAPTURE_DATA };
+module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange, validateLandsStateChange, PLAYER_MAX_LEVEL, OASIS_CAPTURE_DATA, LANDS_BUILDING_MAX_LEVEL };
