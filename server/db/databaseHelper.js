@@ -219,6 +219,17 @@ try {
     }
   }, 30000);
 
+  // 🧹 فحص دوري كل ساعة لإخلاء اللاعبين الخاملين جداً (30 يوماً+) من الذاكرة
+  // — بياناتهم محفوظة بالفعل في SQLite، تعود عند أي طلب لاحق عبر loadPlayer
+  const _evictionInterval = setInterval(() => {
+    try {
+      const evicted = evictInactivePlayers(memStore, _dirtyUsernames);
+      if (evicted > 0) logger.info({ evicted }, "Evicted inactive players from memStore");
+    } catch (e) {
+      logger.warn({ err: e.message }, "memStore eviction sweep error");
+    }
+  }, 60 * 60 * 1000);
+
   // ── حفظ البيانات المتسخة عند إيقاف السيرفر ──
   const flushOnShutdown = () => {
     if (!_dirtyUsernames || _dirtyUsernames.size === 0) return;
@@ -258,6 +269,32 @@ try {
 } catch (e) {
   logger.warn({ err: e.message }, "SQLite unavailable — running without persistent storage");
   // markDirty و flushToSQLite تبقى no-op (معرفة في الأعلى)
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  🧹 إخلاء ذاكرة اللاعبين غير النشطين من memStore
+//  memStore ينمو دون حد أقصى طوال عمر العملية — كل لاعب سجّل دخوله ولو مرة
+//  واحدة يبقى في الذاكرة للأبد. بيانات كل لاعب موجودة أيضاً بشكل دائم في
+//  SQLite (وMongo إن وُجد)، فحذفها من الذاكرة فقط لا يفقد شيئاً — تُعاد
+//  قراءتها تلقائياً من القرص عند أي طلب لاحق (loadPlayer/getDefaultPlayer
+//  fallback). نشترط عدم الحذف إلا بعد التأكد أن البيانات مكتوبة فعلاً على
+//  القرص (غير موجودة في _dirtyUsernames) لتفادي أي فقدان بيانات، ونشترط عتبة
+//  خمول طويلة جداً (30 يوماً افتراضياً) لأن last_active يتجدد تلقائياً مع كل
+//  حفظة أثناء اللعب الفعلي — لاعب متصل حقيقةً لا يمكن أن يصل لهذه العتبة.
+// ═══════════════════════════════════════════════════════════════════
+const INACTIVE_EVICTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 يوماً
+
+function evictInactivePlayers(store, dirtyUsernames, now = Date.now(), maxAgeMs = INACTIVE_EVICTION_MS) {
+  let evicted = 0;
+  for (const [username, player] of store) {
+    if (dirtyUsernames && dirtyUsernames.has(username)) continue; // لم تُحفَظ بعد — لا تُحذف
+    const lastActive = player && player.last_active;
+    if (!lastActive) continue; // لاعب جديد بلا last_active — لا نفترض خموله
+    if (now - lastActive < maxAgeMs) continue;
+    store.delete(username);
+    evicted++;
+  }
+  return evicted;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -339,4 +376,6 @@ module.exports = {
   sqliteAvailable,
   markDirty,
   flushToSQLite,
+  evictInactivePlayers,
+  INACTIVE_EVICTION_MS,
 };
