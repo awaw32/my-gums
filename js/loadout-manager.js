@@ -101,7 +101,7 @@ export class LoadoutManager {
     const cost = LoadoutManager.BAG_CRAFT_COSTS[targetLevel];
     if (!cost) return "المستوى الأقصى ✅";
     return Object.entries(cost).map(([res, amt]) => {
-      const icons = { gold: '🪙', food: '🌾', leather: '🟫', copper: '🪙', herbs: '🌿', gems: '💎' };
+      const icons = { gold: '🪙', food: '🌾', leather: '🟫', copper: '🟠', herbs: '🌿', gems: '💎' };
       return `${icons[res] || '•'} ${amt}`;
     }).join(' + ');
   }

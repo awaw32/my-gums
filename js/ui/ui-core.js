@@ -648,6 +648,10 @@ export class GameUI {
       foodDisplay: document.getElementById("food-display"),
       powerDisplay: document.getElementById("power-display"),
       gemsDisplay: document.getElementById("gems-display"),
+      hammersDisplay: document.getElementById("hammers-display"),
+      scrollsDisplay: document.getElementById("scrolls-display"),
+      artifactsDisplay: document.getElementById("artifacts-display"),
+      desertGemDisplay: document.getElementById("desertgem-display"),
       thirstDisplay: document.getElementById("thirst-display"),
       heatDisplay: document.getElementById("heat-display"),
       topThirst: document.getElementById("top-thirst"),
@@ -1694,6 +1698,21 @@ export class GameUI {
     if (this.els.gemsDisplay) {
       this.els.gemsDisplay.textContent = formatNumber(eco.gems || 0);
     }
+    // 🛡️ لم يكن للاعب أي مكان دائم لمعرفة رصيد المطارق/المخطوطات/الآثار/
+    // جوهرة الصحراء — تُنفَق فعلياً في تكاليف الترقية والتصنيع ورفع نجوم
+    // الأسلحة، لكنها كانت غائبة تماماً خارج شاشات محددة (السوق مثلاً).
+    if (this.els.hammersDisplay) {
+      this.els.hammersDisplay.textContent = formatNumber(eco.hammers || 0);
+    }
+    if (this.els.scrollsDisplay) {
+      this.els.scrollsDisplay.textContent = formatNumber(eco.scrolls || 0);
+    }
+    if (this.els.artifactsDisplay) {
+      this.els.artifactsDisplay.textContent = formatNumber(eco.artifacts || 0);
+    }
+    if (this.els.desertGemDisplay) {
+      this.els.desertGemDisplay.textContent = formatNumber(eco.desertGem || 0);
+    }
     // 🏜️ شريطا العطش/الحرارة — يظهران فقط أثناء وجود اللاعب على الخريطة (خارج الواحة)
     const onMap = !!(this.world && this.world.running);
     if (this.els.topThirst) {
@@ -1733,6 +1752,7 @@ export class GameUI {
     for (const p of paths) {
       const levelEl = document.getElementById(`qu-level-${p.id}`);
       const fillEl = document.getElementById(`qu-fill-${p.id}`);
+      const costEl = document.getElementById(`qu-cost-${p.id}`);
       if (levelEl) {
         const lvl = this.upgradeTree.getLevel(p.id);
         levelEl.textContent = `Lv.${lvl}`;
@@ -1741,6 +1761,14 @@ export class GameUI {
         const maxLevel = this.upgradeTree.getMaxLevel(p.id) || 5;
         const lvl = this.upgradeTree.getLevel(p.id);
         fillEl.style.width = `${Math.min(100, (lvl / maxLevel) * 100)}%`;
+      }
+      // 🛡️ الزر كان يعرض "ترقية" فقط بلا أي تكلفة — اللاعب لا يعرف كم يحتاج
+      // من ذهب قبل الضغط، بعكس شاشة تفاصيل الترقية الكاملة لنفس النظام التي
+      // تعرض التكلفة بوضوح. الآن يعرض التكلفة الحقيقية (getCurrentCost) أو
+      // "أقصى مستوى" عند الاكتمال.
+      if (costEl) {
+        const cost = this.upgradeTree.getCurrentCost(p.id);
+        costEl.textContent = Number.isFinite(cost) ? `🪙 ${formatNumber(cost)}` : '⭐ أقصى';
       }
     }
     if (!this._quBound) {

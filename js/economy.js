@@ -11,7 +11,9 @@ export const RESOURCE_TYPES = {
   water: { name: 'ماء', icon: '💧', color: '#3498db', format: 'big' },
   salt: { name: 'ملح', icon: '🧂', color: '#ecf0f1', format: 'big' },
   leather: { name: 'جلود', icon: '🟫', color: '#8B4513', format: 'big' },
-  copper: { name: 'نحاس', icon: '🪙', color: '#b87333', format: 'big' },
+  // 🛡️ كان يشارك نفس أيقونة الذهب (🪙) — نفس الرمز لعملتين مختلفتين في بند
+  // تكلفة واحد (مثال: تصنيع حقيبة يحتاج ذهباً ونحاساً معاً) يُربك اللاعب
+  copper: { name: 'نحاس', icon: '🟠', color: '#b87333', format: 'big' },
   herbs: { name: 'أعشاب', icon: '🌿', color: '#27ae60', format: 'fixed' },
 };
 

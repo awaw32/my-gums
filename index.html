@@ -212,6 +212,27 @@
           <span class="csb-label">الإعدادات</span>
         </button>
       </div>
+      <!-- 🛡️ موارد إضافية (مطارق/مخطوطات/آثار/جوهرة الصحراء) لا مكان دائم لها
+           في الشريط العلوي المزدحم أصلاً — كانت غير مرئية للاعب إطلاقاً خارج
+           شاشات محددة، رغم أنها تُنفَق فعلياً في تكاليف الترقية والتصنيع. -->
+      <div id="secondary-resources-bar">
+        <div class="top-res" id="top-hammers" title="المطارق">
+          <span class="res-icon">🔨</span>
+          <span class="res-val" id="hammers-display">0</span>
+        </div>
+        <div class="top-res" id="top-scrolls" title="المخطوطات">
+          <span class="res-icon">📜</span>
+          <span class="res-val" id="scrolls-display">0</span>
+        </div>
+        <div class="top-res" id="top-artifacts" title="القطع الأثرية">
+          <span class="res-icon">🏺</span>
+          <span class="res-val" id="artifacts-display">0</span>
+        </div>
+        <div class="top-res" id="top-desertgem" title="جوهرة الصحراء">
+          <span class="res-icon">💠</span>
+          <span class="res-val" id="desertgem-display">0</span>
+        </div>
+      </div>
       <!-- شريط الترقية السريع -->
       <div id="quick-upgrade-bar">
         <div class="quick-upgrade-card">
@@ -221,7 +242,7 @@
             <span class="qu-level" id="qu-level-army">Lv.0</span>
             <div class="qu-track"><div class="qu-fill" id="qu-fill-army" style="width:0%"></div></div>
           </div>
-          <button class="qu-btn" data-qu="army">ترقية</button>
+          <button class="qu-btn" data-qu="army">ترقية<span class="qu-cost" id="qu-cost-army"></span></button>
         </div>
         <div class="quick-upgrade-card">
           <span class="qu-icon">📜</span>
@@ -230,7 +251,7 @@
             <span class="qu-level" id="qu-level-knowledge">Lv.0</span>
             <div class="qu-track"><div class="qu-fill" id="qu-fill-knowledge" style="width:0%"></div></div>
           </div>
-          <button class="qu-btn" data-qu="knowledge">ترقية</button>
+          <button class="qu-btn" data-qu="knowledge">ترقية<span class="qu-cost" id="qu-cost-knowledge"></span></button>
         </div>
         <div class="quick-upgrade-card">
           <span class="qu-icon">🛡️</span>
@@ -239,7 +260,7 @@
             <span class="qu-level" id="qu-level-defense">Lv.0</span>
             <div class="qu-track"><div class="qu-fill" id="qu-fill-defense" style="width:0%"></div></div>
           </div>
-          <button class="qu-btn" data-qu="defense">ترقية</button>
+          <button class="qu-btn" data-qu="defense">ترقية<span class="qu-cost" id="qu-cost-defense"></span></button>
         </div>
         <div class="quick-upgrade-card">
           <span class="qu-icon">🐪</span>
@@ -248,7 +269,7 @@
             <span class="qu-level" id="qu-level-trade">Lv.0</span>
             <div class="qu-track"><div class="qu-fill" id="qu-fill-trade" style="width:0%"></div></div>
           </div>
-          <button class="qu-btn" data-qu="trade">ترقية</button>
+          <button class="qu-btn" data-qu="trade">ترقية<span class="qu-cost" id="qu-cost-trade"></span></button>
         </div>
       </div>
     </div>

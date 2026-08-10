@@ -435,6 +435,20 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
 }
 .br-sub-btn .csb-icon { font-size: 1.1rem; }
 
+/* ====== موارد إضافية (مطارق/مخطوطات/آثار/جوهرة الصحراء) ====== */
+#secondary-resources-bar {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 4px 8px 0;
+  background: var(--bg-page);
+}
+#secondary-resources-bar .top-res {
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+}
+
 /* ====== شريط الترقية السريع ====== */
 #quick-upgrade-bar {
   height: var(--qu-h);
@@ -516,6 +530,14 @@ button { font: inherit; cursor: pointer; border: none; outline: none; background
   min-height: 28px;
 }
 .qu-btn:active { transform: scale(0.92); background: var(--accent-red-hover); }
+.qu-cost {
+  display: block;
+  font-size: 0.5rem;
+  font-weight: 600;
+  opacity: 0.85;
+  margin-top: 1px;
+  white-space: nowrap;
+}
 
 /* ====== خريطة اللعبة ====== */
 #screen-content {
