@@ -1900,7 +1900,15 @@ export class GameUI {
     const scaleY = 180 / H;
 
     ctx.clearRect(0, 0, 180, 180);
-    ctx.fillStyle = "rgba(210,180,140,0.3)";
+
+    // 🏜️ خلفية بتدرّج صحراوي بدل لون مسطّح — وضوح ودقة بصرية أعلى
+    if (!this._mmBgGradient) {
+      const g = ctx.createRadialGradient(90, 90, 10, 90, 90, 130);
+      g.addColorStop(0, "rgba(224,196,150,0.35)");
+      g.addColorStop(1, "rgba(160,120,80,0.35)");
+      this._mmBgGradient = g;
+    }
+    ctx.fillStyle = this._mmBgGradient;
     ctx.fillRect(0, 0, 180, 180);
 
     // 🎁 صناديق الكنز
@@ -1908,18 +1916,47 @@ export class GameUI {
       for (const c of w.treasureChests) {
         if (c.opened) continue;
         ctx.fillStyle = "#FFD700";
+        ctx.strokeStyle = "rgba(0,0,0,0.5)";
+        ctx.lineWidth = 0.5;
         ctx.beginPath();
-        ctx.arc(c.x * scaleX, c.y * scaleY, 2, 0, Math.PI * 2);
+        ctx.arc(c.x * scaleX, c.y * scaleY, 2.5, 0, Math.PI * 2);
         ctx.fill();
+        ctx.stroke();
       }
     }
 
     // 👹 الوحوش الأحياء
     if (w.monsters) {
       for (const m of w.monsters) {
-        if (!m.alive) continue;
+        if (!m.alive || m.isCaravanGuard) continue;
         ctx.fillStyle = "#ef4444";
-        ctx.fillRect(m.x * scaleX - 1, m.y * scaleY - 1, 3, 3);
+        ctx.fillRect(m.x * scaleX - 1.5, m.y * scaleY - 1.5, 3, 3);
+      }
+    }
+
+    // 🐫 القافلة — نفس منطق حساب مركز حراس القافلة الأحياء المستخدم على
+    // الخريطة الرئيسية (_drawEntitiesSorted)، لكن هنا كانت غائبة تماماً عن
+    // الخريطة المصغرة رغم ظهور كل كائن آخر عليها — أبرزناها بحلقة ذهبية
+    // نابضة مميزة لتُكتشف بسهولة من أول نظرة.
+    if (w.monsters) {
+      let gx = 0, gy = 0, gCount = 0;
+      for (const m of w.monsters) {
+        if (!m.alive || !m.isCaravanGuard) continue;
+        gx += m.x; gy += m.y; gCount++;
+      }
+      if (gCount > 0) {
+        const cx = (gx / gCount) * scaleX;
+        const cy = (gy / gCount) * scaleY;
+        const pulse = 1 + Math.sin(Date.now() * 0.006) * 0.35;
+        ctx.strokeStyle = "#FFD700";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 5 * pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "#F5DEB3";
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
@@ -1927,32 +1964,38 @@ export class GameUI {
     if (w.otherPlayers) {
       for (const [, p] of w.otherPlayers) {
         ctx.fillStyle = p.color || "#3b82f6";
+        ctx.strokeStyle = "rgba(255,255,255,0.6)";
+        ctx.lineWidth = 0.5;
         ctx.beginPath();
-        ctx.arc(p.x * scaleX, p.y * scaleY, 2, 0, Math.PI * 2);
+        ctx.arc(p.x * scaleX, p.y * scaleY, 2.5, 0, Math.PI * 2);
         ctx.fill();
+        ctx.stroke();
       }
     }
 
     // ⭐ القائد (اللاعب نفسه)
     ctx.fillStyle = "#ffd700";
     ctx.shadowColor = "#ffd700";
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = 7;
     ctx.beginPath();
-    ctx.arc(w.leader.x * scaleX, w.leader.y * scaleY, 4, 0, Math.PI * 2);
+    ctx.arc(w.leader.x * scaleX, w.leader.y * scaleY, 4.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(0,0,0,0.6)";
+    ctx.lineWidth = 0.7;
+    ctx.stroke();
 
     // 🖼️ نافذة الكاميرا الحالية
     const cam = w.engine?.camera;
     if (cam) {
-      ctx.strokeStyle = "rgba(255,255,255,0.4)";
+      ctx.strokeStyle = "rgba(255,255,255,0.5)";
       ctx.lineWidth = 1;
       ctx.strokeRect(cam.x * scaleX, cam.y * scaleY, cam.w * scaleX, cam.h * scaleY);
     }
 
     // رسم الإطار
-    ctx.strokeStyle = "rgba(255,215,0,0.4)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,215,0,0.5)";
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(0, 0, 180, 180);
   }
 

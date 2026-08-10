@@ -64,9 +64,21 @@ export function injectEntitiesMethods(WorldMap) {
     if (caravanGuardsAlive && caravanGuardsAlive.length > 0) {
       const cx = caravanGuardsAlive.reduce((s, g) => s + g.x, 0) / caravanGuardsAlive.length;
       const cy = caravanGuardsAlive.reduce((s, g) => s + g.y, 0) / caravanGuardsAlive.length;
+      // 🧭 اتجاه حركة تقريبي مشتق من الفارق عن مركز الإطار السابق — القافلة
+      // نفسها كانت أيقونة جمل ثابتة بلا أي مؤشر لوجهتها أو حلقة أرضية تُبرز
+      // موقعها الدقيق وسط الحراس المتحركين.
+      let dirX = 0, dirY = 0;
+      if (this._caravanPrevCenter) {
+        dirX = cx - this._caravanPrevCenter.x;
+        dirY = cy - this._caravanPrevCenter.y;
+      }
+      this._caravanPrevCenter = { x: cx, y: cy };
       if (this._isEntityVisible(cx, cy, 80)) {
+        ds.add(cx, cy, (c) => this._drawCaravanGroundRing(c, cx, cy, dirX, dirY));
         ds.add(cx, cy - 30, (c) => this._drawCaravanIcon(c, cx, cy - 30));
       }
+    } else {
+      this._caravanPrevCenter = null;
     }
 
     // 🆘 أيقونة نداء النجدة — حمراء لمدة 60 ثانية عند مكان النداء
@@ -199,13 +211,56 @@ export function injectEntitiesMethods(WorldMap) {
     ctx.save();
     ctx.translate(x, y);
     const bob = Math.sin(Date.now() * 0.002) * 3;
-    ctx.font = "24px serif";
+    // ✨ توهّج ذهبي خلف الجمل — يجعل القافلة مميزة وواضحة من مسافة على
+    // الخريطة بدل رمز مسطّح يذوب وسط بقية الكيانات.
+    const glowPulse = 0.5 + Math.sin(Date.now() * 0.004) * 0.15;
+    const glow = ctx.createRadialGradient(0, bob, 2, 0, bob, 28);
+    glow.addColorStop(0, `rgba(255,215,0,${0.35 * glowPulse})`);
+    glow.addColorStop(1, "rgba(255,215,0,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, bob, 28, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.font = "26px serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("🐫", 0, bob);
     ctx.fillStyle = "#FFD700";
+    ctx.strokeStyle = "rgba(0,0,0,0.6)";
+    ctx.lineWidth = 2.5;
     ctx.font = "bold 10px Cairo, sans-serif";
-    ctx.fillText("قافلة ذهب", 0, -20 + bob);
+    ctx.strokeText("قافلة ذهب", 0, -22 + bob);
+    ctx.fillText("قافلة ذهب", 0, -22 + bob);
+    ctx.restore();
+  };
+
+  /**
+   * 🧭 حلقة أرضية نابضة + سهم اتجاه تقريبي — تُبرز الموقع الدقيق للقافلة
+   * وسط حراسها المتحركين، وتلمّح لوجهة حركتها الحالية.
+   */
+  WorldMap.prototype._drawCaravanGroundRing = function (ctx, x, y, dirX, dirY) {
+    ctx.save();
+    ctx.translate(x, y);
+    const pulse = 1 + Math.sin(Date.now() * 0.005) * 0.2;
+    ctx.strokeStyle = "rgba(255,215,0,0.6)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 26 * pulse, 12 * pulse, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const mag = Math.hypot(dirX, dirY);
+    if (mag > 0.15) {
+      const angle = Math.atan2(dirY, dirX);
+      ctx.rotate(angle);
+      ctx.fillStyle = "#FFD700";
+      ctx.beginPath();
+      ctx.moveTo(34, 0);
+      ctx.lineTo(24, -6);
+      ctx.lineTo(24, 6);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.restore();
   };
 
