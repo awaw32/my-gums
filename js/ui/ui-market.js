@@ -461,14 +461,16 @@ GameUI.prototype._bindConvert = function(overlay) {
         return;
       }
       if (this._tradeMarket) {
-        const result = this._tradeMarket.convertResource(from, to, amount);
-        if (result && result.success) {
-          const icons = { cash: '💵', gold: '🪙', gems: '💎' };
-          this.showNotification(`✅ تم الصرف! حصلت على ${result.received} ${icons[to]}`);
-          if (resultEl) resultEl.textContent = `✅ حصلت على ${result.received} ${icons[to]}`;
+        // 🛡️ الصرف الفعلي يتم على الخادم — هذا الـ callback يُستدعى فقط بعد التأكيد
+        const icons = { cash: '💵', gold: '🪙', gems: '💎' };
+        this._tradeMarket._onConvertDone = (conversion) => {
+          this.showNotification(`✅ تم الصرف! حصلت على ${conversion.toAmount} ${icons[conversion.to]}`);
+          if (resultEl) resultEl.textContent = `✅ حصلت على ${conversion.toAmount} ${icons[conversion.to]}`;
           updatePreview();
           this.updateTopBar();
-        }
+        };
+        this._tradeMarket._onError = (err) => this.showNotification(`❌ ${err}`);
+        this._tradeMarket.convertResource(from, to, amount);
       }
     });
   }

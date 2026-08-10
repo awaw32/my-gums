@@ -38,6 +38,19 @@ const MAX_LISTINGS_PER_PLAYER = 10;
 const LISTING_DURATION_MS = 24 * 60 * 60 * 1000; // 24 ساعة
 const MAX_QUANTITY = 999;
 
+// 🛡️ يطابق CONVERSION_RATES في js/trade-market.js حرفياً — نفس مصدر الحقيقة
+// للسعر المعروض للاعب. لا صلة له بمعدلات mismatch سابقة؛ هذا الجدول نفسه
+// أصبح الآن الحَكَم الوحيد الموثوق (انظر convertResource أدناه).
+const CONVERSION_RATES = {
+  cash_to_gold: 0.2, gold_to_cash: 4,
+  cash_to_gems: 0.01, gems_to_cash: 80,
+  gold_to_gems: 0.05, gems_to_gold: 15,
+};
+const CONVERTIBLE_RESOURCES = new Set(["cash", "gold", "gems"]);
+// حد أقصى معقول لمبلغ صرف واحد — يحدّ من تأثير أي خطأ تقريب/استغلال توقيت
+// دون منع اللعب الطبيعي (يفوق بكثير أي رصيد واقعي في نطاق مبكر إلى متوسط)
+const MAX_CONVERT_AMOUNT = 5_000_000;
+
 function createMarketManager(deps) {
   const { worldClients, memStore, getDefaultPlayer, markDirty } = deps;
 
@@ -209,6 +222,42 @@ function createMarketManager(deps) {
     return { ok: true, itemId: listing.itemId, quantity: listing.quantity };
   }
 
+  /**
+   * 🛡️ صرف مورد مقابل مورد آخر — كان convertResource في js/trade-market.js
+   * يُنفَّذ بالكامل على العميل (economy.spend + economy.addRaw مباشرة، بلا
+   * أي رسالة WS أو تحقق سيرفري إطلاقاً)، بعكس بقية عمليات السوق (عرض/شراء/
+   * إلغاء) الموثوقة سيرفرياً بالكامل في هذا الملف. أي لاعب يستدعي
+   * tradeMarket.convertResource() مباشرة من console المتصفح كان يستطيع صرف
+   * مبلغ ضخم مصطنع (cash→gems مثلاً) بلا أي رصيد حقيقي — تحويل فوري لعملة
+   * مميزة (gems) من عدم. الآن الخصم والإضافة يحدثان على memStore الموثوق
+   * فقط، وبنفس جدول المعدلات المستخدم للعرض على العميل.
+   */
+  function convertResource(username, fromResource, toResource, amount) {
+    if (!CONVERTIBLE_RESOURCES.has(fromResource) || !CONVERTIBLE_RESOURCES.has(toResource)) {
+      return { ok: false, reason: "invalid_resource" };
+    }
+    if (fromResource === toResource) return { ok: false, reason: "invalid_resource" };
+    const rate = CONVERSION_RATES[`${fromResource}_to_${toResource}`];
+    if (!rate) return { ok: false, reason: "invalid_resource" };
+
+    const amt = Math.floor(Number(amount) || 0);
+    if (amt <= 0 || amt > MAX_CONVERT_AMOUNT) return { ok: false, reason: "invalid_amount" };
+
+    const pData = memStore.get(username) || getDefaultPlayer(username);
+    const have = Math.floor(Number(pData[fromResource]) || 0);
+    if (have < amt) return { ok: false, reason: "insufficient_resource" };
+
+    const received = Math.floor(amt * rate);
+    if (received <= 0) return { ok: false, reason: "result_too_small" };
+
+    pData[fromResource] = have - amt;
+    pData[toResource] = Math.floor(Number(pData[toResource]) || 0) + received;
+    memStore.set(username, pData);
+    markDirty(username);
+
+    return { ok: true, from: fromResource, to: toResource, spent: amt, received };
+  }
+
   function getActiveListings() {
     return Array.from(listings.values()).filter(l => !l.sold && l.expiresAt > Date.now());
   }
@@ -229,7 +278,7 @@ function createMarketManager(deps) {
     }
   }
 
-  return { listItem, buyListing, removeListing, getActiveListings, cleanupExpired, getSuggestedPrice };
+  return { listItem, buyListing, removeListing, convertResource, getActiveListings, cleanupExpired, getSuggestedPrice };
 }
 
 module.exports = { createMarketManager, TRADEABLE_ITEMS, MARKET_FEE_PERCENT, MAX_LISTINGS_PER_PLAYER };

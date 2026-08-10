@@ -302,4 +302,90 @@ describe('🏪 سوق الصحراء (server/logic/market-manager.js الحقي�
       expect(manager.listItem.constructor.name).not.toBe('AsyncFunction');
     });
   });
+
+  // 🛡️ قبل هذا الإصلاح: صرف الموارد (cash↔gold↔gems) كان يُنفَّذ بالكامل على
+  // العميل (js/trade-market.js: economy.spend + economy.addRaw مباشرة) بلا
+  // أي رسالة WS أو تحقق سيرفري إطلاقاً — أي لاعب يستدعي convertResource()
+  // من console المتصفح مباشرة يستطيع صرف مبلغ مصطنع (بلا رصيد حقيقي) والحصول
+  // على عملة مميزة (gems) من عدم. الآن convertResource يُنفَّذ هنا فقط،
+  // بالخصم/الإضافة على memStore الموثوق سيرفرياً.
+  describe('صرف الموارد (convertResource)', () => {
+    it('يرفض زوج موارد غير مدعوم', () => {
+      setCash(memStore, 'p1', 1000);
+      const result = manager.convertResource('p1', 'food', 'gems', 100);
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('invalid_resource');
+    });
+
+    it('يرفض صرف مورد في نفسه', () => {
+      setCash(memStore, 'p1', 1000);
+      const result = manager.convertResource('p1', 'cash', 'cash', 100);
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('invalid_resource');
+    });
+
+    it('يرفض مبلغاً صفرياً أو سالباً', () => {
+      setCash(memStore, 'p1', 1000);
+      const result = manager.convertResource('p1', 'cash', 'gold', 0);
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('invalid_amount');
+    });
+
+    it('يرفض الصرف بلا رصيد حقيقي كافٍ — لا يمنح شيئاً', () => {
+      const before = memStore.get('p1');
+      const result = manager.convertResource('p1', 'cash', 'gems', 100000);
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('insufficient_resource');
+      // لا يوجد رصيد سابق أصلاً — يجب ألا يُنشئ أي رصيد جواهر من عدم
+      expect(memStore.get('p1')?.gems || 0).toBe(before?.gems || 0);
+    });
+
+    it('يقبل صرف cash→gems برصيد حقيقي كافٍ ويطبّق المعدل الصحيح (100 cash = 1 gem)', () => {
+      const p = { username: 'p1', cash: 1000, gems: 0 };
+      memStore.set('p1', p);
+      const result = manager.convertResource('p1', 'cash', 'gems', 500);
+      expect(result.ok).toBe(true);
+      expect(result.spent).toBe(500);
+      expect(result.received).toBe(5); // 500 * 0.01
+      expect(memStore.get('p1').cash).toBe(500);
+      expect(memStore.get('p1').gems).toBe(5);
+    });
+
+    it('يخصم بالضبط المبلغ المطلوب — لا يمكن صرف أكثر من الرصيد الفعلي', () => {
+      memStore.set('p1', { username: 'p1', cash: 100, gems: 0 });
+      const result = manager.convertResource('p1', 'cash', 'gems', 500);
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('insufficient_resource');
+      expect(memStore.get('p1').cash).toBe(100); // لم يُخصم شيء
+    });
+
+    it('يرفض مبلغاً يتجاوز الحد الأقصى المعقول لعملية صرف واحدة', () => {
+      memStore.set('p1', { username: 'p1', cash: 999999999999, gems: 0 });
+      const result = manager.convertResource('p1', 'cash', 'gems', 999999999);
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('invalid_amount');
+    });
+
+    it('لا يخلط بين أرصدة لاعبين مختلفين', () => {
+      memStore.set('p1', { username: 'p1', cash: 1000, gems: 0 });
+      memStore.set('p2', { username: 'p2', cash: 5, gems: 0 });
+      const result = manager.convertResource('p2', 'cash', 'gems', 1000);
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('insufficient_resource');
+      expect(memStore.get('p1').cash).toBe(1000); // لم يتأثر رصيد p1
+    });
+
+    it('يقبل صرف gold→cash بالمعدل الصحيح (1 gold = 4 cash)', () => {
+      memStore.set('p1', { username: 'p1', gold: 100, cash: 0 });
+      const result = manager.convertResource('p1', 'gold', 'cash', 100);
+      expect(result.ok).toBe(true);
+      expect(result.received).toBe(400);
+      expect(memStore.get('p1').gold).toBe(0);
+      expect(memStore.get('p1').cash).toBe(400);
+    });
+
+    it('convertResource يجب أن تبقى دالة متزامنة تماماً بلا await', () => {
+      expect(manager.convertResource.constructor.name).not.toBe('AsyncFunction');
+    });
+  });
 });

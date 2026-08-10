@@ -555,6 +555,11 @@ function createWorldHandler({ worldMonsters, worldDrops, worldClients, combatSys
         if (ws.readyState === 1) {
           ws.send(JSON.stringify({ type: "market_remove_response", ...result }));
         }
+      } else if (msg.type === "market_convert" && username && marketManager) {
+        const result = marketManager.convertResource(username, msg.from, msg.to, msg.amount);
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: "market_convert_response", ...result }));
+        }
       } else if (msg.type === "daily_login_claim" && username && dailyLoginManager) {
         const result = dailyLoginManager.claim(username);
         if (ws.readyState === 1) {

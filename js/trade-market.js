@@ -87,6 +87,10 @@ export class TradeMarket {
     this._onListingRemoved = null;
     this._onError = null;
     this._onSaleEarned = null; // يُستدعى عند بيع أحد عناصرك أنت تحديداً
+    this._onConvertDone = null; // يُستدعى بعد تأكيد الخادم لعملية صرف موارد
+
+    // طلب صرف معلّق بانتظار رد الخادم — يمنع إرسال طلبات مكررة قبل الرد
+    this._pendingConvert = null;
 
     // تصفية الحالية
     this._filter = { category: "all", rarity: "all", sort: "newest" };
@@ -303,57 +307,78 @@ export class TradeMarket {
   //  🔄 تبادل الموارد المباشر
   // ═══════════════════════════════════════════════════════════════════
 
+  // 🛡️ جدول المعدلات هنا للعرض/المعاينة فقط (updatePreview في ui-market.js) —
+  // مطابق حرفياً لـ CONVERSION_RATES في server/logic/market-manager.js، وهو
+  // المصدر الوحيد الموثوق فعلياً للتنفيذ الآن. كان الصرف الفعلي يحدث هنا
+  // بالكامل محلياً (economy.spend + economy.addRaw) بلا أي رسالة WS أو تحقق
+  // سيرفري — يسمح بصرف مبلغ مصطنع من console المتصفح مباشرة (تحويل فوري
+  // لعملة مميزة مثل الجواهر من عدم).
+  static CONVERSION_RATES = {
+    cash_to_gold:   0.2,   // 100 مال = 20 ذهب
+    gold_to_cash:   4,     // 1 ذهب = 4 مال
+    cash_to_gems:   0.01,  // 100 مال = 1 جوهرة
+    gems_to_cash:   80,    // 1 جوهرة = 80 مال
+    gold_to_gems:   0.05,  // 1 ذهب = 0.05 جوهرة
+    gems_to_gold:   15,    // 1 جوهرة = 15 ذهب
+  };
+
   /**
-   * صرف مورد مقابل مورد آخر
-   * مثال: صرف 100 ذهب مقابل 500 مال
+   * صرف مورد مقابل مورد آخر — يرسل طلباً للخادم وينتظر تأكيده قبل تطبيق أي
+   * تغيير على الموارد محلياً (نفس نمط listItem/buyListing/removeListing).
    */
   convertResource(fromResource, toResource, amount) {
-    const rates = {
-      cash_to_gold:   0.2,   // 100 مال = 20 ذهب
-      gold_to_cash:   4,     // 1 ذهب = 4 مال
-      cash_to_gems:   0.01,  // 100 مال = 1 جوهرة
-      gems_to_cash:   80,    // 1 جوهرة = 80 مال
-      gold_to_gems:   0.05,  // 1 ذهب = 0.05 جوهرة
-      gems_to_gold:   15,    // 1 جوهرة = 15 ذهب
-    };
-
-    const rateKey = `${fromResource}_to_${toResource}`;
-    const rate = rates[rateKey];
+    const rate = TradeMarket.CONVERSION_RATES[`${fromResource}_to_${toResource}`];
     if (!rate) {
       if (this._onError) this._onError("بدائل الصرف غير متاحة لهذا المورد");
       return false;
     }
 
     if (amount <= 0) {
-      if (this._onError) this._onError("أدخل موقتاً صحيحاً");
+      if (this._onError) this._onError("أدخل مبلغاً صحيحاً");
       return false;
     }
 
-    // تحقق من أن اللاعب يملك المورد الكافي
     if (!this.economy.canAfford(fromResource, amount)) {
       if (this._onError) this._onError(`ليس لديك ${RESOURCE_TYPES[fromResource]?.name || fromResource} كافٍ`);
       return false;
     }
 
-    const result = Math.floor(amount * rate);
-    if (result <= 0) {
-      if (this._onError) this._onError("النتيجة صغيرة جداً");
+    if (this._pendingConvert) {
+      if (this._onError) this._onError("طلب صرف سابق لا يزال قيد المعالجة");
       return false;
     }
 
-    // تنفيذ الصرف
-    this.economy.spend(fromResource, amount);
-    this.economy.addRaw(toResource, result);
+    if (this.netSync) {
+      this._pendingConvert = { fromResource, toResource, amount };
+      this.netSync.send({ type: "market_convert", from: fromResource, to: toResource, amount });
+    }
+    return true;
+  }
 
-    // تسجيل
+  /** يُستدعى من handleNetMessage عند وصول market_convert_response */
+  _handleConvertResponse(msg) {
+    this._pendingConvert = null;
+    if (!msg.ok) {
+      const reasons = {
+        invalid_resource: "بدائل الصرف غير متاحة لهذا المورد",
+        invalid_amount: "أدخل مبلغاً صحيحاً",
+        insufficient_resource: "ليس لديك رصيد كافٍ",
+        result_too_small: "النتيجة صغيرة جداً",
+      };
+      if (this._onError) this._onError(reasons[msg.reason] || "تعذّر الصرف");
+      return;
+    }
+    // ✅ الخادم نفّذ الصرف فعلياً — الآن نطبّق النتيجة محلياً
+    this.economy.spend(msg.from, msg.spent);
+    this.economy.addRaw(msg.to, msg.received);
+
     const conversion = {
-      from: fromResource, fromAmount: amount,
-      to: toResource, toAmount: result,
-      rate, timestamp: Date.now(),
+      from: msg.from, fromAmount: msg.spent,
+      to: msg.to, toAmount: msg.received,
+      timestamp: Date.now(),
     };
     this.transactionLog.push(conversion);
-
-    return { success: true, received: result };
+    if (this._onConvertDone) this._onConvertDone(conversion);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -414,6 +439,9 @@ export class TradeMarket {
         break;
       case "market_remove_response":
         this._handleRemoveResponse(msg);
+        break;
+      case "market_convert_response":
+        this._handleConvertResponse(msg);
         break;
       case "market_listing_new":
         if (msg.listing && msg.listing.seller !== this.username) {
