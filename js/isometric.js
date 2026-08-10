@@ -20,6 +20,7 @@ const TILE_ROCK = 1;
 const TILE_OASIS = 2;
 const TILE_PATH = 3;
 const TILE_DARK_SAND = 4;
+const TILE_WATER = 5;
 
 /**
  * Tile pattern colors (top face of isometric tile).
@@ -30,6 +31,9 @@ const TILE_COLORS = {
   [TILE_ROCK]:      { top: "#8a8070", left: "#6a6050", right: "#7a7060" },
   [TILE_OASIS]:     { top: "#5a9a6a", left: "#3a7a4a", right: "#4a8a5a" },
   [TILE_PATH]:      { top: "#c9b07a", left: "#a99060", right: "#b9a06a" },
+  // 🌴 بركة ماء الواحة — لون منفصل عن أخضر العشب المحيط (TILE_OASIS) ليقرأ
+  // بصرياً كواحة حقيقية (ماء + نبات حولها) بدل بقعة خضراء واحدة موحّدة.
+  [TILE_WATER]:     { top: "#3a7a9a", left: "#245a78", right: "#2d6a88" },
 };
 
 /** يُغمّق/يُفتّح لوناً سداسياً بنسبة amt (-1..1) — لبناء تدرّجات وتفاوتات الأرضية */
@@ -48,6 +52,36 @@ function shadeHexColor(hex, amt) {
 /** قيمة عشوائية ثابتة (0..1) حسب إحداثيات البلاطة — تكسر التكرار البصري المسطّح بلا تكلفة أداء أثناء اللعب */
 function tileVariance(col, row) {
   return ((col * 928371 + row * 614897 + 7) % 97) / 97;
+}
+
+/** قيمة عشوائية ثابتة (0..1) لأي زوج إحداثيات صحيحة — أساس ضوضاء القيمة أدناه */
+function hashGrid(col, row, seed) {
+  const n = (col * 374761393 + row * 668265263 + seed * 2654435761) | 0;
+  const h = Math.imul(n ^ (n >>> 13), 1274126177);
+  return (((h ^ (h >>> 16)) >>> 0) % 100000) / 100000;
+}
+
+function smoothStep(t) {
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * 🏜️ ضوضاء قيمة (value noise) ثنائية الأبعاد بتحليل ثنائي خطي — بديل عن
+ * الضوضاء العشوائية المستقلة لكل بلاطة (كانت تنتج نمطاً "مبعثراً" بلا تكتلات
+ * طبيعية للكثبان/الصخور). تُحسب مرة واحدة فقط عند توليد الخريطة، فلا تكلفة
+ * أداء أثناء اللعب الفعلي.
+ */
+function valueNoise2D(x, y, seed) {
+  const x0 = Math.floor(x), y0 = Math.floor(y);
+  const x1 = x0 + 1, y1 = y0 + 1;
+  const sx = smoothStep(x - x0), sy = smoothStep(y - y0);
+  const n00 = hashGrid(x0, y0, seed);
+  const n10 = hashGrid(x1, y0, seed);
+  const n01 = hashGrid(x0, y1, seed);
+  const n11 = hashGrid(x1, y1, seed);
+  const ix0 = n00 + (n10 - n00) * sx;
+  const ix1 = n01 + (n11 - n01) * sx;
+  return ix0 + (ix1 - ix0) * sy;
 }
 
 class IsometricSystem {
@@ -76,23 +110,36 @@ class IsometricSystem {
     this._tileH = TILE_H * scale;
 
     this.tileMap = [];
-    const rng = this._mulberry32(seed);
+    // 🏜️ ضوضاء قيمة بمقياسين (خشن للتكتلات الكبيرة كالكثبان، ناعم لتفاصيل
+    // أصغر) بدل رقم عشوائي مستقل تماماً لكل بلاطة (mulberry32 القديم) — ينتج
+    // تكتلات صخور/كثبان طبيعية الشكل بدل بقع متناثرة بلا تماسك بصري.
+    const noiseSeed = seed % 1000;
 
     for (let r = 0; r < TILE_ROWS; r++) {
       this.tileMap[r] = [];
       for (let c = 0; c < TILE_COLS; c++) {
-        const noise = rng();
         const cx = c / TILE_COLS;
         const cy = r / TILE_ROWS;
         const distCenter = Math.hypot(cx - 0.5, cy - 0.5) * 2;
 
-        if (distCenter < 0.15 && noise < 0.6) {
+        const coarse = valueNoise2D(c * 0.09, r * 0.09, noiseSeed);
+        const fine = valueNoise2D(c * 0.28, r * 0.28, noiseSeed + 500);
+        const noise = coarse * 0.7 + fine * 0.3;
+
+        // 🌴 نصف قطر الواحة يتأرجح قليلاً بالضوضاء (حواف طبيعية غير دائرية
+        // مثالية) لكن وجودها نفسه غير مشروط بعتبة ضوضاء عشوائية — إصلاح خلل
+        // حيث كانت بعض البذور (seed) تُنتج خريطة بلا أي واحة إطلاقاً لأن قيمة
+        // الضوضاء عند المركز لم تتجاوز العتبة المطلوبة صدفة.
+        const oasisEdgeNoise = (coarse - 0.5) * 0.06;
+        if (distCenter < 0.055 + oasisEdgeNoise) {
+          this.tileMap[r][c] = TILE_WATER;
+        } else if (distCenter < 0.15 + oasisEdgeNoise) {
           this.tileMap[r][c] = TILE_OASIS;
-        } else if (noise < 0.06) {
+        } else if (noise < 0.16 && coarse < 0.3) {
           this.tileMap[r][c] = TILE_ROCK;
-        } else if (noise < 0.15) {
+        } else if (noise < 0.32) {
           this.tileMap[r][c] = TILE_DARK_SAND;
-        } else if (noise < 0.2 && distCenter < 0.6) {
+        } else if (noise > 0.55 && noise < 0.62 && distCenter < 0.65) {
           this.tileMap[r][c] = TILE_PATH;
         } else {
           this.tileMap[r][c] = TILE_SAND;
@@ -155,7 +202,7 @@ class IsometricSystem {
       for (let c = 0; c < TILE_COLS; c++) {
         const type = this.tileMap[r][c];
         const colors = TILE_COLORS[type] || TILE_COLORS[TILE_SAND];
-        this._drawIsoTile(ctx, c, r, colors);
+        this._drawIsoTile(ctx, c, r, colors, type);
       }
     }
 
@@ -166,7 +213,7 @@ class IsometricSystem {
    * Draw a single isometric tile (diamond shape) — مرة واحدة فقط عند التوليد
    * (_preRenderTiles)، لذا تحمل تدرّجات وتفاصيل إضافية بلا أي تكلفة أثناء اللعب.
    */
-  _drawIsoTile(ctx, col, row, colors) {
+  _drawIsoTile(ctx, col, row, colors, type) {
     const tileW = this._tileW || TILE_W;
     const tileH = this._tileH || TILE_H;
     const { x, y } = this.isoToScreen(col * tileW, row * tileH);
@@ -194,8 +241,23 @@ class IsometricSystem {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // بقع رملية خفيفة (نسيج) — تكسر التكرار البصري المسطّح لأرضية الصحراء
-    if (variance > 0.55) {
+    if (type === TILE_WATER) {
+      // 🌊 خطوط تموّج ماء خفيفة — بديل ثابت (البلاطة مطبوعة مرة واحدة فقط)
+      // لإحساس حركة الماء، بدل سطح مصمت يبدو كأرض خضراء داكنة فقط.
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 1;
+      const rippleCount = 2 + Math.floor(variance * 2);
+      for (let i = 0; i < rippleCount; i++) {
+        const rv = tileVariance(col * 17 + i, row * 9 + i);
+        const ry = y - hh * 0.3 + rv * hh * 0.6;
+        const rw = hw * (0.35 + rv * 0.25);
+        ctx.beginPath();
+        ctx.moveTo(x - rw, ry);
+        ctx.quadraticCurveTo(x, ry - hh * 0.12, x + rw, ry);
+        ctx.stroke();
+      }
+    } else if (variance > 0.55) {
+      // بقع رملية خفيفة (نسيج) — تكسر التكرار البصري المسطّح لأرضية الصحراء
       const speckleCount = 2 + Math.floor(variance * 3);
       ctx.fillStyle = shadeHexColor(colors.top, -0.14);
       ctx.globalAlpha = 0.25;
@@ -248,7 +310,7 @@ class IsometricSystem {
       for (let c = 0; c < TILE_COLS; c++) {
         const type = this.tileMap[r][c];
         const colors = TILE_COLORS[type] || TILE_COLORS[TILE_SAND];
-        this._drawIsoTile(ctx, c, r, colors);
+        this._drawIsoTile(ctx, c, r, colors, type);
       }
     }
   }
@@ -288,7 +350,8 @@ class IsometricSystem {
    * Is a tile walkable?
    */
   isTileWalkable(wx, wy) {
-    return this.getTileAt(wx, wy) !== TILE_ROCK;
+    const t = this.getTileAt(wx, wy);
+    return t !== TILE_ROCK && t !== TILE_WATER;
   }
 
   /**
@@ -297,18 +360,6 @@ class IsometricSystem {
    */
   getDepth(wx, wy) {
     return wx + wy;
-  }
-
-  /**
-   * Simple seeded RNG (mulberry32).
-   */
-  _mulberry32(a) {
-    return function() {
-      a |= 0; a = a + 0x6D2B79F5 | 0;
-      let t = Math.imul(a ^ a >>> 15, 1 | a);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
   }
 }
 
@@ -348,4 +399,4 @@ class DepthSorter {
   }
 }
 
-export { IsometricSystem, DepthSorter, TILE_W, TILE_H, TILE_ROWS, TILE_COLS, WORLD_W, WORLD_H, TILE_SAND, TILE_ROCK, TILE_OASIS, TILE_PATH, TILE_DARK_SAND, TILE_COLORS };
+export { IsometricSystem, DepthSorter, TILE_W, TILE_H, TILE_ROWS, TILE_COLS, WORLD_W, WORLD_H, TILE_SAND, TILE_ROCK, TILE_OASIS, TILE_PATH, TILE_DARK_SAND, TILE_WATER, TILE_COLORS };
