@@ -58,9 +58,21 @@ export function computeKnowledgeBonuses(data) {
 // الإنفاق). سخي بما يكفي لأي لعب طبيعي (أضعاف أكبر مكافأة طعام فردية معروفة).
 export const MAX_FOOD = 50000;
 
+// 🛡️ المنحنى الأسي 1.15 لكل المستويات كان يجعل المستوى 110 (شرط Prestige
+// الوحيد) يحتاج ~2.75 مليار خبرة تراكمية — أكثر من 500 سنة حتى بأقصى سقف
+// خبرة يومي ممكن من كل أوضاع اللعب مجتمعة (15,000/يوم). نُبقي المنحنى كما هو
+// تماماً حتى المستوى 30 (لا تغيير على بداية اللعبة)، ثم ننتقل لنمو أهدأ
+// بكثير (1.025) بعدها — يجعل المستوى 110 قابلاً للتحقيق فعلياً في ~3 أشهر
+// من اللعب اليومي الملتزم، بدل مستحيل رياضياً.
+const XP_CURVE_SLOWDOWN_LEVEL = 30;
+const XP_BASE_AT_SLOWDOWN = Math.floor(100 * Math.pow(1.15, XP_CURVE_SLOWDOWN_LEVEL - 1));
+
 export function getXpForLevel(level) {
   if (level <= 0) return 100;
-  return Math.floor(100 * Math.pow(1.15, level - 1));
+  if (level <= XP_CURVE_SLOWDOWN_LEVEL) {
+    return Math.floor(100 * Math.pow(1.15, level - 1));
+  }
+  return Math.floor(XP_BASE_AT_SLOWDOWN * Math.pow(1.025, level - XP_CURVE_SLOWDOWN_LEVEL));
 }
 
 export class GameEconomy {

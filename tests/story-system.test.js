@@ -61,6 +61,50 @@ describe('Story System', () => {
     expect(economy.xp).toBeGreaterThan(initialXp);
   });
 
+  // 🛡️ قبل هذا الإصلاح: canCompleteChapter() لم يتحقق من chapter.levelRequired
+  // إطلاقاً — فقط من اكتمال مباني القرية. بما أن كل قرية (عدا "throne") تُقفل
+  // بشرط مستوى عبر village.canMoveToNext()، كان هذا يمر دون ملاحظة للفصول
+  // 1-5. لكن الفصل 6 (الإبيلوغ) يُعاد استخدام قرية "throne" نفسها (لا قرية
+  // تالية تفرض شرط مستوى) — فيمكن للاعب بلغ المستوى 75 فقط (شرط الفصل 5
+  // الحقيقي) الضغط على "إكمال الفصل" مرتين متتاليتين: الأولى تُكمل الفصل 5
+  // شرعياً، والثانية تُكمل الفصل 6 فوراً دون بلوغ المستوى 100 المطلوب فعلياً،
+  // مانحة مكافآت الإبيلوغ الضخمة (1,000,000 نقد وغيرها) مجاناً.
+  it('يرفض إكمال الفصل 6 (الإبيلوغ) بمستوى أقل من levelRequired (100) حتى لو اكتملت قرية العرش', () => {
+    story.currentChapter = 6;
+    story.completedChapters = [1, 2, 3, 4, 5];
+    economy.level = 75; // مستوى الفصل 5، وليس 100 المطلوب للفصل 6
+    village.buildings.forEach(b => {
+      b.state = 'ready';
+      b.level = 1;
+    });
+    expect(story.canCompleteChapter()).toBe(false);
+    expect(story.completeChapter()).toBe(false);
+    expect(story.completedChapters).not.toContain(6);
+  });
+
+  it('يقبل إكمال الفصل 6 عند بلوغ المستوى 100 فعلاً مع اكتمال القرية', () => {
+    story.currentChapter = 6;
+    story.completedChapters = [1, 2, 3, 4, 5];
+    economy.level = 100;
+    village.buildings.forEach(b => {
+      b.state = 'ready';
+      b.level = 1;
+    });
+    expect(story.canCompleteChapter()).toBe(true);
+    expect(story.completeChapter()).toBe(true);
+    expect(story.completedChapters).toContain(6);
+  });
+
+  it('يرفض إكمال أي فصل بمستوى أقل من levelRequired الخاص به حتى لو اكتملت القرية', () => {
+    story.currentChapter = 3; // levelRequired: 30
+    economy.level = 10;
+    village.buildings.forEach(b => {
+      b.state = 'ready';
+      b.level = 1;
+    });
+    expect(story.canCompleteChapter()).toBe(false);
+  });
+
   it('should save and load state', () => {
     story.currentChapter = 2;
     story.completedChapters = [1];

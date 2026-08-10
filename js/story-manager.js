@@ -98,6 +98,7 @@ export class StoryManager {
     const chapter = this.currentChapterData;
     if (!chapter) return false;
     if (this.completedChapters.includes(chapter.id)) return false;
+    if (this.economy.level < chapter.levelRequired) return false;
     return this.village.isVillageComplete();
   }
 
