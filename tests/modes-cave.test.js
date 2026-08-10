@@ -100,10 +100,13 @@ describe("CaveMode", () => {
   });
 
   it("should detect near lava", () => {
-    mode.init();
-    const pool = mode._lavaPools[0];
-    expect(mode._isNearLava(pool.x, pool.y)).toBe(true);
-    expect(mode._isNearLava(pool.x + pool.radius + 100, pool.y)).toBe(false);
+    // 🛡️ init() يولّد 6 برك حمم بمواقع عشوائية — فحص "بعيد عن البركة 0" بنقطة
+    // مشتقة من البركة 0 وحدها كان يفشل بشكل متقطع كلما وقعت هذه النقطة قرب
+    // إحدى البرك الخمس الأخرى صدفةً. هنا نتحكم ببركة واحدة فقط ونقطة بعيدة
+    // معزولة عنها تماماً، بلا اعتماد على عشوائية init().
+    mode._lavaPools = [{ x: 0, y: 0, radius: 50 }];
+    expect(mode._isNearLava(0, 0)).toBe(true);
+    expect(mode._isNearLava(10000, 10000)).toBe(false);
   });
 
   it("should track score and kills on monster killed", () => {
