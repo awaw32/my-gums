@@ -322,6 +322,82 @@ describe('🏜️ نظام التحالف الحقيقي (server/logic/allianceM
       expect(result.ok).toBe(false);
       expect(result.reason).toBe("not_authorized");
     });
+
+    it('يزيد عدّاد contributionCount بمقدار 1 مع كل مساهمة (بصرف النظر عن المبلغ)', async () => {
+      addClient(worldClients, memStore, "shaykh1", 1000, 1000);
+      const created = await manager.create("shaykh1", "قبيلة العدّاد");
+      const r1 = await manager.contribute("shaykh1", created.allianceId, 50);
+      expect(r1.contributionCount).toBe(1);
+      const r2 = await manager.contribute("shaykh1", created.allianceId, 10);
+      expect(r2.contributionCount).toBe(2);
+    });
+  });
+
+  // 🛡️ قبل هذا الإصلاح: ALLIANCE_MISSIONS في js/quests.js لم يكن لها أي كود
+  // يزيد progress إطلاقاً — عالقة دائماً عند 0/3 لكل لاعب ينضم لتحالف.
+  describe('مهام التحالف (claimMission)', () => {
+    it('يرفض استلام مهمة غير معروفة', async () => {
+      addClient(worldClients, memStore, "shaykh1", 1000, 500);
+      await manager.create("shaykh1", "قبيلة المهام");
+      const result = await manager.claimMission("shaykh1", "unknown_mission");
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("unknown_mission");
+    });
+
+    it('يرفض استلام مهمة "alliance_1" قبل بلوغ 3 مساهمات فعلية', async () => {
+      addClient(worldClients, memStore, "shaykh1", 1000, 500);
+      const created = await manager.create("shaykh1", "قبيلة المهام");
+      await manager.contribute("shaykh1", created.allianceId, 10);
+      await manager.contribute("shaykh1", created.allianceId, 10); // مساهمتان فقط
+      const result = await manager.claimMission("shaykh1", "alliance_1");
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("progress_incomplete");
+    });
+
+    it('يقبل استلام مهمة "alliance_1" بعد 3 مساهمات حقيقية ويمنح المكافأة', async () => {
+      addClient(worldClients, memStore, "shaykh1", 1000, 500);
+      const created = await manager.create("shaykh1", "قبيلة المهام");
+      await manager.contribute("shaykh1", created.allianceId, 10);
+      await manager.contribute("shaykh1", created.allianceId, 10);
+      await manager.contribute("shaykh1", created.allianceId, 10);
+      const goldBefore = memStore.get("shaykh1").gold;
+      const result = await manager.claimMission("shaykh1", "alliance_1");
+      expect(result.ok).toBe(true);
+      expect(result.granted.gold).toBe(300);
+      expect(memStore.get("shaykh1").gold).toBe(goldBefore + 300);
+    });
+
+    it('يرفض استلام نفس المهمة مرتين', async () => {
+      addClient(worldClients, memStore, "shaykh1", 1000, 500);
+      const created = await manager.create("shaykh1", "قبيلة المهام");
+      for (let i = 0; i < 3; i++) await manager.contribute("shaykh1", created.allianceId, 10);
+      await manager.claimMission("shaykh1", "alliance_1");
+      const second = await manager.claimMission("shaykh1", "alliance_1");
+      expect(second.ok).toBe(false);
+      expect(second.reason).toBe("already_claimed");
+    });
+
+    it('يرفض استلام المهمة للاعب ليس في أي تحالف', async () => {
+      addClient(worldClients, memStore, "solo1", 1000, 500);
+      const result = await manager.claimMission("solo1", "alliance_1");
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("not_in_alliance");
+    });
+
+    it('لا يخلط بين مساهمات لاعبين مختلفين في نفس التحالف', async () => {
+      addClient(worldClients, memStore, "shaykh1", 1000, 500);
+      addClient(worldClients, memStore, "member1", 500, 500);
+      const created = await manager.create("shaykh1", "قبيلة المشتركة");
+      await manager.requestJoin("member1", created.allianceId);
+      await manager.respondToRequest("shaykh1", created.allianceId, "member1", true);
+      await manager.contribute("shaykh1", created.allianceId, 10);
+      await manager.contribute("shaykh1", created.allianceId, 10);
+      await manager.contribute("shaykh1", created.allianceId, 10);
+      // member1 لم يساهم إطلاقاً — يجب ألا يستفيد من مساهمات shaykh1
+      const result = await manager.claimMission("member1", "alliance_1");
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("progress_incomplete");
+    });
   });
 
   describe('getTribePower — أمنية العضوية', () => {

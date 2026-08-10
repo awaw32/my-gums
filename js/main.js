@@ -298,6 +298,7 @@ async function loadFromDatabase(economy, army, village, username) {
   window._loadedResearch = data.researchTree || null;
   window._loadedOases = data.oases || [];
   window._loadedAchievements = data.achievements || null;
+  window._loadedQuests = data.allianceMissions || null;
       window._loadedDailyLogin = data.dailyLogin || null;
       window._loadedPrestige = data.prestigeLevel ?? 0;
       window._loadedIsNewPlayer = data.isNewPlayer !== false;
@@ -380,6 +381,12 @@ async function init() {
   village.setAllianceManager(allianceManager);
   oasisManager.setAllianceManager(allianceManager);
   const quests = new QuestManager(economy, army, village);
+  // 🛡️ ربط تقدّم مهمة "دعم خزينة التحالف" بعدّاد مساهمات حقيقي من الخادم
+  // (member.contributionCount)، واستلام مكافأتها عبر رد خادم موثَّق فقط.
+  allianceManager._onContributeSuccess = (contributionCount) => {
+    quests.updateProgress("alliance_1", contributionCount);
+  };
+  allianceManager._onClaimMissionResponse = (msg) => quests._handleClaimResponse(msg);
   const world = new WorldMap(economy, PLAYER_USERNAME, API_BASE, army);
   const store = new GameStore();
   const netSync = new NetworkSync(API_BASE, PLAYER_USERNAME);
@@ -465,6 +472,7 @@ async function init() {
   if (window._loadedResearch) researchTree.loadState(window._loadedResearch);
   if (window._loadedOases) oasisManager.loadState(window._loadedOases);
   if (window._loadedAchievements) achievements.loadState(window._loadedAchievements);
+  if (window._loadedQuests) quests.loadState(window._loadedQuests);
   if (window._loadedDailyLogin) dailyLogin.loadState(window._loadedDailyLogin);
   if (window._loadedPrestige !== 0 && window._loadedPrestige !== undefined) prestige.loadState(window._loadedPrestige);
   researchTree.prestigeLevel = prestige.level; // بعد تحميل الحفظ — يضبط فئة البحوث السرية بشكل صحيح
@@ -508,6 +516,7 @@ async function init() {
   delete window._loadedResearch;
   delete window._loadedOases;
   delete window._loadedAchievements;
+  delete window._loadedQuests;
   delete window._loadedDailyLogin;
   delete window._loadedPrestige;
   delete window._loadedInventory;
@@ -838,6 +847,7 @@ async function init() {
         oases: oasisManager.getState().map(o => ({ id: o.id, captured: o.captured })),
         prestigeLevel: prestige.level,
         achievements: achievements.getSaveData(),
+        allianceMissions: quests.getSaveData(),
         dailyLogin: dailyLogin.getSaveData(),
         inventory: inventory.getSaveData(),
         events: events.getSaveData(),

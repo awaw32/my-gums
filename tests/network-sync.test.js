@@ -238,4 +238,22 @@ describe('NetworkSync', () => {
       expect(ns._wsReconnectTimer).toBeNull();
     });
   });
+
+  // 🛡️ قبل هذا الإصلاح: move_rejected (يُرسَل عند رفض الخادم لتحديث موقع
+  // اللاعب — سرعة غير منطقية أو إحداثيات غير صالحة) لم يكن له أي case في
+  // switch(msg.type) — اللاعب يُعاد لمكانه بصمت بلا أي تفسير مرئي.
+  describe('_handleMessage: move_rejected', () => {
+    it('يعرض إشعاراً مرئياً عند رفض الخادم لتحديث الموقع', () => {
+      let notified = null;
+      world.store = { set: (key, value) => { if (key === 'notification') notified = value; } };
+      ns._handleMessage({ type: 'move_rejected', reason: 'movement too fast: 500 > 300' });
+      expect(notified).toBeTruthy();
+      expect(notified.text).toBeTruthy();
+    });
+
+    it('لا يرمي خطأً إن كانت store غير معرَّفة', () => {
+      world.store = null;
+      expect(() => ns._handleMessage({ type: 'move_rejected', reason: 'invalid coordinates' })).not.toThrow();
+    });
+  });
 });

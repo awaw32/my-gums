@@ -51,6 +51,8 @@ export class AllianceManager {
     this.onSearchResults = null;     // (results) => void
     this.onJoinRequestReceived = null; // (msg) => void — للشيخ فقط
     this.onActionError = null;       // (reason) => void
+    this._onContributeSuccess = null; // (contributionCount) => void — لمهام التحالف
+    this._onClaimMissionResponse = null; // (msg: {ok, missionId?, granted?, reason?}) => void
   }
 
   setMyName(name) { this._myName = name; }
@@ -112,6 +114,11 @@ export class AllianceManager {
     return this._send({ type: "alliance_upgrade", allianceId: this._alliance.id, useTreasuryFirst });
   }
   upgrade() { return this.upgradeFromTreasury(false); }
+  /** يرسل طلب استلام مكافأة مهمة تحالف — الموارد لا تُطبَّق هنا إطلاقاً،
+   *  فقط بعد تأكيد الخادم (نفس نمط achievements.js claim()). */
+  claimMission(missionId) {
+    return this._send({ type: "alliance_claim_mission", missionId });
+  }
 
   // ==================== استقبال أحداث الخادم ====================
 
@@ -165,12 +172,24 @@ export class AllianceManager {
           if (this.onActionError) this.onActionError(msg.reason);
         }
         break;
+      case "alliance_contribute":
+        if (msg.ok) {
+          this.requestMine();
+          // 🛡️ contributionCount من الخادم فقط (member.contributionCount في
+          // allianceManager.js) — يغذّي مهمة تحالف "مساعدة الحلفاء" الحقيقية.
+          if (this._onContributeSuccess) this._onContributeSuccess(msg.contributionCount || 0);
+        } else if (this.onActionError) {
+          this.onActionError(msg.reason);
+        }
+        break;
+      case "alliance_claim_mission":
+        if (this._onClaimMissionResponse) this._onClaimMissionResponse(msg);
+        break;
       case "alliance_approve_request":
       case "alliance_reject_request":
       case "alliance_promote":
       case "alliance_demote":
       case "alliance_kick":
-      case "alliance_contribute":
       case "alliance_upgrade":
         if (msg.ok) {
           this.requestMine();

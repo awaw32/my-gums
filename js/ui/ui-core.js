@@ -1031,6 +1031,7 @@ export class GameUI {
     for (const quest of allianceMissions) {
       const progress = Math.min(100, (quest.progress / quest.target) * 100);
       const completed = quest.progress >= quest.target;
+      const claimed = !!quest.claimed;
       html += `
         <div class="quest-card${completed ? ' quest-completed' : ''}">
           <div class="quest-header">
@@ -1042,6 +1043,7 @@ export class GameUI {
             <div class="quest-progress-fill" style="width:${progress}%"></div>
           </div>
           <div class="quest-reward">🏆 ${Object.entries(quest.reward).map(([k,v]) => `${v} ${k === 'gold' ? '🪙' : k === 'alliancePoints' ? '🤝' : '💵'}`).join(' + ')}</div>
+          ${claimed ? '<div class="quest-claimed-badge">✅ تم الاستلام</div>' : `<button class="action-btn quest-claim-btn" data-quest-id="${quest.id}" ${completed ? '' : 'disabled'}>${completed ? 'استلم المكافأة 🎁' : 'أكمل المهمة أولاً'}</button>`}
         </div>
       `;
     }
@@ -1064,6 +1066,29 @@ export class GameUI {
         }
       });
     }
+
+    // أزرار استلام مكافآت مهام التحالف
+    container.querySelectorAll('.quest-claim-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const questId = btn.dataset.questId;
+        const allianceManager = window._allianceManager;
+        // 🛡️ الاستلام الفعلي يتم على الخادم — هذا الـ callback يُستدعى فقط بعد التأكيد
+        this.quests._onClaimResponse = (msg) => {
+          if (msg.ok) {
+            this.renderQuests();
+            this.updateTopBar();
+            this.showNotification('✅ تم استلام مكافأة المهمة!');
+          } else if (msg.reason !== 'already_claimed') {
+            this.showNotification('❌ تعذّر استلام المكافأة');
+            this.renderQuests();
+          }
+        };
+        if (this.quests.claim(questId, allianceManager)) {
+          btn.disabled = true;
+          btn.textContent = 'جاري الاستلام...';
+        }
+      });
+    });
   }
 
   bindNav() {
@@ -1705,9 +1730,21 @@ export class GameUI {
       document.querySelectorAll('.qu-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = btn.dataset.qu;
-          if (id && this.upgradeTree.upgrade(id)) {
+          if (!id) return;
+          if (this.upgradeTree.upgrade(id)) {
             this.updateTopBar();
             this.showNotification(`⬆️ تمت ترقية ${paths.find(p => p.id === id)?.label || id}!`);
+          } else {
+            // 🛡️ كان الفشل هنا بلا أي إشعار مرئي — أكثر الأزرار استخداماً في
+            // اللعب اليومي يبدو معطوباً/بلا استجابة عند نفاد الذهب.
+            const lvl = this.upgradeTree.getLevel(id);
+            const maxLevel = this.upgradeTree.getMaxLevel(id) || 0;
+            const label = paths.find(p => p.id === id)?.label || id;
+            if (lvl >= maxLevel) {
+              this.showNotification(`⭐ ${label} بلغ أقصى مستوى بالفعل`);
+            } else {
+              this.showNotification('❌ ذهب غير كافٍ للترقية');
+            }
           }
         });
       });

@@ -51,6 +51,7 @@ const PlayerSaveSchema = z.object({
   oases: z.array(z.record(z.any())).max(100).optional(),
   prestigeLevel: z.number().int().min(0).max(100).optional(),
   achievements: z.any().optional(),
+  allianceMissions: z.any().optional(),
   dailyLogin: z.record(z.any()).optional(),
   inventory: z.record(z.any()).optional(),
   // 🛡️ events.js يحفظ الآن {events:[...], weekKey} (لدعم دوران الأحداث

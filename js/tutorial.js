@@ -7,7 +7,7 @@ const TUTORIAL_STEPS = [
   { id: "army", target: ".tab-btn[data-tab='army']", text: "⚔️ ساحة الجيش — طور مستوى جنودك ومستوى تدريبهم لزيادة قوتك.", side: "top" },
   { id: "inventory", target: "#sub-btn-inventory", text: "📦 المخزون والتصنيع — استخدم الجرعات في المعركة، اصنع أسلحة وادوات جديدة.", side: "top" },
   { id: "quests", target: "#sub-btn-quests", text: "📜 المهام — أنجز المهام اليومية واكمل فصول القصة لتحصل على مكافآت ضخمة.", side: "top" },
-  { id: "war", target: "[data-screen='war']", text: "⚔️ ساحة الحرب — هناك 3 ألعاب: مغامرة الصحراء (PvE)، واحة الغنائم (PvP)، وباتل رويال!", side: "top" },
+  { id: "war", target: "[data-screen='war']", text: "⚔️ ساحة الحرب — 3 أوضاع: استخراج الذهب، حشد الأعداء، واستكشاف الكهف. وباتل رويال متاح من زر منفصل بالأسفل!", side: "top" },
   { id: "events", target: "#sub-btn-events", text: "🎊 الأحداث — أحداث محدودة تمنح مضاعفات: ذهب ×2، XP ×2، قوة +50%!", side: "top" },
   { id: "territories", target: "[data-screen='territories']", text: "🗺️ شاشة الأراضي — تحكم بقراك وواحاتك. كلما وسعت مملكتك زاد دخلك.", side: "top" },
   { id: "alliance", target: "[data-screen='alliance']", text: "👑 التحالف — حسّن تحالفك لبونصات ضرر ودفاع ودخل. شارك في غارات التحالف!", side: "top" },

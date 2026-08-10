@@ -253,12 +253,35 @@ class GameEngine {
       // المستقل) لا تتأثر إطلاقاً.
       const updateDt = this.freeze > 0 ? 0 : this.deltaTime;
       if (this.freeze > 0) this.freeze--;
-      this._onUpdate(updateDt, this.ctx, this.camera);
+      // 🛡️ بلا try/catch هنا، أي استثناء غير متوقع داخل _onUpdate كان يمنع
+      // الوصول لـ requestAnimationFrame أدناه — تتجمد اللعبة بالكامل وبصمت،
+      // بلا أي رسالة للاعب ولا تسجيل للخطأ. الآن نُبلّغ مرة واحدة فقط (لتفادي
+      // إغراق وحدة التحكم/الخادم بتكرار نفس الخطأ 60 مرة/ثانية) ونكمل الحلقة.
+      try {
+        this._onUpdate(updateDt, this.ctx, this.camera);
+      } catch (err) {
+        this._reportFrameError(err);
+      }
     }
 
     this.ctx.restore();
     performanceMonitor.endFrame(_pf);
     this.animId = requestAnimationFrame((t) => this._loop(t));
+  }
+
+  _reportFrameError(err) {
+    if (this._frameErrorReported) return;
+    this._frameErrorReported = true;
+    import("./error-logger.js").then(({ errorLogger }) => {
+      errorLogger?.logError({ type: "gameLoopError", message: "استثناء غير متوقع داخل حلقة اللعبة", stack: err?.stack, original: err?.message });
+    }).catch(() => {});
+    try {
+      const banner = document.createElement("div");
+      banner.textContent = "⚠️ حدث خطأ غير متوقع — يُنصح بإعادة تحميل الصفحة لتفادي أي سلوك غير متوقع";
+      banner.style.cssText = "position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#c0392b;color:#fff;padding:10px;text-align:center;font-size:0.85rem;cursor:pointer";
+      banner.onclick = () => window.location.reload();
+      document.body.appendChild(banner);
+    } catch { /* لا نسمح لفشل عرض البانر نفسه بإعادة تعطيل الحلقة */ }
   }
 
   _bindPointerEvents() {

@@ -581,6 +581,14 @@ export class NetworkSync {
           if (msg.y !== undefined) w.leader.y = msg.y;
         }
         break;
+      case "move_rejected":
+        // 🛡️ الخادم رفض تحديث الموقع (سرعة غير منطقية أو إحداثيات غير صالحة) —
+        // كان اللاعب يُعاد لمكانه بصمت بلا أي تفسير. رسالة عامة غير اتهامية
+        // لأن هذا قد يحدث لأسباب طبيعية (تأخر شبكة) وليس فقط محاولة غش.
+        if (w.store) {
+          w.store.set('notification', { text: '🌪️ تأخر بالاتصال — أُعيد موقعك لآخر نقطة موثوقة', t: Date.now() });
+        }
+        break;
       case "world_drops":
         if (w._onWorldDrops && msg.list) w._onWorldDrops(msg.list);
         break;

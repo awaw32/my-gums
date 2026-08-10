@@ -6,7 +6,7 @@
 
 const FIRST_STEPS = [
   { id: "train",  icon: "⚔️", goal: "درّب جيشك",   hint: "القائمة السريعة أسفل الشاشة", reward: { cash: 300 },  rewardLabel: "+300 💵" },
-  { id: "kill",   icon: "🗡️", goal: "اقتل أول وحش",  hint: "حرب ← مغامرة الصحراء", reward: { gems: 20 },  rewardLabel: "+20 💎" },
+  { id: "kill",   icon: "🗡️", goal: "اقتل أول وحش",  hint: "اضغط هنا للدخول لخريطة العالم", reward: { gems: 20 },  rewardLabel: "+20 💎" },
   { id: "equip",  icon: "🛡️", goal: "جهّز سلاحاً",   hint: "الترقية ← الأسلحة", reward: { cash: 500, gems: 10 }, rewardLabel: "+500 💵 +10 💎" },
 ];
 

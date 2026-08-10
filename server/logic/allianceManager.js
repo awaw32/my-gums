@@ -313,11 +313,61 @@ function createAllianceManager(deps) {
 
     alliance.treasury = (alliance.treasury || 0) + amt;
     const member = getMemberEntry(alliance, username);
-    if (member) member.contribution = (member.contribution || 0) + amt;
+    if (member) {
+      member.contribution = (member.contribution || 0) + amt;
+      // 🛡️ عدّاد مرات المساهمة (منفصل عن المبلغ التراكمي) — يغذّي مهمة تحالف
+      // "مساعدة الحلفاء" في js/quests.js دون ثقة بأي قيمة يرسلها العميل.
+      member.contributionCount = (member.contributionCount || 0) + 1;
+    }
     await saveAlliance(alliance);
 
     broadcastToMembers(alliance, { type: "alliance_roster_updated", alliance: summarize(alliance) });
-    return { ok: true, treasury: alliance.treasury };
+    return { ok: true, treasury: alliance.treasury, contributionCount: member?.contributionCount || 0 };
+  }
+
+  // ==================== مهام التحالف ====================
+
+  // 🛡️ مطابق حرفياً لـ ALLIANCE_MISSIONS في js/quests.js. مهمة "مساعدة
+  // الحلفاء" كانت بلا أي كود يزيد قيمتها إطلاقاً — عالقة دائماً عند 0/3
+  // لكل لاعب ينضم لتحالف. الشرط الحقيقي هنا: المساهمة بالخزينة 3 مرات
+  // (member.contributionCount، عدّاد سيرفري حقيقي وليس قيمة يرسلها العميل).
+  const ALLIANCE_MISSION_REWARDS = {
+    alliance_1: { gold: 300, alliancePoints: 50 },
+  };
+  const ALLIANCE_MISSION_TARGETS = {
+    alliance_1: 3,
+  };
+
+  function getClaimedMissionsSet(pData) {
+    if (!Array.isArray(pData.claimedAllianceMissions)) pData.claimedAllianceMissions = [];
+    return pData.claimedAllianceMissions;
+  }
+
+  async function claimMission(username, missionId) {
+    const reward = ALLIANCE_MISSION_REWARDS[missionId];
+    const target = ALLIANCE_MISSION_TARGETS[missionId];
+    if (!reward || !target) return { ok: false, reason: "unknown_mission" };
+
+    const alliance = getMyAlliance(username);
+    if (!alliance) return { ok: false, reason: "not_in_alliance" };
+    const member = getMemberEntry(alliance, username);
+    if (!member) return { ok: false, reason: "not_in_alliance" };
+    if ((member.contributionCount || 0) < target) return { ok: false, reason: "progress_incomplete" };
+
+    const pData = memStore.get(username) || getDefaultPlayer(username);
+    const claimed = getClaimedMissionsSet(pData);
+    if (claimed.includes(missionId)) return { ok: false, reason: "already_claimed" };
+
+    for (const [res, amt] of Object.entries(reward)) {
+      if (res === "alliancePoints") continue; // لا حقل موارد فعلي — نقاط تحالف زخرفية حالياً
+      pData[res] = (pData[res] || 0) + amt;
+    }
+    claimed.push(missionId);
+    pData.claimedAllianceMissions = claimed;
+    memStore.set(username, pData);
+    markDirty(username);
+
+    return { ok: true, missionId, granted: reward };
   }
 
   async function upgrade(username, allianceId, useTreasuryFirst) {
@@ -408,6 +458,11 @@ function createAllianceManager(deps) {
         return { alliance: summarize(alliance) };
       }
 
+      case "alliance_claim_mission": {
+        if (!username) return { ok: false, reason: "auth_required" };
+        return await claimMission(username, msg.missionId);
+      }
+
       default:
         return null;
     }
@@ -423,6 +478,7 @@ function createAllianceManager(deps) {
     leave,
     contribute,
     upgrade,
+    claimMission,
     getMyAlliance,
     getTribePower,
     getAllianceBonuses: getMyAllianceBonuses,
