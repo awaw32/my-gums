@@ -250,10 +250,6 @@ export class GameVillage {
     return totalIncome;
   }
 
-  upgradeBuilding(building) {
-    return building.upgrade(this.economy);
-  }
-
   setBuildingCallbacks(onBuilt, onUpgraded) {
     this._savedOnBuilt = onBuilt;
     this._savedOnUpgraded = onUpgraded;
