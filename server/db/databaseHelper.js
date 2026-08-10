@@ -230,6 +230,24 @@ try {
     }
   }, 60 * 60 * 1000);
 
+  // 💾 نسخ احتياطي يومي لقاعدة SQLite (فوراً عند الإقلاع، ثم كل 24 ساعة)
+  // 🧪 مُعطَّل تحت الاختبارات (VITEST/NODE_ENV=test) — كل ملف اختبار يستورد
+  // هذا الموديول يفتح ./data الحقيقية، وبلا هذا الشرط كل تشغيلة npm test
+  // كانت ستنشئ ملفات نسخ احتياطية فعلية على القرص كأثر جانبي غير مقصود.
+  if (!process.env.VITEST && process.env.NODE_ENV !== "test") {
+    const runBackup = () => {
+      backupDatabase(sqliteDb, fs, path, DATA_DIR)
+        .then(({ backupPath, removed }) => {
+          logger.info({ backupPath, removedOld: removed }, "SQLite backup completed");
+        })
+        .catch((e) => {
+          logger.warn({ err: e.message }, "SQLite backup failed");
+        });
+    };
+    runBackup();
+    setInterval(runBackup, 24 * 60 * 60 * 1000);
+  }
+
   // ── حفظ البيانات المتسخة عند إيقاف السيرفر ──
   const flushOnShutdown = () => {
     if (!_dirtyUsernames || _dirtyUsernames.size === 0) return;
@@ -295,6 +313,50 @@ function evictInactivePlayers(store, dirtyUsernames, now = Date.now(), maxAgeMs 
     evicted++;
   }
   return evicted;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  💾 نسخ احتياطي دوري لقاعدة SQLite
+//  desert-kingdom.db هي المصدر الوحيد للبيانات الدائمة عند عدم توفر MongoDB
+//  (وهي الحالة الافتراضية فعلياً — MONGO_URL غير مضبوط في أغلب النشرات).
+//  بلا نسخ احتياطي، أي تلف في ملف القرص الوحيد (قرص فاسد، خطأ بشري، حذف
+//  عرضي) يعني فقدان كامل ونهائي لكل بيانات كل اللاعبين. نستخدم واجهة backup()
+//  الرسمية لـ better-sqlite3 (نسخ متسق حتى أثناء كتابة متزامنة، بلا قفل).
+// ═══════════════════════════════════════════════════════════════════
+const BACKUP_RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // الاحتفاظ بأسبوع من النسخ
+
+function pruneOldBackups(fs, path, backupDir, now = Date.now(), maxAgeMs = BACKUP_RETENTION_MS) {
+  let removed = 0;
+  let files;
+  try {
+    files = fs.readdirSync(backupDir);
+  } catch {
+    return 0;
+  }
+  for (const file of files) {
+    if (!file.startsWith("desert-kingdom-") || !file.endsWith(".db")) continue;
+    const fullPath = path.join(backupDir, file);
+    try {
+      const stat = fs.statSync(fullPath);
+      if (now - stat.mtimeMs > maxAgeMs) {
+        fs.unlinkSync(fullPath);
+        removed++;
+      }
+    } catch {
+      // تجاهل ملفاً واحداً فاشلاً ولا نوقف التنظيف عن بقية الملفات
+    }
+  }
+  return removed;
+}
+
+async function backupDatabase(db, fs, path, dataDir) {
+  const backupDir = path.join(dataDir, "backups");
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const backupPath = path.join(backupDir, `desert-kingdom-${stamp}.db`);
+  await db.backup(backupPath);
+  const removed = pruneOldBackups(fs, path, backupDir);
+  return { backupPath, removed };
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -378,4 +440,7 @@ module.exports = {
   flushToSQLite,
   evictInactivePlayers,
   INACTIVE_EVICTION_MS,
+  pruneOldBackups,
+  backupDatabase,
+  BACKUP_RETENTION_MS,
 };

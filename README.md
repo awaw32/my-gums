@@ -131,6 +131,21 @@ npm run dev
 4. **Horde** — 20 موجة وحوش
 5. **Cave** — استكشاف كهف مظلم
 
+## التحقق السيرفري (Anti-Cheat)
+
+كل قيمة تؤثر على التقدم أو الاقتصاد (مستوى، موارد، أسلحة، مباني، برستيج...) يُعاد التحقق منها سيرفرياً في `server/validation/player.js` وملفات `server/logic/` المرتبطة بها قبل قبول أي حفظة من العميل — العميل لا يُوثَق به أبداً بمفرده. عند إضافة نظام تقدّم جديد، أضف مدقق تحقق مطابق مع اختبارات حقيقية (راجع أي ملف `tests/*-validation.test.js` كمرجع).
+
+## النسخ الاحتياطي والمراقبة
+
+- **نسخ احتياطي يومي تلقائي** لقاعدة SQLite في `data/backups/` (يُحتفَظ بأسبوع) — عبر `backupDatabase()` في `server/db/databaseHelper.js`.
+- **إخلاء ذاكرة تلقائي** للاعبين الخاملين 30 يوماً+ من `memStore` (بعد التأكد من حفظهم في SQLite) — `evictInactivePlayers()` في نفس الملف.
+- **CI**: `.github/workflows/ci.yml` يُشغّل lint + test + npm audit + coverage على كل push/PR (Node 20 و22).
+
+## المراجع
+
+- [`docs/ABOUT_GAME.md`](docs/ABOUT_GAME.md) — نظرة عامة موسّعة على اللعبة والتشغيل
+- [`docs/networking.md`](docs/networking.md) — مرجع بروتوكول WebSocket (أنواع كل الرسائل بين العميل والخادم)
+
 ## الترخيص
 
 مشروع مفتوح المصدر — ملك الصحراء © 2026
