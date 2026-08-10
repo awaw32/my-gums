@@ -252,7 +252,8 @@ export class AllianceManager {
     return ALLIANCE_TIERS[this.level - 1].incomeMult;
   }
   get tierName() {
-    if (this.level === 0) return "—";
+    // 🛡️ كان يعرض "—" فقط للاعب بلا تحالف — غير مفهوم قبل قراءة بقية الشاشة
+    if (this.level === 0) return "بلا تحالف بعد";
     return ALLIANCE_TIERS[this.level - 1].name;
   }
   canUpgrade() {

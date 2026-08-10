@@ -684,7 +684,7 @@ export class GameUI {
     const div = document.createElement("div");
     div.className = "screen-panel";
     div.innerHTML = `
-      <div class="panel-header">👑 التحالف</div>
+      <div class="panel-header">👑 التحالف (القبيلة)</div>
       <div id="alliance-content"></div>
     `;
     return div;
@@ -1144,6 +1144,12 @@ export class GameUI {
   }
 
   showScreen(name) {
+    // 🛡️ مشهد FTUE التمهيدي (playFTUEIntro في main.js) يبدأ بعد تأخير مستقل
+    // (setTimeout) عن ظهور شريط التنقل نفسه — لاعب جديد يضغط زراً في تلك
+    // الثانية (أو قبل إغلاق حوار الشيخ) يواجه طبقة .cinematic-dialogue تعترض
+    // كل نقر بصمت بلا أي تفسير مرئي. القصة/العالم لا يزالان مخفيين أصلاً حتى
+    // اكتمال هذا المشهد (main.js)، فتجاهل التنقل هنا لا يفوّت شيئاً حقيقياً.
+    if (window._newPlayerStoryPending) return;
     this.closeQuickPanel();
     const canvas = document.getElementById("gameCanvas");
     if (canvas) canvas.classList.add("hidden");
