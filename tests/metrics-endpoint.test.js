@@ -30,7 +30,7 @@ describe('🔒 حماية /metrics (server/routes/api.js)', () => {
     // بمعزل عن أي حيلة إعادة استيراد ESM. يجب مسح require.cache يدوياً حتى
     // تُعاد قراءة process.env (NODE_ENV/ADMIN_KEY/JWT_SECRET) من جديد كل مرة.
     const path = await import('node:path');
-    for (const rel of ['../server/config.js', '../server/routes/api.js', '../server/network/auth.js']) {
+    for (const rel of ['../server/config.js', '../server/routes/api.js', '../server/network/auth.js', '../server/metrics.js']) {
       const resolved = path.default.resolve(__dirname, rel);
       delete require.cache[resolved];
     }

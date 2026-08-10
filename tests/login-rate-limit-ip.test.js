@@ -41,8 +41,10 @@ describe('🔒 حماية rate limit لتسجيل الدخول ضد تزوير X
     const path = require('node:path');
     const configPath = path.resolve(__dirname, '../server/config.js');
     const apiPath = path.resolve(__dirname, '../server/routes/api.js');
+    const metricsPath = path.resolve(__dirname, '../server/metrics.js');
     delete require.cache[configPath];
     delete require.cache[apiPath];
+    delete require.cache[metricsPath];
     const { createApiRoutes } = require('../server/routes/api.js');
     return createApiRoutes({
       databaseHelper: {}, memStore: new Map(), Player: {}, getDefaultPlayer: () => ({}),
