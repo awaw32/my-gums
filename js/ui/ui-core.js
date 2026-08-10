@@ -6,6 +6,7 @@ import { injectShopMethods } from "./ui-shop.js";
 import { ALLIANCE_RAIDS } from "../alliance-manager.js";
 import { isPushAvailable, enablePushNotifications } from "../push-subscribe.js";
 import { ENEMY_TYPES } from "../enemies.js";
+import { STORY_REWARDS } from "../story.js";
 
 export class GameUI {
   constructor(village, army, economy, world, oasisManager, upgradeTree, researchTree, allianceManager, achievements, dailyLogin, prestige, inventory, events, tutorial, store, quests, warManager, notificationManager, reputation) {
@@ -1003,7 +1004,18 @@ export class GameUI {
     
     // القصة الرئيسية
     if (storyChapter) {
-      const rewardText = Object.entries(storyChapter.reward || {})
+      // 🛡️ completeChapter() في story-manager.js يمنح chapter.reward وأيضاً
+      // STORY_REWARDS.village_complete[chapter.village] معاً — كانت الواجهة
+      // تعرض chapter.reward فقط، فتُظهر نصف القيمة الفعلية الممنوحة للاعب.
+      const combinedReward = { ...(storyChapter.reward || {}) };
+      const villageBonus = STORY_REWARDS.village_complete[storyChapter.village];
+      if (villageBonus) {
+        for (const [k, v] of Object.entries(villageBonus)) {
+          if (k === 'title') continue;
+          combinedReward[k] = (combinedReward[k] || 0) + v;
+        }
+      }
+      const rewardText = Object.entries(combinedReward)
         .filter(([k]) => k !== 'title')
         .map(([k, v]) => {
           const icons = { gold: '🪙', cash: '💵', gems: '💎', xp: '⭐', food: '🌾', heroXp: '🦸', unitLevels: '⚔️', trainingLevel: '🏋️', knowledgeLevel: '📚' };

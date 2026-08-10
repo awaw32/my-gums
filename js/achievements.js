@@ -37,7 +37,7 @@ const ACHIEVEMENTS = [
   { id: "cap_upgrade", title: "مخزني", desc: "طوّر السعة لأقصى مستوى", icon: "📦", target: 4, type: "upgrade_capacity", reward: { gold: 300, gems: 15 } },
   { id: "spd_upgrade", title: "الريح", desc: "طوّر السرعة لأقصى مستوى", icon: "💨", target: 4, type: "upgrade_speed", reward: { gold: 300, gems: 15 } },
   { id: "prestige_1", title: "إعادة ميلاد", desc: "افعل Prestige أول مرة", icon: "🔄", target: 1, type: "prestige", reward: { gems: 200 } },
-  { id: "prestige_3", title: "عاشوراء", desc: "افعل Prestige 3 مرات", icon: "🔥", target: 3, type: "prestige", reward: { gems: 500 } },
+  { id: "prestige_3", title: "طائر الفينيق", desc: "افعل Prestige 3 مرات", icon: "🔥", target: 3, type: "prestige", reward: { gems: 500 } },
   { id: "level_10", title: "متطور", desc: "اصل للمستوى 10", icon: "⭐", target: 10, type: "player_level", reward: { gold: 200, gems: 10 } },
   { id: "level_25", title: "مخضرم", desc: "اصل للمستوى 25", icon: "🌟", target: 25, type: "player_level", reward: { gold: 500, gems: 25 } },
   { id: "level_50", title: "أسطورة", desc: "اصل للمستوى 50", icon: "💫", target: 50, type: "player_level", reward: { gold: 1500, gems: 75 } },

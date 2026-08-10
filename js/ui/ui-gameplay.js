@@ -652,6 +652,7 @@ GameUI.prototype._renderAllianceOnboarding = function(container, am) {
   }
 
   container.innerHTML = `
+    <div class="panel-header">👑 التحالف (القبيلة)</div>
     <div class="tribal-tabs">
       <button class="tribal-tab-btn ${activeTab === "create" ? "active" : ""}" data-tab="create">🏜️ إنشاء قبيلة</button>
       <button class="tribal-tab-btn ${activeTab === "search" ? "active" : ""}" data-tab="search">🔍 بحث/انضمام</button>
