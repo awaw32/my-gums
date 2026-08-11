@@ -315,7 +315,7 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
             const lastActive = data.last_active || Date.now();
             const existing = memStore.get(username) || getDefaultPlayer(username);
             // مكافحة الغش — تحقق من معدل تغير الموارد
-            const { validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange, validateLandsStateChange } = require("../validation/player");
+            const { validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange, validateLandsStateChange, validateHeroChange } = require("../validation/player");
             const deltaCheck = validateResourceDelta(existing, data);
             if (!deltaCheck.ok) {
               logger.warn({ username, reason: deltaCheck.reason }, "AntiCheat rejection");
@@ -356,6 +356,13 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
               logger.warn({ username, reason: landsCheck.reason }, "AntiCheat rejection (landsState)");
               res.writeHead(409, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: landsCheck.reason }));
+              return;
+            }
+            const heroCheck = validateHeroChange(existing, data);
+            if (!heroCheck.ok) {
+              logger.warn({ username, reason: heroCheck.reason }, "AntiCheat rejection (hero)");
+              res.writeHead(409, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: heroCheck.reason }));
               return;
             }
             // 📊 تحليل مجهول: انتقال isNewPlayer من true إلى false = أكمل FTUE فعلاً لأول مرة
@@ -471,7 +478,7 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
         try {
           const data = JSON.parse(body);
           const existing = memStore.get(uname) || getDefaultPlayer(uname);
-          const { validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange, validateLandsStateChange } = require("../validation/player");
+          const { validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange, validateLandsStateChange, validateHeroChange } = require("../validation/player");
           const weaponsCheck = validateWeaponsChange(existing, data);
           if (!weaponsCheck.ok) {
             logger.warn({ uname, reason: weaponsCheck.reason }, "AntiCheat rejection (weapons/upgrades)");
@@ -505,6 +512,13 @@ function createApiRoutes({ databaseHelper, memStore, Player, getDefaultPlayer, m
             logger.warn({ uname, reason: landsCheck.reason }, "AntiCheat rejection (landsState/upgrades)");
             res.writeHead(409, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: landsCheck.reason }));
+            return;
+          }
+          const heroCheck = validateHeroChange(existing, data);
+          if (!heroCheck.ok) {
+            logger.warn({ uname, reason: heroCheck.reason }, "AntiCheat rejection (hero/upgrades)");
+            res.writeHead(409, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: heroCheck.reason }));
             return;
           }
           const updated = { ...existing };

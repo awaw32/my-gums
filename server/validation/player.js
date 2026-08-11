@@ -312,6 +312,45 @@ function validateLandsStateChange(existing, incoming) {
   return { ok: true };
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  🛡️ مكافحة الغش — البطل (js/hero.js) لا مسار WS له إطلاقاً، يُحسب بالكامل
+//  محلياً (hero.addXp من قتلات/بناء/ترقيات/فصول قصة/انتصارات PvP) ثم يُحفَظ
+//  عبر /api/players مباشرة بحقل hero: z.record(z.any()) بلا أي تحقق سيرفري.
+//  hero.level يُستهلَك فعلياً في damage/defense/powerContribution — قوة
+//  قتالية حقيقية يحسمها الخادم. أي عميل خبيث يرسل hero.level مزيَّفاً
+//  (hero:{level:50}) يحصل على ضرر/دفاع إضافيين حقيقيين فوراً بلا أي خبرة
+//  مكتسبة فعلياً.
+//
+//  لا يوجد جدول خبرة مشترك بين العميل (ESM) والخادم (CommonJS) لإعادة حساب
+//  المسار الدقيق، فنطبّق سقف قفزة واقعي بدلاً من ذلك: أقصى قفزة شرعية دفعة
+//  واحدة (لاعب بمستوى بطل 1 يكمل الفصل 6 بمكافأة 5000 heroXp في حفظة واحدة)
+//  محسوبة رياضياً = 12 مستوى. نسمح بـ20 (هامش أمان لخلط قتلات/PvP معها) —
+//  يمنع القفزة الفورية للحد الأقصى (50) دفعة واحدة، تماشياً مع أسلوب
+//  landsState أعلاه.
+// ═══════════════════════════════════════════════════════════════════
+const HERO_MAX_LEVEL = 50;
+const HERO_MAX_LEVEL_JUMP_PER_SAVE = 20;
+
+function validateHeroChange(existing, incoming) {
+  if (incoming.hero === undefined) return { ok: true };
+  if (typeof incoming.hero !== "object" || incoming.hero === null || Array.isArray(incoming.hero)) {
+    return { ok: false, reason: "invalid hero format" };
+  }
+  const newLevel = incoming.hero.level;
+  if (newLevel === undefined) return { ok: true };
+  if (typeof newLevel !== "number" || !Number.isInteger(newLevel) || newLevel < 1) {
+    return { ok: false, reason: "hero.level invalid" };
+  }
+  if (newLevel > HERO_MAX_LEVEL) {
+    return { ok: false, reason: "hero.level exceeds max" };
+  }
+  const oldLevel = existing.hero?.level || 1;
+  if (newLevel > oldLevel + HERO_MAX_LEVEL_JUMP_PER_SAVE) {
+    return { ok: false, reason: "hero.level jump rejected" };
+  }
+  return { ok: true };
+}
+
 function validateEquippedWeapon(existing, incoming) {
   if (incoming.equippedWeapon === undefined) return { ok: true };
   if (incoming.equippedWeapon === "") return { ok: true };
@@ -349,4 +388,4 @@ function validateProgressionChange(existing, incoming) {
   return { ok: true };
 }
 
-module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange, validateLandsStateChange, PLAYER_MAX_LEVEL, OASIS_CAPTURE_DATA, LANDS_BUILDING_MAX_LEVEL };
+module.exports = { sanitizePlayerData, PlayerSaveSchema, validateResourceDelta, validateWeaponsChange, validateEquippedWeapon, validateProgressionChange, validateOasesChange, validateLandsStateChange, validateHeroChange, PLAYER_MAX_LEVEL, OASIS_CAPTURE_DATA, LANDS_BUILDING_MAX_LEVEL, HERO_MAX_LEVEL };
